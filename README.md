@@ -116,7 +116,7 @@ tetra-zynq-phy/
 ### Clone
 
 ```bash
-git clone --recurse-submodules https://github.com/YOUR_USERNAME/tetra-zynq-phy.git
+git clone --recurse-submodules https://github.com/silencer79/tetra-zynq-phy.git
 cd tetra-zynq-phy
 ```
 
