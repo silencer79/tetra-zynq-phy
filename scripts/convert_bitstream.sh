@@ -6,17 +6,17 @@
 # (.bit.bin) for dynamic FPGA loading without JTAG.
 #
 # Usage:
-# ./scripts/convert_bitstream.sh
+#   ./scripts/convert_bitstream.sh
 #
 # Prerequisites:
-# - Vivado 2022.2 installed and sourced
-# - build/tetra_zynq_phy.bit exists (from run_build.sh or vivado_build.tcl)
+#   - Vivado 2022.2 installed and sourced
+#   - build/tetra_zynq_phy.bit exists (from run_build.sh or vivado_build.tcl)
 #
 # Output:
-# build/tetra_zynq_phy.bit.bin — Linux-compatible bitstream
+#   build/tetra_zynq_phy.bit.bin — Linux-compatible bitstream
 # =============================================================================
 
-set -e # Exit on error
+set -e  # Exit on error
 
 # -----------------------------------------------------------------------------
 # Configuration
@@ -39,18 +39,18 @@ echo ""
 
 # Check Vivado environment
 if ! command -v bootgen &> /dev/null; then
- echo "ERROR: bootgen not found. Please source Vivado environment:"
- echo " source /opt/Xilinx/Vivado/2022.2/settings64.sh"
- exit 1
+    echo "ERROR: bootgen not found. Please source Vivado environment:"
+    echo "  source /opt/Xilinx/Vivado/2022.2/settings64.sh"
+    exit 1
 fi
 
 # Check input files
 if [ ! -f "$BIT_FILE" ]; then
- echo "ERROR: Bitstream not found: $BIT_FILE"
- echo "Please run build first:"
- echo " source /opt/Xilinx/Vivado/2022.2/settings64.sh"
- echo " vivado -mode batch -source scripts/vivado_build.tcl"
- exit 1
+    echo "ERROR: Bitstream not found: $BIT_FILE"
+    echo "Please run build first:"
+    echo "  source /opt/Xilinx/Vivado/2022.2/settings64.sh"
+    echo "  vivado -mode batch -source scripts/vivado_build.tcl"
+    exit 1
 fi
 
 # -----------------------------------------------------------------------------
@@ -62,38 +62,29 @@ echo "Output: $BIN_FILE"
 echo ""
 
 # Create conversion BIF file (Boot Image Format)
+# For simple bitstream conversion, we use the minimal BIF format
 BIF_FILE="${BUILD_DIR}/${BITSTREAM}.bif"
 cat > "$BIF_FILE" << EOF
-the_fpga_pblock:
+all:
 {
- bootgen_config ;
- image
- {
- name = tetra_zynq_phy.bit.bin;
- id = 0x0;
- type = bitstream;
- compression = none;
- pblock_0
- {
- file = $BIT_FILE;
- type = bitstream;
- alignment = 8;
- }
- }
+	bitstream
+	{
+		file = $BIT_FILE;
+	}
 }
 EOF
 
 echo "Step 1/2: Creating BIF configuration..."
-echo " $BIF_FILE"
+echo "  $BIF_FILE"
 
 echo ""
 echo "Step 2/2: Converting bitstream..."
-echo " bootgen -w on -process_bitstream bin -image $BIF_FILE -o $BIN_FILE"
+echo "  bootgen -w on -process_bitstream bin -image $BIF_FILE -o $BIN_FILE"
 
 # Run bootgen
 bootgen -w on -process_bitstream bin \
- -image "$BIF_FILE" \
- -o "$BIN_FILE"
+	-image "$BIF_FILE" \
+	-o "$BIN_FILE"
 
 # -----------------------------------------------------------------------------
 # Verification
@@ -103,22 +94,22 @@ echo ""
 echo "Verifying output..."
 
 if [ ! -f "$BIN_FILE" ]; then
- echo "ERROR: Conversion failed — output file not created"
- exit 1
+    echo "ERROR: Conversion failed — output file not created"
+    exit 1
 fi
 
 FILE_SIZE=$(stat -c %s "$BIN_FILE" 2>/dev/null || stat -f %z "$BIN_FILE")
-echo " File size: $FILE_SIZE bytes"
+echo "  File size: $FILE_SIZE bytes"
 
 if [ "$FILE_SIZE" -lt 100000 ]; then
- echo "WARNING: Output file seems too small (expected ~4 MB)"
- echo " Conversion may have failed"
- exit 1
+    echo "WARNING: Output file seems too small (expected ~4 MB)"
+    echo "  Conversion may have failed"
+    exit 1
 fi
 
 # Check file type
 FILE_TYPE=$(file -b "$BIN_FILE")
-echo " File type: $FILE_TYPE"
+echo "  File type: $FILE_TYPE"
 
 echo ""
 echo "✅ Conversion successful!"
@@ -126,14 +117,14 @@ echo ""
 echo "Output: $BIN_FILE"
 echo ""
 echo "Next steps:"
-echo " 1. Transfer to LibreSDR:"
-echo " scp $BIN_FILE root@192.168.2.180:/lib/firmware/tetra/"
+echo "  1. Transfer to LibreSDR:"
+echo "     scp $BIN_FILE root@192.168.2.180:/lib/firmware/tetra/"
 echo ""
-echo " 2. Load via FPGA Manager:"
-echo " ssh root@192.168.2.180 'echo tetra/${BITSTREAM}.bit.bin > /sys/class/fpga_manager/fpga0/firmware'"
-echo " ssh root@192.168.2.180 'echo 1 > /sys/class/fpga_manager/fpga0/flags'"
+echo "  2. Load via FPGA Manager:"
+echo "     ssh root@192.168.2.180 'echo tetra/${BITSTREAM}.bit.bin > /sys/class/fpga_manager/fpga0/firmware'"
+echo "     ssh root@192.168.2.180 'echo 1 > /sys/class/fpga_manager/fpga0/flags'"
 echo ""
-echo " 3. Follow deploy_workflow.md for complete procedure"
+echo "  3. Follow deploy_workflow.md for complete procedure"
 echo ""
 
 # =============================================================================
