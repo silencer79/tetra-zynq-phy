@@ -62,15 +62,12 @@ echo "Output: $BIN_FILE"
 echo ""
 
 # Create conversion BIF file (Boot Image Format)
-# For simple bitstream conversion, we use the minimal BIF format
+# Use OpenWiFi-proven minimal syntax: just filename inside braces
 BIF_FILE="${BUILD_DIR}/${BITSTREAM}.bif"
 cat > "$BIF_FILE" << EOF
 all:
 {
-	bitstream
-	{
-		file = $BIT_FILE;
-	}
+	${BITSTREAM}.bit
 }
 EOF
 
