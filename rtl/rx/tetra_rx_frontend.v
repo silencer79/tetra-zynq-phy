@@ -80,7 +80,7 @@ module tetra_rx_frontend #(
     input  wire                         rst_n_sys,
 
     // ------------------------------------------------------------------
-    // LVDS clock domain — from tetra_ad9361_interface
+    // LVDS clock domain — from axi_ad9361 IP (via tetra_ad9361_axis_adapter)
     // ------------------------------------------------------------------
     input  wire                         clk_lvds,
     input  wire                         rst_n_lvds,

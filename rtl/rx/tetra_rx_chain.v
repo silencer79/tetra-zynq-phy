@@ -35,7 +35,7 @@ module tetra_rx_chain #(
     input  wire              clk_lvds,
     input  wire              rst_n_lvds,
 
-    // Raw IQ from tetra_ad9361_interface
+    // Raw IQ from axi_ad9361 IP (via tetra_ad9361_axis_adapter)
     input  wire signed [IQ_WIDTH-1:0] rx_i_lvds,
     input  wire signed [IQ_WIDTH-1:0] rx_q_lvds,
     input  wire                       rx_valid_lvds,

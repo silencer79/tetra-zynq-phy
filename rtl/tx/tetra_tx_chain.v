@@ -63,7 +63,7 @@ module tetra_tx_chain #(
     input  wire              clk_lvds,
     input  wire              rst_n_lvds,
 
-    // Output to tetra_ad9361_interface
+    // Output to axi_ad9361 IP (via tetra_ad9361_axis_adapter)
     output wire signed [IQ_WIDTH-1:0] tx_i_lvds,
     output wire signed [IQ_WIDTH-1:0] tx_q_lvds,
     output wire                       tx_valid_lvds,
