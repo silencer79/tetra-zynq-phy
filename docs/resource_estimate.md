@@ -172,3 +172,77 @@ If DMR Tier II repeater runs simultaneously on the same Zynq-7020:
 - DMR estimate: ~4000 LUT, ~2000 FF, 16 DSP48, 8 BRAM18k
 - Combined: ~10000 LUT (~19%), ~5000 FF (~5%), ~48 DSP48 (~22%), ~24 BRAM18k (~9%)
 - Remains well within Zynq-7020 capacity
+
+---
+
+## Actual Synthesis Results (2026-04-07)
+
+**Build:** Vivado 2022.2, Implementation Complete (Post-Route)
+
+| Resource | Used | Available | Utilization | Status |
+|----------|------|-----------|-------------|--------|
+| **Slice LUTs** | 10,839 | 53,200 | **20.37%** | ✅ Good |
+| **Slice Registers** | 16,535 | 106,400 | **15.54%** | ✅ Good |
+| **DSP48E1** | 20 | 220 | **9.09%** | ✅ Excellent |
+| **Block RAM Tile** | 4 | 140 | **2.86%** | ✅ Excellent |
+| RAMB36/FIFO | 3 | 140 | 2.14% | |
+| RAMB18 | 2 | 280 | 0.71% | |
+| **Slices** | 5,221 | 13,300 | **39.26%** | ⚠️ Moderate |
+| **Bonded IOB** | 57 | 125 | 45.60% | ✅ |
+
+### Detailed Logic Distribution
+- LUT as Logic: 10,358 (19.47%)
+- LUT as Memory: 481 (2.76%)
+  - LUT as Distributed RAM: 86
+  - LUT as Shift Register: 395
+- F7 Muxes: 188 (0.71%)
+- F8 Muxes: 0
+
+### Timing Summary
+| Constraint | Status | Worst Slack | Total Violation |
+|------------|--------|-------------|-----------------|
+| Setup | **MET** | 0.043ns | 0.000ns |
+| Hold | **MET** | 0.023ns | 0.000ns |
+| Pulse Width | **MET** | 3.750ns | 0.000ns |
+
+**Critical Path Analysis:**
+- Path: `rx_frontend.mac_cnt` → DSP48E1 (MAC accumulator)
+- Margin: **43ps** (very tight!)
+- Data Path Delay: 5.779ns (logic 1.295ns, route 4.484ns)
+- Logic Levels: 4 (LUT6×2, MUXF7×2)
+- Clock Domain: `clk_fpga_0` (100 MHz)
+- **Recommendation:** Pipeline RX Frontend for better timing margin
+
+### Clock Domain Crossing (CDC) Report
+
+| From | To | Status | Safe | Unsafe | Unknown |
+|------|------|--------|------|--------|---------|
+| rx_clk | clk_fpga_0 | ⚠️ CRITICAL | 101 | 0 | 74 |
+| clk_fpga_0 | rx_clk | ⚠️ CRITICAL | 56 | **79** | 31 |
+
+**CDC Issues:**
+- **79 unsafe crossings** from `clk_fpga_0` → `rx_clk`
+- Missing ASYNC_REG attributes on synchronizers
+- **Action Required:** Review CDC redesign, add proper synchronization
+
+### ILA Debug Cores
+
+**Bitstream with ILA:** `build/tetra_zynq_phy.bit` (3.9 MB)
+**LTX Probes File:** `build/tetra_zynq_phy.ltx` (7.0 KB)
+
+**ILA Instances:**
+- `u_ila_lvds` — 2 probes, depth 4096 (LVDS domain)
+- `u_ila_sys` — 5 probes, depth 4096 (sys domain)
+
+**Debug Signals Captured:**
+- `dbg_adc_valid_i0_lvds` — ADC data valid
+- `dbg_rx_valid_lvds` — RX path valid
+- `dbg_sync_found_sys` — TETRA sync detected
+- `dbg_sync_locked_sys` — Sync lock state
+- `dbg_m_axis_tready_sys` — AXIS ready
+- `dbg_m_axis_tvalid_sys` — AXIS valid
+- `dbg_o_irq_sys` — IRQ output
+
+> **Build Date:** 2026-04-06 23:37
+> **Note:** Actual values from Vivado post-route implementation.
+> **Phase 3 complete (2026-04-05):** 23/23 RTL modules, 23/23 TB, 23/23 PASS.
