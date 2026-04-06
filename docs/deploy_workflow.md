@@ -53,7 +53,31 @@ ls -lh build/tetra_zynq_phy.ltx
 
 Convert Vivado `.bit` format to Linux FPGA Manager `.bit.bin` format.
 
-### Step 2.1: Run Conversion Script
+**Prerequisites:**
+- ✅ Bitstream: `build/tetra_zynq_phy.bit` (from Phase 1)
+- ✅ XSA File: `build/tetra_zynq_phy.xsa` (hardware definition)
+
+### Step 2.1: Generate XSA (if missing)
+
+If the XSA file doesn't exist, export it from the implemented design checkpoint:
+
+```bash
+# Check if XSA exists
+ls -l build/tetra_zynq_phy.xsa
+
+# If missing, export from checkpoint
+source /opt/Xilinx/Vivado/2022.2/settings64.sh
+vivado -mode batch -source scripts/export_xsa.tcl
+
+# Output: build/tetra_zynq_phy.xsa
+```
+
+**What happens:**
+- Opens post-implementation checkpoint (`build/post_route.dcp`)
+- Exports hardware platform including bitstream
+- No re-synthesis required
+
+### Step 2.2: Run Conversion Script
 
 ```bash
 ./scripts/convert_bitstream.sh
@@ -63,6 +87,7 @@ Convert Vivado `.bit` format to Linux FPGA Manager `.bit.bin` format.
 
 **What happens:**
 - Uses Xilinx `bootgen` tool
+- Reads XSA file for hardware metadata
 - Adds Linux-specific headers for FPGA Manager
 - Creates BIN-formatted bitstream
 
