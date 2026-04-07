@@ -42,7 +42,7 @@ set PART "xc7z020clg400-1"
 # Set ENABLE_ILA_DEBUG to 0 for production (timing-clean, no ILA overhead)
 # Set ENABLE_ILA_DEBUG to 1 for debug (ILA enabled, timing violations in ILA)
 # =============================================================================
-set ENABLE_ILA_DEBUG 0 ; # 0 = Production build, 1 = Debug build with ILA
+set ENABLE_ILA_DEBUG 1 ; # 0 = Production build, 1 = Debug build with ILA
 
 # Forward ADI_HDL_DIR to create_bd.tcl if set in environment
 if {[info exists env(ADI_HDL_DIR)]} {
@@ -281,7 +281,15 @@ if {$ENABLE_ILA_DEBUG && [llength $debug_nets] > 0} {
  puts " Created $name: [llength $probe_nets] probe(s), depth=$depth"
  }
 
- create_ila u_ila_lvds 4096 $l_clk_net $lvds_nets
+ # ========================================================================
+ # ILA Clock Domain Strategy (2026-04-07 Fix):
+ # - REMOVED: u_ila_lvds (l_clk domain)
+ #   REASON: l_clk = AD9361 DATA_CLK, requires AD9361 SPI config to be active.
+ #   Without AD9361 init software, debug hub clock is dead → ILA undetectable.
+ # - KEPT: u_ila_sys (clk_sys = FCLK_CLK0 @ 100 MHz)
+ #   REASON: Always active after FPGA program, independent of AD9361 state.
+ # ========================================================================
+ # create_ila u_ila_lvds 4096 $l_clk_net $lvds_nets  # DISABLED — l_clk not available without AD9361 init
  create_ila u_ila_sys 4096 $clk_sys_net $sys_nets
 
  implement_debug_core
