@@ -525,41 +525,84 @@ tetra_axi_dma_bridge #(
 
 // =============================================================================
 // TX Chain — burst assembly → π/4-DQPSK → RRC → CIC → AD9361
-// Phase 3: idle bursts (burst_type=2) for all slots unless slot_en set
-// TODO Phase 4: wire MM2S DMA input to burst_mux slot data buses
+// Phase 4: Free-running TX timer + SB burst support for base station operation
 // =============================================================================
 
-// TX timing: reuse RX slot_valid as TX slot trigger (loopback timing)
-// In full-duplex operation this would come from a TX frame counter.
-assign tx_slot_pulse_sys_w = rx_slot_valid_sys;
+// TX Self-Timer: generates slot pulses independently of RX
+// 100 MHz / 18,000 sym/s × 255 sym/slot = 1,416,667 cycles per timeslot
+localparam TX_SLOT_CYCLES = 21'd1_416_667;
 
+reg [20:0] tx_timer_sys;
+reg [1:0] tx_slot_cnt_sys;
+reg tx_slot_pulse_free_sys;
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ tx_timer_sys <= 21'd0;
+ tx_slot_cnt_sys <= 2'd0;
+ tx_slot_pulse_free_sys <= 1'b0;
+ end else if (tx_timer_sys == TX_SLOT_CYCLES - 21'd1) begin
+ tx_timer_sys <= 21'd0;
+ tx_slot_cnt_sys <= tx_slot_cnt_sys + 2'd1; // Wraps 0→1→2→3→0...
+ tx_slot_pulse_free_sys <= 1'b1;
+ end else begin
+ tx_timer_sys <= tx_timer_sys + 21'd1;
+ tx_slot_pulse_free_sys <= 1'b0;
+ end
+end
+
+// Use free-running timer for TX (BUG-01 fix)
 wire tx_slot_pulse_sys_w;
+assign tx_slot_pulse_sys_w = tx_slot_pulse_free_sys;
+
+// SB data for base station operation (minimal: colour_code + zeros)
+// TODO: Wire to AXI-Lite registers or LMAC when available
+wire [239:0] sb_bkn1_data_sys; // BSCH: 120 symbols = 240 bits
+wire [215:0] sb_bkn2_data_sys; // BNCH: 108 symbols = 216 bits
+wire [27:0] sb_bb_data_sys; // BB: 14 symbols = 28 bits
+
+// Minimal SB content: colour_code in upper bits, rest zeros
+assign sb_bkn1_data_sys = {colour_code_axi, 234'b0}; // BSCH with colour_code
+assign sb_bkn2_data_sys = 216'b0; // BNCH empty for now
+assign sb_bb_data_sys = 28'b0; // BB empty for now
+
+// Burst type per slot: Slot 0 = SB, others = Idle (for base station)
+wire [7:0] slot_burst_type_sys; // 2 bits per slot: 0=NDB, 1=SB, 2=Idle
+assign slot_burst_type_sys = 8'b00000101; // Slot 0: SB (01), Slots 1-3: Idle (10)
 
 tetra_tx_chain #(
-    .IQ_WIDTH  (IQ_WIDTH),
-    .BLOCK_BITS(BLOCK_BITS),
-    .BB_BITS   (BB_BITS)
-) u_tx_chain (
-    .clk_sys          (clk_sys),
-    .rst_n_sys        (rst_n_sys),
-    // Slot payload buses — all zeros → idle bursts in Phase 3
-    .block1_sys       ({(4*BLOCK_BITS){1'b0}}),
-    .block2_sys       ({(4*BLOCK_BITS){1'b0}}),
-    .bb_sys           ({(4*BB_BITS){1'b0}}),
-    .slot_en_sys      (4'b0000),       // all slots → idle burst (no TX payload)
-    // TX timing from RX sync (loopback mode)
-    .tx_slot_num_sys  (timeslot_num_sys),
-    .tx_slot_pulse_sys(tx_slot_pulse_sys_w),
-    // clk_lvds domain
-    .clk_lvds         (clk_lvds),
-    .rst_n_lvds       (rst_n_lvds),
-    // TX IQ output to AD9361
-    .tx_i_lvds        (tx_i_lvds),
-    .tx_q_lvds        (tx_q_lvds),
-    .tx_valid_lvds    (tx_valid_lvds),
-    // Status
-    .tx_busy_sys      ()
-);
+        .IQ_WIDTH (IQ_WIDTH),
+        .BLOCK_BITS(BLOCK_BITS),
+        .BB_BITS (BB_BITS),
+        .BKN1_SB_BITS(240),
+        .BB_SB_BITS (28)
+    ) u_tx_chain (
+        .clk_sys (clk_sys),
+        .rst_n_sys (rst_n_sys),
+        // Slot payload buses (NDB) — zeros for now
+        .block1_sys ({(4*BLOCK_BITS){1'b0}}),
+        .block2_sys ({(4*BLOCK_BITS){1'b0}}),
+        .bb_sys ({(4*BB_BITS){1'b0}}),
+        // SB payload — used for slot 0 (base station sync burst)
+        .sb_bkn1_data_sys (sb_bkn1_data_sys),
+        .sb_bkn2_data_sys (sb_bkn2_data_sys),
+        .sb_bb_data_sys (sb_bb_data_sys),
+        // Per-slot configuration
+        .slot_en_sys (4'b0001), // Slot 0 enabled (BUG-04 fix)
+        .slot_burst_type_sys(slot_burst_type_sys),
+        // TX timing from free-running timer (BUG-01 fix)
+        .tx_slot_num_sys (tx_slot_cnt_sys),
+        .tx_slot_pulse_sys(tx_slot_pulse_sys_w),
+        // clk_lvds domain
+        .clk_lvds (clk_lvds),
+        .rst_n_lvds (rst_n_lvds),
+        // TX IQ output to AD9361
+        .tx_i_lvds (tx_i_lvds),
+        .tx_q_lvds (tx_q_lvds),
+        .tx_valid_lvds (tx_valid_lvds),
+        // Status
+        .tx_busy_sys ()
+    );
 
 // =============================================================================
 // 2-FF synchronizers: clk_sys → s_axi_aclk domain
