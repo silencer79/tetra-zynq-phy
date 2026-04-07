@@ -12,12 +12,22 @@
 # Defaults:
 #   --host       192.168.2.180
 #   --freq       430000000   (430 MHz, TETRA 70cm Amateur)
-#   --samplerate 4096000     (4.096 MSPS → CIC decimiert auf ~18 kHz Symboltakt)
-#   --gain       40          (40 dB, manual mode; 0 für slow_attack AGC)
+#   --samplerate 4608000     (4.608 MSPS → CIC R=64 → 72 kHz = 4× Symbolrate)
+#   --gain       40          (40 dB, manual mode; --agc für slow_attack)
+#
+# Board-Spezifika (LibreSDR + OpenWiFi-Kernel 5.10.0-98248):
+#   - AD9361 IIO-Treiber ist NICHT im Kernel — muss per insmod geladen werden:
+#       insmod /root/kernel_modules32/ad9361_drv.ko
+#   - iio_attr-Syntax: -c <device> <channel> <attr> [value]  (NICHT -d und -c kombinieren)
+#   - driver_override auf spi0.0 muss geleert sein bevor bind funktioniert:
+#       echo '' > /sys/bus/spi/devices/spi0.0/driver_override
+#   - AD9361 IIO-Device: ad9361-phy (iio:device1)
+#   - Kanäle: voltage0 (RX), voltage1 (TX), altvoltage0 (RX_LO), altvoltage1 (TX_LO)
 #
 # Voraussetzungen auf dem Zielsystem:
-#   - OpenWifi Linux mit ADI AD9361 IIO-Treiber
-#   - iio_attr / libiio installiert
+#   - OpenWiFi Linux (5.10.0-98248-g1bbe32fa5182-dirty)
+#   - /root/kernel_modules32/ad9361_drv.ko vorhanden
+#   - iio_attr (libiio 0.24) installiert
 # =============================================================================
 
 set -euo pipefail
@@ -27,9 +37,9 @@ SSH_HOST="192.168.2.180"
 SSH_USER="root"
 SSH_PASS="openwifi"
 RX_FREQ_HZ=430000000
-SAMPLERATE_HZ=4096000
+SAMPLERATE_HZ=4608000
 RX_GAIN_DB=40
-GAIN_MODE="manual"    # manual | slow_attack | fast_attack
+GAIN_MODE="slow_attack"    # manual | slow_attack | fast_attack
 
 # --- Argument Parsing ---
 while [[ $# -gt 0 ]]; do
@@ -69,85 +79,117 @@ if ! ${SSH_CMD} "echo OK" &>/dev/null; then
 fi
 echo "SSH OK"
 
-# --- AD9361 IIO-Device finden ---
+# --- AD9361 Kernel-Treiber laden (OpenWiFi-Kernel hat keinen eingebauten ad9361) ---
 echo ""
-echo "--- AD9361 IIO-Device suchen ---"
-IIO_DEV=$( ${SSH_CMD} "iio_attr -s 2>/dev/null | grep -i 'ad9361' | head -1 | awk '{print \$1}'" || true )
-
-if [[ -z "${IIO_DEV}" ]]; then
-    echo "WARN: iio_attr -s liefert kein ad9361-Device."
-    echo "     Versuche direkt über /sys/bus/iio ..."
-    IIO_DEV=$( ${SSH_CMD} "grep -r 'ad9361-phy' /sys/bus/iio/devices/*/name 2>/dev/null | head -1 | sed 's|/sys/bus/iio/devices/||;s|/name:.*||'" || true )
+echo "--- AD9361 Kernel-Treiber laden ---"
+# Auf dem LibreSDR mit OpenWiFi-Kernel (5.10.0-98248) ist ad9361 als Modul
+# kompiliert aber NICHT installiert. /root/kernel_modules32/ad9361_drv.ko
+# ist die korrekte 32-Bit Version.
+AD9361_MODULE_OK=0
+if ${SSH_CMD} "lsmod | grep -q ad9361_drv" 2>/dev/null; then
+    echo "ad9361_drv bereits geladen"
+    AD9361_MODULE_OK=1
+elif ${SSH_CMD} "[ -f /root/kernel_modules32/ad9361_drv.ko ]" 2>/dev/null; then
+    ${SSH_CMD} "insmod /root/kernel_modules32/ad9361_drv.ko" 2>/dev/null && \
+        echo "ad9361_drv geladen" && AD9361_MODULE_OK=1 || \
+        echo "WARN: insmod fehlgeschlagen"
+else
+    echo "WARN: /root/kernel_modules32/ad9361_drv.ko nicht gefunden"
 fi
+
+# --- spi0.0 an ad9361 binden ---
+echo ""
+echo "--- AD9361 SPI-Binding ---"
+# Prüfen ob IIO-Device bereits vorhanden
+AD9361_IIO_READY=$( ${SSH_CMD} \
+    "cat /sys/bus/iio/devices/*/name 2>/dev/null | grep -c ad9361-phy" || echo "0" )
+
+if [[ "${AD9361_IIO_READY}" == "0" && "${AD9361_MODULE_OK}" == "1" ]]; then
+    # driver_override leeren (verhindert sonst das Binden)
+    ${SSH_CMD} "echo '' > /sys/bus/spi/devices/spi0.0/driver_override 2>/dev/null" || true
+    # Ggf. vorhandenen Driver lösen
+    ${SSH_CMD} "echo spi0.0 > /sys/bus/spi/drivers/spidev/unbind 2>/dev/null" || true
+    ${SSH_CMD} "echo spi0.0 > /sys/bus/spi/drivers/ad9361/unbind 2>/dev/null" || true
+    sleep 0.5
+    # Ad9361 binden
+    ${SSH_CMD} "echo spi0.0 > /sys/bus/spi/drivers/ad9361/bind 2>/dev/null"
+    sleep 3
+fi
+
+# IIO-Device prüfen
+IIO_DEV=$( ${SSH_CMD} \
+    "grep -rl 'ad9361-phy' /sys/bus/iio/devices/*/name 2>/dev/null | \
+     sed 's|/sys/bus/iio/devices/||;s|/name||' | head -1" || true )
 
 if [[ -z "${IIO_DEV}" ]]; then
     echo "ERROR: AD9361 IIO-Device nicht gefunden!"
-    echo "Ausgabe von iio_info:"
-    ${SSH_CMD} "iio_info 2>/dev/null | head -40" || true
+    echo "dmesg:"
+    ${SSH_CMD} "dmesg | grep -i ad9361 | tail -5" || true
     exit 1
 fi
 echo "AD9361 IIO-Device: ${IIO_DEV}"
 
-# Hilfsfunktion: Attribut setzen mit Fehlerbehandlung
-iio_set() {
-    local attr="$1"
-    local value="$2"
-    echo "  SET ${attr} = ${value}"
-    if ! ${SSH_CMD} "iio_attr -d ad9361-phy ${attr} ${value}" &>/dev/null; then
-        echo "  WARN: iio_attr fehlgeschlagen für ${attr}, versuche /sys ..."
-        ${SSH_CMD} "echo ${value} > /sys/bus/iio/devices/${IIO_DEV}/${attr}" 2>/dev/null || \
-            echo "  WARN: Auch /sys-Pfad fehlgeschlagen, übersprungen."
-    fi
+# Hilfsfunktionen — libiio 0.24 Syntax: -c <device> <channel> <attr> [value]
+iio_set_ch() {
+    local channel="$1"
+    local attr="$2"
+    local value="$3"
+    local result
+    result=$( ${SSH_CMD} "iio_attr -c ad9361-phy ${channel} ${attr} ${value} 2>&1" )
+    echo "  ${channel}/${attr} = ${result}"
 }
 
-iio_get() {
+iio_get_ch() {
+    local channel="$1"
+    local attr="$2"
+    ${SSH_CMD} "iio_attr -c ad9361-phy ${channel} ${attr} 2>/dev/null | head -1"
+}
+
+iio_set_dev() {
     local attr="$1"
-    ${SSH_CMD} "iio_attr -d ad9361-phy ${attr} 2>/dev/null || cat /sys/bus/iio/devices/${IIO_DEV}/${attr} 2>/dev/null || echo '?'"
+    local value="$2"
+    local result
+    result=$( ${SSH_CMD} "iio_attr -d ad9361-phy ${attr} ${value} 2>&1" )
+    echo "  dev/${attr} = ${result}"
 }
 
 echo ""
-echo "--- AD9361 konfigurieren ---"
+echo "--- AD9361 TETRA-Konfiguration ---"
 
-# 1. Samplerate (muss vor LO-Frequenz gesetzt werden)
-iio_set "in_voltage_sampling_frequency" "${SAMPLERATE_HZ}"
-iio_set "out_voltage_sampling_frequency" "${SAMPLERATE_HZ}"
-
-# 2. RX LO-Frequenz
-iio_set "out_altvoltage0_RX_LO_frequency" "${RX_FREQ_HZ}"
-
-# 3. TX LO-Frequenz (10 MHz über RX = TETRA-Duplex-Abstand)
 TX_FREQ_HZ=$(( RX_FREQ_HZ + 10000000 ))
-iio_set "out_altvoltage1_TX_LO_frequency" "${TX_FREQ_HZ}"
+BW_HZ=$(( SAMPLERATE_HZ * 5 / 4 ))
 
-# 4. RX RF-Port: A_BALANCED (Standard für LibreSDR Rx-Eingang)
-iio_set "in_voltage0_rf_port_select" "A_BALANCED"
-iio_set "in_voltage1_rf_port_select" "A_BALANCED"
+# 1. Samplerate RX (setzt automatisch BBPLL + Decimation)
+iio_set_ch "voltage0" "sampling_frequency" "${SAMPLERATE_HZ}"
 
-# 5. Gain-Mode
-iio_set "in_voltage0_gain_control_mode" "${GAIN_MODE}"
+# 2. LO-Frequenzen
+iio_set_ch "altvoltage0" "frequency" "${RX_FREQ_HZ}"
+iio_set_ch "altvoltage1" "frequency" "${TX_FREQ_HZ}"
+
+# 3. RX RF-Port + Gain
+iio_set_ch "voltage0" "rf_port_select" "A_BALANCED"
+iio_set_ch "voltage0" "gain_control_mode" "${GAIN_MODE}"
 if [[ "${GAIN_MODE}" == "manual" ]]; then
-    iio_set "in_voltage0_hardwaregain" "${RX_GAIN_DB}"
+    iio_set_ch "voltage0" "hardwaregain" "${RX_GAIN_DB}"
 fi
 
-# 6. Bandwidth: 1.25× Samplerate (ADI Empfehlung)
-BW_HZ=$(( SAMPLERATE_HZ * 5 / 4 ))
-iio_set "in_voltage_rf_bandwidth" "${BW_HZ}"
-iio_set "out_voltage_rf_bandwidth" "${BW_HZ}"
+# 4. Bandbreite
+iio_set_ch "voltage0" "rf_bandwidth" "${BW_HZ}"
 
-# 7. LVDS sicherstellen (OpenWifi konfiguriert das i.d.R. schon korrekt)
-# iio_set "in_voltage_lo_powerdown" "0"   # RX-PLL ein
+# 5. FDD-Modus (Duplex, für gleichzeitigen RX+TX)
+iio_set_dev "ensm_mode" "fdd"
 
 echo ""
 echo "--- Verifizierung ---"
-echo "  RX LO Freq:    $(iio_get out_altvoltage0_RX_LO_frequency) Hz"
-echo "  Samplerate:    $(iio_get in_voltage_sampling_frequency) sps"
-echo "  Gain Mode:     $(iio_get in_voltage0_gain_control_mode)"
-if [[ "${GAIN_MODE}" == "manual" ]]; then
-    echo "  RX Gain:       $(iio_get in_voltage0_hardwaregain) dB"
-fi
+echo -n "  RX LO: " && iio_get_ch "altvoltage0" "frequency"
+echo -n "  TX LO: " && iio_get_ch "altvoltage1" "frequency"
+echo -n "  SR:    " && iio_get_ch "voltage0" "sampling_frequency"
+echo -n "  Gain:  " && iio_get_ch "voltage0" "gain_control_mode"
+echo -n "  Rates: " && ${SSH_CMD} "iio_attr -d ad9361-phy rx_path_rates 2>/dev/null"
 
 echo ""
 echo "=== AD9361 Initialisierung abgeschlossen ==="
-echo "AD9361 sollte jetzt IQ-Daten an FPGA-Fabric liefern."
-echo "Warte ~1s auf PLL-Lock ..."
+echo "AD9361 liefert jetzt IQ-Daten an FPGA-Fabric."
+echo "Warte 1s auf PLL-Lock ..."
 sleep 1
+echo "Bereit für ILA-Capture oder TETRA-Empfang."

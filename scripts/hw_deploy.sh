@@ -194,6 +194,12 @@ else
 fi
 
 # =============================================================================
+# HINWEIS: Nach JTAG-Reprogram setzt die FPGA-Fabric zurück.
+# Der ad9361-Treiber auf dem Board muss danach neu gebunden werden.
+# Das erledigt ad9361_init.sh automatisch (insmod + bind).
+# =============================================================================
+
+# =============================================================================
 # Schritt 3: AD9361 initialisieren
 # =============================================================================
 STEP "Schritt 3/4: AD9361 initialisieren (SSH)"

@@ -127,17 +127,18 @@
 
 ### Immediate (2026-04-07)
 
-1. **AXI AD9361 Integration**
-   - [ ] Create Vivado Block Design with axi_ad9361 IP
-   - [ ] Update top-level constraints (remove LVDS pins)
-   - [ ] Synthesize + implement
-   - [ ] Verify timing closure
+1. **AXI AD9361 Integration** ✅ ABGESCHLOSSEN
+   - [x] Block Design mit axi_ad9361 IP erstellt
+   - [x] Constraints aktualisiert
+   - [x] Synthesize + Implement — **WNS = +0.017 ns** ✅
+   - [x] Timing Closure erreicht
 
-2. **Hardware Testing**
-   - [ ] Program LibreSDR board
-   - [ ] ILA capture debug infrastructure
-   - [ ] AD9361 SPI initialization
-   - [ ] RX path smoke test
+2. **Hardware Testing** — IN ARBEIT
+   - [x] LibreSDR per JTAG programmiert
+   - [x] ILA (u_ila_sys) mit 5 Probes aktiv
+   - [x] AD9361 initialisiert (430 MHz / 4.608 MSPS)
+   - [ ] ILA-Capture: sync_found / sync_locked beobachten
+   - [ ] RX path Smoke Test mit Antenne / TETRA-Signal
 
 ### Future
 
