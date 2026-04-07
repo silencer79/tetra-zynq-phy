@@ -26,7 +26,7 @@ connect_hw_server -url localhost:3121
 
 # Get first target (adjust if multiple cables connected)
 open_hw_target [get_hw_targets]
-current_hw_device [get_hw_devices xc7z020_0]
+current_hw_device [get_hw_devices xc7z020_1]
 
 # Program
 set_property PROGRAM.FILE $BIT_FILE [current_hw_device]

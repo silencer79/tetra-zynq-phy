@@ -63,7 +63,7 @@ Convert Vivado `.bit` format to Linux FPGA Manager `.bit.bin` format.
 # Ensure Vivado environment is sourced
 source /opt/Xilinx/Vivado/2022.2/settings64.sh
 
-# Run conversion
+# Run conversion from build directory
 ./scripts/convert_bitstream.sh
 
 # Output: build/tetra_zynq_phy.bit.bin
@@ -95,23 +95,23 @@ ls -lh build/tetra_zynq_phy.bit*
 On LibreSDR:
 
 ```bash
-ssh root@192.168.2.180 "mkdir -p /lib/firmware/tetra"
+ssh root@192.168.2.180 "mkdir -p /lib/firmware"       
 ```
 
 ### Step 3.2: Transfer Bitstream
 
 ```bash
 # Using scp
-scp build/tetra_zynq_phy.bit.bin root@192.168.2.180:/lib/firmware/tetra/
+scp build/tetra_zynq_phy.bit.bin root@192.168.2.180:/lib/firmware/
 
 # Using rsync (preferred for large files)
-rsync -av build/tetra_zynq_phy.bit.bin root@192.168.2.180:/lib/firmware/tetra/
+rsync -av build/tetra_zynq_phy.bit.bin root@192.168.2.180:/lib/firmware/
 ```
 
 ### Step 3.3: Transfer ILA Probes (for Debug)
 
 ```bash
-scp build/tetra_zynq_phy.ltx root@192.168.2.180:/lib/firmware/tetra/
+scp build/tetra_zynq_phy.ltx root@192.168.2.180:/lib/firmware/
 ```
 
 ---
@@ -137,7 +137,7 @@ EOF
 ```bash
 ssh root@192.168.2.180 << 'EOF'
 # Set firmware name
-echo tetra/tetra_zynq_phy.bit.bin > /sys/class/fpga_manager/fpga0/firmware
+echo tetra_zynq_phy.bit.bin > /sys/class/fpga_manager/fpga0/firmware
 
 # Trigger FPGA configuration
 echo 1 > /sys/class/fpga_manager/fpga0/flags
