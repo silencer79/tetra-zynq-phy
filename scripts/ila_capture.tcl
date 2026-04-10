@@ -112,10 +112,11 @@ proc capture_ila {ila trigger_probe trigger_val csv_file timeout_ms} {
         puts "  Trigger-Probe gefunden: $tprobe"
         # Vivado 2022.2: bedingter Trigger via TRIGGER_COMPARE_VALUE auf hw_probe
         # Format: "eq${trigger_val}" — z.B. "eq1" für Signal == 1
-        if {[catch {set_property TRIGGER_COMPARE_VALUE "eq'${trigger_val}'" $tprobe} err]} {
+        # Vivado 2022.2 TRIGGER_COMPARE_VALUE format: "eq'b1" for single-bit == 1
+        if {[catch {set_property TRIGGER_COMPARE_VALUE "eq'b${trigger_val}" $tprobe} err]} {
             puts "  WARN: Trigger-Compare nicht setzbar ($err) — Immediate-Trigger"
         } else {
-            puts "  Trigger gesetzt: ${tprobe} == ${trigger_val}"
+            puts "  Trigger gesetzt: ${tprobe} == 'b${trigger_val}"
         }
     } else {
         puts "  WARN: Trigger-Probe '${trigger_probe}' nicht gefunden — Immediate-Trigger"
@@ -153,7 +154,7 @@ proc capture_ila {ila trigger_probe trigger_val csv_file timeout_ms} {
 }
 
 # =============================================================================
-# Capture 1: LVDS Domain — AD9361 Datenfluß prüfen
+# Capture 1: LVDS Domain — AD9361 Datenfluß prüfen (optional, may not exist)
 # =============================================================================
 capture_ila \
     $ila_lvds \
@@ -163,11 +164,13 @@ capture_ila \
     $timeout_ms
 
 # =============================================================================
-# Capture 2: SYS Domain — TETRA-Sync und DMA prüfen
+# Capture 2: SYS Domain — TX-Aktivität prüfen (trigger: tx_slot_pulse)
+# New probes since debug build: dbg_tx_valid_r1_sys, dbg_tx_slot_pulse_sys,
+#                               dbg_loopback_en_sys
 # =============================================================================
 capture_ila \
     $ila_sys \
-    "dbg_sync_found" \
+    "dbg_tx_slot_pulse" \
     "1" \
     "${proj_dir}/${out_dir}/ila_sys_data.csv" \
     $timeout_ms
