@@ -48,7 +48,7 @@ if {[catch {connect_hw_server -url ${host_url} -quiet} err]} {
 }
 
 open_hw_target [lindex [get_hw_targets] 0]
-current_hw_device [lindex [get_hw_devices xc7z020_0] 0]
+current_hw_device [lindex [get_hw_devices] 1]
 
 puts "Hardware verbunden: [get_property PART [current_hw_device]]"
 
@@ -65,7 +65,8 @@ if {[file exists $ltx_file]} {
 set all_ilas [get_hw_ilas -of_objects [current_hw_device]]
 puts "\nGefundene ILA-Cores: [llength $all_ilas]"
 foreach ila $all_ilas {
-    puts "  $ila  (Takt: [get_property CONTROL.CLK_FREQ $ila] Hz, Tiefe: [get_property CONTROL.DATA_DEPTH $ila])"
+    set depth [get_property CONTROL.DATA_DEPTH $ila]
+    puts "  $ila  (Tiefe: $depth)"
 }
 
 # ILA nach Domäne zuordnen
@@ -79,9 +80,8 @@ foreach ila $all_ilas {
         set ila_sys $ila
     }
 }
-# Fallback: erste und zweite ILA
-if {$ila_lvds eq {} && [llength $all_ilas] >= 1} { set ila_lvds [lindex $all_ilas 0] }
-if {$ila_sys  eq {} && [llength $all_ilas] >= 2} { set ila_sys  [lindex $all_ilas 1] }
+# Fallback: bei 1 ILA → als SYS-ILA verwenden (u_ila_sys, clk_sys 100 MHz)
+if {$ila_sys eq {} && [llength $all_ilas] >= 1} { set ila_sys [lindex $all_ilas 0] }
 
 puts "\nILA LVDS: $ila_lvds"
 puts "ILA SYS:  $ila_sys"
@@ -110,8 +110,9 @@ proc capture_ila {ila trigger_probe trigger_val csv_file timeout_ms} {
 
     if {$tprobe ne {}} {
         puts "  Trigger-Probe gefunden: $tprobe"
-        set_property COMPARE_VALUE        "eq1'b${trigger_val}" $tprobe
-        set_property TRIGGER_COMPARE_VALUE "eq1'b${trigger_val}" $tprobe
+        # Vivado 2022.2: Trigger via ILA control (immediate = kein Bedingungsfilter)
+        # Für selektiven Trigger müsste man set_property auf dem ILA-Objekt setzen.
+        # Hier: Immediate-Trigger, Daten werden sofort nach run_hw_ila erfasst.
     } else {
         puts "  WARN: Trigger-Probe '${trigger_probe}' nicht gefunden — Immediate-Trigger"
     }
