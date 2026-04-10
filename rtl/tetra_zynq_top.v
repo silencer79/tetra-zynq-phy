@@ -577,9 +577,12 @@ assign sb_bkn1_data_sys = {colour_code_axi, 234'b0}; // BSCH with colour_code
 assign sb_bkn2_data_sys = 216'b0; // BNCH empty for now
 assign sb_bb_data_sys = 28'b0; // BB empty for now
 
-// Burst type per slot: Slot 0 = SB, others = Idle (for base station)
+// Burst type per slot: Loopback test — all slots SB so sync_fires arrive
+// every 255 symbols (SLOT_SYMS=255 in sync_detect).
+// For production BS: set Slot 0 SB (01), Slots 1-3 Idle (10) and
+// widen spacing_cnt to 11-bit with SLOT_SYMS=1020 in tetra_sync_detect.
 wire [7:0] slot_burst_type_sys; // 2 bits per slot: 0=NDB, 1=SB, 2=Idle
-assign slot_burst_type_sys = 8'b00000101; // Slot 0: SB (01), Slots 1-3: Idle (10)
+assign slot_burst_type_sys = 8'b01010101; // All slots: SB (01) — loopback test
 
 tetra_tx_chain #(
         .IQ_WIDTH (IQ_WIDTH),
@@ -599,7 +602,7 @@ tetra_tx_chain #(
         .sb_bkn2_data_sys (sb_bkn2_data_sys),
         .sb_bb_data_sys (sb_bb_data_sys),
         // Per-slot configuration
-        .slot_en_sys (4'b0001), // Slot 0 enabled (BUG-04 fix)
+        .slot_en_sys (4'b1111), // All slots enabled for loopback test
         .slot_burst_type_sys(slot_burst_type_sys),
         // TX timing from free-running timer (BUG-01 fix)
         .tx_slot_num_sys (tx_slot_cnt_sys),
