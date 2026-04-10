@@ -97,7 +97,7 @@ module tetra_burst_builder #(
 localparam [2:0] S_IDLE = 3'd0;
 localparam [2:0] S_FREQCOR = 3'd1; // 2 symbols (NDB and SB)
 localparam [2:0] S_BLOCK1 = 3'd2; // NDB: 108 symbols, SB: 120 symbols
-localparam [2:0] S_TRAIN = 3'd3; // NDB: 22 symbols (NTS), SB: 11 symbols (STS)
+localparam [2:0] S_TRAIN = 3'd3; // NDB: 22 symbols (NTS), SB: 38 symbols (STS)
 localparam [2:0] S_BB = 3'd4; // NDB: 15 symbols, SB: 14 symbols
 localparam [2:0] S_BLOCK2 = 3'd5; // 108 symbols (NDB and SB)
 localparam [2:0] S_DONE = 3'd6;
@@ -110,7 +110,8 @@ localparam [7:0] CNT_BB_NDB_MAX = 8'd14; // 15 symbols: 0..14
 
 // Symbol count thresholds for SB
 localparam [7:0] CNT_BKN1_SB_MAX = 8'd119; // 120 symbols: 0..119
-localparam [7:0] CNT_STS_MAX = 8'd10; // 11 symbols: 0..10
+localparam [7:0] CNT_STS_MAX = 8'd37; // 38 symbols: 0..37
+localparam [7:0] CNT_BLK2_SB_MAX = 8'd80; // SB bkn2: 81 symbols: 0..80
 localparam [7:0] CNT_BB_SB_MAX = 8'd13; // 14 symbols: 0..13
 
 // Common counter limit (BLOCK2 is 108 symbols in both NDB and SB)
@@ -129,13 +130,17 @@ localparam [43:0] NTS_REF = {
  2'b11, 2'b01, 2'b00, 2'b00, 2'b11, 2'b01
 };
 
-// Synchronization Training Sequence — Table 9.12, 11 symbols (22 bits)
-// Bit ordering: [21:20] = symbol 0 (first transmitted, oldest)
-// [1:0] = symbol 10 (last transmitted, newest)
-// From EN 300 392-2 §9.4.4.4.3 Table 9.12
-localparam [21:0] STS_REF = {
- 2'b11, 2'b10, 2'b11, 2'b00, 2'b00, 2'b01,
- 2'b00, 2'b01, 2'b00, 2'b10, 2'b11
+// Synchronization Training Sequence — Table 9.14, 38 symbols (76 bits)
+// Bit ordering: [75:74] = symbol 0 (first transmitted, oldest)
+// [1:0]  = symbol 37 (last transmitted, newest)
+// MUST match tetra_sync_detect.v STS_REF for correct loopback correlation.
+// SB structure: FC(2) + bkn1(120) + STS(38) + bb(14) + bkn2(81) = 255
+localparam [75:0] STS_REF = {
+ 2'b01, 2'b11, 2'b10, 2'b10, 2'b00, 2'b11, 2'b01, 2'b00,
+ 2'b10, 2'b01, 2'b10, 2'b11, 2'b01, 2'b00, 2'b10, 2'b11,
+ 2'b01, 2'b00, 2'b10, 2'b01, 2'b10, 2'b11, 2'b00, 2'b10,
+ 2'b01, 2'b11, 2'b01, 2'b00, 2'b00, 2'b11, 2'b10, 2'b10,
+ 2'b01, 2'b11, 2'b01, 2'b00, 2'b10, 2'b11
 };
 
 // =============================================================================
@@ -153,7 +158,7 @@ reg [1:0] burst_type_latched_sys; // Latch burst_type on build_req
 // =============================================================================
 reg [3:0] fc_sreg_sys;
 reg [BKN1_SB_BITS-1:0] block1_sreg_sys; // 240-bit max for SB, upper bits unused for NDB
-reg [43:0] train_sreg_sys; // 44-bit max for NTS (STS is 22-bit, zero-extended)
+reg [75:0] train_sreg_sys; // 76-bit max for STS (NTS is 44-bit, zero-extended)
 reg [BB_BITS-1:0] bb_sreg_sys; // 30-bit max for NDB (SB is 28-bit, zero-extended)
 reg [BLOCK_BITS-1:0] block2_sreg_sys;
 
@@ -171,7 +176,7 @@ always @(*) begin
  else // NDB
  mux_dibit_w = block1_sreg_sys[BKN1_SB_BITS-1:BKN1_SB_BITS-2];
  end
- S_TRAIN: mux_dibit_w = train_sreg_sys[43:42];
+ S_TRAIN: mux_dibit_w = train_sreg_sys[75:74];
  S_BB: begin
  if (burst_type_latched_sys == 2'b01) // SB
  mux_dibit_w = bb_sreg_sys[BB_SB_BITS-1:BB_SB_BITS-2];
@@ -213,7 +218,13 @@ always @(*) begin
  if (sym_cnt_sys == CNT_BB_NDB_MAX) next_state_sys = S_BLOCK2;
  end
  end
- S_BLOCK2: if (sym_cnt_sys == CNT_BLK2_MAX) next_state_sys = S_DONE;
+ S_BLOCK2: begin
+ if (burst_type_latched_sys == 2'b01) begin // SB: bkn2 = 81 symbols
+ if (sym_cnt_sys == CNT_BLK2_SB_MAX) next_state_sys = S_DONE;
+ end else begin // NDB: block2 = 108 symbols
+ if (sym_cnt_sys == CNT_BLK2_MAX) next_state_sys = S_DONE;
+ end
+ end
  S_DONE: next_state_sys = S_IDLE;
  default: next_state_sys = S_IDLE;
  endcase
@@ -286,18 +297,18 @@ end
 // =============================================================================
 // R1: train_sreg_sys
 // Loads NTS_REF or STS_REF on build_req; shifts MSB-first during S_TRAIN.
-// STS is zero-extended to 44 bits for uniform shifting.
+// NTS is zero-extended to 76 bits for uniform shifting.
 // =============================================================================
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
- train_sreg_sys <= 44'd0;
+ train_sreg_sys <= 76'd0;
  else if (state_sys == S_IDLE && build_req_sys) begin
- if (burst_type_sys == 2'b01) // SB: STS (11 symbols)
- train_sreg_sys <= {{22{1'b0}}, STS_REF}; // Zero-extend STS to 44 bits
- else // NDB: NTS (22 symbols)
- train_sreg_sys <= NTS_REF;
+ if (burst_type_sys == 2'b01) // SB: STS (38 symbols, 76 bits)
+ train_sreg_sys <= STS_REF;
+ else // NDB: NTS (22 symbols) zero-extended to 76 bits
+ train_sreg_sys <= {{32{1'b0}}, NTS_REF};
  end else if (state_sys == S_TRAIN)
- train_sreg_sys <= {train_sreg_sys[41:0], 2'b00};
+ train_sreg_sys <= {train_sreg_sys[73:0], 2'b00};
 end
 
 // =============================================================================
