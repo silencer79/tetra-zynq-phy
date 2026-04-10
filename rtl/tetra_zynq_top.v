@@ -331,7 +331,7 @@ tetra_rx_chain #(
     .rst_n_sys          (rst_n_sys),
     // config from AXI-Lite (clk_axi ≈ clk_sys — no CDC for single-source clock)
     .corr_threshold_sys ({16'd0, sync_thresh_axi}),   // zero-extend 8→24-bit
-    .seq_select_sys     (2'd0),                        // NTS always
+    .seq_select_sys     (2'd2),                        // STS — matches SB burst TX in BS mode
     .block1_out_sys     (rx_block1_sys),
     .block2_out_sys     (rx_block2_sys),
     .bb_out_sys         (rx_bb_sys),
