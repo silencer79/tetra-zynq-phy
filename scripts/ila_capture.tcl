@@ -110,14 +110,18 @@ proc capture_ila {ila trigger_probe trigger_val csv_file timeout_ms} {
 
     if {$tprobe ne {}} {
         puts "  Trigger-Probe gefunden: $tprobe"
-        # Vivado 2022.2: Trigger via ILA control (immediate = kein Bedingungsfilter)
-        # Für selektiven Trigger müsste man set_property auf dem ILA-Objekt setzen.
-        # Hier: Immediate-Trigger, Daten werden sofort nach run_hw_ila erfasst.
+        # Vivado 2022.2: bedingter Trigger via TRIGGER_COMPARE_VALUE auf hw_probe
+        # Format: "eq${trigger_val}" — z.B. "eq1" für Signal == 1
+        if {[catch {set_property TRIGGER_COMPARE_VALUE "eq'${trigger_val}'" $tprobe} err]} {
+            puts "  WARN: Trigger-Compare nicht setzbar ($err) — Immediate-Trigger"
+        } else {
+            puts "  Trigger gesetzt: ${tprobe} == ${trigger_val}"
+        }
     } else {
         puts "  WARN: Trigger-Probe '${trigger_probe}' nicht gefunden — Immediate-Trigger"
     }
 
-    # Trigger-Position: 10% vom Puffer (Vorgeschichte sichtbar)
+    # Trigger-Position: 10% vom Puffer (Pre-Trigger Vorgeschichte sichtbar)
     set depth [get_property CONTROL.DATA_DEPTH $ila]
     set_property CONTROL.TRIGGER_POSITION [expr {$depth / 10}] $ila
 

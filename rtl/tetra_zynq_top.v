@@ -905,6 +905,13 @@ end
 (* mark_debug = "true", keep = "true" *) reg dbg_m_axis_tready_sys;
 (* mark_debug = "true", keep = "true" *) reg dbg_o_irq_sys;
 
+// TX debug probes (clk_sys domain)
+// tx_valid_lvds is in clk_lvds (~9.216 MHz); 2-FF CDC to clk_sys for debug only.
+(* mark_debug = "true", keep = "true" *) reg dbg_tx_valid_r0_sys;
+(* mark_debug = "true", keep = "true" *) reg dbg_tx_valid_r1_sys;
+(* mark_debug = "true", keep = "true" *) reg dbg_tx_slot_pulse_sys;
+(* mark_debug = "true", keep = "true" *) reg dbg_loopback_en_sys;
+
 always @(posedge clk_sys) begin
     dbg_sync_locked_sys <= sync_locked_sys;
 end
@@ -919,6 +926,19 @@ always @(posedge clk_sys) begin
 end
 always @(posedge clk_sys) begin
     dbg_o_irq_sys <= o_irq;
+end
+// TX activity: 2-FF CDC from clk_lvds (debug-only, no functional use)
+always @(posedge clk_sys) begin
+    dbg_tx_valid_r0_sys <= tx_valid_lvds;
+end
+always @(posedge clk_sys) begin
+    dbg_tx_valid_r1_sys <= dbg_tx_valid_r0_sys;
+end
+always @(posedge clk_sys) begin
+    dbg_tx_slot_pulse_sys <= tx_slot_pulse_free_sys;
+end
+always @(posedge clk_sys) begin
+    dbg_loopback_en_sys <= ctrl_loopback_en_axi;
 end
 
 endmodule
