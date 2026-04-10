@@ -16,7 +16,7 @@
 # Optionen:
 #   --host       IP       SSH-Adresse des LibreSDR       [192.168.2.180]
 #   --freq       HZ       RX-Frequenz in Hz              [430000000]
-#   --samplerate HZ       AD9361 Samplerate              [4096000]
+#   --samplerate HZ       AD9361 Samplerate              [4608000]
 #   --gain       DB       RX-Gain dB (manuell)           [40]
 #   --agc                 AGC statt manueller Gain
 #   --timeout    MS       ILA-Trigger-Timeout            [30000]
@@ -42,7 +42,7 @@ SSH_HOST="192.168.2.180"
 SSH_USER="root"
 SSH_PASS="openwifi"
 RX_FREQ_HZ=430000000
-SAMPLERATE_HZ=4096000
+SAMPLERATE_HZ=4608000
 RX_GAIN_DB=40
 AGC_MODE=""
 ILA_TIMEOUT_MS=30000
