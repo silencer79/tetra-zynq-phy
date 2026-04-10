@@ -166,8 +166,7 @@ iio_set_ch "voltage0" "sampling_frequency" "${SAMPLERATE_HZ}"
 iio_set_ch "altvoltage0" "frequency" "${RX_FREQ_HZ}"
 iio_set_ch "altvoltage1" "frequency" "${TX_FREQ_HZ}"
 
-# 3. RX RF-Port + Gain
-iio_set_ch "voltage0" "rf_port_select" "A_BALANCED"
+# 3. RX Gain (rf_port_select is A_BALANCED by default; setting it fails with EINVAL)
 iio_set_ch "voltage0" "gain_control_mode" "${GAIN_MODE}"
 if [[ "${GAIN_MODE}" == "manual" ]]; then
     iio_set_ch "voltage0" "hardwaregain" "${RX_GAIN_DB}"
