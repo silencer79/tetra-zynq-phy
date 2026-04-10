@@ -154,6 +154,24 @@ set_false_path -quiet -to [get_cells -hierarchical -filter {NAME =~ *sync_locked
 set_false_path -quiet -to [get_cells -hierarchical -filter {NAME =~ *pll_locked_r0*}]
 
 # =============================================================================
+# Multicycle Path — tetra_rrc_filter MAC (TX path)
+# =============================================================================
+# The RRC filter MAC (mac_tap_sys_reg → q_out_reg) runs for only 36 out of
+# ~5556 clk_sys cycles per input symbol (~0.65% duty cycle).  The data path
+# delay is ~9.95 ns which narrowly violates the 10 ns setup window.
+# A 2-cycle multicycle path relaxes the setup requirement to 20 ns.
+# The hold check is tightened by 1 cycle to compensate (standard practice).
+# This is safe because the destination register (q_out_reg) is only sampled
+# on the cycle after sample_valid_out is asserted — never back-to-back.
+
+set_multicycle_path 2 -setup \
+    -from [get_cells -hierarchical -filter {NAME =~ *u_rrc_filter/mac_tap_sys_reg*}] \
+    -to   [get_cells -hierarchical -filter {NAME =~ *u_rrc_filter/q_out_reg*}]
+set_multicycle_path 1 -hold \
+    -from [get_cells -hierarchical -filter {NAME =~ *u_rrc_filter/mac_tap_sys_reg*}] \
+    -to   [get_cells -hierarchical -filter {NAME =~ *u_rrc_filter/q_out_reg*}]
+
+# =============================================================================
 # Board voltage identification (DRC)
 # =============================================================================
 
