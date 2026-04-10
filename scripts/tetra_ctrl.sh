@@ -65,7 +65,7 @@ write_reg() {
 # Convert hex to binary with bit fields
 format_status() {
     local status_hex="$1"
-    local status_dec=$((16#$status_hex))
+    local status_dec=$(($status_hex))
 
     local sync_locked=$(( (status_dec >> 0) & 0x1 ))
     local pll_locked=$(( (status_dec >> 1) & 0x1 ))
@@ -108,8 +108,8 @@ cmd_status() {
 
     echo ""
     echo "=== Interpretation ==="
-    echo "CTRL bits: TX_EN=$(( (16#$ctrl >> 1) & 1 )) RX_EN=$(( 16#$ctrl & 1 ))"
-    echo "VERSION: Major.$(( (16#$version >> 8) & 0xFF )).Patch=$(( 16#$version & 0xFF ))"
+    echo "CTRL bits: TX_EN=$(( ($ctrl >> 1) & 1 )) RX_EN=$(( $ctrl & 1 ))"
+    echo "VERSION: Major.$(( ($version >> 8) & 0xFF )).Patch=$(( $version & 0xFF ))"
 }
 
 # Command: enable — set TX_EN + RX_EN
@@ -133,7 +133,7 @@ cmd_monitor() {
     local count=0
     while true; do
         local status=$(read_reg "$REG_STATUS")
-        local status_dec=$((16#$status))
+        local status_dec=$(($status))
         local sync_locked=$(( (status_dec >> 0) & 0x1 ))
 
         printf "\r[%04d] STATUS=0x%s SYNC_LOCKED=%d" "$count" "$status" "$sync_locked"
