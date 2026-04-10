@@ -138,7 +138,7 @@ proc capture_ila {ila trigger_probe trigger_val csv_file timeout_ms} {
 
     # CSV exportieren
     set csv_path "${csv_file}"
-    write_hw_ila_data -csv_file $csv_path $ila_data
+    write_hw_ila_data -force -csv_file $csv_path $ila_data
     puts "  Daten exportiert: $csv_path"
 
     # Kurze Zusammenfassung

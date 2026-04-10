@@ -231,9 +231,10 @@ wire [7:0]  tx_att_axi;
 // its fabric-side ADC/DAC buses to the tetra_rx/tx_chain interface.
 // =============================================================================
 
-wire signed [IQ_WIDTH-1:0] rx_i_lvds;
-wire signed [IQ_WIDTH-1:0] rx_q_lvds;
-wire                       rx_valid_lvds;
+// Adapter outputs (ADC → fabric)
+wire signed [IQ_WIDTH-1:0] rx_i_adc_lvds;
+wire signed [IQ_WIDTH-1:0] rx_q_adc_lvds;
+wire                       rx_valid_adc_lvds;
 
 wire signed [IQ_WIDTH-1:0] tx_i_lvds;
 wire signed [IQ_WIDTH-1:0] tx_q_lvds;
@@ -262,14 +263,24 @@ tetra_ad9361_axis_adapter #(
     .rst_n_lvds          (rst_n_lvds),
     // tetra_rx_chain interface
     .clk_lvds            (clk_lvds),           // l_clk passthrough → tetra_clk_reset
-    .rx_i_lvds           (rx_i_lvds),
-    .rx_q_lvds           (rx_q_lvds),
-    .rx_valid_lvds       (rx_valid_lvds),
+    .rx_i_lvds           (rx_i_adc_lvds),
+    .rx_q_lvds           (rx_q_adc_lvds),
+    .rx_valid_lvds       (rx_valid_adc_lvds),
     // tetra_tx_chain interface
     .tx_i_lvds           (tx_i_lvds),
     .tx_q_lvds           (tx_q_lvds),
     .tx_valid_lvds       (tx_valid_lvds)
 );
+
+// Loopback mux: CTRL[2]=1 feeds TX directly into RX (digital loopback, no RF path needed).
+// ctrl_loopback_en_axi is clk_sys; used combinatorially in clk_lvds — acceptable for static ctrl.
+wire signed [IQ_WIDTH-1:0] rx_i_lvds;
+wire signed [IQ_WIDTH-1:0] rx_q_lvds;
+wire                       rx_valid_lvds;
+
+assign rx_i_lvds     = ctrl_loopback_en_axi ? tx_i_lvds     : rx_i_adc_lvds;
+assign rx_q_lvds     = ctrl_loopback_en_axi ? tx_q_lvds     : rx_q_adc_lvds;
+assign rx_valid_lvds = ctrl_loopback_en_axi ? tx_valid_lvds : rx_valid_adc_lvds;
 
 // adc_dovf / dac_dunf: overflow/underflow flags to axi_ad9361 IP.
 // Our design cannot detect these at the adapter level — tie to zero.
