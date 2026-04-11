@@ -62,11 +62,11 @@
 | `tetra_rcpc_encoder` | RCPC convolutional encoder | ✅ | ✅ | ✅ PASS 7/7 | ~150 | ~80 | 0 | 0 | 2026-04-05 |
 | `tetra_pi4dqpsk_mod` | π/4-DQPSK modulator + LUT | ✅ | ✅ | ✅ PASS 31/31 | ~200 | ~100 | 0 | 0 | 2026-04-05 |
 | `tetra_rrc_filter` | RRC pulse shaping (α=0.35) | ✅ | ✅ | ✅ PASS 6/6 | ~300 | ~150 | 1 | 0 | 2026-04-05 |
-| `tetra_burst_builder` | NDB/SB/NUB/CB assembler | ✅ | ✅ | ✅ PASS 5/5 | ~50 | ~510 | 0 | 0 | 2026-04-05 |
+| `tetra_burst_builder` | NDB/SB/NUB/CB assembler | ✅ | ✅ | ✅ PASS 5/5 | ~50 | ~524 | 0 | 0 | 2026-04-11 |
 | `tetra_burst_mux` | TDMA burst multiplexer | ✅ | ✅ | ✅ PASS 5/5 | ~50 | ~200 | 0 | 0 | 2026-04-05 |
 | `tetra_tx_frontend` | CIC interpolation + CDC | ✅ | ✅ | ✅ PASS 5/5 | ~80 | ~680 | 0 | 0 | 2026-04-05 |
 
-**Phase 3 Total:** ~830 LUT, ~1,720 FF, 1 DSP48, 0 BRAM
+**Phase 3 Total:** ~830 LUT, ~1,734 FF, 1 DSP48, 0 BRAM
 
 ---
 
@@ -87,7 +87,7 @@
 | Resource | Phase 1 | Phase 2 | Phase 3 | **TOTAL** | **Available** | **Utilization** |
 |----------|---------|---------|---------|-----------|---------------|-----------------|
 | **LUT** | 1,095 | 3,280 | 830 | **~5,205** | 53,200 | **~10%** |
-| **FF** | 1,430 | 9,148 | 1,720 | **~12,298** | 106,400 | **~12%** |
+| **FF** | 1,430 | 9,148 | 1,734 | **~12,312** | 106,400 | **~12%** |
 | **DSP48** | 3 | 0 | 1 | **4** | 220 | **~2%** |
 | **BRAM18k** | 0 | 0 | 0 | **0** | 280 | **0%** |
 
@@ -117,33 +117,37 @@
 
 | Module | Issue | Workaround | Status |
 |--------|-------|------------|--------|
-| `rx_frontend` | 34 quantization warnings (CIC) | Cosmetic,不影响功能 | ⚠️ Documented |
+| `rx_frontend` | 34 quantization warnings (CIC) | Cosmetic, does not affect function | ⚠️ Documented |
 | `viterbi_decoder` | TIMEOUT warnings in sim | Functional PASS, cosmetic warnings | ⚠️ Documented |
 | `burst_demux` | slot_number bug (sync_detect) | Internal slot_cnt used (documented) | ✅ Fixed |
+| `burst_builder` | FSM ran at 100 MHz — 255 symbols in 255 cycles instead of 14.17 ms; overwhelmed RRC filter + overflowed TX FIFO; root cause of sync_locked=0 | Added internal 18 kHz sym_en_w divider (SYM_DIV=5554) + build_req_pending latch | ✅ Fixed `96e6356` (2026-04-11) |
 
 ---
 
 ## Next Actions
 
-### Immediate (2026-04-07)
+### Immediate (2026-04-11) — Loopback-Verifikation
 
-1. **AXI AD9361 Integration** ✅ ABGESCHLOSSEN
-   - [x] Block Design mit axi_ad9361 IP erstellt
-   - [x] Constraints aktualisiert
-   - [x] Synthesize + Implement — **WNS = +0.017 ns** ✅
-   - [x] Timing Closure erreicht
+1. **Rebuild nach burst_builder Fix** — ⏳ PENDING
+   - [ ] `./scripts/run_build.sh` — Bitstream neu synthetisieren
+   - [ ] `./scripts/hw_deploy.sh` — Auf Board flashen + AD9361 init
+   - [ ] `./scripts/tetra_ctrl.sh loopback` — Digitalen Loopback aktivieren
+   - [ ] `./scripts/tetra_ctrl.sh monitor` — Warte auf SYNC_LOCKED=1
 
-2. **Hardware Testing** — IN ARBEIT
-   - [x] LibreSDR per JTAG programmiert
-   - [x] ILA (u_ila_sys) mit 5 Probes aktiv
-   - [x] AD9361 initialisiert (430 MHz / 4.608 MSPS)
-   - [ ] ILA-Capture: sync_found / sync_locked beobachten
-   - [ ] RX path Smoke Test mit Antenne / TETRA-Signal
+2. **Abgeschlossene Hardware-Fixes (2026-04-08 bis 2026-04-11)**
+   - [x] Freier TX-Frame-Timer (BUG-01) — `2005a2d`
+   - [x] SB burst type in burst_builder (BUG-02) — `2005a2d`
+   - [x] Slot 0 als SB aktiviert (BUG-04) — `2005a2d`
+   - [x] DATA_CLK 9.216 → 18.432 MHz (CIC-Rate) — `0f2f5ba`
+   - [x] timing_recovery → demod Verbindung — `f2b90d0`
+   - [x] SYNC_THRESH Default 200 → 30 — `0f2f5ba`
+   - [x] ILA Debug-Probes (fe_valid, tr_valid, demod_valid) — `3e68dc0`
+   - [x] burst_builder 100 MHz Rate-Bug — `96e6356`
 
-### Future
+### Next (nach erfolgreichem Loopback)
 
 3. **Full-Duplex Testing**
-   - [ ] TX + RX simultaneously
+   - [ ] TX + RX simultaneously auf getrennten Frequenzen
    - [ ] Latency measurement
    - [ ] BER testing
 
@@ -158,6 +162,10 @@
 
 | Date | Change | Module(s) |
 |------|--------|-----------|
+| 2026-04-11 | fix: burst_builder 18 kHz symbol-rate divider + build_req_pending latch (`96e6356`) | `tetra_burst_builder` |
+| 2026-04-11 | fix: timing_recovery → demod sample_valid connection (`f2b90d0`) | `tetra_rx_chain` |
+| 2026-04-11 | fix: DATA_CLK 18.432 MHz CIC period correction + SYNC_THRESH 30 (`0f2f5ba`) | `tetra_tx_frontend`, `tetra_axi_lite_regs` |
+| 2026-04-08 | fix: free-running TX timer, SB burst type, slot 0 enabled (`2005a2d`) | `tetra_zynq_top`, `tetra_burst_builder`, `tetra_burst_mux` |
 | 2026-04-07 | Created docs/module_status.md | Documentation |
 | 2026-04-05 | Phase 3 RTL complete (22/22 PASS) | All modules |
 | 2026-04-05 | AXI AD9361 adapter integrated | `tetra_ad9361_axis_adapter.v` |
@@ -175,5 +183,5 @@
 
 ---
 
-**Last Updated:** 2026-04-07
+**Last Updated:** 2026-04-11
 **Maintained by:** Ralph (autonomous FPGA agent)

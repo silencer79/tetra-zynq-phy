@@ -38,7 +38,7 @@
 | `tetra_pi4dqpsk_mod`      | ~200   | ~100   | 0     | 0       | ✅ RTL | ✅ TB | ✅ PASS 31/31    | 3     |
 | `tetra_rrc_filter`        | ~300   | ~150   | 1     | 0       | ✅ RTL | ✅ TB | ✅ PASS          | 3     |
 | `tetra_steal_detect`      | ~20    | ~28    | 0     | 0       | ✅ RTL | ✅ TB | ✅ PASS          | 3     |
-| `tetra_burst_builder`     | ~50    | ~510   | 0     | 0       | ✅ RTL | ✅ TB | ✅ PASS          | 3     |
+| `tetra_burst_builder`     | ~65    | ~524   | 0     | 0       | ✅ RTL | ✅ TB | ✅ PASS          | 3     |
 | `tetra_burst_mux`         | ~50    | ~200   | 0     | 0       | ✅ RTL | ✅ TB | ✅ PASS          | 3     |
 | `tetra_tx_frontend`       | ~80    | ~680   | 0     | 0       | ✅ RTL | ✅ TB | ✅ PASS          | 3     |
 | `tetra_zynq_top`          | —      | ~200   | 0     | 0       | ✅ RTL | —     | —                | Top   |
@@ -49,7 +49,7 @@
 > `tetra_ad9361_axis_adapter.v` NEU für ADI axi_ad9361 IP-Block Integration.
 > Phase-3-Module (steal_detect, burst_builder, burst_mux, tx_frontend) alle PASS.
 > `tetra_zynq_top.v` auf axi_ad9361 fabric interface umgestellt.
-| **ESTIMATED TOTAL**       | ~6905  | ~11238 | 3     | 0       |         |       |
+| **ESTIMATED TOTAL**       | ~6920  | ~11252 | 3     | 0       |         |       |
 | **Zynq-7020 Available**   | 53,200 | 106,400| 220   | 280     |         |       |
 | **Estimated Utilization** | ~13%   | ~11%   | ~1%   | ~0%     |         |       |
 
