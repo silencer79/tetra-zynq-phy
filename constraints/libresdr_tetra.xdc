@@ -172,6 +172,25 @@ set_multicycle_path 1 -hold \
     -to   [get_cells -hierarchical -filter {NAME =~ *u_rrc_filter/q_out_reg*}]
 
 # =============================================================================
+# Multicycle Path — tetra_timing_recovery NCO step + loop integrator
+# =============================================================================
+# The NCO step and loop integrator are only updated at NCO overflow (≤ 18 kHz).
+# Critical path: DSP48 (Gardner TED mult) → 34-bit sum → scale → sign-extend
+# → kp_term → 32-bit adder → nco_step_sys_reg.  At ~11 ns this narrows violates
+# the 10 ns budget.
+# 2-cycle multicycle path relaxes setup to 20 ns — safe because nco_step_sys
+# and loop_integ_sys are gated by nco_ovf_sys (never consecutive clk_sys cycles).
+
+set_multicycle_path 2 -setup \
+    -to [get_cells -hierarchical -filter {NAME =~ *u_timing_recovery/nco_step_sys_reg*}]
+set_multicycle_path 1 -hold \
+    -to [get_cells -hierarchical -filter {NAME =~ *u_timing_recovery/nco_step_sys_reg*}]
+set_multicycle_path 2 -setup \
+    -to [get_cells -hierarchical -filter {NAME =~ *u_timing_recovery/loop_integ_sys_reg*}]
+set_multicycle_path 1 -hold \
+    -to [get_cells -hierarchical -filter {NAME =~ *u_timing_recovery/loop_integ_sys_reg*}]
+
+# =============================================================================
 # Board voltage identification (DRC)
 # =============================================================================
 

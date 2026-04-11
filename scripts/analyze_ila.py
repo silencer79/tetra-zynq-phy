@@ -178,13 +178,60 @@ def analyze_sys(csv_path: str) -> bool:
 
     sync_found_col  = find_signal(header, "sync_found",  "dbg_sync_found")
     sync_locked_col = find_signal(header, "sync_locked", "dbg_sync_locked")
+    fe_valid_col    = find_signal(header, "fe_valid",    "dbg_fe_valid")
+    tr_valid_col    = find_signal(header, "tr_valid",    "dbg_tr_valid")
+    demod_valid_col = find_signal(header, "demod_valid", "dbg_demod_valid")
+    loopback_col    = find_signal(header, "loopback_en", "dbg_loopback")
     tvalid_col      = find_signal(header, "tvalid",      "dbg_m_axis_tvalid")
     tready_col      = find_signal(header, "tready",      "dbg_m_axis_tready")
     irq_col         = find_signal(header, "irq",         "dbg_o_irq")
 
     sync_ok = False
 
+    # Loopback-Enable prüfen (häufige Fehlerquelle)
+    if loopback_col:
+        s = signal_stats(rows, loopback_col)
+        if s['high'] > 0:
+            ok(f"Loopback AKTIV (loopback_en=1 in {s['high']}/{s['total']} Samples)")
+        else:
+            fail("Loopback NICHT aktiv (loopback_en=0 dauerhaft)")
+            warn("→ tetra_ctrl.sh loopback ausführen um CTRL[2]=LOOPBACK zu setzen")
+
+    # RX Datapath: FE → TR → Demod
+    print(f"\n  {CYAN}RX Datapath:{RESET}")
+    if fe_valid_col:
+        s = signal_stats(rows, fe_valid_col)
+        ratio = s['high'] / s['total'] * 100 if s['total'] else 0
+        if s['high'] > s['total'] * 0.01:
+            ok(f"RX Frontend aktiv (fe_valid): {s['high']}/{s['total']} HIGH ({ratio:.1f}%)")
+        else:
+            fail(f"RX Frontend INAKTIV (fe_valid): nur {s['high']}/{s['total']} HIGH ({ratio:.2f}%)")
+            warn("→ Kein Signal am RX-Eingang. Loopback aktiviert? AD9361 läuft?")
+    else:
+        info("Signal 'dbg_fe_valid' nicht in CSV — ggf. neue Probes hinzufügen")
+
+    if tr_valid_col:
+        s = signal_stats(rows, tr_valid_col)
+        ratio = s['high'] / s['total'] * 100 if s['total'] else 0
+        if s['high'] > 0:
+            ok(f"Timing Recovery aktiv (tr_valid): {s['high']}/{s['total']} HIGH ({ratio:.1f}%)")
+        else:
+            fail("Timing Recovery INAKTIV (tr_valid=0) — kein Symbol-Output")
+    else:
+        info("Signal 'dbg_tr_valid' nicht in CSV")
+
+    if demod_valid_col:
+        s = signal_stats(rows, demod_valid_col)
+        ratio = s['high'] / s['total'] * 100 if s['total'] else 0
+        if s['high'] > 0:
+            ok(f"Demodulator aktiv (demod_valid): {s['high']}/{s['total']} HIGH ({ratio:.1f}%)")
+        else:
+            fail("Demodulator INAKTIV (demod_valid=0) — keine Dibits")
+    else:
+        info("Signal 'dbg_demod_valid' nicht in CSV")
+
     # Sync Found
+    print()
     if sync_found_col:
         s = signal_stats(rows, sync_found_col)
         if s['rising'] > 0:

@@ -316,6 +316,11 @@ wire         sync_found_sys;
 wire [7:0]   slot_position_sys;
 wire signed  [15:0] phase_error_sys;
 
+// RX chain debug signals
+wire dbg_fe_valid_sys;
+wire dbg_tr_valid_sys;
+wire dbg_demod_valid_sys;
+
 tetra_rx_chain #(
     .IQ_WIDTH   (IQ_WIDTH),
     .BLOCK_BITS (BLOCK_BITS),
@@ -347,7 +352,10 @@ tetra_rx_chain #(
     .sync_locked_sys    (sync_locked_sys),
     .sync_found_sys     (sync_found_sys),
     .slot_position_sys  (slot_position_sys),
-    .phase_error_sys    (phase_error_sys)
+    .phase_error_sys    (phase_error_sys),
+  .dbg_fe_valid_sys (dbg_fe_valid_sys),
+  .dbg_tr_valid_sys (dbg_tr_valid_sys),
+  .dbg_demod_valid_sys (dbg_demod_valid_sys)
 );
 
 // =============================================================================
@@ -903,6 +911,11 @@ end
 (* mark_debug = "true", keep = "true" *) reg dbg_sync_found_sys;
 (* mark_debug = "true", keep = "true" *) reg dbg_m_axis_tvalid_sys;
 (* mark_debug = "true", keep = "true" *) reg dbg_m_axis_tready_sys;
+
+// RX datapath debug probes (clk_sys domain)
+(* mark_debug = "true", keep = "true" *) reg dbg_fe_valid_ila_sys;
+(* mark_debug = "true", keep = "true" *) reg dbg_tr_valid_ila_sys;
+(* mark_debug = "true", keep = "true" *) reg dbg_demod_valid_ila_sys;
 (* mark_debug = "true", keep = "true" *) reg dbg_o_irq_sys;
 
 // TX debug probes (clk_sys domain)
@@ -939,6 +952,17 @@ always @(posedge clk_sys) begin
 end
 always @(posedge clk_sys) begin
     dbg_loopback_en_sys <= ctrl_loopback_en_axi;
+end
+
+// RX datapath probes
+always @(posedge clk_sys) begin
+  dbg_fe_valid_ila_sys <= dbg_fe_valid_sys;
+end
+always @(posedge clk_sys) begin
+  dbg_tr_valid_ila_sys <= dbg_tr_valid_sys;
+end
+always @(posedge clk_sys) begin
+  dbg_demod_valid_ila_sys <= dbg_demod_valid_sys;
 end
 
 endmodule

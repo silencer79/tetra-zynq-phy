@@ -77,7 +77,14 @@ module tetra_rx_chain #(
     output wire [7:0]        slot_position_sys,
 
     // Phase error for timing recovery diagnostics
-    output wire signed [15:0] phase_error_sys
+    output wire signed [15:0] phase_error_sys,
+
+  // -------------------------------------------------------------------------
+  // Debug outputs (ILA probes)
+  // -------------------------------------------------------------------------
+  output wire dbg_fe_valid_sys,
+  output wire dbg_tr_valid_sys,
+  output wire dbg_demod_valid_sys
 );
 
 // =============================================================================
@@ -233,6 +240,11 @@ assign sync_locked_sys   = sync_locked_w;
 assign sync_found_sys    = sync_found_w;
 assign slot_position_sys = slot_position_w;
 assign phase_error_sys   = demod_phase_err_sys;
+
+// Debug outputs for ILA
+assign dbg_fe_valid_sys = fe_valid_sys;
+assign dbg_tr_valid_sys = tr_valid_sys;
+assign dbg_demod_valid_sys = demod_valid_sys;
 
 endmodule
 `default_nettype wire

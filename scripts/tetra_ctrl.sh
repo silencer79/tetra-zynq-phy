@@ -124,6 +124,33 @@ cmd_enable() {
     echo "Verified CTRL = $ctrl"
 }
 
+# Command: loopback — set TX_EN + RX_EN + LOOPBACK_EN
+cmd_loopback() {
+    echo "Enabling digital loopback (TX→RX)..."
+    # CTRL[0]=RX_EN, CTRL[1]=TX_EN, CTRL[2]=LOOPBACK
+    write_reg "$REG_CTRL" "0x00000007"
+    echo "CTRL register set to 0x00000007 (RX_EN=1, TX_EN=1, LOOPBACK=1)"
+
+    # Verify
+    local ctrl=$(read_reg "$REG_CTRL")
+    local ctrl_dec=$(($ctrl))
+    echo "Verified CTRL = $ctrl"
+    echo "  RX_EN=$(( ctrl_dec & 1 ))  TX_EN=$(( (ctrl_dec >> 1) & 1 ))  LOOPBACK=$(( (ctrl_dec >> 2) & 1 ))"
+    echo ""
+    echo "Loopback active — TX output routed to RX input."
+    echo "RX chain should now see TX samples. Run: $0 monitor"
+}
+
+# Command: disable — clear CTRL register
+cmd_disable() {
+    echo "Disabling TX and RX..."
+    write_reg "$REG_CTRL" "0x00000000"
+    echo "CTRL register cleared (all disabled)"
+
+    local ctrl=$(read_reg "$REG_CTRL")
+    echo "Verified CTRL = $ctrl"
+}
+
 # Command: monitor — poll STATUS until SYNC_LOCKED=1
 cmd_monitor() {
     echo "Monitoring STATUS register (Ctrl+C to stop)..."
@@ -185,6 +212,12 @@ case "${1:-}" in
     enable)
         cmd_enable
         ;;
+    loopback)
+        cmd_loopback
+        ;;
+    disable)
+        cmd_disable
+        ;;
     monitor)
         cmd_monitor
         ;;
@@ -200,11 +233,17 @@ case "${1:-}" in
         echo "Usage: $0 <command>"
         echo ""
         echo "Commands:"
-        echo "  status          — Dump allregisters"
+        echo "  status          — Dump all registers"
         echo "  enable          — Enable TX+RX (CTRL=0x03)"
+        echo "  loopback        — Enable TX+RX+Loopback (CTRL=0x07)"
+        echo "  disable         — Clear CTRL register"
         echo "  monitor         — Poll STATUS every 1s until SYNC_LOCKED=1"
         echo "  read <offset>   — Read single register"
         echo "  write <offset> <value> — Write single register"
+        echo ""
+        echo "Loopback test workflow:"
+        echo "  $0 loopback     # TX→RX digital loopback aktivieren"
+        echo "  $0 monitor      # Warten auf SYNC_LOCKED=1"
         echo ""
         echo "Example:"
         echo "  $0 status"
