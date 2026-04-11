@@ -155,11 +155,10 @@ run("axi_dma_bridge",
     f"{TB}/tb_tetra_axi_dma_bridge.v",
     f"{RTL}/infra/tetra_axi_dma_bridge.v")
 
-# 15. ad9361_interface — uses IBUFDS/BUFG/IDDR/ODDR/OBUFDS → sim_model required
-run("ad9361_interface",
-    f"{TB}/tb_tetra_ad9361_interface.v",
-    f"{RTL}/tetra_ad9361_interface.v",
-    extra=[f"{SIMS}/xilinx_prim_sim.v"])
+# 15. ad9361_axis_adapter — active ADI fabric adapter
+run("ad9361_axis_adapter",
+    f"{TB}/tb_tetra_ad9361_axis_adapter.v",
+    f"{RTL}/tetra_ad9361_axis_adapter.v")
 
 # 16. rcpc_encoder — Phase 3 TX path
 run("rcpc_encoder",

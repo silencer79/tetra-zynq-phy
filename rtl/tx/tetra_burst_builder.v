@@ -64,7 +64,8 @@ module tetra_burst_builder #(
  parameter BLOCK_BITS = 216, // bits per NDB block (108 symbols × 2)
  parameter BB_BITS = 30, // BB/AACH field bits (15 symbols × 2) for NDB
  parameter BB_SB_BITS = 28, // BB field bits (14 symbols × 2) for SB
- parameter BKN1_SB_BITS = 240 // bkn1 field bits (120 symbols × 2) for SB
+ parameter BKN1_SB_BITS = 240, // bkn1 field bits (120 symbols × 2) for SB
+ parameter SYM_DIV = 13'd5554 // counter wraps 0..5554 = 5555 cycles/symbol
 )(
  input wire clk_sys,
  input wire rst_n_sys,
@@ -116,10 +117,6 @@ localparam [7:0] CNT_BB_SB_MAX = 8'd13; // 14 symbols: 0..13
 
 // Common counter limit (BLOCK2 is 108 symbols in both NDB and SB)
 localparam [7:0] CNT_BLK2_MAX = 8'd107; // 108 symbols: 0..107
-
-// Symbol rate divider: 100 MHz / 5555 cycles = 18.004 kHz (< 0.025% error)
-// 255 symbols × 5555 cycles = 1,416,525 cycles < TX_SLOT_CYCLES=1,416,667 → fits in one slot
-localparam [12:0] SYM_DIV = 13'd5554;   // counter wraps 0..5554 = 5555 cycles/symbol
 
 // Frequency correction pattern — 2 symbols of dibit 01 (reference phase 0)
 localparam [3:0] FC_PAT = 4'b01_01;
@@ -339,7 +336,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  if (burst_type_sys == 2'b01) // SB
  block1_sreg_sys <= bkn1_sb_data_sys;
  else // NDB or Idle
- block1_sreg_sys <= {{BKN1_SB_BITS-BLOCK_BITS{1'b0}}, block1_data_sys};
+ block1_sreg_sys <= {block1_data_sys, {BKN1_SB_BITS-BLOCK_BITS{1'b0}}};
  end else if (state_sys == S_BLOCK1 && sym_en_w) begin
  block1_sreg_sys <= {block1_sreg_sys[BKN1_SB_BITS-3:0], 2'b00};
  end
@@ -357,7 +354,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  if (burst_type_sys == 2'b01) // SB: STS (38 symbols, 76 bits)
  train_sreg_sys <= STS_REF;
  else // NDB: NTS (22 symbols) zero-extended to 76 bits
- train_sreg_sys <= {{32{1'b0}}, NTS_REF};
+ train_sreg_sys <= {NTS_REF, {32{1'b0}}};
  end else if (state_sys == S_TRAIN && sym_en_w)
  train_sreg_sys <= {train_sreg_sys[73:0], 2'b00};
 end

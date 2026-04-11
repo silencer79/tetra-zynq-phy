@@ -6,15 +6,15 @@
 // Self-checking testbench for the TX frontend CIC interpolator + CDC.
 //
 // Test cases:
-//   TC1: Pulse count — verify exactly 64 tx_valid_lvds pulses per input sample
+//   TC1: Pulse count — verify exactly 64 tx_valid_lvds pulses per input sample period
 //   TC2: DC settling — constant input → output settles to correct scaled value
 //   TC3: Reset behavior — outputs clear after reset
-//   TC4: Output rate — verify tx_valid_lvds fires every 2 clk_lvds cycles
+//   TC4: Output rate — verify tx_valid_lvds fires every 4 clk_lvds cycles
 //   TC5: Zero input — all-zeros input produces all-zeros output
 //
 // Clock:
 //   clk_sys  = 100 MHz  (period 10 ns)
-//   clk_lvds = 9.216 MHz (period ≈ 108.5 ns → half = 54.25 ns ≈ 54 ns)
+//   clk_lvds = 18.432 MHz (period ≈ 54.25 ns → half = 27.125 ns ≈ 27 ns)
 //
 // Note: The testbench uses integer half-periods, so rates are approximate.
 // The CIC timing depends on the counter (lvds_cnt), not on exact clock ratio.
@@ -36,7 +36,7 @@ localparam CIC_R     = 64;
 
 // Clock half-periods
 localparam SYS_HALF  = 5;   // 100 MHz
-localparam LVDS_HALF = 54;  // ≈ 9.259 MHz (close to 9.216 MHz)
+localparam LVDS_HALF = 27;  // ≈ 18.519 MHz (close to 18.432 MHz)
 
 // ---------------------------------------------------------------------------
 // Clocks and resets
@@ -191,18 +191,18 @@ initial begin : stim
     repeat (200) @(posedge clk_lvds);
 
     // -----------------------------------------------------------------------
-    // TC1: Pulse count — exactly CIC_R=64 tx_valid per 128 lvds cycles
-    // Send one sample and count valid pulses over 130 lvds cycles
+    // TC1: Pulse count — exactly CIC_R=64 tx_valid per 256 lvds cycles
+    // Send one sample and count valid pulses over one full lvds sample period.
     // -----------------------------------------------------------------------
     $display("--- TC1: Pulse count per input sample ---");
     send_sample(16'sh1000, 16'sh0);
 
-    // Count pulses over 130 lvds cycles
-    count_valid_lvds(130);
+    // Count pulses over one full lvds-domain sample period.
+    count_valid_lvds(260);
 
-    // Expect 64 or 65 pulses (first period might overlap with previous)
+    // Expect 64 or 65 pulses (the first period can overlap the previous sample slightly)
     if (valid_cnt < 60 || valid_cnt > 70) begin
-        $display("FAIL TC1: valid_cnt=%0d expected ~64 per 128 lvds cycles", valid_cnt);
+        $display("FAIL TC1: valid_cnt=%0d expected ~64 per 256 lvds cycles", valid_cnt);
         fail_cnt = fail_cnt + 1;
     end else begin
         $display("PASS TC1: valid_cnt=%0d (expected ~64)", valid_cnt);
@@ -210,7 +210,7 @@ initial begin : stim
     end
 
     // -----------------------------------------------------------------------
-    // TC4: Output rate — tx_valid fires every 2 clk_lvds cycles
+    // TC4: Output rate — tx_valid fires every 4 clk_lvds cycles
     // Measure spacing of consecutive valid pulses
     // -----------------------------------------------------------------------
     $display("--- TC4: Output rate (every 2 lvds cycles) ---");
@@ -242,15 +242,15 @@ initial begin : stim
             end
         end
         if (tx_valid_lvds) begin
-            // We expect 2 lvds cycles between valids = 2*2*LVDS_HALF ns = 216 ns
+            // We expect 4 lvds cycles between valids = 4*2*LVDS_HALF ns = 216 ns
             // Accept ±1 cycle tolerance
             cur_time = $time;
             spacing = cur_time - prev_valid_time;
             prev_valid_time = cur_time;
-            // Spacing in ns; expected = 2 × 2 × LVDS_HALF = 2 × 108 = 216 ns
-            if (spacing < 2*LVDS_HALF*2 - 20 || spacing > 2*LVDS_HALF*2 + 20) begin
+            // Spacing in ns; expected = 4 × 2 × LVDS_HALF = 4 × 54 = 216 ns
+            if (spacing < 4*LVDS_HALF*2 - 20 || spacing > 4*LVDS_HALF*2 + 20) begin
                 if (spacing_ok)
-                    $display("  Note: spacing=%0d ns (expected %0d ns)", spacing, 2*LVDS_HALF*2);
+                    $display("  Note: spacing=%0d ns (expected %0d ns)", spacing, 4*LVDS_HALF*2);
                 spacing_ok = 0;
             end
         end

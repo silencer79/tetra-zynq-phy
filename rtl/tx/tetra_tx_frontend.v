@@ -24,11 +24,11 @@
 //     lvds_cnt[7:0]: 8-bit counter 0..255 (natural overflow = R×4 - 1)
 //
 //     Timing summary (each line = 1 clk_lvds cycle):
-//       cnt==255 → FIFO rd_en pulse
-//       cnt==0   → fifo_dout valid (1-cycle read latency); comb stages update;
+//       cnt==254 → FIFO rd_en pulse
+//       cnt==255 → fifo_dout valid; comb stages update;
 //                  FIRST integration step (adds new comb_out = OLD period's comb)
-//       cnt==4,8,...,252 → remaining 63 integration steps (input = 0)
-//       cnt==1,2,3,5,6,7,... → no integration
+//       cnt==0,4,8,...,252 → 64 integration steps per period
+//       cnt==1,2,3,5,6,7,...,253,255 → no integration
 //       Output valid: 1 cycle after each integration step (cnt==1,5,...,253
 //                     with 1-cycle pipeline delay from intg to output registers)
 //
@@ -94,7 +94,8 @@ wire [31:0] fifo_din_sys = {i_in, q_in};
 // XPM Async FIFO — sys (write) → lvds (read)
 // Parameters match xilinx_prim_sim.v model in tb/sim_models/
 // READ_MODE="std", FIFO_READ_LATENCY=1:
-//   data valid 1 clk_lvds cycle after rd_en is asserted → aligns cnt=127→0
+//   the local model updates dout on the read clock edge, so rd_en is issued
+//   one cycle before comb_load_w to make fifo_dout stable when consumed.
 // =============================================================================
 wire [31:0] fifo_dout_lvds;
 wire        fifo_rd_en_lvds;
@@ -164,30 +165,30 @@ always @(posedge clk_lvds or negedge rst_n_lvds) begin
         lvds_cnt <= lvds_cnt + 8'd1;   // natural 8-bit wrap: 255 → 0
 end
 
-// FIFO read at cnt==255 → data valid at cnt==0 (1-cycle latency)
-assign fifo_rd_en_lvds = (lvds_cnt == 8'd255) && !fifo_empty_lvds && !fifo_rd_rst_busy_lvds;
+// FIFO read at cnt==254; data is consumed at cnt==255 on the next edge.
+assign fifo_rd_en_lvds = (lvds_cnt == 8'd254) && !fifo_empty_lvds && !fifo_rd_rst_busy_lvds;
 
-// comb_load_w fires at cnt==0 (fifo_dout valid this cycle)
-wire comb_load_w = (lvds_cnt == 8'd0);
+// comb_load_w fires at cnt==255 after fifo_dout has been updated by the read edge.
+wire comb_load_w = (lvds_cnt == 8'd255);
 
 // -------------------------------------------------------------------------
 // R1: comb input register — latch FIFO data at cnt==0
 // Underrun (FIFO empty): pass 0 to prevent garbage in integrators
 // -------------------------------------------------------------------------
-reg signed [IQ_WIDTH-1:0] comb_in_i_lvds;
-reg signed [IQ_WIDTH-1:0] comb_in_q_lvds;
+reg signed [CIC_ACC-1:0] comb_in_i_lvds;
+reg signed [CIC_ACC-1:0] comb_in_q_lvds;
 
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
     if (!rst_n_lvds)
-        comb_in_i_lvds <= {IQ_WIDTH{1'b0}};
+        comb_in_i_lvds <= {CIC_ACC{1'b0}};
     else if (comb_load_w)
-        comb_in_i_lvds <= $signed(fifo_dout_lvds[31:16]);
+        comb_in_i_lvds <= {{(CIC_ACC-IQ_WIDTH){fifo_dout_lvds[31]}}, fifo_dout_lvds[31:16]};
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
     if (!rst_n_lvds)
-        comb_in_q_lvds <= {IQ_WIDTH{1'b0}};
+        comb_in_q_lvds <= {CIC_ACC{1'b0}};
     else if (comb_load_w)
-        comb_in_q_lvds <= $signed(fifo_dout_lvds[15:0]);
+        comb_in_q_lvds <= {{(CIC_ACC-IQ_WIDTH){fifo_dout_lvds[15]}}, fifo_dout_lvds[15:0]};
 end
 
 // -------------------------------------------------------------------------
@@ -198,107 +199,107 @@ end
 // -------------------------------------------------------------------------
 
 // Stage 1 ─────────────────────────────────────────────────────────────────
-reg signed [IQ_WIDTH-1:0] cd1_i; reg signed [IQ_WIDTH-1:0] cd1_q;   // delay
-reg signed [IQ_WIDTH-1:0] cy1_i; reg signed [IQ_WIDTH-1:0] cy1_q;   // output
+reg signed [CIC_ACC-1:0] cd1_i; reg signed [CIC_ACC-1:0] cd1_q;   // delay
+reg signed [CIC_ACC-1:0] cy1_i; reg signed [CIC_ACC-1:0] cy1_q;   // output
 
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cd1_i <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cd1_i <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cd1_i <= comb_in_i_lvds;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cd1_q <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cd1_q <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cd1_q <= comb_in_q_lvds;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cy1_i <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cy1_i <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cy1_i <= comb_in_i_lvds - cd1_i;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cy1_q <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cy1_q <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cy1_q <= comb_in_q_lvds - cd1_q;
 end
 
 // Stage 2 ─────────────────────────────────────────────────────────────────
-reg signed [IQ_WIDTH-1:0] cd2_i; reg signed [IQ_WIDTH-1:0] cd2_q;
-reg signed [IQ_WIDTH-1:0] cy2_i; reg signed [IQ_WIDTH-1:0] cy2_q;
+reg signed [CIC_ACC-1:0] cd2_i; reg signed [CIC_ACC-1:0] cd2_q;
+reg signed [CIC_ACC-1:0] cy2_i; reg signed [CIC_ACC-1:0] cy2_q;
 
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cd2_i <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cd2_i <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cd2_i <= cy1_i;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cd2_q <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cd2_q <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cd2_q <= cy1_q;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cy2_i <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cy2_i <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cy2_i <= cy1_i - cd2_i;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cy2_q <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cy2_q <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cy2_q <= cy1_q - cd2_q;
 end
 
 // Stage 3 ─────────────────────────────────────────────────────────────────
-reg signed [IQ_WIDTH-1:0] cd3_i; reg signed [IQ_WIDTH-1:0] cd3_q;
-reg signed [IQ_WIDTH-1:0] cy3_i; reg signed [IQ_WIDTH-1:0] cy3_q;
+reg signed [CIC_ACC-1:0] cd3_i; reg signed [CIC_ACC-1:0] cd3_q;
+reg signed [CIC_ACC-1:0] cy3_i; reg signed [CIC_ACC-1:0] cy3_q;
 
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cd3_i <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cd3_i <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cd3_i <= cy2_i;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cd3_q <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cd3_q <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cd3_q <= cy2_q;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cy3_i <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cy3_i <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cy3_i <= cy2_i - cd3_i;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cy3_q <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cy3_q <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cy3_q <= cy2_q - cd3_q;
 end
 
 // Stage 4 ─────────────────────────────────────────────────────────────────
-reg signed [IQ_WIDTH-1:0] cd4_i; reg signed [IQ_WIDTH-1:0] cd4_q;
-reg signed [IQ_WIDTH-1:0] cy4_i; reg signed [IQ_WIDTH-1:0] cy4_q;
+reg signed [CIC_ACC-1:0] cd4_i; reg signed [CIC_ACC-1:0] cd4_q;
+reg signed [CIC_ACC-1:0] cy4_i; reg signed [CIC_ACC-1:0] cy4_q;
 
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cd4_i <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cd4_i <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cd4_i <= cy3_i;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cd4_q <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cd4_q <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cd4_q <= cy3_q;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cy4_i <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cy4_i <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cy4_i <= cy3_i - cd4_i;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cy4_q <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cy4_q <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cy4_q <= cy3_q - cd4_q;
 end
 
 // Stage 5 — final comb output ─────────────────────────────────────────────
-reg signed [IQ_WIDTH-1:0] cd5_i; reg signed [IQ_WIDTH-1:0] cd5_q;
-reg signed [IQ_WIDTH-1:0] comb_out_i; reg signed [IQ_WIDTH-1:0] comb_out_q;
+reg signed [CIC_ACC-1:0] cd5_i; reg signed [CIC_ACC-1:0] cd5_q;
+reg signed [CIC_ACC-1:0] comb_out_i; reg signed [CIC_ACC-1:0] comb_out_q;
 
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cd5_i <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cd5_i <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cd5_i <= cy4_i;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) cd5_q <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) cd5_q <= {CIC_ACC{1'b0}};
     else if (comb_load_w) cd5_q <= cy4_q;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) comb_out_i <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) comb_out_i <= {CIC_ACC{1'b0}};
     else if (comb_load_w) comb_out_i <= cy4_i - cd5_i;
 end
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
-    if (!rst_n_lvds) comb_out_q <= {IQ_WIDTH{1'b0}};
+    if (!rst_n_lvds) comb_out_q <= {CIC_ACC{1'b0}};
     else if (comb_load_w) comb_out_q <= cy4_q - cd5_q;
 end
 
@@ -321,11 +322,11 @@ wire intg_en_w = (lvds_cnt[1:0] == 2'b00);
 // -------------------------------------------------------------------------
 wire signed [CIC_ACC-1:0] intg_in_i_w =
     (lvds_cnt == 8'd0) ?
-        {{(CIC_ACC-IQ_WIDTH){comb_out_i[IQ_WIDTH-1]}}, comb_out_i} :
+        comb_out_i :
         {CIC_ACC{1'b0}};
 wire signed [CIC_ACC-1:0] intg_in_q_w =
     (lvds_cnt == 8'd0) ?
-        {{(CIC_ACC-IQ_WIDTH){comb_out_q[IQ_WIDTH-1]}}, comb_out_q} :
+        comb_out_q :
         {CIC_ACC{1'b0}};
 
 // -------------------------------------------------------------------------

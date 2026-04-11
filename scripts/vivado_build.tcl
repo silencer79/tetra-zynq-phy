@@ -39,10 +39,14 @@ set PART "xc7z020clg400-1"
 
 # =============================================================================
 # Production vs Debug Build
-# Set ENABLE_ILA_DEBUG to 0 for production (timing-clean, no ILA overhead)
-# Set ENABLE_ILA_DEBUG to 1 for debug (ILA enabled, timing violations in ILA)
+# Default to production because the debug ILA core materially hurts timing on
+# clk_fpga_0 and can destabilize hardware bring-up. Override with
+# ENABLE_ILA_DEBUG=1 in the environment when interactive debug is needed.
 # =============================================================================
-set ENABLE_ILA_DEBUG 1 ; # 0 = Production build, 1 = Debug build with ILA
+set ENABLE_ILA_DEBUG 0
+if {[info exists env(ENABLE_ILA_DEBUG)]} {
+    set ENABLE_ILA_DEBUG $env(ENABLE_ILA_DEBUG)
+}
 
 # Forward ADI_HDL_DIR to create_bd.tcl if set in environment
 if {[info exists env(ADI_HDL_DIR)]} {

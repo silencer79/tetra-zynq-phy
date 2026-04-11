@@ -25,6 +25,8 @@ module tb_tetra_burst_mux;
 // ---------------------------------------------------------------------------
 localparam BLOCK_BITS   = 216;
 localparam BB_BITS      = 30;
+localparam BKN1_SB_BITS = 240;
+localparam BB_SB_BITS   = 28;
 localparam CLK_HALF     = 5;      // 100 MHz
 
 // ---------------------------------------------------------------------------
@@ -36,7 +38,11 @@ reg              rst_n_sys;
 reg  [4*BLOCK_BITS-1:0] block1_in_sys;
 reg  [4*BLOCK_BITS-1:0] block2_in_sys;
 reg  [4*BB_BITS-1:0]    bb_in_sys;
+reg  [BKN1_SB_BITS-1:0] sb_bkn1_in_sys;
+reg  [BLOCK_BITS-1:0]   sb_bkn2_in_sys;
+reg  [BB_SB_BITS-1:0]   sb_bb_in_sys;
 reg  [3:0]              slot_en_sys;
+reg  [7:0]              slot_burst_type_sys;
 reg  [1:0]              tx_slot_num_sys;
 reg                     tx_slot_pulse_sys;
 reg                     builder_busy_sys;
@@ -61,12 +67,19 @@ tetra_burst_mux #(
     .block1_in_sys        (block1_in_sys),
     .block2_in_sys        (block2_in_sys),
     .bb_in_sys            (bb_in_sys),
+    .sb_bkn1_in_sys       (sb_bkn1_in_sys),
+    .sb_bkn2_in_sys       (sb_bkn2_in_sys),
+    .sb_bb_in_sys         (sb_bb_in_sys),
     .slot_en_sys          (slot_en_sys),
+    .slot_burst_type_sys  (slot_burst_type_sys),
     .tx_slot_num_sys      (tx_slot_num_sys),
     .tx_slot_pulse_sys    (tx_slot_pulse_sys),
     .build_block1_sys     (build_block1_sys),
     .build_block2_sys     (build_block2_sys),
     .build_bb_sys         (build_bb_sys),
+    .build_bkn1_sb_sys    (),
+    .build_bkn2_sb_sys    (),
+    .build_bb_sb_sys      (),
     .build_burst_type_sys (build_burst_type_sys),
     .build_req_sys        (build_req_sys),
     .builder_busy_sys     (builder_busy_sys),
@@ -169,9 +182,13 @@ initial begin : stim
     tx_slot_num_sys   = 2'd0;
     builder_busy_sys  = 1'b0;
     slot_en_sys       = 4'b1111;
+    slot_burst_type_sys = 8'h00;
     block1_in_sys     = {(4*BLOCK_BITS){1'b0}};
     block2_in_sys     = {(4*BLOCK_BITS){1'b0}};
     bb_in_sys         = {(4*BB_BITS){1'b0}};
+    sb_bkn1_in_sys    = {BKN1_SB_BITS{1'b0}};
+    sb_bkn2_in_sys    = {BLOCK_BITS{1'b0}};
+    sb_bb_in_sys      = {BB_SB_BITS{1'b0}};
 
     repeat (4) @(posedge clk_sys);
     rst_n_sys = 1'b1;

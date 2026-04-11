@@ -65,13 +65,16 @@ wire             tx_busy_sys;
 // ---------------------------------------------------------------------------
 tetra_burst_builder #(
     .BLOCK_BITS(BLOCK_BITS),
-    .BB_BITS   (BB_BITS)
+    .BB_BITS   (BB_BITS),
+    .SYM_DIV   (13'd0)
 ) dut (
     .clk_sys          (clk_sys),
     .rst_n_sys        (rst_n_sys),
     .block1_data_sys  (block1_data_sys),
     .block2_data_sys  (block2_data_sys),
     .bb_data_sys      (bb_data_sys),
+    .bkn1_sb_data_sys (240'd0),
+    .bb_sb_data_sys   (28'd0),
     .burst_type_sys   (burst_type_sys),
     .build_req_sys    (build_req_sys),
     .tx_dibit_sys     (tx_dibit_sys),

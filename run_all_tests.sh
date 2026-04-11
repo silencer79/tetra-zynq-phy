@@ -184,11 +184,10 @@ run_test "axi_dma_bridge" \
     "$TB/tb_tetra_axi_dma_bridge.v" \
     "$RTL/infra/tetra_axi_dma_bridge.v"
 
-# ---- 15. ad9361_interface ----
-run_test "ad9361_interface" \
-    "$TB/tb_tetra_ad9361_interface.v" \
-    "$RTL/tetra_ad9361_interface.v" \
-    "$SIM_MODELS/xilinx_prim_sim.v"
+# ---- 15. ad9361_axis_adapter ----
+run_test "ad9361_axis_adapter" \
+    "$TB/tb_tetra_ad9361_axis_adapter.v" \
+    "$RTL/tetra_ad9361_axis_adapter.v"
 
 # ---- 16. rcpc_encoder ----
 run_test "rcpc_encoder" \

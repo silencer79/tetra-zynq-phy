@@ -223,6 +223,18 @@ wire [5:0]  colour_code_axi;
 wire [6:0]  rx_gain_axi;
 wire [7:0]  tx_att_axi;
 
+// Synchronize static AXI control bits into the consuming clock domains.
+(* ASYNC_REG = "TRUE" *) reg ctrl_loopback_lvds_r0;
+(* ASYNC_REG = "TRUE" *) reg ctrl_loopback_lvds_r1;
+(* ASYNC_REG = "TRUE" *) reg ctrl_reset_cnt_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg ctrl_reset_cnt_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg ctrl_loopback_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg ctrl_loopback_sys_r1;
+
+wire ctrl_loopback_en_lvds = ctrl_loopback_lvds_r1;
+wire ctrl_reset_counters_sys = ctrl_reset_cnt_sys_r1;
+wire ctrl_loopback_en_sys = ctrl_loopback_sys_r1;
+
 // =============================================================================
 // axi_ad9361 Adapter — fabric IQ interface to/from ADI IP block
 //
@@ -273,14 +285,14 @@ tetra_ad9361_axis_adapter #(
 );
 
 // Loopback mux: CTRL[2]=1 feeds TX directly into RX (digital loopback, no RF path needed).
-// ctrl_loopback_en_axi is clk_sys; used combinatorially in clk_lvds — acceptable for static ctrl.
+// The control bit originates in AXI and is synchronized into clk_lvds before use.
 wire signed [IQ_WIDTH-1:0] rx_i_lvds;
 wire signed [IQ_WIDTH-1:0] rx_q_lvds;
 wire                       rx_valid_lvds;
 
-assign rx_i_lvds     = ctrl_loopback_en_axi ? tx_i_lvds     : rx_i_adc_lvds;
-assign rx_q_lvds     = ctrl_loopback_en_axi ? tx_q_lvds     : rx_q_adc_lvds;
-assign rx_valid_lvds = ctrl_loopback_en_axi ? tx_valid_lvds : rx_valid_adc_lvds;
+assign rx_i_lvds     = ctrl_loopback_en_lvds ? tx_i_lvds     : rx_i_adc_lvds;
+assign rx_q_lvds     = ctrl_loopback_en_lvds ? tx_q_lvds     : rx_q_adc_lvds;
+assign rx_valid_lvds = ctrl_loopback_en_lvds ? tx_valid_lvds : rx_valid_adc_lvds;
 
 // adc_dovf / dac_dunf: overflow/underflow flags to axi_ad9361 IP.
 // Our design cannot detect these at the adapter level — tie to zero.
@@ -483,7 +495,7 @@ reg  [15:0] sync_lost_cnt_sys;
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys)
         crc_err_cnt_sys <= 16'd0;
-    else if (ctrl_reset_counters_axi)
+    else if (ctrl_reset_counters_sys)
         crc_err_cnt_sys <= 16'd0;
     else if (lmac_crc_valid_sys && !lmac_crc_ok_sys && !(&crc_err_cnt_sys))
         crc_err_cnt_sys <= crc_err_cnt_sys + 16'd1;
@@ -508,7 +520,7 @@ wire sync_lost_pulse_sys = sync_locked_d2_sys & ~sync_locked_d1_sys;
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys)
         sync_lost_cnt_sys <= 16'd0;
-    else if (ctrl_reset_counters_axi)
+    else if (ctrl_reset_counters_sys)
         sync_lost_cnt_sys <= 16'd0;
     else if (sync_lost_pulse_sys && !(&sync_lost_cnt_sys))
         sync_lost_cnt_sys <= sync_lost_cnt_sys + 16'd1;
@@ -539,7 +551,7 @@ tetra_axi_dma_bridge #(
     .irq_mac_block_sys   (irq_mac_block_sys),
     .fifo_empty_sys      (dma_fifo_empty_sys),
     .fifo_full_sys       (dma_fifo_full_sys),
-    .reset_counters_sys  (ctrl_reset_counters_axi)
+    .reset_counters_sys  (ctrl_reset_counters_sys)
 );
 
 // =============================================================================
@@ -819,6 +831,30 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     else             sync_lost_cnt_axi_r1 <= sync_lost_cnt_axi_r0;
 end
 
+always @(posedge clk_lvds or negedge rst_n_lvds) begin
+    if (!rst_n_lvds) begin
+        ctrl_loopback_lvds_r0 <= 1'b0;
+        ctrl_loopback_lvds_r1 <= 1'b0;
+    end else begin
+        ctrl_loopback_lvds_r0 <= ctrl_loopback_en_axi;
+        ctrl_loopback_lvds_r1 <= ctrl_loopback_lvds_r0;
+    end
+end
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        ctrl_reset_cnt_sys_r0 <= 1'b0;
+        ctrl_reset_cnt_sys_r1 <= 1'b0;
+        ctrl_loopback_sys_r0 <= 1'b0;
+        ctrl_loopback_sys_r1 <= 1'b0;
+    end else begin
+        ctrl_reset_cnt_sys_r0 <= ctrl_reset_counters_axi;
+        ctrl_reset_cnt_sys_r1 <= ctrl_reset_cnt_sys_r0;
+        ctrl_loopback_sys_r0 <= ctrl_loopback_en_axi;
+        ctrl_loopback_sys_r1 <= ctrl_loopback_sys_r0;
+    end
+end
+
 // =============================================================================
 // AXI4-Lite Register Bank
 // =============================================================================
@@ -951,7 +987,7 @@ always @(posedge clk_sys) begin
     dbg_tx_slot_pulse_sys <= tx_slot_pulse_free_sys;
 end
 always @(posedge clk_sys) begin
-    dbg_loopback_en_sys <= ctrl_loopback_en_axi;
+    dbg_loopback_en_sys <= ctrl_loopback_en_sys;
 end
 
 // RX datapath probes

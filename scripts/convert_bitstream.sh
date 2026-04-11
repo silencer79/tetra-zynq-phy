@@ -29,6 +29,7 @@ BUILD_DIR="${PROJECT_ROOT}/build"
 BITSTREAM="tetra_zynq_phy"
 BIT_FILE="${BUILD_DIR}/${BITSTREAM}.bit"
 BIN_FILE="${BUILD_DIR}/${BITSTREAM}.bit.bin"
+BIT_BASENAME="$(basename "$BIT_FILE")"
 
 # -----------------------------------------------------------------------------
 # Check Prerequisites
@@ -67,7 +68,7 @@ BIF_FILE="${BUILD_DIR}/${BITSTREAM}.bif"
 cat > "$BIF_FILE" << EOF
 all:
 {
-	${BITSTREAM}.bit
+	${BIT_BASENAME}
 }
 EOF
 
@@ -79,9 +80,12 @@ echo "Step 2/2: Converting bitstream..."
 echo "  bootgen -w on -process_bitstream bin -image $BIF_FILE -o $BIN_FILE"
 
 # Run bootgen
-bootgen -w on -process_bitstream bin \
-	-image "$BIF_FILE" \
-	-o "$BIN_FILE"
+(
+	cd "$BUILD_DIR"
+	bootgen -w on -process_bitstream bin \
+		-image "$BIF_FILE" \
+		-o "$BIN_FILE"
+)
 
 # -----------------------------------------------------------------------------
 # Verification
