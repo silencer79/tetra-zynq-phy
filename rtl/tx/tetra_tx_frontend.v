@@ -10,9 +10,10 @@
 //   (AD9361 DAC rate, clk_lvds domain).
 //
 //   Clock relations (all exact):
-//     clk_lvds  = 9.216 MHz = 128 × 72 kHz = 2 × 4.608 MHz
-//     Input     = 72 kHz  (one IQ pair per ~128 lvds cycles)
-//     Output    = 4.608 MHz = one IQ pair every 2 clk_lvds cycles
+//     clk_lvds  = 18.432 MHz = 256 × 72 kHz = 4 × 4.608 MHz
+//     (AD9361 2R2T DDR LVDS: DATA_CLK = 4 × sample_rate = 4 × 4.608 MSPS)
+//     Input     = 72 kHz  (one IQ pair per ~256 lvds cycles)
+//     Output    = 4.608 MHz = one IQ pair every 4 clk_lvds cycles
 //
 // Architecture:
 //   [clk_sys domain]
@@ -20,15 +21,15 @@
 //     sample_valid_in pulse.
 //
 //   [clk_lvds domain — CIC interpolator]
-//     lvds_cnt[6:0]: 7-bit counter 0..127 (natural overflow = R×2 - 1)
+//     lvds_cnt[7:0]: 8-bit counter 0..255 (natural overflow = R×4 - 1)
 //
 //     Timing summary (each line = 1 clk_lvds cycle):
-//       cnt==127 → FIFO rd_en pulse
+//       cnt==255 → FIFO rd_en pulse
 //       cnt==0   → fifo_dout valid (1-cycle read latency); comb stages update;
 //                  FIRST integration step (adds new comb_out = OLD period's comb)
-//       cnt==2,4,...,126 → remaining 63 integration steps (input = 0)
-//       cnt==1,3,...,127 → no integration
-//       Output valid: 1 cycle after each integration step (cnt==1,3,...,127
+//       cnt==4,8,...,252 → remaining 63 integration steps (input = 0)
+//       cnt==1,2,3,5,6,7,... → no integration
+//       Output valid: 1 cycle after each integration step (cnt==1,5,...,253
 //                     with 1-cycle pipeline delay from intg to output registers)
 //
 //     CIC comb section (5 × 1st-order differentiator at input rate):
@@ -45,7 +46,7 @@
 //     Output scaling: right-shift by CIC_SHIFT=30, then saturate to IQ_WIDTH.
 //     Accumulator width: CIC_ACC = 48 bits (16 + 30 + 2 guard bits).
 //
-//   Output valid pulses: 64 per 128 lvds cycles → 9.216 MHz / 2 = 4.608 MHz ✓
+//   Output valid pulses: 64 per 256 lvds cycles → 18.432 MHz / 4 = 4.608 MHz ✓
 //
 // Resource estimate (Vivado 2022.2, xc7z020):
 //   LUT  : ~80    FF : ~680    DSP48 : 0    BRAM : 0 (LUTRAM FIFO)
@@ -75,7 +76,7 @@ module tetra_tx_frontend #(
     // -------------------------------------------------------------------------
     // clk_lvds domain (~9.216 MHz)
     // -------------------------------------------------------------------------
-    input  wire                       clk_lvds,
+    input  wire                       clk_lvds,      // 18.432 MHz (AD9361 2R2T DDR DATA_CLK)
     input  wire                       rst_n_lvds,
 
     output reg  signed [IQ_WIDTH-1:0] tx_i_lvds,
@@ -151,22 +152,23 @@ xpm_fifo_async #(
 // =============================================================================
 
 // -------------------------------------------------------------------------
-// R1: lvds_cnt[6:0] — 7-bit counter 0..127
+// R1: lvds_cnt[7:0] — 8-bit counter 0..255
+// At clk_lvds=18.432 MHz: period = 256/18.432 MHz = 13.89 µs = 72 kHz symbol rate ✓
 // -------------------------------------------------------------------------
-reg [6:0] lvds_cnt;
+reg [7:0] lvds_cnt;
 
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
     if (!rst_n_lvds)
-        lvds_cnt <= 7'd0;
+        lvds_cnt <= 8'd0;
     else
-        lvds_cnt <= lvds_cnt + 7'd1;   // natural 7-bit wrap: 127 → 0
+        lvds_cnt <= lvds_cnt + 8'd1;   // natural 8-bit wrap: 255 → 0
 end
 
-// FIFO read at cnt==127 → data valid at cnt==0 (1-cycle latency)
-assign fifo_rd_en_lvds = (lvds_cnt == 7'd127) && !fifo_empty_lvds && !fifo_rd_rst_busy_lvds;
+// FIFO read at cnt==255 → data valid at cnt==0 (1-cycle latency)
+assign fifo_rd_en_lvds = (lvds_cnt == 8'd255) && !fifo_empty_lvds && !fifo_rd_rst_busy_lvds;
 
 // comb_load_w fires at cnt==0 (fifo_dout valid this cycle)
-wire comb_load_w = (lvds_cnt == 7'd0);
+wire comb_load_w = (lvds_cnt == 8'd0);
 
 // -------------------------------------------------------------------------
 // R1: comb input register — latch FIFO data at cnt==0
@@ -301,10 +303,11 @@ always @(posedge clk_lvds or negedge rst_n_lvds) begin
 end
 
 // -------------------------------------------------------------------------
-// Integration enable: every even lvds cycle (cnt[0] == 0)
-//   64 pulses per 128-cycle period → output rate = 9.216 MHz / 2 = 4.608 MHz ✓
+// Integration enable: every 4th lvds cycle (cnt[1:0] == 2'b00)
+//   64 pulses per 256-cycle period → output rate = 18.432 MHz / 4 = 4.608 MHz ✓
+//   Matches AD9361 sample rate so loopback RX CIC (R=64) gets correct 72 kHz output.
 // -------------------------------------------------------------------------
-wire intg_en_w = (lvds_cnt[0] == 1'b0);
+wire intg_en_w = (lvds_cnt[1:0] == 2'b00);
 
 // -------------------------------------------------------------------------
 // Integrator input (zero-insertion):
@@ -317,11 +320,11 @@ wire intg_en_w = (lvds_cnt[0] == 1'b0);
 //   This is a 1-sample latency that is acceptable and standard.
 // -------------------------------------------------------------------------
 wire signed [CIC_ACC-1:0] intg_in_i_w =
-    (lvds_cnt == 7'd0) ?
+    (lvds_cnt == 8'd0) ?
         {{(CIC_ACC-IQ_WIDTH){comb_out_i[IQ_WIDTH-1]}}, comb_out_i} :
         {CIC_ACC{1'b0}};
 wire signed [CIC_ACC-1:0] intg_in_q_w =
-    (lvds_cnt == 7'd0) ?
+    (lvds_cnt == 8'd0) ?
         {{(CIC_ACC-IQ_WIDTH){comb_out_q[IQ_WIDTH-1]}}, comb_out_q} :
         {CIC_ACC{1'b0}};
 
