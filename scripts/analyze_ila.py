@@ -199,22 +199,41 @@ def analyze_sys(csv_path: str) -> bool:
 
     # RX Datapath: FE → TR → Demod
     print(f"\n  {CYAN}RX Datapath:{RESET}")
+    # ILA-Fenster berechnen und erwartete Aktivitaetsraten ableiten
+    # TETRA: fe_valid=72kHz (4x oversampled), tr/demod_valid=18kHz
+    # Bei 100 MHz ILA-Takt: fe=0.072%, tr/demod=0.018%
+    # Mit mindestens 1 Puls pro Fenster als Aktivitaets-Nachweis
+    ILA_CLK = 100_000_000
+    FE_RATE   = 72_000  # Hz — CIC+RRC Output
+    TR_RATE   = 18_000  # Hz — Timing Recovery on-time samples
+    DEM_RATE  = 18_000  # Hz — Demodulator dibits
+
+    n_samples = len(rows)
+    fe_exp  = max(1.0, n_samples * FE_RATE  / ILA_CLK)
+    tr_exp  = max(0.5, n_samples * TR_RATE  / ILA_CLK)
+    dem_exp = max(0.5, n_samples * DEM_RATE / ILA_CLK)
+
     if fe_valid_col:
         s = signal_stats(rows, fe_valid_col)
         ratio = s['high'] / s['total'] * 100 if s['total'] else 0
-        if s['high'] > s['total'] * 0.01:
-            ok(f"RX Frontend aktiv (fe_valid): {s['high']}/{s['total']} HIGH ({ratio:.1f}%)")
+        # Aktiv wenn >= 30% des Erwartungswerts gesehen (stat. Variation bei kleinen Fenstern)
+        if s['high'] >= fe_exp * 0.3:
+            ok(f"RX Frontend aktiv (fe_valid): {s['high']}/{s['total']} HIGH ({ratio:.3f}%,  erwartet ~{fe_exp:.1f})")
+        elif s['high'] > 0:
+            warn(f"RX Frontend schwach (fe_valid): {s['high']}/{s['total']} ({ratio:.3f}%, erwartet ~{fe_exp:.1f}) — stat. Variation oder Signal zu schwach")
         else:
-            fail(f"RX Frontend INAKTIV (fe_valid): nur {s['high']}/{s['total']} HIGH ({ratio:.2f}%)")
-            warn("→ Kein Signal am RX-Eingang. Loopback aktiviert? AD9361 läuft?")
+            fail(f"RX Frontend INAKTIV (fe_valid): 0/{s['total']} — kein Signal am RX-Eingang")
+            warn("→ Loopback aktiviert? (tetra_ctrl.sh loopback) AD9361 läuft?")
     else:
         info("Signal 'dbg_fe_valid' nicht in CSV — ggf. neue Probes hinzufügen")
 
     if tr_valid_col:
         s = signal_stats(rows, tr_valid_col)
         ratio = s['high'] / s['total'] * 100 if s['total'] else 0
-        if s['high'] > 0:
-            ok(f"Timing Recovery aktiv (tr_valid): {s['high']}/{s['total']} HIGH ({ratio:.1f}%)")
+        if s['high'] >= tr_exp * 0.3:
+            ok(f"Timing Recovery aktiv (tr_valid): {s['high']}/{s['total']} HIGH ({ratio:.4f}%, erwartet ~{tr_exp:.1f})")
+        elif s['high'] > 0:
+            warn(f"Timing Recovery: {s['high']}/{s['total']} HIGH — stat. Variation OK bei kleinem ILA-Fenster")
         else:
             fail("Timing Recovery INAKTIV (tr_valid=0) — kein Symbol-Output")
     else:
@@ -223,8 +242,10 @@ def analyze_sys(csv_path: str) -> bool:
     if demod_valid_col:
         s = signal_stats(rows, demod_valid_col)
         ratio = s['high'] / s['total'] * 100 if s['total'] else 0
-        if s['high'] > 0:
-            ok(f"Demodulator aktiv (demod_valid): {s['high']}/{s['total']} HIGH ({ratio:.1f}%)")
+        if s['high'] >= dem_exp * 0.3:
+            ok(f"Demodulator aktiv (demod_valid): {s['high']}/{s['total']} HIGH ({ratio:.4f}%, erwartet ~{dem_exp:.1f})")
+        elif s['high'] > 0:
+            warn(f"Demodulator: {s['high']}/{s['total']} HIGH — stat. Variation OK bei kleinem ILA-Fenster")
         else:
             fail("Demodulator INAKTIV (demod_valid=0) — keine Dibits")
     else:
@@ -292,16 +313,21 @@ def print_diagnosis(adc_ok: bool, sync_ok: bool, rx_freq: int):
         return
 
     if not sync_ok:
-        print(f"\n{YELLOW}PROBLEM: Kein TETRA-Sync auf {rx_freq/1e6:.3f} MHz{RESET}")
-        print("  Mögliche Ursachen:")
-        print("  A) Falsche Frequenz — kein TETRA-Signal in der Luft?")
-        print("     → SDR-Scanner: gqrx / SDR# auf der Frequenz prüfen")
-        print("  B) Timing-Recovery konvergiert nicht")
-        print("     → ILA-Aufzeichnung verlängern (--timeout_ms 60000)")
-        print("  C) Sync-Korrelationsschwellwert zu hoch")
-        print("     → AXI-Register 0x001C (SYNC_THRESHOLD) niedriger setzen")
-        print("  D) RRC-Filter α-Parameter falsch → Signalamplitude zu niedrig")
-        print(f"  → Andere Frequenz versuchen: ./scripts/hw_deploy.sh --freq 380000000")
+        print(f"\n{YELLOW}Sync nicht in diesem ILA-Fenster gefunden{RESET}")
+        print(f"  ILA-Fenster: 4K Samples @ 100MHz = ~41 µs")
+        print(f"  TETRA-Timeslot: 14.17 ms = 1.4M Takte → ILA sieht <0.3% eines Slots!")
+        print(f"  → sync_found in 4K-Fenster statistisch sehr unwahrscheinlich!")
+        print(f"")
+        print(f"  Empfohlen — Schritt 1: STATUS-Register pollen (kein ILA nötig):")
+        print(f"    ./scripts/tetra_ctrl.sh monitor")
+        print(f"    (wartet auf SYNC_LOCKED=1 im STATUS-Register)")
+        print(f"")
+        print(f"  Falls nach 30s kein Lock (Schritt 2): ILA-Trigger auf sync_found:")
+        print(f"    → Vivado HW Manager: Trigger auf 'dbg_sync_found_sys' rising edge")
+        print(f"    → ILA wartet unbegrenzt bis Sync-Event auftritt")
+        print(f"")
+        print(f"  Falls kein Lock nach 60s (Schritt 3): Sync-Threshold senken:")
+        print(f"    ./scripts/tetra_ctrl.sh write 0x0C 0x00000050  # 80 statt 200")
         return
 
     print(f"\n{GREEN}{BOLD}ERFOLG: TETRA-Signal empfangen und synchronisiert!{RESET}")
