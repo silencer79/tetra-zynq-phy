@@ -117,6 +117,10 @@ localparam [7:0] CNT_BB_SB_MAX = 8'd13; // 14 symbols: 0..13
 // Common counter limit (BLOCK2 is 108 symbols in both NDB and SB)
 localparam [7:0] CNT_BLK2_MAX = 8'd107; // 108 symbols: 0..107
 
+// Symbol rate divider: 100 MHz / 5555 cycles = 18.004 kHz (< 0.025% error)
+// 255 symbols × 5555 cycles = 1,416,525 cycles < TX_SLOT_CYCLES=1,416,667 → fits in one slot
+localparam [12:0] SYM_DIV = 13'd5554;   // counter wraps 0..5554 = 5555 cycles/symbol
+
 // Frequency correction pattern — 2 symbols of dibit 01 (reference phase 0)
 localparam [3:0] FC_PAT = 4'b01_01;
 
@@ -144,12 +148,52 @@ localparam [75:0] STS_REF = {
 };
 
 // =============================================================================
+// Symbol rate divider — generates sym_en_w at ~18 kHz from 100 MHz clk_sys
+// sym_en_w fires once every SYM_DIV+1 = 5555 cycles while tx_busy_sys = 1.
+// All FSM state advances, counter increments, and SR shifts are gated on sym_en_w
+// so the output dibit stream is rate-limited to ~18 kHz regardless of build_req
+// timing.  tx_busy_sys is set immediately on build_req (for burst_mux handshake)
+// and cleared immediately when state reaches S_DONE (no sym_en gate on DONE exit).
+// =============================================================================
+reg [12:0] sym_div_sys;
+wire       sym_en_w;
+
+// R1: symbol-rate divider counter — runs only while tx_busy
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys)
+  sym_div_sys <= 13'd0;
+ else if (!tx_busy_sys)
+  sym_div_sys <= 13'd0;  // reset when idle
+ else if (sym_div_sys == SYM_DIV)
+  sym_div_sys <= 13'd0;  // wrap
+ else
+  sym_div_sys <= sym_div_sys + 13'd1;
+end
+
+// sym_en_w: HIGH for exactly 1 clk_sys cycle per symbol period
+assign sym_en_w = tx_busy_sys && (sym_div_sys == 13'd0);
+
+// =============================================================================
 // FSM state, counter, and burst type latch
 // =============================================================================
 reg [2:0] state_sys;
 reg [2:0] next_state_sys;
 reg [7:0] sym_cnt_sys;
 reg [1:0] burst_type_latched_sys; // Latch burst_type on build_req
+
+// build_req_pending_sys: latches build_req_sys so next_state_sys sees it at the
+// first sym_en_w pulse (which fires 1 cycle after build_req, when build_req=0).
+// Clears when sym_en_w grants the S_IDLE→S_FREQCOR transition.
+reg build_req_pending_sys;
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys)
+  build_req_pending_sys <= 1'b0;
+ else if (build_req_sys)
+  build_req_pending_sys <= 1'b1;
+ else if (sym_en_w && state_sys == S_IDLE)
+  build_req_pending_sys <= 1'b0;
+end
 
 // =============================================================================
 // Shift registers (flat, no arrays — R3)
@@ -195,7 +239,7 @@ end
 always @(*) begin
  next_state_sys = state_sys;
  case (state_sys)
- S_IDLE: if (build_req_sys) next_state_sys = S_FREQCOR;
+ S_IDLE: if (build_req_pending_sys) next_state_sys = S_FREQCOR;
  S_FREQCOR: if (sym_cnt_sys == CNT_FC_MAX) next_state_sys = S_BLOCK1;
  S_BLOCK1: begin
  if (burst_type_latched_sys == 2'b01) begin // SB
@@ -232,12 +276,16 @@ end
 
 // =============================================================================
 // R1: state register (R5 — state register block)
+// Advances on sym_en_w (≈18 kHz) except S_DONE which exits to S_IDLE
+// immediately (no sym_en gate) so tx_busy_sys deasserts quickly for burst_mux.
 // =============================================================================
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
- state_sys <= S_IDLE;
- else
- state_sys <= next_state_sys;
+  state_sys <= S_IDLE;
+ else if (state_sys == S_DONE)
+  state_sys <= S_IDLE;        // immediate — clears tx_busy fast
+ else if (sym_en_w)
+  state_sys <= next_state_sys;
 end
 
 // =============================================================================
@@ -254,14 +302,17 @@ end
 // =============================================================================
 // R1: symbol counter
 // Resets to 0 on any state transition; increments while in active states.
+// Gated on sym_en_w so it advances at ≈18 kHz only.
 // =============================================================================
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
- sym_cnt_sys <= 8'd0;
- else if (state_sys != next_state_sys)
- sym_cnt_sys <= 8'd0;
- else if (state_sys != S_IDLE && state_sys != S_DONE)
- sym_cnt_sys <= sym_cnt_sys + 8'd1;
+  sym_cnt_sys <= 8'd0;
+ else if (sym_en_w) begin
+  if (state_sys != next_state_sys)
+   sym_cnt_sys <= 8'd0;
+  else if (state_sys != S_IDLE && state_sys != S_DONE)
+   sym_cnt_sys <= sym_cnt_sys + 8'd1;
+ end
 end
 
 // =============================================================================
@@ -273,7 +324,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  fc_sreg_sys <= 4'b0000;
  else if (state_sys == S_IDLE && build_req_sys)
  fc_sreg_sys <= FC_PAT;
- else if (state_sys == S_FREQCOR)
+ else if (state_sys == S_FREQCOR && sym_en_w)
  fc_sreg_sys <= {fc_sreg_sys[1:0], 2'b00};
 end
 
@@ -289,7 +340,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  block1_sreg_sys <= bkn1_sb_data_sys;
  else // NDB or Idle
  block1_sreg_sys <= {{BKN1_SB_BITS-BLOCK_BITS{1'b0}}, block1_data_sys};
- end else if (state_sys == S_BLOCK1) begin
+ end else if (state_sys == S_BLOCK1 && sym_en_w) begin
  block1_sreg_sys <= {block1_sreg_sys[BKN1_SB_BITS-3:0], 2'b00};
  end
 end
@@ -307,7 +358,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  train_sreg_sys <= STS_REF;
  else // NDB: NTS (22 symbols) zero-extended to 76 bits
  train_sreg_sys <= {{32{1'b0}}, NTS_REF};
- end else if (state_sys == S_TRAIN)
+ end else if (state_sys == S_TRAIN && sym_en_w)
  train_sreg_sys <= {train_sreg_sys[73:0], 2'b00};
 end
 
@@ -324,7 +375,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  bb_sreg_sys <= {{BB_BITS-BB_SB_BITS{1'b0}}, bb_sb_data_sys};
  else // NDB: 15 symbols (30 bits)
  bb_sreg_sys <= bb_data_sys;
- end else if (state_sys == S_BB)
+ end else if (state_sys == S_BB && sym_en_w)
  bb_sreg_sys <= {bb_sreg_sys[BB_BITS-3:0], 2'b00};
 end
 
@@ -337,57 +388,63 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  block2_sreg_sys <= {BLOCK_BITS{1'b0}};
  else if (state_sys == S_IDLE && build_req_sys)
  block2_sreg_sys <= block2_data_sys;
- else if (state_sys == S_BLOCK2)
+ else if (state_sys == S_BLOCK2 && sym_en_w)
  block2_sreg_sys <= {block2_sreg_sys[BLOCK_BITS-3:0], 2'b00};
 end
 
 // =============================================================================
-// R1: tx_dibit_sys — registered output dibit (1-cycle latency from state)
+// R1: tx_dibit_sys — registered output dibit
+// Updated only on sym_en_w so the held value is stable for the full symbol period.
+// Downstream modulator samples dibit_in on the cycle that dibit_valid fires
+// (1 cycle after sym_en), at which point tx_dibit_sys holds the correct value.
 // =============================================================================
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
- tx_dibit_sys <= 2'b00;
- else
- tx_dibit_sys <= mux_dibit_w;
+  tx_dibit_sys <= 2'b00;
+ else if (sym_en_w)
+  tx_dibit_sys <= mux_dibit_w;
 end
 
 // =============================================================================
 // R1: tx_dibit_valid_sys
-// HIGH when state (before posedge) is an active output state.
-// Registered from state_sys → 1-cycle latency, aligned with tx_dibit_sys.
-// Total 255 cycles of valid=1, exactly one per output symbol.
+// Fires 1 cycle after sym_en_w when state is an active output state.
+// Total 255 pulses per burst at ≈18 kHz, exactly one per output symbol.
 // =============================================================================
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
- tx_dibit_valid_sys <= 1'b0;
+  tx_dibit_valid_sys <= 1'b0;
  else
- tx_dibit_valid_sys <= (state_sys == S_FREQCOR) || (state_sys == S_BLOCK1) ||
- (state_sys == S_TRAIN) || (state_sys == S_BB) ||
- (state_sys == S_BLOCK2);
+  tx_dibit_valid_sys <= sym_en_w && ((state_sys == S_FREQCOR) ||
+                                     (state_sys == S_BLOCK1)  ||
+                                     (state_sys == S_TRAIN)   ||
+                                     (state_sys == S_BB)      ||
+                                     (state_sys == S_BLOCK2));
 end
 
 // =============================================================================
-// R1: tx_done_sys — 1-cycle pulse when LAST symbol is registered
-// Fires in the same output cycle as the last valid dibit (last BLOCK2 symbol).
-// next_state_sys == S_DONE means we are on the last BLOCK2 cycle.
+// R1: tx_done_sys — 1-cycle pulse on last output symbol
+// Fires 1 cycle after the sym_en_w that triggers the S_DONE transition.
 // =============================================================================
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
- tx_done_sys <= 1'b0;
+  tx_done_sys <= 1'b0;
  else
- tx_done_sys <= (next_state_sys == S_DONE);
+  tx_done_sys <= sym_en_w && (next_state_sys == S_DONE);
 end
 
 // =============================================================================
 // R1: tx_busy_sys — HIGH while burst in progress
+// Set immediately on build_req (1-cycle pulse) so burst_mux enters S_WAIT.
+// Cleared immediately when state reaches S_DONE (no sym_en gate) so burst_mux
+// returns to S_IDLE without waiting an extra symbol period.
 // =============================================================================
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
- tx_busy_sys <= 1'b0;
+  tx_busy_sys <= 1'b0;
  else if (state_sys == S_IDLE && build_req_sys)
- tx_busy_sys <= 1'b1;
+  tx_busy_sys <= 1'b1;
  else if (state_sys == S_DONE)
- tx_busy_sys <= 1'b0;
+  tx_busy_sys <= 1'b0;
 end
 
 endmodule
