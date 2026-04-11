@@ -84,20 +84,20 @@ module tetra_rx_chain #(
 // Internal wires
 // =============================================================================
 
-// rx_frontend → pi4dqpsk_demod / timing_recovery
+// rx_frontend → timing_recovery → pi4dqpsk_demod
 wire signed [IQ_WIDTH-1:0] fe_i_sys;
 wire signed [IQ_WIDTH-1:0] fe_q_sys;
 wire                       fe_valid_sys;
+
+// timing_recovery → pi4dqpsk_demod (on-time samples at 18 kHz)
+wire signed [IQ_WIDTH-1:0] tr_i_sys;
+wire signed [IQ_WIDTH-1:0] tr_q_sys;
+wire                       tr_valid_sys;  // 18 kHz strobe — 1 sample per TDMA symbol
 
 // pi4dqpsk_demod → sync_detect, burst_demux
 wire [1:0]  demod_dibit_sys;
 wire        demod_valid_sys;
 wire signed [15:0] demod_phase_err_sys;
-
-// timing_recovery → (feedback to rx_frontend via NCO, not modelled here)
-// (timing_recovery output is NCO overflow = the "valid" strobe to demod)
-// In the current architecture, timing_recovery runs in parallel and its
-// ted_out is available for diagnostics but does not gate the demod pipeline.
 
 // sync_detect → burst_demux
 wire        sync_found_w;
@@ -140,9 +140,9 @@ tetra_pi4dqpsk_demod #(
 ) u_demod (
     .clk_sample   (clk_sys),
     .rst_n_sample (rst_n_sys),
-    .i_in         (fe_i_sys),
-    .q_in         (fe_q_sys),
-    .sample_valid (fe_valid_sys),
+    .i_in         (tr_i_sys),
+    .q_in         (tr_q_sys),
+    .sample_valid (tr_valid_sys),
     .dibit_out    (demod_dibit_sys),
     .dibit_valid  (demod_valid_sys),
     .phase_error  (demod_phase_err_sys)
@@ -160,11 +160,11 @@ tetra_timing_recovery #(
     .i_in_sys             (fe_i_sys),
     .q_in_sys             (fe_q_sys),
     .sample_valid_in_sys  (fe_valid_sys),
-    .i_out_sys            (),             // on-time output — not used in this arch
-    .q_out_sys            (),
-    .sample_valid_out_sys (),
+    .i_out_sys            (tr_i_sys),
+    .q_out_sys            (tr_q_sys),
+    .sample_valid_out_sys (tr_valid_sys),
     .timing_locked_sys    (),
-    .timing_error_sys     ()              // TED output (debug/AXI readback future)
+    .timing_error_sys     ()
 );
 
 // =============================================================================
