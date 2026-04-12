@@ -592,9 +592,12 @@ wire [239:0] sb_bkn1_data_sys; // BSCH: 120 symbols = 240 bits
 wire [215:0] sb_bkn2_data_sys; // BNCH: 108 symbols = 216 bits
 wire [27:0] sb_bb_data_sys; // BB: 14 symbols = 28 bits
 
-// Minimal SB content: colour_code in upper bits, rest zeros
-assign sb_bkn1_data_sys = {colour_code_axi, 234'b0}; // BSCH with colour_code
-assign sb_bkn2_data_sys = 216'b0; // BNCH empty for now
+// SB content: colour_code in MSB pair, then cycling {00,01,10,11} pattern
+// for BKN1/BKN2 so the Gardner TED has transitions to achieve timing lock.
+// Real TETRA would use coded BSCH/BNCH payload here; PRBS pattern is
+// equivalent for timing purposes and gives correct sync_detect operation.
+assign sb_bkn1_data_sys = {colour_code_axi, {29{8'h1B}}, 2'b00}; // 6+232+2=240 bits
+assign sb_bkn2_data_sys = {27{8'h1B}}; // 216 bits cycling {00,01,10,11} pattern
 assign sb_bb_data_sys = 28'b0; // BB empty for now
 
 // Burst type per slot: Loopback test — all slots SB so sync_fires arrive

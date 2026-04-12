@@ -19,7 +19,7 @@ Address space: 256 bytes (0x00 – 0xFF), 32-bit word-aligned accesses only.
 | 0x00   | CTRL              | R/W    | 0x0000_0000| Global control                       |
 | 0x04   | STATUS            | RO     | 0x0000_0000| Global status                        |
 | 0x08   | VERSION           | RO     | 0x0001_0000| Firmware version (major.minor)       |
-| 0x0C   | SYNC_THRESH       | R/W    | 0x0000_00C8| Sync correlator threshold (default=200)|
+| 0x0C   | SYNC_THRESH       | R/W    | 0x0000_0014| Sync correlator threshold (default=20) |
 | 0x10   | COLOUR_CODE       | R/W    | 0x0000_0001| TETRA Colour Code (1–63)             |
 | 0x14   | FRAME_NUM         | RO     | 0x0000_0000| Current TDMA frame number            |
 | 0x18   | SLOT_NUM          | RO     | 0x0000_0000| Current timeslot (0–3)               |

@@ -230,7 +230,7 @@ tetra_rrc_filter #(
 // =============================================================================
 tetra_tx_frontend #(
  .IQ_WIDTH (IQ_WIDTH),
- .CIC_SHIFT (30),
+ .CIC_SHIFT (24),
  .CIC_ACC (48)
 ) u_tx_frontend (
  .clk_sys (clk_sys),

@@ -68,7 +68,7 @@ wire                       tx_valid_lvds;
 // ---------------------------------------------------------------------------
 tetra_tx_frontend #(
     .IQ_WIDTH  (IQ_WIDTH),
-    .CIC_SHIFT (30),
+    .CIC_SHIFT (24),
     .CIC_ACC   (48)
 ) dut (
     .clk_sys         (clk_sys),

@@ -19,7 +19,7 @@ import math
 CIC_R = 64
 CIC_N = 5
 CIC_M = 1
-CIC_SHIFT = 30   # = N * log2(R*M) = 5 * 6
+CIC_SHIFT = 24   # effective gain for this interpolator structure = R^(N-1) = 64^4
 IQ_WIDTH = 16
 
 def cic_interpolate(samples_in, R=CIC_R, N=CIC_N, M=CIC_M, shift=CIC_SHIFT, width=IQ_WIDTH):

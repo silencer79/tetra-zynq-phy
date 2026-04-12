@@ -42,8 +42,9 @@
 //       This implements zero-insertion interpolation correctly:
 //         [comb_out, 0, 0, ..., 0]  per 128-cycle period → 64 output samples.
 //
-//     CIC gain: R^N = 64^5 = 2^30.
-//     Output scaling: right-shift by CIC_SHIFT=30, then saturate to IQ_WIDTH.
+//     Effective interpolation gain of this comb-before-zero-stuff structure:
+//       R^(N-1) = 64^4 = 2^24
+//     Output scaling: right-shift by CIC_SHIFT=24, then saturate to IQ_WIDTH.
 //     Accumulator width: CIC_ACC = 48 bits (16 + 30 + 2 guard bits).
 //
 //   Output valid pulses: 64 per 256 lvds cycles → 18.432 MHz / 4 = 4.608 MHz ✓
@@ -60,7 +61,7 @@
 
 module tetra_tx_frontend #(
     parameter IQ_WIDTH  = 16,    // signed IQ sample width
-    parameter CIC_SHIFT = 30,    // R^N = 64^5 = 2^30 (CIC interpolator DC gain compensation)
+    parameter CIC_SHIFT = 24,    // Effective gain = R^(N-1) = 64^4 = 2^24
     parameter CIC_ACC   = 48     // accumulator width (IQ_WIDTH + 30 + 2 guard)
 )(
     // -------------------------------------------------------------------------
@@ -395,7 +396,7 @@ always @(posedge clk_lvds or negedge rst_n_lvds) begin
 end
 
 // -------------------------------------------------------------------------
-// Output scaling: right-shift by CIC_SHIFT=30 bits, saturate to IQ_WIDTH
+// Output scaling: right-shift by CIC_SHIFT bits, saturate to IQ_WIDTH
 // -------------------------------------------------------------------------
 wire signed [CIC_ACC-1:0] out_i_sh_w = intg_i5 >>> CIC_SHIFT;
 wire signed [CIC_ACC-1:0] out_q_sh_w = intg_q5 >>> CIC_SHIFT;

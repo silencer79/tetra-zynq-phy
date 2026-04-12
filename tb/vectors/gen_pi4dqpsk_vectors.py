@@ -68,7 +68,10 @@ def cordic_phase(i_val, q_val):
         x_shr = xc >> i
         xc_new = xc + d * y_shr
         yc_new = yc - d * x_shr
-        zc_new = zc - d * ATAN_TABLE[i]
+        # Match RTL vectoring sign convention:
+        #   y >= 0 -> z += atan
+        #   y <  0 -> z -= atan
+        zc_new = zc + d * ATAN_TABLE[i]
         # Clamp to hardware widths
         xc = to_signed(xc_new, CORDIC_WIDTH)
         yc = to_signed(yc_new, CORDIC_WIDTH)

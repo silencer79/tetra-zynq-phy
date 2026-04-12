@@ -196,9 +196,11 @@ assign x_shr_sample = cordic_x_sample >>> iter_cnt_sample;
 // =============================================================================
 // Combinatorial: CORDIC update equations (Stage 2)
 // =============================================================================
-// When cordic_d=1 (y >= 0): rotate CW  → x += y>>i, y -= x>>i, z -= atan
-// When cordic_d=0 (y <  0): rotate CCW → x -= y>>i, y += x>>i, z += atan
-// Encoded as: d=1 → subtract, d=0 → add (using direction as sign)
+// When cordic_d=1 (y >= 0): rotate CW  → x += y>>i, y -= x>>i, z += atan
+// When cordic_d=0 (y <  0): rotate CCW → x -= y>>i, y += x>>i, z -= atan
+// Vectoring mode: z accumulates +angle so that z_final = +φ (not −φ).
+// With the quadrant correction preloading z_init, the result is
+// z_final = z_init + angle(x_init, y_init) = φ across all four quadrants.
 
 wire signed [CORDIC_WIDTH-1:0]      x_next_sample;
 wire signed [CORDIC_WIDTH-1:0]      y_next_sample;
@@ -208,8 +210,8 @@ assign x_next_sample = cordic_d_sample ? (cordic_x_sample + y_shr_sample)
                                        : (cordic_x_sample - y_shr_sample);
 assign y_next_sample = cordic_d_sample ? (cordic_y_sample - x_shr_sample)
                                        : (cordic_y_sample + x_shr_sample);
-assign z_next_sample = cordic_d_sample ? (cordic_z_sample - atan_val_sample)
-                                       : (cordic_z_sample + atan_val_sample);
+assign z_next_sample = cordic_d_sample ? (cordic_z_sample + atan_val_sample)
+                                       : (cordic_z_sample - atan_val_sample);
 
 // =============================================================================
 // Combinatorial: Differential phase (Stage 3 / S_DECIDE)

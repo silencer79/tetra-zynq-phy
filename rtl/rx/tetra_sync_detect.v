@@ -75,7 +75,7 @@ module tetra_sync_detect #(
     parameter LOCK_COUNT   = 4,     // Consecutive hits needed for lock
     parameter SLOT_SYMS    = 255,   // Symbols per TDMA timeslot
     parameter LOCK_TOL     = 8,     // ±symbols tolerance for lock spacing
-    parameter LOCK_TIMEOUT = 300    // Symbols without sync_fire → unlock
+    parameter LOCK_TIMEOUT = 512    // Symbols without sync_fire → unlock (~2 slots)
 )(
     input  wire                      clk_sample,
     input  wire                      rst_n_sample,
@@ -416,15 +416,15 @@ localparam [1:0] S_HUNT = 2'd0,
 
 reg [1:0]  lock_state_sample;
 reg [1:0]  next_lock_state_sample;
-reg [8:0]  spacing_cnt_sample;
+reg [9:0]  spacing_cnt_sample;
 reg [2:0]  consec_cnt_sample;
 
 // Spacing in range?
-wire spacing_ok_sample = (spacing_cnt_sample >= (SLOT_SYMS[8:0] - LOCK_TOL[8:0])) &&
-                         (spacing_cnt_sample <= (SLOT_SYMS[8:0] + LOCK_TOL[8:0]));
+wire spacing_ok_sample = (spacing_cnt_sample >= (SLOT_SYMS - LOCK_TOL)) &&
+                         (spacing_cnt_sample <= (SLOT_SYMS + LOCK_TOL));
 
 // Spacing timed out (no sync for too long)?
-wire spacing_timeout_sample = (spacing_cnt_sample > LOCK_TIMEOUT[8:0]);
+wire spacing_timeout_sample = (spacing_cnt_sample > LOCK_TIMEOUT);
 
 // R1: State register
 always @(posedge clk_sample or negedge rst_n_sample) begin
@@ -437,12 +437,12 @@ end
 // R1: Spacing counter
 always @(posedge clk_sample or negedge rst_n_sample) begin
     if (!rst_n_sample)
-        spacing_cnt_sample <= 9'd0;
+        spacing_cnt_sample <= 10'd0;
     else if (dibit_valid) begin
         if (sync_fire_sample)
-            spacing_cnt_sample <= 9'd0;
-        else if (spacing_cnt_sample < 9'd511)
-            spacing_cnt_sample <= spacing_cnt_sample + 9'd1;
+            spacing_cnt_sample <= 10'd0;
+        else if (spacing_cnt_sample < 10'd1023)
+            spacing_cnt_sample <= spacing_cnt_sample + 10'd1;
     end
 end
 

@@ -165,6 +165,7 @@
 | 2026-04-11 | fix: burst_builder 18 kHz symbol-rate divider + build_req_pending latch (`96e6356`) | `tetra_burst_builder` |
 | 2026-04-11 | fix: timing_recovery → demod sample_valid connection (`f2b90d0`) | `tetra_rx_chain` |
 | 2026-04-11 | fix: DATA_CLK 18.432 MHz CIC period correction + SYNC_THRESH 30 (`0f2f5ba`) | `tetra_tx_frontend`, `tetra_axi_lite_regs` |
+| 2026-04-12 | hw-tune: SYNC_THRESH default 20 after board sweep (30 unstable, 15 too permissive) | `tetra_axi_lite_regs` |
 | 2026-04-08 | fix: free-running TX timer, SB burst type, slot 0 enabled (`2005a2d`) | `tetra_zynq_top`, `tetra_burst_builder`, `tetra_burst_mux` |
 | 2026-04-07 | Created docs/module_status.md | Documentation |
 | 2026-04-05 | Phase 3 RTL complete (22/22 PASS) | All modules |
