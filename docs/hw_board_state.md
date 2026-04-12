@@ -1,6 +1,6 @@
 # Hardware Board State — LibreSDR
 **Project:** tetra-zynq-phy
-**Letzte Verifikation:** 2026-04-07
+**Letzte Verifikation:** 2026-04-12
 
 ---
 
@@ -57,24 +57,24 @@ Kanalnamen: `voltage0` (RX), `voltage1` (TX), `altvoltage0` (RX_LO),
 ### FPGA Bitstream
 
 Das TETRA-Bitstream liegt auf dem Board:
-- `/usr/lib/firmware/tetra_zynq_phy.bit.bin` — für FPGA-Manager
-- Wird per JTAG aus `build/tetra_zynq_phy.bit` geprogrammt
+- `/lib/firmware/tetra_zynq_phy.bit.bin` — für FPGA-Manager
 
-Nach **JTAG-Reprogram** gilt:
-- AD9361-Chip bleibt konfiguriert (SPI-Config im Chip)
-- Aber Kernel-Binding verliert die FPGA-Seite
+Nach **Bitstream-Reload** gilt:
+- AD9361-Chip verliert Konfiguration (IIO-State zurückgesetzt)
 - → `ad9361_init.sh` muss nochmals ausgeführt werden
 
 ---
 
-## Vollständige Init-Sequenz (nach Neustart oder JTAG-Reprogram)
+## Vollständige Init-Sequenz (nach Neustart oder Bitstream-Reload)
 
 ```bash
-# 1. JTAG: Bitstream laden (vom Host-PC)
-vivado -mode batch -source scripts/program_fpga.tcl
+# 1. Bitstream konvertieren + laden (FPGA Manager via SSH)
+./scripts/convert_bitstream.sh
+scp build/tetra_zynq_phy.bit.bin root@192.168.2.180:/lib/firmware/
+ssh root@192.168.2.180 'echo 0 > /sys/class/fpga_manager/fpga0/flags && echo tetra_zynq_phy.bit.bin > /sys/class/fpga_manager/fpga0/firmware'
 
 # 2. AD9361 initialisieren (vom Host-PC via SSH)
-./scripts/ad9361_init.sh
+./scripts/ad9361_init.sh --agc
 
 # Oder manuell auf dem Board:
 # insmod /root/kernel_modules32/ad9361_drv.ko
@@ -92,7 +92,7 @@ vivado -mode batch -source scripts/program_fpga.tcl
 
 ---
 
-## TETRA-Konfiguration (verifiziert 2026-04-07)
+## TETRA-Konfiguration (verifiziert 2026-04-12)
 
 | Parameter | Wert | Bemerkung |
 |-----------|------|-----------|
@@ -140,16 +140,31 @@ erst nach AD9361-Startup aktivieren.
 
 ---
 
+## Hardware-Loopback Testergebnis (2026-04-12)
+
+| Parameter | Wert |
+|-----------|------|
+| Modus | Digitaler Loopback (TX-CIC-Ausgang → RX-CIC-Eingang, clk_lvds-Domain) |
+| Testdauer | 60 Sekunden (1-Sekunden-Polling) |
+| SYNC_LOCKED=1 | 59/60 (98.3%) |
+| Dropouts | 1× 1-Sekunden-Dropout |
+| SYNC_THRESH | 0x14 = 20 (AXI-Register) |
+| LOCK_TIMEOUT | 512 Symbole (~28ms bei 18 kHz) |
+| Bitstream | `a684455` (2026-04-12) |
+
+---
+
 ## Bekannte Probleme
 
 | Problem | Ursache | Workaround |
 |---------|---------|------------|
 | AD9361 kein IIO nach Boot | Modul fehlt im Kernel | `insmod /root/kernel_modules32/ad9361_drv.ko` |
 | Bind schlägt fehl | driver_override=spidev | `echo '' > .../driver_override` |
-| AD9361 Default nach JTAG | Chip-Reinit durch Treiber | `ad9361_init.sh` nochmals ausführen |
+| AD9361 Default nach Bitstream-Reload | Chip-Reinit durch Treiber | `ad9361_init.sh --agc` nochmals ausführen |
 | cf-ad9361-lpc kein IIO | AXI-DMA nicht verbunden | Kein Problem — TETRA nutzt eigenen DMA-Pfad |
+| Gelegentlicher 1s Dropout (1/60) | Korrelationspeak knapp unter SYNC_THRESH=20 | SYNC_THRESH auf 18–19 testen (Trade-off: mehr False-Positives) |
 
 ---
 
-**Letzte Aktualisierung:** 2026-04-07  
+**Letzte Aktualisierung:** 2026-04-12  
 **Erstellt durch:** Hardware-Deployment-Session

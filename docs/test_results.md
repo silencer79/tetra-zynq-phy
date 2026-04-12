@@ -3,12 +3,12 @@
 # Target: Zynq-7020 (XC7Z020-CLG484)
 # Simulator: iverilog + vvp
 
-> **STATUS (2026-04-05):** Letzter Sim-Lauf: **PASS=22, FAIL=0** (alle 22 Module)
-> Phase 3 vollständig simuliert (steal_detect, burst_builder, burst_mux, tx_frontend alle PASS).
-> `rx_frontend` Fix: Python CIC-Modell korrigiert (RTL-exakte not-blocking-assignment Semantik + 46-Bit-Wrap).
-> `tx_frontend` Fix: TC2 Testbench von DC-Settling auf Single-Pulse-Throughput korrigiert (CIC comb-first supprimiert DC → korrekt).
+> **STATUS (2026-04-12):** Letzter Sim-Lauf: **PASS=22, FAIL=0** (alle 22 Module)
+> Hardware-Loopback verifiziert: **59/60 SYNC_LOCKED=1** über 60s (digitaler Loopback, AD9361 @ 430 MHz / 4.608 MSPS).
+> `tx_frontend` Fix: CIC_SHIFT 30→24 (effektiver Gain R^(N-1)=2^24); behebt TX-Überdämpfung um 6 Bit.
+> `sync_detect` Fix: LOCK_TIMEOUT 300→512, spacing_cnt 9→10 Bit; behebt periodische 1–2s Dropouts.
+> `axi_lite_regs` Fix: SYNC_THRESH Default 30→20 (Hardware-Sweep).
 > `viterbi_decoder`: TIMEOUT-`$error`-Meldungen weiterhin cosmetic (alle 7 TCs PASS).
-> `tetra_zynq_top.v`: Top-Level ohne separater TB.
 
 ---
 
@@ -25,8 +25,9 @@
 
 ## Letzter Test-Lauf
 
-**Datum:** 2026-04-05
+**Datum:** 2026-04-12
 **Ergebnis (offiziell):** PASS=22, FAIL=0, SKIP=0, TOTAL=22
+**Hardware-Loopback:** 59/60 SYNC_LOCKED=1 (digitaler Loopback, 60s, AD9361 @ 430 MHz / 4.608 MSPS)
 **Caveats:**
 - `viterbi_decoder`: TIMEOUT-`$error`-Meldungen im Log (Cosmetic — alle 7 TCs bestehen trotzdem)
 
@@ -55,7 +56,7 @@
 | 17 | `tetra_pi4dqpsk_mod`     | 3     | ✅ OK     | ✅ PASS      | 31/31           | NTS erste 8 Symbole, Reset mid-sequence; 31 Checks PASS                                 |
 | 18 | `tetra_rrc_filter`       | 3     | ✅ OK     | ✅ PASS      | —               | TC2 IQ-Ausgabewerte gegen Referenz; I=33/217/155/−156 korrekt                            |
 | 19 | `tetra_steal_detect`     | 3     | ✅ OK     | ✅ PASS      | 29/29           | TC1–TC9: Reset, TCH/A, STCH, STCH+ACCH, Unalloc, Mixed 4-slot, SB ignore, Reset, BNCH |
-| 20 | `tetra_burst_builder`    | 3     | ✅ OK     | ⚠️ RERUN    | 5/5             | 255-sym count, Known payload, Back-to-back, Reset mid-burst — **RTL geändert 2026-04-11** (sym-rate divider + build_req_pending); Sim-Neulauf empfohlen |
+| 20 | `tetra_burst_builder`    | 3     | ✅ OK     | ✅ PASS      | 5/5             | 255-sym count, Known payload, Back-to-back, Reset mid-burst — RTL fix 2026-04-11 (sym-rate divider + build_req_pending); Neulauf bestätigt PASS |
 | 21 | `tetra_burst_mux`        | 3     | ✅ OK     | ✅ PASS      | 10/10           | TC1 slot0, TC2 all4 slots, TC3 idle burst, TC4 builder_busy stall, TC5 mux_ready        |
 | 22 | `tetra_tx_frontend`      | 3     | ✅ OK     | ✅ PASS      | 5/5             | TC1 pulse count (~64), TC2 single-pulse CIC throughput, TC3 zero-in, TC4 rate, TC5 reset|
 
@@ -119,9 +120,8 @@ TC1 PASS: all-zeros NDB, 0 bit errors
 
 | Priorität | Modul                   | Status       | Nächster Schritt                                                      |
 |-----------|-------------------------|--------------|-----------------------------------------------------------------------|
-| 1         | `tetra_burst_builder`   | ⚠️ RERUN    | RTL geändert 2026-04-11 (sym-rate divider); Sim-Neulauf mit aktueller RTL empfohlen |
-| 2         | `tetra_rx_frontend`     | ⚠️ CAVEAT   | `gen_rx_frontend_vectors.py` auf RTL-Festpunkt kalibrieren; Vivado xsim mit XPM empfohlen |
-| 3         | `tetra_viterbi_decoder` | ⚠️ CAVEAT   | TB-Timeout-Logik korrigieren (absolute Zeit statt Zähler)             |
+| 1         | `tetra_rx_frontend`     | ⚠️ CAVEAT   | `gen_rx_frontend_vectors.py` auf RTL-Festpunkt kalibrieren; Vivado xsim mit XPM empfohlen |
+| 2         | `tetra_viterbi_decoder` | ⚠️ CAVEAT   | TB-Timeout-Logik korrigieren (absolute Zeit statt Zähler)             |
 
 ---
 
@@ -129,7 +129,8 @@ TC1 PASS: all-zeros NDB, 0 bit errors
 
 | Datum      | Änderung                                                                                              |
 |------------|-------------------------------------------------------------------------------------------------------|
-| 2026-04-11 | burst_builder RTL geändert (18 kHz sym-rate divider + build_req_pending, commit `96e6356`); Sim-Neulauf ausstehend |
+| 2026-04-12 | HW-Loopback verifiziert 59/60; CIC_SHIFT=24, SYNC_THRESH=20, LOCK_TIMEOUT=512 fixes (`a684455`); alle 22 Sims PASS |
+| 2026-04-11 | burst_builder RTL (18 kHz sym-rate divider + build_req_pending, `96e6356`); Neulauf PASS |
 | 2026-04-03 | Phase-3-Erweiterung: steal_detect, burst_builder, burst_mux, tx_frontend (RTL+TB fertig, Sim pending); tetra_zynq_top.v erstellt; resource_estimate.md aktualisiert |
 | 2026-03-29 | Vollständige Aktualisierung auf sim_results.txt (PASS=18, FAIL=0); Phase-3-TX-Module ergänzt (rcpc_encoder, pi4dqpsk_mod, rrc_filter); Caveat-Analyse für rx_frontend und viterbi_decoder; Modul-Tabelle erweitert |
 | 2026-03-28 | Fixes: CRC_RESIDUE 0→0x1D0F, Viterbi-Timeout 100→2000, Timing-Recovery-Toleranz, rx_frontend-Größe; Xilinx-Sim-Modelle (IBUFDS/BUFG/IDDR/ODDR/OBUFDS); TC2-IQ-Vektor regeneriert |
