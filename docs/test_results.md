@@ -4,7 +4,8 @@
 # Simulator: iverilog + vvp
 
 > **STATUS (2026-04-12):** Letzter Sim-Lauf: **PASS=22, FAIL=0** (alle 22 Module)
-> Hardware-Loopback verifiziert: **59/60 SYNC_LOCKED=1** über 60s (digitaler Loopback, AD9361 @ 430 MHz / 4.608 MSPS).
+> Digitaler Loopback: **59/60 SYNC_LOCKED=1** über 60s.
+> RF Antennen-Loopback: **60/60 SYNC_LOCKED=1** über 60s (TX→10cm Luft→RX, AD9361 @ 430 MHz).
 > `tx_frontend` Fix: CIC_SHIFT 30→24 (effektiver Gain R^(N-1)=2^24); behebt TX-Überdämpfung um 6 Bit.
 > `sync_detect` Fix: LOCK_TIMEOUT 300→512, spacing_cnt 9→10 Bit; behebt periodische 1–2s Dropouts.
 > `axi_lite_regs` Fix: SYNC_THRESH Default 30→20 (Hardware-Sweep).
@@ -27,7 +28,7 @@
 
 **Datum:** 2026-04-12
 **Ergebnis (offiziell):** PASS=22, FAIL=0, SKIP=0, TOTAL=22
-**Hardware-Loopback:** 59/60 SYNC_LOCKED=1 (digitaler Loopback, 60s, AD9361 @ 430 MHz / 4.608 MSPS)
+**Hardware-Loopback:** 59/60 SYNC_LOCKED=1 (digitaler Loopback, 60s) | 60/60 SYNC_LOCKED=1 (RF Antennen-Loopback, 60s)
 **Caveats:**
 - `viterbi_decoder`: TIMEOUT-`$error`-Meldungen im Log (Cosmetic — alle 7 TCs bestehen trotzdem)
 
@@ -129,6 +130,7 @@ TC1 PASS: all-zeros NDB, 0 bit errors
 
 | Datum      | Änderung                                                                                              |
 |------------|-------------------------------------------------------------------------------------------------------|
+| 2026-04-12 | RF Antennen-Loopback 60/60 verifiziert (ADI DAC-Core init fix; dac_init in tetra_ctrl.sh + hw_deploy.sh) |
 | 2026-04-12 | HW-Loopback verifiziert 59/60; CIC_SHIFT=24, SYNC_THRESH=20, LOCK_TIMEOUT=512 fixes (`a684455`); alle 22 Sims PASS |
 | 2026-04-11 | burst_builder RTL (18 kHz sym-rate divider + build_req_pending, `96e6356`); Neulauf PASS |
 | 2026-04-03 | Phase-3-Erweiterung: steal_detect, burst_builder, burst_mux, tx_frontend (RTL+TB fertig, Sim pending); tetra_zynq_top.v erstellt; resource_estimate.md aktualisiert |

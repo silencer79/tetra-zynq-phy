@@ -31,6 +31,9 @@ BOARD_PASS="openwifi"
 # AXI-Lite base address (AXI GP0 aperture)
 BASE_ADDR="0x43C00000"
 
+# ADI axi_ad9361 DAC core base address (AXI HP0 aperture)
+DAC_BASE="0x79024000"
+
 # Register offsets (from tetra_axi_lite_regs.v line 14-38)
 REG_CTRL="0x00"          # [0]=RX_EN [1]=TX_EN [2]=LOOPBACK [3]=RST_CNTRS
 REG_STATUS="0x04"        # [0]=SYNC_LOCKED [1]=PLL_LOCKED [2]=FIFO_EMPTY [3]=FIFO_FULL
@@ -141,6 +144,26 @@ cmd_loopback() {
     echo "RX chain should now see TX samples. Run: $0 monitor"
 }
 
+# Command: dac_init — initialize ADI axi_ad9361 DAC core
+# Required after every bitstream load; releases the DAC core from reset and
+# selects fabric data mode (DAT_SEL=2) so FPGA TX samples reach the AD9361 DAC.
+cmd_dac_init() {
+    echo "Initializing ADI axi_ad9361 DAC core @ ${DAC_BASE}..."
+    sshpass -p "$BOARD_PASS" ssh "$BOARD_USER@$BOARD_IP" "
+        DAC=${DAC_BASE}
+        # Release core reset + MMCM reset (bits[1:0]=11)
+        busybox devmem \$((DAC+0x40)) 32 0x3
+        # CNTRL_2: DAT_SEL=2 (bits[5:4]=10) → fabric data from FPGA
+        busybox devmem \$((DAC+0x48)) 32 0x20
+        # Verify
+        RSTN=\$(busybox devmem \$((DAC+0x40)) 32)
+        CNTRL2=\$(busybox devmem \$((DAC+0x48)) 32)
+        STATUS=\$(busybox devmem \$((DAC+0x68)) 32)
+        printf 'DAC RSTN=0x%08X CNTRL_2=0x%08X STATUS=0x%08X\n' \$RSTN \$CNTRL2 \$STATUS
+    "
+    echo "DAC core initialized (fabric data mode active)"
+}
+
 # Command: disable — clear CTRL register
 cmd_disable() {
     echo "Disabling TX and RX..."
@@ -212,6 +235,9 @@ case "${1:-}" in
     enable)
         cmd_enable
         ;;
+    dac_init)
+        cmd_dac_init
+        ;;
     loopback)
         cmd_loopback
         ;;
@@ -235,6 +261,7 @@ case "${1:-}" in
         echo "Commands:"
         echo "  status          — Dump all registers"
         echo "  enable          — Enable TX+RX (CTRL=0x03)"
+        echo "  dac_init        — Init ADI DAC core (fabric data mode, required after bitstream load)"
         echo "  loopback        — Enable TX+RX+Loopback (CTRL=0x07)"
         echo "  disable         — Clear CTRL register"
         echo "  monitor         — Poll STATUS every 1s until SYNC_LOCKED=1"

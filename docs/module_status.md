@@ -1,7 +1,7 @@
 # Module Status Overview
 **Project:** tetra-zynq-phy
 **Last Updated:** 2026-04-12
-**Status:** Phase 3 COMPLETE — Hardware-Loopback verifiziert (59/60 SYNC_LOCKED=1)
+**Status:** Phase 3 COMPLETE — RF Antennen-Loopback verifiziert (60/60 SYNC_LOCKED=1)
 
 ---
 
@@ -135,6 +135,7 @@
 - [x] SYNC_THRESH Default 30→20 (Hardware-Sweep) — `a684455`
 - [x] LOCK_TIMEOUT 300→512 + Counter-Bugfix — `a684455`
 - [x] Digitaler Loopback: **59/60 SYNC_LOCKED=1** über 60s verifiziert
+- [x] RF Antennen-Loopback: **60/60 SYNC_LOCKED=1** über 60s verifiziert (ADI DAC-Core init fix)
 - [x] Alle Änderungen committed, 22/22 Sims grün
 
 ### Nächste Phase
@@ -158,6 +159,7 @@
 
 | Date | Change | Module(s) |
 |------|--------|-----------|
+| 2026-04-12 | feat: RF Antennen-Loopback 60/60 — ADI DAC-Core dac_init (RSTN+DAT_SEL); tetra_ctrl.sh + hw_deploy.sh erweitert | `scripts/tetra_ctrl.sh`, `scripts/hw_deploy.sh` |
 | 2026-04-12 | fix: CIC_SHIFT 30→24, SYNC_THRESH 30→20, LOCK_TIMEOUT 300→512 + 10-Bit Counter; HW-Loopback 59/60 (`a684455`) | `tetra_tx_frontend`, `tetra_axi_lite_regs`, `tetra_sync_detect` |
 | 2026-04-11 | fix: burst_builder 18 kHz symbol-rate divider + build_req_pending latch (`96e6356`) | `tetra_burst_builder` |
 | 2026-04-11 | fix: timing_recovery → demod sample_valid connection (`f2b90d0`) | `tetra_rx_chain` |

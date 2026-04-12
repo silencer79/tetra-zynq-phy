@@ -76,6 +76,12 @@ ssh root@192.168.2.180 'echo 0 > /sys/class/fpga_manager/fpga0/flags && echo tet
 # 2. AD9361 initialisieren (vom Host-PC via SSH)
 ./scripts/ad9361_init.sh --agc
 
+# 3. ADI DAC-Core aus dem Reset holen (KRITISCH für RF TX!)
+# Nach Bitstream-Load ist der axi_ad9361 DAC-Core im Reset → TX sendet keine FPGA-Daten
+./scripts/tetra_ctrl.sh dac_init
+# Oder manuell:
+# ssh root@192.168.2.180 'busybox devmem 0x79024040 32 0x3 && busybox devmem 0x79024048 32 0x20'
+
 # Oder manuell auf dem Board:
 # insmod /root/kernel_modules32/ad9361_drv.ko
 # echo '' > /sys/bus/spi/devices/spi0.0/driver_override
@@ -140,7 +146,9 @@ erst nach AD9361-Startup aktivieren.
 
 ---
 
-## Hardware-Loopback Testergebnis (2026-04-12)
+## Hardware-Loopback Testergebnisse
+
+### Digitaler Loopback (2026-04-12)
 
 | Parameter | Wert |
 |-----------|------|
@@ -150,6 +158,23 @@ erst nach AD9361-Startup aktivieren.
 | Dropouts | 1× 1-Sekunden-Dropout |
 | SYNC_THRESH | 0x14 = 20 (AXI-Register) |
 | LOCK_TIMEOUT | 512 Symbole (~28ms bei 18 kHz) |
+| Bitstream | `a684455` (2026-04-12) |
+
+### RF Antennen-Loopback (2026-04-12)
+
+| Parameter | Wert |
+|-----------|------|
+| Modus | RF Loopback (TX-Antenne → 10cm Luft → RX-Antenne, CTRL=0x3) |
+| TX LO | 430 000 000 Hz (= RX LO) |
+| TX Attenuation | 0 dB |
+| RX Gain Mode | slow_attack AGC |
+| RX Gain | 49–60 dB (AGC aktiv — Signal empfangen) |
+| Testdauer | 60 Sekunden (1-Sekunden-Polling) |
+| SYNC_LOCKED=1 | **60/60 (100%)** |
+| Dropouts | 0 |
+| SYNC_THRESH | 0x14 = 20 |
+| LOCK_TIMEOUT | 512 Symbole |
+| Voraussetzung | ADI DAC-Core init (RSTN=0x3, DAT_SEL=2) nach Bitstream-Load |
 | Bitstream | `a684455` (2026-04-12) |
 
 ---
@@ -163,8 +188,9 @@ erst nach AD9361-Startup aktivieren.
 | AD9361 Default nach Bitstream-Reload | Chip-Reinit durch Treiber | `ad9361_init.sh --agc` nochmals ausführen |
 | cf-ad9361-lpc kein IIO | AXI-DMA nicht verbunden | Kein Problem — TETRA nutzt eigenen DMA-Pfad |
 | Gelegentlicher 1s Dropout (1/60) | Korrelationspeak knapp unter SYNC_THRESH=20 | SYNC_THRESH auf 18–19 testen (Trade-off: mehr False-Positives) |
+| RF TX stumm nach Bitstream-Load | ADI DAC-Core in Reset (RSTN=0) | `tetra_ctrl.sh dac_init` nach jedem Bitstream-Load ausführen |
 
 ---
 
-**Letzte Aktualisierung:** 2026-04-12  
+**Letzte Aktualisierung:** 2026-04-12 (RF Antennen-Loopback 60/60 verifiziert)  
 **Erstellt durch:** Hardware-Deployment-Session

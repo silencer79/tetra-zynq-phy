@@ -227,6 +227,27 @@ else
 fi
 
 # =============================================================================
+# Schritt 3b: ADI DAC-Core initialisieren (Fabric-Daten-Modus)
+# =============================================================================
+# Nach jedem Bitstream-Load ist der ADI axi_ad9361 DAC-Core im Reset.
+# Ohne diesen Schritt sendet der AD9361 DAC keine FPGA-Daten (nur DDS-Ton).
+STEP "Schritt 3b/4: ADI DAC-Core init (devmem)"
+
+if [[ $DO_AD9361 -eq 1 ]]; then
+    INFO "Initialisiere ADI DAC-Core @ 0x79024000 ..."
+    sshpass -p "$SSH_PASS" ssh "$SSH_USER@$SSH_HOST" "
+        DAC=0x79024000
+        busybox devmem \$((DAC+0x40)) 32 0x3   # RSTN: release reset + MMCM
+        busybox devmem \$((DAC+0x48)) 32 0x20  # CNTRL_2: DAT_SEL=2 (fabric data)
+        RSTN=\$(busybox devmem \$((DAC+0x40)) 32)
+        STATUS=\$(busybox devmem \$((DAC+0x68)) 32)
+        printf 'DAC RSTN=0x%08X STATUS=0x%08X\n' \$RSTN \$STATUS
+    " && OK "DAC-Core initialisiert (fabric data mode)" || WARN "DAC-Core init fehlgeschlagen"
+else
+    WARN "DAC-Core init übersprungen (--no-ad9361)"
+fi
+
+# =============================================================================
 # Schritt 4: ILA-Capture
 # =============================================================================
 STEP "Schritt 4/4: ILA-Capture"
