@@ -257,6 +257,10 @@ tetra_tx_frontend #(
 // =============================================================================
 // tx_nco — complex frequency shifter (LO leakage avoidance)
 // =============================================================================
+wire signed [IQ_WIDTH-1:0] nco_i_lvds;
+wire signed [IQ_WIDTH-1:0] nco_q_lvds;
+wire                        nco_valid_lvds;
+
 tetra_tx_nco #(
  .IQ_WIDTH (IQ_WIDTH),
  .PHASE_WIDTH(PHASE_WIDTH),
@@ -268,10 +272,54 @@ tetra_tx_nco #(
  .i_in           (fe_i_lvds),
  .q_in           (fe_q_lvds),
  .valid_in       (fe_valid_lvds),
- .i_out          (tx_i_lvds),
- .q_out          (tx_q_lvds),
- .valid_out      (tx_valid_lvds)
+ .i_out          (nco_i_lvds),
+ .q_out          (nco_q_lvds),
+ .valid_out      (nco_valid_lvds)
 );
+
+// =============================================================================
+// TX blanking: zero IQ output during Idle timeslots.
+//
+// Slot-based: on each tx_slot_pulse, latch whether this slot carries a real
+// burst (SB/NDB) or Idle. Gate stays open for the entire timeslot duration
+// so the full pipeline (mod → RRC → CIC → CDC → NCO) can drain.
+// =============================================================================
+reg        tx_active_sys;
+
+// Latch burst type at build_req
+reg [1:0]  active_burst_type_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys)
+  active_burst_type_sys <= 2'd1; // default: SB (gate open after reset)
+ else if (mux_build_req_sys)
+  active_burst_type_sys <= mux_burst_type_sys;
+end
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys)
+  tx_active_sys <= 1'b1; // default open — don't blank until first Idle
+ else if (mux_build_req_sys)
+  tx_active_sys <= (mux_burst_type_sys != 2'd2); // open for SB/NDB, close for Idle
+end
+
+// CDC: clk_sys → clk_lvds
+(* ASYNC_REG = "TRUE" *) reg tx_active_lvds_r0;
+(* ASYNC_REG = "TRUE" *) reg tx_active_lvds_r1;
+
+always @(posedge clk_lvds or negedge rst_n_lvds) begin
+ if (!rst_n_lvds) begin
+  tx_active_lvds_r0 <= 1'b0;
+  tx_active_lvds_r1 <= 1'b0;
+ end else begin
+  tx_active_lvds_r0 <= tx_active_sys;
+  tx_active_lvds_r1 <= tx_active_lvds_r0;
+ end
+end
+
+// Gated output: zero IQ during idle slots
+assign tx_i_lvds     = tx_active_lvds_r1 ? nco_i_lvds : {IQ_WIDTH{1'b0}};
+assign tx_q_lvds     = tx_active_lvds_r1 ? nco_q_lvds : {IQ_WIDTH{1'b0}};
+assign tx_valid_lvds = nco_valid_lvds;
 
 // =============================================================================
 // Status
