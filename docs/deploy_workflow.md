@@ -11,8 +11,10 @@ The deployment uses **Option B: FPGA Manager Dynamic Loading** (chosen by Kevin)
 **Workflow:**
 
 ```
-Vivado Build → Bitstream Conversion → Transfer → FPGA Manager Load → AD9361 Config → Test
+Vivado Build → Bitstream Conversion → Transfer → full_init (2× Bitstream + 2× AD9361 + DAC + ADC) → Test
 ```
+
+**Empfohlen:** `tetra_ctrl.sh full_init` automatisiert alle Schritte nach dem Transfer.
 
 ---
 
@@ -118,6 +120,47 @@ scp build/tetra_zynq_phy.ltx root@192.168.2.180:/lib/firmware/
 
 ## Phase 4: FPGA Manager Loading
 
+### Empfohlen: `full_init` (automatisiert)
+
+```bash
+./scripts/tetra_ctrl.sh full_init 430000000 430000000
+```
+
+Führt automatisch aus:
+1. Erster Bitstream-Load
+2. AD9361 Init (4.608 MSPS, slow_attack AGC)
+3. Zweiter Bitstream-Load (MMCM sieht jetzt stabilen DATA_CLK)
+4. AD9361 Re-Init (stellt AXI-Register her, die Step 3 zurücksetzt)
+5. DAC-Core Init (RSTN + fabric data mode)
+6. ADC-Core Init (**CH0/CH1 = 0x51** = enable + sign-extend 12→16 bit)
+
+### Cold-Boot Rule: Bitstream MUSS zweimal geladen werden
+
+After a board reboot, the first bitstream load only brings up the FPGA fabric.
+The `axi_ad9361` clocking depends on the AD9361 DATA_CLK, and that clock
+is only stable after `ad9361_init.sh` has configured the chip.
+
+If the second load is skipped, `l_clk` / `clk_lvds` may stay dead and TX/RX can
+look partially alive while the LVDS-domain logic is still stalled.
+
+### KRITISCH: ADC Channel Register = 0x51
+
+Nach jedem `adc_init` MUSS gelten:
+- ADC CH0 (I): `busybox devmem $((ADC+0x400))` → `0x00000051`
+- ADC CH1 (Q): `busybox devmem $((ADC+0x440))` → `0x00000051`
+
+`0x51` = dfmt_se (bit6) + dfmt_enable (bit4) + enable (bit0).
+**Bei 0x01 (nur enable) wird das 12-bit ADC-Signal zero-extended statt sign-extended
+→ RF Loopback SYNC unmöglich!** (Root Cause des RF-Failures, behoben 2026-04-13)
+
+### DAC Debug Note
+
+This design is built with `CONFIG.DAC_DDS_DISABLE=1` in
+[`scripts/create_bd.tcl`](../scripts/create_bd.tcl). Do not use
+`DAT_SEL=0` as a proof that the RF TX path is alive; the internal ADI DDS test
+source is disabled here. A narrow CW-like line on the SDR can still be simple
+LO leakage from the AD9361.
+
 ### Step 4.1: Unload Existing FPGA Configuration
 
 If a bitstream is already loaded:
@@ -166,42 +209,29 @@ EOF
 
 ## Phase 5: AD9361 RF Configuration
 
-The FPGA is now configured, but AD9361 must be initialized for TETRA operation.
+Bei Nutzung von `full_init` ist dieser Schritt bereits enthalten. Für manuelle Konfiguration:
 
 ### Step 5.1: Configure AD9361
 
 ```bash
-# Run libiio-based configuration script
-ssh root@192.168.2.180 << 'EOF'
-cd /lib/firmware/tetra
-./ad9361_init.sh --freq 430000000
-
-# Or if script is on host:
-# scp scripts/ad9361_init.sh root@192.168.2.180:/tmp/
-# ssh root@192.168.2.180 "/tmp/ad9361_init.sh --freq 430000000"
-EOF
+# Auf dem Host:
+./scripts/ad9361_init.sh --agc --freq 430000000
 ```
 
 **Parameters set:**
-- RX Frequency: 430 MHz (70cm Amateur Band)
-- Sample Rate: 4.096 MSPS
-- RX Bandwidth: 1.5 MHz (TETRA channel)
-- Gain: Manual 40 dB (or AGC)
-- LVDS Mode: 2R2T (Full Duplex)
+- RX/TX Frequency: 430 MHz (70cm Amateur Band)
+- Sample Rate: 4.608 MSPS (≠ 4.096!)
+- RX Bandwidth: 5.76 MHz
+- Gain: slow_attack AGC
+- LVDS Mode: 2R2T (Full Duplex, FDD)
 
 ### Step 5.2: Verify AD9361 Settings
 
 ```bash
-ssh root@192.168.2.180 << 'EOF'
-# Check AD9361 frequency
-iio_attr -d ad9361-phy -c RX_LO frequency
-
-# Check sample rate
-iio_attr -d ad9361-phy -c RX_SAMPLING_FREQUENCY
-
-# Check gain
-iio_attr -d ad9361-phy -c RX_GAIN
-EOF
+# iio_attr Syntax (libiio 0.24): -c für Kanal, -d für Device
+iio_attr -c ad9361-phy altvoltage0 frequency     # RX LO → 430000000
+iio_attr -c ad9361-phy voltage0 sampling_frequency # → 4607999
+iio_attr -c ad9361-phy voltage0 gain_control_mode  # → slow_attack
 ```
 
 ---
@@ -371,10 +401,9 @@ python3 scripts/analyze_ila.py \
 
 ## Next Steps
 
-1. Run RX path test with signal generator
-2. Verify symbol detection (sync_locked_sys asserting)
-3. Test TX path (if implemented)
-4. Develop PS software for full MAC/PHY stack
+1. Full-Duplex On-Air Testing (echtes TETRA-Signal)
+2. BER-Messung bei verschiedenen SNR-Pegeln
+3. PS HAL-Software für TETRA-MAC-Stack
 
 ---
 
