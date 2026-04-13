@@ -38,7 +38,8 @@ module tetra_tx_chain #(
  parameter BLOCK_BITS = 216,
  parameter BB_BITS = 30,
  parameter BKN1_SB_BITS = 240, // SB bkn1 bits (120 symbols × 2)
- parameter BB_SB_BITS = 28 // SB bb bits (14 symbols × 2)
+ parameter BB_SB_BITS = 28, // SB bb bits (14 symbols × 2)
+ parameter PHASE_WIDTH = 32  // NCO phase accumulator width
 )(
  // -------------------------------------------------------------------------
  // clk_sys domain
@@ -64,6 +65,9 @@ module tetra_tx_chain #(
  // Per-slot configuration
  input wire [3:0] slot_en_sys,
  input wire [7:0] slot_burst_type_sys, // 2 bits per slot
+
+ // NCO phase increment (from AXI register, sys domain)
+ input wire [PHASE_WIDTH-1:0] nco_phase_inc_sys,
 
  // -------------------------------------------------------------------------
  // TX timing (from tetra_frame_counter or free-running timer)
@@ -121,6 +125,11 @@ wire mod_sample_valid_sys;
 wire signed [IQ_WIDTH-1:0] rrc_i_sys;
 wire signed [IQ_WIDTH-1:0] rrc_q_sys;
 wire rrc_sample_valid_sys;
+
+// tx_frontend → tx_nco (internal, before NCO)
+wire signed [IQ_WIDTH-1:0] fe_i_lvds;
+wire signed [IQ_WIDTH-1:0] fe_q_lvds;
+wire fe_valid_lvds;
 
 // =============================================================================
 // burst_mux
@@ -240,9 +249,28 @@ tetra_tx_frontend #(
  .sample_valid_in(rrc_sample_valid_sys),
  .clk_lvds (clk_lvds),
  .rst_n_lvds (rst_n_lvds),
- .tx_i_lvds (tx_i_lvds),
- .tx_q_lvds (tx_q_lvds),
- .tx_valid_lvds (tx_valid_lvds)
+ .tx_i_lvds (fe_i_lvds),
+ .tx_q_lvds (fe_q_lvds),
+ .tx_valid_lvds (fe_valid_lvds)
+);
+
+// =============================================================================
+// tx_nco — complex frequency shifter (LO leakage avoidance)
+// =============================================================================
+tetra_tx_nco #(
+ .IQ_WIDTH (IQ_WIDTH),
+ .PHASE_WIDTH(PHASE_WIDTH),
+ .LUT_BITS (10)
+) u_tx_nco (
+ .clk_lvds       (clk_lvds),
+ .rst_n_lvds     (rst_n_lvds),
+ .phase_inc_sys  (nco_phase_inc_sys),
+ .i_in           (fe_i_lvds),
+ .q_in           (fe_q_lvds),
+ .valid_in       (fe_valid_lvds),
+ .i_out          (tx_i_lvds),
+ .q_out          (tx_q_lvds),
+ .valid_out      (tx_valid_lvds)
 );
 
 // =============================================================================

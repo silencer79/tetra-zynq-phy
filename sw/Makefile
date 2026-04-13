@@ -1,9 +1,10 @@
-# Makefile for TETRA FPGA Character Device Driver
+# Makefile for TETRA PHY Software
 #
 # Cross-compilation for ARM (Zynq)
 #
 # Usage:
-#   make              # Build kernel module
+#   make              # Build userspace tools
+#   make module       # Build kernel module
 #   make install      # Install to /lib/modules/$(KERNELRELEASE)/extra/
 #   make clean        # Clean build artifacts
 
@@ -14,20 +15,25 @@ PWD := $(shell pwd)
 # Cross-compilation settings (for ARM)
 ARCH ?= arm
 CROSS_COMPILE ?= arm-linux-gnueabihf-
+CC = $(CROSS_COMPILE)gcc
+CFLAGS = -Wall -Wextra -O2 -march=armv7-a -static
 
 # Module name
 obj-m += tetra_char_dev.o
 
-# Compiler flags
+# Compiler flags for kernel module
 ccflags-y := -Wall -Werror
 
 # =============================================================================
 # Build Targets
 # =============================================================================
 
-all: modules
+all: tetra_sysinfo
 
-modules:
+tetra_sysinfo: tetra_hal.c tetra_hal.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+module:
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \
 		-C $(KERNEL_SRC) M=$(PWD) modules
 
@@ -36,8 +42,9 @@ install:
 		-C $(KERNEL_SRC) M=$(PWD) modules_install
 
 clean:
+	rm -f tetra_sysinfo
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \
-		-C $(KERNEL_SRC) M=$(PWD) clean
+		-C $(KERNEL_SRC) M=$(PWD) clean 2>/dev/null || true
 	rm -f Module.symvers modules.order
 
 # =============================================================================

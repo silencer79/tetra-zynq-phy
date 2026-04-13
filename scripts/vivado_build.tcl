@@ -120,11 +120,15 @@ add_files -norecurse [list \
 add_files -norecurse [list \
  $PROJ_DIR/rtl/tx/tetra_tx_chain.v \
  $PROJ_DIR/rtl/tx/tetra_tx_frontend.v \
+ $PROJ_DIR/rtl/tx/tetra_tx_nco.v \
  $PROJ_DIR/rtl/tx/tetra_pi4dqpsk_mod.v \
  $PROJ_DIR/rtl/tx/tetra_rrc_filter.v \
  $PROJ_DIR/rtl/tx/tetra_burst_builder.v \
  $PROJ_DIR/rtl/tx/tetra_burst_mux.v \
 ]
+
+# NCO sin lookup table (loaded via $readmemh)
+add_files -norecurse $PROJ_DIR/rtl/tx/sin_lut_1024x16.hex
 
 # LMAC
 add_files -norecurse [list \
