@@ -575,7 +575,7 @@ int main(int argc, char *argv[])
         .dl_usage         = 0x3F,  /* All slots available */
     };
     int sync_thresh = 0;
-    int nco_offset_hz = 25000;
+    int nco_offset_hz = 106000;
     int status_only = 0;
     int no_enable = 0;
 

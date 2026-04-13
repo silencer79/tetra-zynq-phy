@@ -564,25 +564,36 @@ tetra_axi_dma_bridge #(
 localparam TX_SLOT_CYCLES = 21'd1_416_667;
 
 reg [20:0] tx_timer_sys;
-reg [1:0] tx_slot_cnt_sys;
-reg tx_slot_pulse_free_sys;
+reg [1:0]  tx_slot_cnt_sys;
+reg [4:0]  tx_frame_cnt_sys;   // 1–18 (ETSI 1-based)
+reg        tx_slot_pulse_free_sys;
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys) begin
  tx_timer_sys <= 21'd0;
  tx_slot_cnt_sys <= 2'd0;
+ tx_frame_cnt_sys <= 5'd1;
  tx_slot_pulse_free_sys <= 1'b0;
  end else if (tx_timer_sys == TX_SLOT_CYCLES - 21'd1) begin
  tx_timer_sys <= 21'd0;
- tx_slot_cnt_sys <= tx_slot_cnt_sys + 2'd1; // Wraps 0→1→2→3→0...
+ tx_slot_cnt_sys <= tx_slot_cnt_sys + 2'd1; // Wraps 0→1→2→3→0
  tx_slot_pulse_free_sys <= 1'b1;
+ // Frame counter increments when slot wraps 3→0
+ if (tx_slot_cnt_sys == 2'd3) begin
+  if (tx_frame_cnt_sys == 5'd18)
+   tx_frame_cnt_sys <= 5'd1;
+  else
+   tx_frame_cnt_sys <= tx_frame_cnt_sys + 5'd1;
+ end
  end else begin
  tx_timer_sys <= tx_timer_sys + 21'd1;
  tx_slot_pulse_free_sys <= 1'b0;
  end
 end
 
-// Use free-running timer for TX (BUG-01 fix)
+// Slot pulse fires every timeslot.  Burst type per slot controls what
+// is transmitted: SB on slot 0, Idle on slots 1–3.
+// TX blanking in tx_chain zeros output during Idle bursts.
 wire tx_slot_pulse_sys_w;
 assign tx_slot_pulse_sys_w = tx_slot_pulse_free_sys;
 
@@ -595,12 +606,9 @@ wire [27:0]  sb_bb_data_sys;   // BB: 14 symbols = 28 bits
 wire [31:0]  nco_phase_inc_sys; // NCO phase increment for LO offset
 // These wires are driven by the AXI-Lite register bank (connected below).
 
-// Burst type per slot: Loopback test — all slots SB so sync_fires arrive
-// every 255 symbols (SLOT_SYMS=255 in sync_detect).
-// For production BS: set Slot 0 SB (01), Slots 1-3 Idle (10) and
-// widen spacing_cnt to 11-bit with SLOT_SYMS=1020 in tetra_sync_detect.
+// Burst type per slot: all SB for now (continuous sync bursts)
 wire [7:0] slot_burst_type_sys; // 2 bits per slot: 0=NDB, 1=SB, 2=Idle
-assign slot_burst_type_sys = 8'b01010101; // All slots: SB (01) — loopback test
+assign slot_burst_type_sys = 8'b01010101; // All slots: SB
 
 tetra_tx_chain #(
         .IQ_WIDTH (IQ_WIDTH),
@@ -620,7 +628,7 @@ tetra_tx_chain #(
         .sb_bkn2_data_sys (sb_bkn2_data_sys),
         .sb_bb_data_sys (sb_bb_data_sys),
         // Per-slot configuration
-        .slot_en_sys (4'b1111), // All slots enabled for loopback test
+        .slot_en_sys (4'b1111), // All slots enabled
         .slot_burst_type_sys(slot_burst_type_sys),
         // NCO phase increment for LO leakage avoidance
         .nco_phase_inc_sys (nco_phase_inc_sys),

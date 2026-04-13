@@ -78,6 +78,54 @@ always @(posedge clk_lvds or negedge rst_n_lvds) begin
 end
 
 // =========================================================================
+// DC Blocker — IIR high-pass, removes DC offset before mixing
+//   dc_est[n] = dc_est[n-1] + (x[n] - dc_est[n-1]) >> ALPHA_SHIFT
+//   y[n] = x[n] - dc_est[n]
+// Prevents NCO from shifting baseband DC onto signal center frequency.
+// 3 dB cutoff ≈ fs/(2π·2^ALPHA) ≈ 45 Hz at 4.608 MHz — no effect on TETRA.
+// =========================================================================
+localparam DC_ALPHA_SHIFT = 14;
+localparam DC_ACC_W       = IQ_WIDTH + DC_ALPHA_SHIFT; // 30 bits
+
+reg signed [DC_ACC_W-1:0] dc_i_acc_lvds;
+reg signed [DC_ACC_W-1:0] dc_q_acc_lvds;
+
+wire signed [IQ_WIDTH-1:0] dc_i_est_w = dc_i_acc_lvds[DC_ACC_W-1 -: IQ_WIDTH];
+wire signed [IQ_WIDTH-1:0] dc_q_est_w = dc_q_acc_lvds[DC_ACC_W-1 -: IQ_WIDTH];
+
+always @(posedge clk_lvds or negedge rst_n_lvds) begin
+    if (!rst_n_lvds) begin
+        dc_i_acc_lvds <= {DC_ACC_W{1'b0}};
+        dc_q_acc_lvds <= {DC_ACC_W{1'b0}};
+    end else if (valid_in) begin
+        dc_i_acc_lvds <= dc_i_acc_lvds
+                       + {{DC_ALPHA_SHIFT{i_in[IQ_WIDTH-1]}}, i_in}
+                       - {{DC_ALPHA_SHIFT{dc_i_est_w[IQ_WIDTH-1]}}, dc_i_est_w};
+        dc_q_acc_lvds <= dc_q_acc_lvds
+                       + {{DC_ALPHA_SHIFT{q_in[IQ_WIDTH-1]}}, q_in}
+                       - {{DC_ALPHA_SHIFT{dc_q_est_w[IQ_WIDTH-1]}}, dc_q_est_w};
+    end
+end
+
+// DC-removed signals with saturation
+wire signed [IQ_WIDTH:0] i_dcsub_w = {i_in[IQ_WIDTH-1], i_in}
+                                    - {dc_i_est_w[IQ_WIDTH-1], dc_i_est_w};
+wire signed [IQ_WIDTH:0] q_dcsub_w = {q_in[IQ_WIDTH-1], q_in}
+                                    - {dc_q_est_w[IQ_WIDTH-1], dc_q_est_w};
+
+wire i_dcovf_w = (i_dcsub_w[IQ_WIDTH] != i_dcsub_w[IQ_WIDTH-1]);
+wire q_dcovf_w = (q_dcsub_w[IQ_WIDTH] != q_dcsub_w[IQ_WIDTH-1]);
+
+wire signed [IQ_WIDTH-1:0] i_clean_w = i_dcovf_w
+    ? (i_dcsub_w[IQ_WIDTH] ? {1'b1, {(IQ_WIDTH-1){1'b0}}}
+                            : {1'b0, {(IQ_WIDTH-1){1'b1}}})
+    : i_dcsub_w[IQ_WIDTH-1:0];
+wire signed [IQ_WIDTH-1:0] q_clean_w = q_dcovf_w
+    ? (q_dcsub_w[IQ_WIDTH] ? {1'b1, {(IQ_WIDTH-1){1'b0}}}
+                            : {1'b0, {(IQ_WIDTH-1){1'b1}}})
+    : q_dcsub_w[IQ_WIDTH-1:0];
+
+// =========================================================================
 // Sin LUT — 1024 entries × 16-bit signed, full-wave
 // cos(θ) = sin(θ + π/2) accessed via +256 offset
 // =========================================================================
@@ -110,8 +158,8 @@ always @(posedge clk_lvds or negedge rst_n_lvds) begin
     end else begin
         sin_val_lvds <= sin_lut[sin_addr_w];
         cos_val_lvds <= sin_lut[cos_addr_w];
-        i_p1_lvds    <= i_in;
-        q_p1_lvds    <= q_in;
+        i_p1_lvds    <= i_clean_w;
+        q_p1_lvds    <= q_clean_w;
         valid_p1_lvds <= valid_in;
     end
 end
