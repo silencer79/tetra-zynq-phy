@@ -51,8 +51,8 @@ STS_DIBITS = [
 DIBIT_TO_DPHASE = {
     0b00: np.pi / 4,
     0b01: 3 * np.pi / 4,
-    0b10: -np.pi / 4,
-    0b11: -3 * np.pi / 4,
+    0b10: -3 * np.pi / 4,
+    0b11: -np.pi / 4,
 }
 
 # RCPC encoder polynomials (K=5, rate 1/3)
@@ -123,16 +123,16 @@ def demod_pi4dqpsk(symbols):
     dphi = np.angle(symbols[1:] * np.conj(symbols[:-1]))
     dibits = np.zeros(len(dphi), dtype=int)
 
-    # Decision regions
+    # Decision regions (EN 300 392-2 Table 9.1)
     for i, p in enumerate(dphi):
         if -np.pi / 2 < p <= 0:
-            dibits[i] = 0b10   # -pi/4
+            dibits[i] = 0b11   # -pi/4
         elif 0 < p <= np.pi / 2:
             dibits[i] = 0b00   # +pi/4
         elif np.pi / 2 < p <= np.pi:
             dibits[i] = 0b01   # +3pi/4
         else:  # -pi < p <= -pi/2
-            dibits[i] = 0b11   # -3pi/4
+            dibits[i] = 0b10   # -3pi/4
 
     return dibits
 

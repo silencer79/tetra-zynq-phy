@@ -1,7 +1,7 @@
 # Module Status Overview
 **Project:** tetra-zynq-phy
 **Last Updated:** 2026-04-13
-**Status:** Phase 4 Hardware-Deployment — RF Loopback FUNKTIONIERT (27/30 SYNC_LOCKED=1)
+**Status:** Phase 4 On-Air TX — Dibit-Mapping-Fix für ETSI-konforme π/4-DQPSK
 
 ---
 
@@ -10,11 +10,11 @@
 | Category | RTL Modules | Testbenches | Simulation Status | Phase |
 |----------|-------------|-------------|-------------------|-------|
 | **RX Chain** | 8 | 8 | ✅ 8/8 PASS | 1 |
-| **TX Chain** | 6 | 6 | ✅ 6/6 PASS | 3 |
+| **TX Chain** | 7 | 6 | ✅ 6/6 PASS | 3 |
 | **LMAC** | 8 | 8 | ✅ 8/8 PASS | 2 |
 | **Infrastructure** | 2 | 2 | ✅ 2/2 PASS | 1 |
 | **Top-Level** | 2 | 0 | ⚠️ Integration pending | — |
-| **TOTAL** | **26** | **24** | **22/22** | — |
+| **TOTAL** | **27** | **24** | **22/22** | — |
 
 > **Note:** `tetra_ad9361_axis_adapter.v` added for AXI IP integration (Phase 4).
 > Top-level modules (`tetra_zynq_top.v`, `tetra_system_top.v`) verified via component tests.
@@ -65,8 +65,9 @@
 | `tetra_burst_builder` | NDB/SB/NUB/CB assembler | ✅ | ✅ | ✅ PASS 5/5 | ~50 | ~524 | 0 | 0 | 2026-04-11 |
 | `tetra_burst_mux` | TDMA burst multiplexer | ✅ | ✅ | ✅ PASS 5/5 | ~50 | ~200 | 0 | 0 | 2026-04-05 |
 | `tetra_tx_frontend` | CIC interpolation + CDC | ✅ | ✅ | ✅ PASS 5/5 | ~80 | ~680 | 0 | 0 | 2026-04-12 |
+| `tetra_tx_nco` | TX NCO + DC blocker (LO leakage) | ✅ | — | ⚠️ HW-verified | ~120 | ~200 | 2 | 0 | 2026-04-13 |
 
-**Phase 3 Total:** ~830 LUT, ~1,734 FF, 1 DSP48, 0 BRAM
+**Phase 3 Total:** ~950 LUT, ~1,934 FF, 3 DSP48, 0 BRAM
 
 ---
 
@@ -86,9 +87,9 @@
 
 | Resource | Phase 1 | Phase 2 | Phase 3 | **TOTAL** | **Available** | **Utilization** |
 |----------|---------|---------|---------|-----------|---------------|-----------------|
-| **LUT** | 1,095 | 3,280 | 830 | **~5,205** | 53,200 | **~10%** |
-| **FF** | 1,430 | 9,148 | 1,734 | **~12,312** | 106,400 | **~12%** |
-| **DSP48** | 3 | 0 | 1 | **4** | 220 | **~2%** |
+| **LUT** | 1,095 | 3,280 | 950 | **~5,325** | 53,200 | **~10%** |
+| **FF** | 1,430 | 9,148 | 1,934 | **~12,512** | 106,400 | **~12%** |
+| **DSP48** | 3 | 0 | 3 | **6** | 220 | **~3%** |
 | **BRAM18k** | 0 | 0 | 0 | **0** | 280 | **0%** |
 
 > **Note:** Estimates based on behavioral simulation. Actual synthesis numbers may differ.
@@ -127,6 +128,8 @@
 | `rx_frontend` | CIC_GAIN_SHF=6 für RF-Pfad nötig (ADC-Amplitude ~512, Gardner TED braucht ~32767) | CIC_GAIN_SHF von 0→6 (64× Verstärkung); CIC_OUT_LOW=24 statt 30 | ✅ Fixed (2026-04-13) |
 | `axi_ad9361 ADC` | ADC Channel Register 0x01 statt 0x51 → dfmt_se/dfmt_enable gelöscht → 12-bit zero-extended → Signal gleichgerichtet → RF SYNC unmöglich | `tetra_ctrl.sh` adc_init/rf_loopback: 0x01→0x51 (Script-Fix, kein Bitstream-Rebuild) | ✅ Fixed (2026-04-13) |
 | `AD9361 RF path` | DDS-Test als TX-Nachweis untauglich (`DAC_DDS_DISABLE=1`); interner `TX_MONITOR1_2` zeigt nur sporadischen Lock | Fabric/DAC/TX im Chip lebt | ⚠️ Diagnostiziert |
+| `pi4dqpsk_mod` | **Dibit 10↔11 Phase-Mapping vertauscht** (10→-π/4 statt -3π/4, 11→-3π/4 statt -π/4). Unser Decoder hatte denselben Bug → CRC PASS, aber jeder ETSI-konforme Empfänger sah BER 15% / MER 100 | phase_inc für 2'b10: 7→5, für 2'b11: 5→7 (ETSI EN 300 392-2 Table 9.1) | ✅ Fixed (2026-04-13) |
+| `tx_chain` | TX-Blanking zu aggressiv: burst-basierter Drain-Timer (1ms) kürzer als Pipeline-Delay → Signal komplett abgeschnitten | Slot-basiertes Blanking: Gate default OPEN, nur für Idle-Bursts geschlossen | ✅ Fixed (2026-04-13) |
 
 ---
 
@@ -145,15 +148,21 @@
 
 ### Nächste Phase
 
-1. **Full-Duplex On-Air Testing**
+1. **On-Air TX Validation (aktuell)**
+   - [x] Dibit 10↔11 Mapping fix (ETSI EN 300 392-2 Table 9.1)
+   - [ ] Neuen Bitstream builden + deployen
+   - [ ] Externer TETRA-Empfänger: BER / MER nach Fix prüfen
+   - [ ] EVM-Messung mit RTL-SDR (Ziel: <10%)
+
+2. **Full-Duplex On-Air Testing**
    - [ ] Empfang eines echten TETRA-Signals (z.B. BOS-Netz, DMO)
    - [ ] BER-Messung bei verschiedenen SNR-Pegeln
 
-2. **Stabilitätsverbesserung (optional)**
+3. **Stabilitätsverbesserung (optional)**
    - [ ] AGC slow_attack Tuning (3/30 Drops korrelieren mit Gain-Sprüngen)
    - [ ] Längere Stabilitätstests (>10 min)
 
-3. **LMAC Integration**
+4. **LMAC Integration**
    - [ ] AXI-DMA Bridge mit echten MAC-Blöcken testen
    - [ ] PS-seitige Software für TETRA-MAC-Stack
 
@@ -163,6 +172,8 @@
 
 | Date | Change | Module(s) |
 |------|--------|-----------|
+| 2026-04-13 | **fix: π/4-DQPSK dibit 10↔11 swap** — Root Cause BER 15% / MER 100 bei echtem TETRA-Empfänger. ETSI Table 9.1: 10→-3π/4, 11→-π/4. Auch in decode_sb.py gefixt. | `rtl/tx/tetra_pi4dqpsk_mod.v`, `scripts/decode_sb.py` |
+| 2026-04-13 | feat: TX NCO (106 kHz LO-Offset) + DC-Blocker; slot-basiertes TX-Blanking; SYSINFO channel coding (tetra_sysinfo); frame counter (1-18 ETSI) | `rtl/tx/tetra_tx_nco.v`, `rtl/tx/tetra_tx_chain.v`, `sw/tetra_hal.c`, `rtl/tetra_zynq_top.v` |
 | 2026-04-13 | fix: ADC dfmt 0x01→0x51 (Root Cause RF-Failure: sign-extend fehlte); RF Loopback **27/30** SYNC_LOCKED=1; CIC_GAIN_SHF=6 (64× RX-Verstärkung) | `scripts/tetra_ctrl.sh`, `rtl/rx/tetra_rx_frontend.v` |
 | 2026-04-12 | feat: RF Antennen-Loopback — ADI DAC-Core dac_init (RSTN+DAT_SEL); tetra_ctrl.sh + hw_deploy.sh erweitert | `scripts/tetra_ctrl.sh`, `scripts/hw_deploy.sh` |
 | 2026-04-12 | diag: DDS-Test entwertet (`DAC_DDS_DISABLE=1`); AD9361 `TX_MONITOR1_2` liefert sporadischen internen Lock | `docs/hw_board_state.md`, `docs/module_status.md` |
