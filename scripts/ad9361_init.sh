@@ -11,7 +11,7 @@
 #
 # Defaults:
 #   --host       192.168.2.180
-#   --freq       430000000   (430 MHz, TETRA 70cm Amateur)
+#   --freq       429000000   (429 MHz, TETRA 70cm Amateur)
 #   --samplerate 4608000     (4.608 MSPS → CIC R=64 → 72 kHz = 4× Symbolrate)
 #   --gain       40          (40 dB, manual mode; --agc für slow_attack)
 #
@@ -36,7 +36,7 @@ set -euo pipefail
 SSH_HOST="192.168.2.180"
 SSH_USER="root"
 SSH_PASS="openwifi"
-RX_FREQ_HZ=430000000
+RX_FREQ_HZ=429000000
 SAMPLERATE_HZ=4608000
 RX_GAIN_DB=40
 GAIN_MODE="slow_attack"    # manual | slow_attack | fast_attack
@@ -178,12 +178,39 @@ iio_set_ch "voltage0" "rf_bandwidth" "${BW_HZ}"
 # 5. FDD-Modus (Duplex, für gleichzeitigen RX+TX)
 iio_set_dev "ensm_mode" "fdd"
 
+# 6. TX Dämpfung explizit setzen (nur Output-Channel via sysfs)
+#
+#    WICHTIG: AD9361 IIO-Kanal-Mapping (verifiziert 2026-04-13):
+#      out_voltage0_hardwaregain = TX1 Dämpfung  → AD9361 SPI Register 0x073/0x074
+#      out_voltage1_hardwaregain = TX2 Dämpfung  → AD9361 SPI Register 0x075/0x076
+#
+#    Der LibreSDR nutzt TX1 als RF-Ausgang. Nur out_voltage0 hat Wirkung auf den
+#    tatsächlichen TX-Pfad. Writes auf out_voltage1 gehen ins Leere (TX2 nicht verbunden).
+#
+#    Format: direkt dB (nicht millidB!) — z.B. echo -50 für -50 dB (= 50 dB Dämpfung)
+#    0 = keine Dämpfung (maximale TX-Leistung, ~AGC 0-1 dB bei 10cm Abstand)
+IIO_PATH="${IIO_DEV_PATH:-/sys/bus/iio/devices/${IIO_DEV}}"
+TX_GAIN_RESULT=$( ${SSH_CMD} "
+    SYSFS=\$(grep -rl 'ad9361-phy' /sys/bus/iio/devices/*/name 2>/dev/null | head -1 | xargs dirname 2>/dev/null)
+    if [[ -z \"\$SYSFS\" ]]; then
+        echo 'sysfs nicht gefunden'
+    else
+        echo 0 > \"\${SYSFS}/out_voltage0_hardwaregain\" 2>&1 && \
+        cat \"\${SYSFS}/out_voltage0_hardwaregain\"
+    fi
+" 2>&1 )
+echo "  voltage0/hardwaregain(TX1) = ${TX_GAIN_RESULT}"
+
 echo ""
 echo "--- Verifizierung ---"
 echo -n "  RX LO: " && iio_get_ch "altvoltage0" "frequency"
 echo -n "  TX LO: " && iio_get_ch "altvoltage1" "frequency"
 echo -n "  SR:    " && iio_get_ch "voltage0" "sampling_frequency"
 echo -n "  Gain:  " && iio_get_ch "voltage0" "gain_control_mode"
+echo -n "  TX Att: " && ${SSH_CMD} "
+    SYSFS=\$(grep -rl 'ad9361-phy' /sys/bus/iio/devices/*/name 2>/dev/null | head -1 | xargs dirname 2>/dev/null)
+    [[ -n \"\$SYSFS\" ]] && cat \"\${SYSFS}/out_voltage0_hardwaregain\" || echo 'n/a'
+" 2>/dev/null
 echo -n "  Rates: " && ${SSH_CMD} "iio_attr -d ad9361-phy rx_path_rates 2>/dev/null"
 
 echo ""

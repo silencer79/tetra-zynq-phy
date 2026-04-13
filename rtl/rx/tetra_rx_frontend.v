@@ -17,7 +17,11 @@
 //   CIC design:
 //     Order N=5, Decimation R=64, Differential delay M=1.
 //     Internal bit width = 16 + 5×ceil(log2(64)) = 16 + 30 = 46 bits.
-//     Gain = R^N = 64^5 = 2^30; truncated by CIC_TRUNC = 30 bits.
+//     Gain = R^N = 64^5 = 2^30; normalised by CIC_TRUNC=30, then amplified
+//     by 2^CIC_GAIN_SHF=64 (CIC_GAIN_SHF=6) with saturation to IQ_WIDTH.
+//     Effective output range: input × 64, clamped to ±32767.
+//     Required because Gardner TED gain ∝ amplitude²; ADC amplitude (~512
+//     with slow_attack AGC) gives zero loop gain without this boost.
 //     Combs run combinatorially (5 subtractions in one clock cycle at 100 MHz;
 //     worst-case path < 3 ns, easily meets timing).
 //
@@ -108,6 +112,21 @@ localparam CIC_BITS  = IQ_WIDTH + CIC_ORDER * 6;  // = 46
 // CIC output truncation: discard lower (CIC_BITS - IQ_WIDTH) bits
 // This removes the CIC DC gain of R^N = 2^30
 localparam CIC_TRUNC = CIC_BITS - IQ_WIDTH;        // = 30
+
+// CIC output gain shift: take CIC_GAIN_SHF extra LSBs beyond the normalised
+// output, then saturate to IQ_WIDTH.  Gain = 2^CIC_GAIN_SHF.
+//
+// Why this is needed: the Gardner TED gain scales as signal_amplitude².
+// Digital loopback feeds pi4dqpsk_mod output (~32767) directly into the RX
+// CIC; the loop gain is large and the TED converges.  In RF mode the AD9361
+// ADC operates at ~512 LSB (slow_attack AGC, ~-12 dBFS target), giving
+// TED ≈ 4 and kp_term = 4 >> KP_SHIFT = 0 — the loop is dead.
+// CIC_GAIN_SHF=6 multiplies amplitude 512 → 32768, matching the digital-
+// loopback operating point.  For digital loopback (amplitude 32767), the
+// 64× product saturates back to 32767, so existing behaviour is unchanged.
+localparam CIC_GAIN_SHF  = 6;
+localparam CIC_WIDE_BITS = IQ_WIDTH + CIC_GAIN_SHF;  // 22
+localparam CIC_OUT_LOW   = CIC_TRUNC - CIC_GAIN_SHF; // 24 (new LSB of output slice)
 
 // Decimation counter width: ceil(log2(CIC_R)) = 6 bits for R=64
 localparam DCNT_BITS = 6;
@@ -469,10 +488,32 @@ end
 wire signed [CIC_BITS-1:0] q_comb5_sys = q_comb4_sys - q_comb5_z1_sys;
 
 // ---------------------------------------------------------------------------
-// CIC Output Register — truncate from CIC_BITS to IQ_WIDTH
-// Captures MSBs [CIC_BITS-1 : CIC_TRUNC] = bits [45:30] of comb5 output.
+// CIC Output Register — extract amplified slice, saturate, then register.
+// Takes bits [CIC_BITS-1 : CIC_OUT_LOW] = bits [45:24] (22 bits = IQ_WIDTH+6)
+// instead of the normalised [45:30], providing 2^6=64× gain before saturation.
 // One cycle after cic_strobe, cic_valid_sys goes high.
 // ---------------------------------------------------------------------------
+
+// Wide (pre-saturation) CIC output — CIC_WIDE_BITS = 22 bits
+wire signed [CIC_WIDE_BITS-1:0] i_cic_wide_sys = i_comb5_sys[CIC_BITS-1 : CIC_OUT_LOW];
+wire signed [CIC_WIDE_BITS-1:0] q_cic_wide_sys = q_comb5_sys[CIC_BITS-1 : CIC_OUT_LOW];
+
+// Saturation: overflow iff the CIC_GAIN_SHF guard bits differ from the sign bit.
+// Guard bits are [CIC_WIDE_BITS-2 : IQ_WIDTH-1] = [20:15] — must all equal bit [21].
+wire i_pos_ovf = (!i_cic_wide_sys[CIC_WIDE_BITS-1]) && (|i_cic_wide_sys[CIC_WIDE_BITS-2:IQ_WIDTH-1]);
+wire i_neg_ovf =   i_cic_wide_sys[CIC_WIDE_BITS-1]  && (~&i_cic_wide_sys[CIC_WIDE_BITS-2:IQ_WIDTH-1]);
+wire q_pos_ovf = (!q_cic_wide_sys[CIC_WIDE_BITS-1]) && (|q_cic_wide_sys[CIC_WIDE_BITS-2:IQ_WIDTH-1]);
+wire q_neg_ovf =   q_cic_wide_sys[CIC_WIDE_BITS-1]  && (~&q_cic_wide_sys[CIC_WIDE_BITS-2:IQ_WIDTH-1]);
+
+wire signed [IQ_WIDTH-1:0] i_cic_sat =
+    i_pos_ovf ? {1'b0, {(IQ_WIDTH-1){1'b1}}} :   // +32767
+    i_neg_ovf ? {1'b1, {(IQ_WIDTH-1){1'b0}}} :   // -32768
+                i_cic_wide_sys[IQ_WIDTH-1:0];
+
+wire signed [IQ_WIDTH-1:0] q_cic_sat =
+    q_pos_ovf ? {1'b0, {(IQ_WIDTH-1){1'b1}}} :
+    q_neg_ovf ? {1'b1, {(IQ_WIDTH-1){1'b0}}} :
+                q_cic_wide_sys[IQ_WIDTH-1:0];
 
 // Pipeline Stage CIC-1: register CIC output
 reg signed [IQ_WIDTH-1:0] i_cic_out_sys;
@@ -480,7 +521,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys)
         i_cic_out_sys <= {IQ_WIDTH{1'b0}};
     else if (cic_strobe_sys)
-        i_cic_out_sys <= i_comb5_sys[CIC_BITS-1 : CIC_TRUNC];
+        i_cic_out_sys <= i_cic_sat;
 end
 
 reg signed [IQ_WIDTH-1:0] q_cic_out_sys;
@@ -488,7 +529,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys)
         q_cic_out_sys <= {IQ_WIDTH{1'b0}};
     else if (cic_strobe_sys)
-        q_cic_out_sys <= q_comb5_sys[CIC_BITS-1 : CIC_TRUNC];
+        q_cic_out_sys <= q_cic_sat;
 end
 
 // Valid flag: 1 cycle after cic_strobe (aligned with cic_out registers)

@@ -82,6 +82,21 @@ WARN() { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 INFO() { echo -e "${CYAN}[INFO]${NC}  $*"; }
 STEP() { echo -e "\n${BOLD}━━━ $* ━━━${NC}"; }
 
+program_bitstream() {
+    INFO "Starte Vivado (batch mode) ..."
+    if "$VIVADO" -mode batch \
+        -source "${PROJ_DIR}/scripts/program_fpga.tcl" \
+        -nojournal -nolog 2>&1 | tee "${PROJ_DIR}/build/program_fpga.log" | \
+        grep -E "(Programming|complete|ERROR|WARN|Done)" ; then
+        OK "Bitstream erfolgreich geflasht"
+    else
+        FAIL "Bitstream-Flash fehlgeschlagen — siehe build/program_fpga.log"
+        exit 1
+    fi
+    INFO "Warte 2s auf FPGA-Init ..."
+    sleep 2
+}
+
 # =============================================================================
 echo -e "\n${BOLD}╔══════════════════════════════════════════════════╗"
 echo    "║  tetra-zynq-phy  Hardware Deploy                ║"
@@ -177,18 +192,7 @@ fi
 STEP "Schritt 2/4: Bitstream flashen (JTAG)"
 
 if [[ $DO_FLASH -eq 1 ]]; then
-    INFO "Starte Vivado (batch mode) ..."
-    if "$VIVADO" -mode batch \
-        -source "${PROJ_DIR}/scripts/program_fpga.tcl" \
-        -nojournal -nolog 2>&1 | tee "${PROJ_DIR}/build/program_fpga.log" | \
-        grep -E "(Programming|complete|ERROR|WARN|Done)" ; then
-        OK "Bitstream erfolgreich geflasht"
-    else
-        FAIL "Bitstream-Flash fehlgeschlagen — siehe build/program_fpga.log"
-        exit 1
-    fi
-    INFO "Warte 2s auf FPGA-Init ..."
-    sleep 2
+    program_bitstream
 else
     WARN "Bitstream-Flash übersprungen (--no-flash)"
 fi
@@ -227,21 +231,42 @@ else
 fi
 
 # =============================================================================
-# Schritt 3b: ADI DAC-Core initialisieren (Fabric-Daten-Modus)
+# Schritt 3b: Zweiter Bitstream-Load für axi_ad9361 MMCM-Lock
+# =============================================================================
+# Nach Cold-Boot braucht der erste Bitstream-Load nur die Fabric, damit der
+# AD9361 initialisiert werden kann. Erst nach ad9361_init.sh liegt DATA_CLK
+# stabil an; der zweite Load lässt danach den axi_ad9361-MMCM sauber locken.
+STEP "Schritt 3b/4: Zweiter Bitstream-Load"
+
+if [[ $DO_FLASH -eq 1 && $DO_AD9361 -eq 1 ]]; then
+    program_bitstream
+else
+    WARN "Zweiter Bitstream-Load übersprungen (erfordert Flash + AD9361-Init)"
+fi
+
+# =============================================================================
+# Schritt 3c: ADI DAC-Core initialisieren (Fabric-Daten-Modus)
 # =============================================================================
 # Nach jedem Bitstream-Load ist der ADI axi_ad9361 DAC-Core im Reset.
-# Ohne diesen Schritt sendet der AD9361 DAC keine FPGA-Daten (nur DDS-Ton).
-STEP "Schritt 3b/4: ADI DAC-Core init (devmem)"
+# Ohne diesen Schritt sendet der AD9361 DAC keine FPGA-Daten; sichtbar bleibt
+# höchstens LO-Leakage. Der ADI-DDS-Testpfad ist in diesem Build deaktiviert.
+STEP "Schritt 3c/4: ADI DAC-Core init (devmem)"
 
 if [[ $DO_AD9361 -eq 1 ]]; then
     INFO "Initialisiere ADI DAC-Core @ 0x79024000 ..."
     sshpass -p "$SSH_PASS" ssh "$SSH_USER@$SSH_HOST" "
         DAC=0x79024000
         busybox devmem \$((DAC+0x40)) 32 0x3   # RSTN: release reset + MMCM
-        busybox devmem \$((DAC+0x48)) 32 0x20  # CNTRL_2: DAT_SEL=2 (fabric data)
+        busybox devmem \$((DAC+0x48)) 32 0x20  # CNTRL_2: r1_mode=1
+        busybox devmem \$((DAC+0x418)) 32 0x2  # CH0 dac_data_sel = fabric
+        busybox devmem \$((DAC+0x458)) 32 0x2  # CH1 dac_data_sel = fabric
         RSTN=\$(busybox devmem \$((DAC+0x40)) 32)
+        CNTRL2=\$(busybox devmem \$((DAC+0x48)) 32)
         STATUS=\$(busybox devmem \$((DAC+0x68)) 32)
-        printf 'DAC RSTN=0x%08X STATUS=0x%08X\n' \$RSTN \$STATUS
+        CH0SEL=\$(busybox devmem \$((DAC+0x418)) 32)
+        CH1SEL=\$(busybox devmem \$((DAC+0x458)) 32)
+        printf 'DAC RSTN=0x%08X CNTRL_2=0x%08X STATUS=0x%08X\n' \$RSTN \$CNTRL2 \$STATUS
+        printf 'CH0_DATSEL=0x%08X CH1_DATSEL=0x%08X\n' \$CH0SEL \$CH1SEL
     " && OK "DAC-Core initialisiert (fabric data mode)" || WARN "DAC-Core init fehlgeschlagen"
 else
     WARN "DAC-Core init übersprungen (--no-ad9361)"
