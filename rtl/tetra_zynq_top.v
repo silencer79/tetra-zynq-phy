@@ -606,9 +606,11 @@ wire [27:0]  sb_bb_data_sys;   // BB: 14 symbols = 28 bits
 wire [31:0]  nco_phase_inc_sys; // NCO phase increment for LO offset
 // These wires are driven by the AXI-Lite register bank (connected below).
 
-// Burst type per slot: all SB for now (continuous sync bursts)
-wire [7:0] slot_burst_type_sys; // 2 bits per slot: 0=NDB, 1=SB, 2=Idle
-assign slot_burst_type_sys = 8'b01010101; // All slots: SB
+// Burst type per slot: Slot 1=SB, Slots 2-4=Idle (ETSI TDMA framing)
+// Encoding: {slot4[1:0], slot3[1:0], slot2[1:0], slot1[1:0]}
+//   0=NDB, 1=SB, 2=Idle
+wire [7:0] slot_burst_type_sys;
+assign slot_burst_type_sys = 8'b10_10_10_01; // slot1=SB, slot2-4=Idle
 
 tetra_tx_chain #(
         .IQ_WIDTH (IQ_WIDTH),
