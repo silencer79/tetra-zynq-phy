@@ -120,6 +120,13 @@ set_property  -dict {PACKAGE_PIN J20   IOSTANDARD LVCMOS33} [get_ports pl_led0]
 set_property  -dict {PACKAGE_PIN H20   IOSTANDARD LVCMOS33} [get_ports pl_led1]
 
 # =============================================================================
+# DAC5311 SPI (VCXO 40 MHz tuning — PS GPIO EMIO bitbang)
+# =============================================================================
+set_property  -dict {PACKAGE_PIN H18   IOSTANDARD LVCMOS33} [get_ports dac_sync]
+set_property  -dict {PACKAGE_PIN F19   IOSTANDARD LVCMOS33} [get_ports dac_sclk]
+set_property  -dict {PACKAGE_PIN F20   IOSTANDARD LVCMOS33} [get_ports dac_din]
+
+# =============================================================================
 # Clock Constraints
 # =============================================================================
 # rx_clk_in_p (N20) is IO_L14P_T2_SRCC_34 — SRCC capable, bank 34.

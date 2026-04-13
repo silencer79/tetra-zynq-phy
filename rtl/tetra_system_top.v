@@ -128,7 +128,15 @@ module tetra_system_top (
     // LEDs (PL-controlled via PS GPIO EMIO)
     // -------------------------------------------------------------------------
     output wire        pl_led0,      // GPIO_O[20]
-    output wire        pl_led1       // GPIO_O[22]
+    output wire        pl_led1,      // GPIO_O[22]
+
+    // -------------------------------------------------------------------------
+    // DAC5311 SPI (VCXO 40 MHz tuning — PS GPIO EMIO bitbang)
+    // CS/CLK/DIN are pure outputs; driven from Linux sysfs gpio 1011/1012/1013
+    // -------------------------------------------------------------------------
+    output wire        dac_sync,     // GPIO_O[51] — SPI chip-select (active low)
+    output wire        dac_sclk,     // GPIO_O[52] — SPI clock
+    output wire        dac_din       // GPIO_O[53] — SPI data in
 );
 
 // =============================================================================
@@ -158,8 +166,15 @@ assign txnrx  = gpio_o[48];
 // GPIO passthrough — unconnected upper bits loop back to keep PS happy
 // =============================================================================
 
-assign gpio_i[63:51] = gpio_o[63:51];
+assign gpio_i[63:54] = gpio_o[63:54];
+assign gpio_i[53:51] = gpio_o[53:51]; // DAC5311 bits — loopback so PS can readback
 assign gpio_i[50:49] = gpio_o[50:49];
+
+// DAC5311 SPI outputs — driven by PS GPIO EMIO bitbang (Linux sysfs)
+// EMIO[51]=gpio1011=CS, EMIO[52]=gpio1012=CLK, EMIO[53]=gpio1013=DIN
+assign dac_sync = gpio_o[51];
+assign dac_sclk = gpio_o[52];
+assign dac_din  = gpio_o[53];
 // gpio_i[48:47] driven by the PS (enable/txnrx are outputs, not loopback)
 
 // =============================================================================
