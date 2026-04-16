@@ -769,6 +769,11 @@ void tetra_print_status(tetra_hal_t *hal)
            !!(status & STATUS_FIFO_EMPTY),
            !!(status & STATUS_FIFO_FULL));
     printf("FRAME/SLOT: %u / %u\n", frame, slot);
+
+    uint32_t tx_tdma = tetra_reg_read(hal, REG_TX_TDMA);
+    printf("TX TDMA:    FN=%u MF=%u TN=%u\n",
+           (tx_tdma >> 2) & 0x1F, (tx_tdma >> 7) & 0x3F, tx_tdma & 0x3);
+
     printf("CRC_ERR:    %u\n", crc_e);
     printf("SYNC_LOST:  %u\n", sync_l);
 }
@@ -875,7 +880,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    /* Write SYSINFO to SB payload registers */
+    /* Initial SYSINFO write (frame=0, multiframe=0 — updated in loop) */
     if (tetra_write_sysinfo(&hal, &info) != 0) {
         tetra_hal_close(&hal);
         return 1;
@@ -904,6 +909,35 @@ int main(int argc, char *argv[])
 
     tetra_print_status(&hal);
 
+    /* ================================================================
+     * Main loop: poll TX TDMA counter, re-encode SYSINFO each frame
+     * so the frame/multiframe fields stay current.
+     *
+     * The TX frame is ~56.67 ms (4 slots × 14.17 ms).  We poll every
+     * ~10 ms and re-encode when the frame number changes.  Encoding
+     * + register writes take <1 ms on Zynq ARM, so we always finish
+     * well before the next slot 0.
+     * ================================================================ */
+    uint32_t last_tdma = 0;
+    printf("Running SYSINFO loop (Ctrl-C to stop)...\n");
+
+    for (;;) {
+        uint32_t tdma = tetra_reg_read(&hal, REG_TX_TDMA);
+        uint32_t fn = (tdma >> 2) & 0x1F;
+        uint32_t mf = (tdma >> 7) & 0x3F;
+
+        /* Re-encode only when frame or multiframe changed */
+        if (tdma != last_tdma) {
+            info.frame      = (uint8_t)fn;
+            info.multiframe = (uint8_t)mf;
+            tetra_write_sysinfo(&hal, &info);
+            last_tdma = tdma;
+        }
+
+        usleep(10000);  /* 10 ms */
+    }
+
+    /* not reached */
     tetra_hal_close(&hal);
     return 0;
 }

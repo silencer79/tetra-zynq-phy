@@ -570,6 +570,7 @@ localparam TX_SLOT_CYCLES = 21'd1_416_667;
 reg [20:0] tx_timer_sys;
 reg [1:0]  tx_slot_cnt_sys;
 reg [4:0]  tx_frame_cnt_sys;   // 1–18 (ETSI 1-based)
+reg [5:0]  tx_mf_cnt_sys;      // 1–60 (ETSI 1-based multiframe)
 reg        tx_slot_pulse_free_sys;
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
@@ -577,6 +578,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  tx_timer_sys <= 21'd0;
  tx_slot_cnt_sys <= 2'd0;
  tx_frame_cnt_sys <= 5'd1;
+ tx_mf_cnt_sys <= 6'd1;
  tx_slot_pulse_free_sys <= 1'b0;
  end else if (tx_timer_sys == TX_SLOT_CYCLES - 21'd1) begin
  tx_timer_sys <= 21'd0;
@@ -584,10 +586,16 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  tx_slot_pulse_free_sys <= 1'b1;
  // Frame counter increments when slot wraps 3→0
  if (tx_slot_cnt_sys == 2'd3) begin
-  if (tx_frame_cnt_sys == 5'd18)
+  if (tx_frame_cnt_sys == 5'd18) begin
    tx_frame_cnt_sys <= 5'd1;
-  else
+   // Multiframe counter increments when frame wraps 18→1
+   if (tx_mf_cnt_sys == 6'd60)
+    tx_mf_cnt_sys <= 6'd1;
+   else
+    tx_mf_cnt_sys <= tx_mf_cnt_sys + 6'd1;
+  end else begin
    tx_frame_cnt_sys <= tx_frame_cnt_sys + 5'd1;
+  end
  end
  end else begin
  tx_timer_sys <= tx_timer_sys + 21'd1;
@@ -913,6 +921,9 @@ tetra_axi_lite_regs u_axi_regs (
     .slot_status_axi         ({lmac_stolen_sys, 3'd0}),  // slot 0 steal flag
     .frame_num_axi           (frame_num_axi),
     .slot_num_axi            (slot_num_axi),
+    .tx_slot_axi             (tx_slot_cnt_sys),
+    .tx_frame_axi            (tx_frame_cnt_sys),
+    .tx_mf_axi               (tx_mf_cnt_sys),
     // IRQ inputs (axi domain)
     .irq_mac_block_axi       (irq_mac_block_axi),
     .irq_sync_acquired_axi   (irq_sync_acquired_axi),

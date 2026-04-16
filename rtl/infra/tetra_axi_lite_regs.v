@@ -111,6 +111,9 @@ module tetra_axi_lite_regs (
     input  wire [3:0]  slot_status_axi,   // bitmap: which slots have valid data
     input  wire [4:0]  frame_num_axi,     // from tetra_frame_counter
     input  wire [1:0]  slot_num_axi,      // from tetra_frame_counter
+    input  wire [1:0]  tx_slot_axi,       // TX free-running slot (0-3)
+    input  wire [4:0]  tx_frame_axi,      // TX free-running frame (1-18)
+    input  wire [5:0]  tx_mf_axi,         // TX free-running multiframe (1-60)
 
     // Interrupt inputs (1-cycle pulses, pre-synchronized to axi domain)
     input  wire        irq_mac_block_axi,
@@ -192,7 +195,7 @@ localparam [5:0] REG_IRQ_STATUS   = 6'h0A; // 0x28
 localparam [5:0] REG_DMA_BLK_CNT = 6'h0B; // 0x2C
 localparam [5:0] REG_CRC_ERR_CNT = 6'h0C; // 0x30
 localparam [5:0] REG_SYNC_LST_CNT= 6'h0D; // 0x34
-localparam [5:0] REG_RESERVED     = 6'h0E; // 0x38
+localparam [5:0] REG_TX_TDMA      = 6'h0E; // 0x38  [12:0] TX slot/frame/mf
 localparam [5:0] REG_SCRATCH      = 6'h0F; // 0x3C
 
 // SB Payload registers (0x40–0x7C)
@@ -375,7 +378,7 @@ always @(*) begin
         REG_DMA_BLK_CNT: rdata_mux_axi = {16'b0, dma_block_count_axi};
         REG_CRC_ERR_CNT: rdata_mux_axi = {16'b0, crc_error_count_axi};
         REG_SYNC_LST_CNT:rdata_mux_axi = {16'b0, sync_lost_count_axi};
-        REG_RESERVED:     rdata_mux_axi = 32'b0;
+        REG_TX_TDMA:      rdata_mux_axi = {19'b0, tx_mf_axi, tx_frame_axi, tx_slot_axi};
         REG_SCRATCH:      rdata_mux_axi = scratch_axi;
         // SB Payload readback
         REG_SB_SB1_0:    rdata_mux_axi = sb_sb1_w0_axi;

@@ -36,6 +36,7 @@
 #define REG_DMA_BLK_CNT     0x2C
 #define REG_CRC_ERR_CNT     0x30
 #define REG_SYNC_LST_CNT    0x34
+#define REG_TX_TDMA         0x38  /* RO: [12:7] tx_mf, [6:2] tx_frame, [1:0] tx_slot */
 #define REG_SCRATCH         0x3C
 
 /* CTRL register bits */

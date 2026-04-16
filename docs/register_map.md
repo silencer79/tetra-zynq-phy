@@ -30,7 +30,7 @@ Address space: 256 bytes (0x00 – 0xFF), 32-bit word-aligned accesses only.
 | 0x2C   | DMA_BLOCK_COUNT   | RO     | 0x0000_0000| Received MAC blocks since last clear |
 | 0x30   | CRC_ERROR_COUNT   | RO     | 0x0000_0000| CRC errors since last clear          |
 | 0x34   | SYNC_LOST_COUNT   | RO     | 0x0000_0000| Sync loss events since last clear    |
-| 0x38   | RESERVED          | —      | —          | Reserved for future use              |
+| 0x38   | TX_TDMA           | RO     | 0x0000_0044| TX TDMA state: [12:7] MF, [6:2] FN, [1:0] TN |
 | 0x3C   | SCRATCH           | R/W    | 0x0000_0000| Scratch register (SW test)           |
 | 0x40   | SB_SB1_0          | R/W    | 0x0000_0000| SDB sb1 word 0 (bits [119:88])       |
 | 0x44   | SB_SB1_1          | R/W    | 0x0000_0000| SDB sb1 word 1 (bits [87:56])        |
