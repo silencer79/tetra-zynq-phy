@@ -25,8 +25,7 @@ module tb_tetra_burst_mux;
 // ---------------------------------------------------------------------------
 localparam BLOCK_BITS   = 216;
 localparam BB_BITS      = 30;
-localparam BKN1_SB_BITS = 240;
-localparam BB_SB_BITS   = 28;
+localparam SB1_BITS     = 120;
 localparam CLK_HALF     = 5;      // 100 MHz
 
 // ---------------------------------------------------------------------------
@@ -37,12 +36,11 @@ reg              rst_n_sys;
 
 reg  [4*BLOCK_BITS-1:0] block1_in_sys;
 reg  [4*BLOCK_BITS-1:0] block2_in_sys;
-reg  [4*BB_BITS-1:0]    bb_in_sys;
-reg  [BKN1_SB_BITS-1:0] sb_bkn1_in_sys;
+reg  [BB_BITS-1:0]      bb_in_sys;
+reg  [SB1_BITS-1:0]     sb_sb1_in_sys;
 reg  [BLOCK_BITS-1:0]   sb_bkn2_in_sys;
-reg  [BB_SB_BITS-1:0]   sb_bb_in_sys;
 reg  [3:0]              slot_en_sys;
-reg  [7:0]              slot_burst_type_sys;
+reg  [3:0]              slot_burst_type_sys;
 reg  [1:0]              tx_slot_num_sys;
 reg                     tx_slot_pulse_sys;
 reg                     builder_busy_sys;
@@ -50,7 +48,8 @@ reg                     builder_busy_sys;
 wire [BLOCK_BITS-1:0]   build_block1_sys;
 wire [BLOCK_BITS-1:0]   build_block2_sys;
 wire [BB_BITS-1:0]      build_bb_sys;
-wire [1:0]              build_burst_type_sys;
+wire [SB1_BITS-1:0]     build_sb1_sys;
+wire                    build_burst_type_sys;
 wire                    build_req_sys;
 wire                    mux_ready_sys;
 
@@ -60,6 +59,7 @@ wire                    mux_ready_sys;
 tetra_burst_mux #(
     .BLOCK_BITS  (BLOCK_BITS),
     .BB_BITS     (BB_BITS),
+    .SB1_BITS    (SB1_BITS),
     .TS_PER_FRAME(4)
 ) dut (
     .clk_sys              (clk_sys),
@@ -67,9 +67,8 @@ tetra_burst_mux #(
     .block1_in_sys        (block1_in_sys),
     .block2_in_sys        (block2_in_sys),
     .bb_in_sys            (bb_in_sys),
-    .sb_bkn1_in_sys       (sb_bkn1_in_sys),
+    .sb_sb1_in_sys        (sb_sb1_in_sys),
     .sb_bkn2_in_sys       (sb_bkn2_in_sys),
-    .sb_bb_in_sys         (sb_bb_in_sys),
     .slot_en_sys          (slot_en_sys),
     .slot_burst_type_sys  (slot_burst_type_sys),
     .tx_slot_num_sys      (tx_slot_num_sys),
@@ -77,9 +76,7 @@ tetra_burst_mux #(
     .build_block1_sys     (build_block1_sys),
     .build_block2_sys     (build_block2_sys),
     .build_bb_sys         (build_bb_sys),
-    .build_bkn1_sb_sys    (),
-    .build_bkn2_sb_sys    (),
-    .build_bb_sb_sys      (),
+    .build_sb1_sys        (build_sb1_sys),
     .build_burst_type_sys (build_burst_type_sys),
     .build_req_sys        (build_req_sys),
     .builder_busy_sys     (builder_busy_sys),
@@ -114,8 +111,8 @@ task check;
     input [BLOCK_BITS-1:0] expected_b2;
     input [BB_BITS-1:0]    actual_bb;
     input [BB_BITS-1:0]    expected_bb;
-    input [1:0]            actual_bt;
-    input [1:0]            expected_bt;
+    input                  actual_bt;
+    input                  expected_bt;
     begin
         if (actual_b1 !== expected_b1 || actual_b2 !== expected_b2 ||
             actual_bb !== expected_bb || actual_bt !== expected_bt) begin
@@ -160,11 +157,9 @@ endtask
 task set_slot;
     input [1:0] slot;
     input [BLOCK_BITS-1:0] b1, b2;
-    input [BB_BITS-1:0]    bb;
     begin
         block1_in_sys[slot*BLOCK_BITS +: BLOCK_BITS] = b1;
         block2_in_sys[slot*BLOCK_BITS +: BLOCK_BITS] = b2;
-        bb_in_sys    [slot*BB_BITS    +: BB_BITS   ] = bb;
     end
 endtask
 
@@ -182,13 +177,12 @@ initial begin : stim
     tx_slot_num_sys   = 2'd0;
     builder_busy_sys  = 1'b0;
     slot_en_sys       = 4'b1111;
-    slot_burst_type_sys = 8'h00;
+    slot_burst_type_sys = 4'b0000;
     block1_in_sys     = {(4*BLOCK_BITS){1'b0}};
     block2_in_sys     = {(4*BLOCK_BITS){1'b0}};
-    bb_in_sys         = {(4*BB_BITS){1'b0}};
-    sb_bkn1_in_sys    = {BKN1_SB_BITS{1'b0}};
+    bb_in_sys         = {BB_BITS{1'b0}};
+    sb_sb1_in_sys     = {SB1_BITS{1'b0}};
     sb_bkn2_in_sys    = {BLOCK_BITS{1'b0}};
-    sb_bb_in_sys      = {BB_SB_BITS{1'b0}};
 
     repeat (4) @(posedge clk_sys);
     rst_n_sys = 1'b1;
@@ -199,14 +193,14 @@ initial begin : stim
     // -----------------------------------------------------------------------
     $display("--- TC1: Single active slot (slot 0) ---");
     set_slot(2'd0, 216'hA0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0,
-                   216'hB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0,
-                   30'h1AAAAAA);
+                   216'hB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0);
+    bb_in_sys = 30'h1AAAAAA;
     set_slot(2'd1, 216'h111111111111111111111111111111111111111111111111111111,
-                   216'h222222222222222222222222222222222222222222222222222222, 30'h00);
+                   216'h222222222222222222222222222222222222222222222222222222);
     set_slot(2'd2, 216'h333333333333333333333333333333333333333333333333333333,
-                   216'h444444444444444444444444444444444444444444444444444444, 30'h00);
+                   216'h444444444444444444444444444444444444444444444444444444);
     set_slot(2'd3, 216'h555555555555555555555555555555555555555555555555555555,
-                   216'h666666666666666666666666666666666666666666666666666666, 30'h00);
+                   216'h666666666666666666666666666666666666666666666666666666);
 
     slot_en_sys      = 4'b0001;
     tx_slot_num_sys  = 2'd0;
@@ -221,7 +215,7 @@ initial begin : stim
         build_block1_sys, 216'hA0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0A0,
         build_block2_sys, 216'hB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0,
         build_bb_sys,     30'h1AAAAAA,
-        build_burst_type_sys, 2'd0);
+        build_burst_type_sys, 1'b0);
 
     // Simulate builder busy for 300 cycles, then mux returns to IDLE
     builder_busy_sys = 1'b1;
@@ -244,11 +238,9 @@ initial begin : stim
             (i == 0) ? 216'h5555555555555555555555555555555555555555555555555555555 :
             (i == 1) ? 216'h6666666666666666666666666666666666666666666666666666666 :
             (i == 2) ? 216'h7777777777777777777777777777777777777777777777777777777 :
-                       216'h8888888888888888888888888888888888888888888888888888888,
-            (i == 0) ? 30'h11111 :
-            (i == 1) ? 30'h22222 :
-            (i == 2) ? 30'h33333 : 30'h3FFFF);
+                       216'h8888888888888888888888888888888888888888888888888888888);
     end
+    bb_in_sys = 30'h11111;
 
     for (i = 0; i < 4; i = i + 1) begin : tc2_run
         // Ensure mux is ready
@@ -261,7 +253,7 @@ initial begin : stim
         wait_req(10);
 
         // Check burst_type is NDB (0)
-        if (build_burst_type_sys !== 2'd0) begin
+        if (build_burst_type_sys !== 1'b0) begin
             $display("FAIL TC2_slot%0d burst_type got=%0d exp=0", i, build_burst_type_sys);
             fail_cnt = fail_cnt + 1;
         end else begin
@@ -279,14 +271,13 @@ initial begin : stim
     // -----------------------------------------------------------------------
     // TC3: Disabled slot → burst_type=2, payload=all-zeros
     // -----------------------------------------------------------------------
-    $display("--- TC3: Disabled slot 1 → Idle burst ---");
+    $display("--- TC3: Disabled slot 1 → NDB with zero payload ---");
     slot_en_sys     = 4'b1101;   // slot 1 disabled
     tx_slot_num_sys = 2'd1;
 
-    // Set non-zero payload for slot 1 to verify it is NOT passed
+    // Set non-zero payload for slot 1 to verify it is zeroed
     set_slot(2'd1, 216'hDEAD_BEEF_CAFE_DEAD_BEEF_CAFE_DEAD_BEEF_CAFE_DEAD_BEEF_CAFE,
-                   216'hBEEF_DEAD_CAFE_BEEF_DEAD_CAFE_BEEF_DEAD_CAFE_BEEF_DEAD_CAFE,
-                   30'h3ABCDE);
+                   216'hBEEF_DEAD_CAFE_BEEF_DEAD_CAFE_BEEF_DEAD_CAFE_BEEF_DEAD_CAFE);
 
     tx_slot_pulse_sys = 1'b1;
     @(posedge clk_sys); #1;
@@ -294,17 +285,20 @@ initial begin : stim
 
     wait_req(10);
 
-    if (build_burst_type_sys !== 2'd2) begin
-        $display("FAIL TC3: burst_type got=%0d exp=2", build_burst_type_sys);
-        fail_cnt = fail_cnt + 1;
-    end else
-        $display("PASS TC3: burst_type=Idle (2)");
-
-    if (build_block1_sys !== {BLOCK_BITS{1'b0}}) begin
-        $display("FAIL TC3: block1 not zeroed for idle burst");
+    // Disabled slot still transmits NDB (continuous mode), but with zeroed payload
+    if (build_burst_type_sys !== 1'b0) begin
+        $display("FAIL TC3: burst_type got=%0d exp=0 (NDB)", build_burst_type_sys);
         fail_cnt = fail_cnt + 1;
     end else begin
-        $display("PASS TC3: block1=zeros for idle burst");
+        $display("PASS TC3: burst_type=NDB for disabled slot");
+        pass_cnt = pass_cnt + 1;
+    end
+
+    if (build_block1_sys !== {BLOCK_BITS{1'b0}}) begin
+        $display("FAIL TC3: block1 not zeroed for disabled slot");
+        fail_cnt = fail_cnt + 1;
+    end else begin
+        $display("PASS TC3: block1=zeros for disabled slot");
         pass_cnt = pass_cnt + 1;
     end
 
@@ -320,8 +314,8 @@ initial begin : stim
     slot_en_sys     = 4'b1111;
     tx_slot_num_sys = 2'd2;
     set_slot(2'd2, 216'hC2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2,
-                   216'hD2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2,
-                   30'h12345);
+                   216'hD2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2);
+    bb_in_sys = 30'h12345;
 
     // Mark builder busy BEFORE pulse
     builder_busy_sys = 1'b1;
@@ -349,7 +343,7 @@ initial begin : stim
         build_block1_sys, 216'hC2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2C2,
         build_block2_sys, 216'hD2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2D2,
         build_bb_sys,     30'h12345,
-        build_burst_type_sys, 2'd0);
+        build_burst_type_sys, 1'b0);
 
     builder_busy_sys = 1'b1;
     repeat (8) @(posedge clk_sys);

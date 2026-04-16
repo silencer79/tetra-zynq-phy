@@ -7,22 +7,16 @@
 // TX Chain Container — instantiates and connects all TX datapath modules:
 //
 // AXI-DMA (MM2S) ─► burst_mux ─► burst_builder ─► pi4dqpsk_mod
-// ─► rrc_filter ─► tx_frontend ─► AD9361 interface
+// ─► rrc_filter ─► tx_frontend ─► tx_nco ─► AD9361
 //
-// Supports NDB, SB, and Idle burst types.
-//
-// Note: The MM2S (TX DMA) path is wired at the boundary but not implemented
-// in this revision (Phase 4). The TX chain accepts direct register-file
-// inputs for burst payload (suitable for loopback testing and initial
-// on-air validation).
-//
-// LMAC modules (rcpc_encoder, interleaver, scrambler) are instantiated in
-// tetra_lmac.v and their outputs feed this chain via block1/block2/bb buses.
+// Continuous downlink: all 4 timeslots always transmit (SDB or NDB).
+// No TX blanking — the continuous burst format with tail symbols ensures
+// an uninterrupted RF carrier across all timeslots.
 //
 // Signal flow (clk_sys, all modules):
 // burst_mux → build_req → burst_builder → tx_dibit → pi4dqpsk_mod
 // pi4dqpsk_mod → dibit → sample_valid → rrc_filter
-// rrc_filter → IQ → tx_frontend (CDC) → tx_i/q/valid_lvds
+// rrc_filter → IQ → tx_frontend (CDC) → tx_nco → tx_i/q/valid_lvds
 //
 // Resource estimate (sum of sub-modules):
 // LUT : ~400 FF : ~1700 DSP48 : 1 BRAM : 1
@@ -37,8 +31,7 @@ module tetra_tx_chain #(
  parameter IQ_WIDTH = 16,
  parameter BLOCK_BITS = 216,
  parameter BB_BITS = 30,
- parameter BKN1_SB_BITS = 240, // SB bkn1 bits (120 symbols × 2)
- parameter BB_SB_BITS = 28, // SB bb bits (14 symbols × 2)
+ parameter SB1_BITS = 120, // SDB sb1 bits (60 symbols × 2)
  parameter PHASE_WIDTH = 32  // NCO phase accumulator width
 )(
  // -------------------------------------------------------------------------
@@ -53,21 +46,31 @@ module tetra_tx_chain #(
  // -------------------------------------------------------------------------
  input wire [4*BLOCK_BITS-1:0] block1_sys,
  input wire [4*BLOCK_BITS-1:0] block2_sys,
- input wire [4*BB_BITS-1:0] bb_sys,
 
  // -------------------------------------------------------------------------
- // SB payload inputs (shared across slots)
+ // BB/AACH — shared across all burst types (30 bits)
  // -------------------------------------------------------------------------
- input wire [BKN1_SB_BITS-1:0] sb_bkn1_data_sys,
+ input wire [BB_BITS-1:0] bb_sys,
+
+ // -------------------------------------------------------------------------
+ // SDB payload inputs (shared across slots)
+ // -------------------------------------------------------------------------
+ input wire [SB1_BITS-1:0] sb_sb1_data_sys,
  input wire [BLOCK_BITS-1:0] sb_bkn2_data_sys,
- input wire [BB_SB_BITS-1:0] sb_bb_data_sys,
 
  // Per-slot configuration
  input wire [3:0] slot_en_sys,
- input wire [7:0] slot_burst_type_sys, // 2 bits per slot
+ input wire [3:0] slot_burst_type_sys, // 1 bit per slot: 0=NDB, 1=SDB
 
  // NCO phase increment (from AXI register, sys domain)
  input wire [PHASE_WIDTH-1:0] nco_phase_inc_sys,
+
+ // Diagnostic test mode: when HIGH, the builder dibit feeding the modulator
+ // is replaced by a 15-bit LFSR PRBS.  Used for spectrum verification — all
+ // four dibit values occur with equal probability so the π/4-DQPSK chain
+ // produces a proper RRC-shaped spread spectrum rather than a degenerate
+ // narrow line when the payload happens to be all-zeros.
+ input wire tx_test_prbs_en_sys,
 
  // -------------------------------------------------------------------------
  // TX timing (from tetra_frame_counter or free-running timer)
@@ -96,17 +99,12 @@ module tetra_tx_chain #(
 // Internal wires
 // =============================================================================
 
-// burst_mux → burst_builder (NDB)
+// burst_mux → burst_builder
 wire [BLOCK_BITS-1:0] mux_block1_sys;
 wire [BLOCK_BITS-1:0] mux_block2_sys;
 wire [BB_BITS-1:0] mux_bb_sys;
-
-// burst_mux → burst_builder (SB)
-wire [BKN1_SB_BITS-1:0] mux_bkn1_sb_sys;
-wire [BLOCK_BITS-1:0] mux_bkn2_sb_sys;
-wire [BB_SB_BITS-1:0] mux_bb_sb_sys;
-
-wire [1:0] mux_burst_type_sys;
+wire [SB1_BITS-1:0] mux_sb1_sys;
+wire mux_burst_type_sys;
 wire mux_build_req_sys;
 wire mux_ready_sys;
 
@@ -126,7 +124,7 @@ wire signed [IQ_WIDTH-1:0] rrc_i_sys;
 wire signed [IQ_WIDTH-1:0] rrc_q_sys;
 wire rrc_sample_valid_sys;
 
-// tx_frontend → tx_nco (internal, before NCO)
+// tx_frontend → tx_nco
 wire signed [IQ_WIDTH-1:0] fe_i_lvds;
 wire signed [IQ_WIDTH-1:0] fe_q_lvds;
 wire fe_valid_lvds;
@@ -137,8 +135,7 @@ wire fe_valid_lvds;
 tetra_burst_mux #(
  .BLOCK_BITS (BLOCK_BITS),
  .BB_BITS (BB_BITS),
- .BKN1_SB_BITS (BKN1_SB_BITS),
- .BB_SB_BITS (BB_SB_BITS),
+ .SB1_BITS (SB1_BITS),
  .TS_PER_FRAME(4)
 ) u_burst_mux (
  .clk_sys (clk_sys),
@@ -146,27 +143,23 @@ tetra_burst_mux #(
  // NDB inputs
  .block1_in_sys (block1_sys),
  .block2_in_sys (block2_sys),
+ // BB/AACH (shared)
  .bb_in_sys (bb_sys),
- // SB inputs
- .sb_bkn1_in_sys (sb_bkn1_data_sys),
+ // SDB inputs
+ .sb_sb1_in_sys (sb_sb1_data_sys),
  .sb_bkn2_in_sys (sb_bkn2_data_sys),
- .sb_bb_in_sys (sb_bb_data_sys),
  // Slot config
  .slot_en_sys (slot_en_sys),
  .slot_burst_type_sys(slot_burst_type_sys),
  // Timing
  .tx_slot_num_sys (tx_slot_num_sys),
  .tx_slot_pulse_sys (tx_slot_pulse_sys),
- // Outputs (NDB)
+ // Outputs
  .build_block1_sys (mux_block1_sys),
  .build_block2_sys (mux_block2_sys),
  .build_bb_sys (mux_bb_sys),
- // Outputs (SB)
- .build_bkn1_sb_sys (mux_bkn1_sb_sys),
- .build_bkn2_sb_sys (mux_bkn2_sb_sys),
- .build_bb_sb_sys (mux_bb_sb_sys),
- // Control
- .build_burst_type_sys (mux_burst_type_sys),
+ .build_sb1_sys (mux_sb1_sys),
+ .build_burst_type_sys(mux_burst_type_sys),
  .build_req_sys (mux_build_req_sys),
  .builder_busy_sys (builder_busy_sys),
  .mux_ready_sys (mux_ready_sys)
@@ -178,8 +171,7 @@ tetra_burst_mux #(
 tetra_burst_builder #(
  .BLOCK_BITS(BLOCK_BITS),
  .BB_BITS (BB_BITS),
- .BKN1_SB_BITS (BKN1_SB_BITS),
- .BB_SB_BITS (BB_SB_BITS)
+ .SB1_BITS (SB1_BITS)
 ) u_burst_builder (
  .clk_sys (clk_sys),
  .rst_n_sys (rst_n_sys),
@@ -187,9 +179,8 @@ tetra_burst_builder #(
  .block1_data_sys (mux_block1_sys),
  .block2_data_sys (mux_block2_sys),
  .bb_data_sys (mux_bb_sys),
- // SB inputs
- .bkn1_sb_data_sys (mux_bkn1_sb_sys),
- .bb_sb_data_sys (mux_bb_sb_sys),
+ // SDB inputs
+ .sb1_data_sys (mux_sb1_sys),
  // Control
  .burst_type_sys (mux_burst_type_sys),
  .build_req_sys (mux_build_req_sys),
@@ -201,6 +192,38 @@ tetra_burst_builder #(
 );
 
 // =============================================================================
+// PRBS dibit source (diagnostic) — 15-bit LFSR, polynomial x^15 + x^14 + 1
+// -----------------------------------------------------------------------------
+// When tx_test_prbs_en_sys is HIGH, two fresh LFSR bits replace the builder
+// dibit feeding pi4dqpsk_mod.  The LFSR advances once per builder dibit_valid
+// pulse (= once per symbol ~18 kHz) and taps the two MSBs as the dibit.
+//
+// Period: 2^15 − 1 = 32767 symbols ≈ 1.82 s at 18 ksym/s.
+// Seed: all-ones (avoids the degenerate all-zero state).
+//
+// Why here (not in burst_builder):
+//   - Keeps the symbol cadence and tx_busy / sym_en machinery untouched.
+//   - The builder's TAIL/FC/STS/NTS fixed-pattern fields are also overwritten
+//     by the PRBS in test mode, which is acceptable: spectrum-level test only.
+//
+// Rationale for this register: see register 0x84 bit [0] (REG_TX_TEST).
+// =============================================================================
+reg [14:0] prbs_lfsr_sys;
+wire       prbs_fb_w = prbs_lfsr_sys[14] ^ prbs_lfsr_sys[13];
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys)
+  prbs_lfsr_sys <= 15'h7FFF;
+ else if (builder_dibit_valid_sys)
+  prbs_lfsr_sys <= {prbs_lfsr_sys[13:0], prbs_fb_w};
+end
+
+wire [1:0] prbs_dibit_w = prbs_lfsr_sys[14:13];
+
+// Dibit mux: select PRBS when test mode is enabled
+wire [1:0] mod_dibit_sys = tx_test_prbs_en_sys ? prbs_dibit_w : builder_dibit_sys;
+
+// =============================================================================
 // pi4dqpsk_mod
 // =============================================================================
 tetra_pi4dqpsk_mod #(
@@ -210,7 +233,7 @@ tetra_pi4dqpsk_mod #(
 ) u_pi4dqpsk_mod (
  .clk_sample (clk_sys),
  .rst_n_sample (rst_n_sys),
- .dibit_in (builder_dibit_sys),
+ .dibit_in (mod_dibit_sys),
  .dibit_valid (builder_dibit_valid_sys),
  .i_out (mod_i_sys),
  .q_out (mod_q_sys),
@@ -257,10 +280,6 @@ tetra_tx_frontend #(
 // =============================================================================
 // tx_nco — complex frequency shifter (LO leakage avoidance)
 // =============================================================================
-wire signed [IQ_WIDTH-1:0] nco_i_lvds;
-wire signed [IQ_WIDTH-1:0] nco_q_lvds;
-wire                        nco_valid_lvds;
-
 tetra_tx_nco #(
  .IQ_WIDTH (IQ_WIDTH),
  .PHASE_WIDTH(PHASE_WIDTH),
@@ -272,54 +291,15 @@ tetra_tx_nco #(
  .i_in           (fe_i_lvds),
  .q_in           (fe_q_lvds),
  .valid_in       (fe_valid_lvds),
- .i_out          (nco_i_lvds),
- .q_out          (nco_q_lvds),
- .valid_out      (nco_valid_lvds)
+ .i_out          (tx_i_lvds),
+ .q_out          (tx_q_lvds),
+ .valid_out      (tx_valid_lvds)
 );
 
 // =============================================================================
-// TX blanking: zero IQ output during Idle timeslots.
-//
-// Slot-based: on each tx_slot_pulse, latch whether this slot carries a real
-// burst (SB/NDB) or Idle. Gate stays open for the entire timeslot duration
-// so the full pipeline (mod → RRC → CIC → CDC → NCO) can drain.
+// No TX blanking — continuous downlink always transmits on all timeslots.
+// Tail symbols in the burst format maintain phase continuity between slots.
 // =============================================================================
-reg        tx_active_sys;
-
-// Latch burst type at build_req
-reg [1:0]  active_burst_type_sys;
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys)
-  active_burst_type_sys <= 2'd1; // default: SB (gate open after reset)
- else if (mux_build_req_sys)
-  active_burst_type_sys <= mux_burst_type_sys;
-end
-
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys)
-  tx_active_sys <= 1'b1; // default open — don't blank until first Idle
- else if (mux_build_req_sys)
-  tx_active_sys <= (mux_burst_type_sys != 2'd2); // open for SB/NDB, close for Idle
-end
-
-// CDC: clk_sys → clk_lvds
-(* ASYNC_REG = "TRUE" *) reg tx_active_lvds_r0;
-(* ASYNC_REG = "TRUE" *) reg tx_active_lvds_r1;
-
-always @(posedge clk_lvds or negedge rst_n_lvds) begin
- if (!rst_n_lvds) begin
-  tx_active_lvds_r0 <= 1'b0;
-  tx_active_lvds_r1 <= 1'b0;
- end else begin
-  tx_active_lvds_r0 <= tx_active_sys;
-  tx_active_lvds_r1 <= tx_active_lvds_r0;
- end
-end
-
-// Gated output: zero IQ during idle slots
-assign tx_i_lvds     = tx_active_lvds_r1 ? nco_i_lvds : {IQ_WIDTH{1'b0}};
-assign tx_q_lvds     = tx_active_lvds_r1 ? nco_q_lvds : {IQ_WIDTH{1'b0}};
-assign tx_valid_lvds = nco_valid_lvds;
 
 // =============================================================================
 // Status

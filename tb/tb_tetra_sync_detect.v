@@ -32,7 +32,7 @@ module tb_tetra_sync_detect;
 // DUT parameters (override to speed up simulation)
 // ---------------------------------------------------------------------------
 localparam CORR_WIDTH    = 6;
-localparam SEQ_LEN_MAX   = 38;
+localparam SEQ_LEN_MAX   = 30;  // legacy ETS is longest active path
 localparam HOLDOFF       = 220;
 localparam LOCK_COUNT    = 4;
 localparam SLOT_SYMS     = 255;
@@ -106,32 +106,24 @@ integer tc_errors;
 // Same newest-first ordering as in the RTL.
 // ---------------------------------------------------------------------------
 
-// NTS: 22 dibits, [0]=newest, [21]=oldest.
+// NTS: 11 dibits (continuous NDB), [0]=newest, [10]=oldest.
 // Derived from RTL NTS_REF: NTS_SEQ[i] = NTS_REF[2*i+1:2*i].
-reg [1:0] NTS_SEQ [0:21];
+reg [1:0] NTS_SEQ [0:10];
 initial begin
-    NTS_SEQ[ 0]=2'b01; NTS_SEQ[ 1]=2'b11; NTS_SEQ[ 2]=2'b00; NTS_SEQ[ 3]=2'b00;
-    NTS_SEQ[ 4]=2'b01; NTS_SEQ[ 5]=2'b11; NTS_SEQ[ 6]=2'b00; NTS_SEQ[ 7]=2'b10;
-    NTS_SEQ[ 8]=2'b01; NTS_SEQ[ 9]=2'b10; NTS_SEQ[10]=2'b00; NTS_SEQ[11]=2'b01;
-    NTS_SEQ[12]=2'b11; NTS_SEQ[13]=2'b00; NTS_SEQ[14]=2'b10; NTS_SEQ[15]=2'b10;
-    NTS_SEQ[16]=2'b11; NTS_SEQ[17]=2'b01; NTS_SEQ[18]=2'b10; NTS_SEQ[19]=2'b01;
-    NTS_SEQ[20]=2'b11; NTS_SEQ[21]=2'b00;
+    NTS_SEQ[ 0]=2'b00; NTS_SEQ[ 1]=2'b01; NTS_SEQ[ 2]=2'b11; NTS_SEQ[ 3]=2'b01;
+    NTS_SEQ[ 4]=2'b10; NTS_SEQ[ 5]=2'b10; NTS_SEQ[ 6]=2'b11; NTS_SEQ[ 7]=2'b00;
+    NTS_SEQ[ 8]=2'b00; NTS_SEQ[ 9]=2'b01; NTS_SEQ[10]=2'b11;
 end
 
-// STS: 38 dibits, [0]=newest, [37]=oldest.
+// STS: 19 dibits (continuous SDB), [0]=newest, [18]=oldest.
 // Derived from RTL STS_REF: STS_SEQ[i] = STS_REF[2*i+1:2*i].
-reg [1:0] STS_SEQ [0:37];
+reg [1:0] STS_SEQ [0:18];
 initial begin
-    STS_SEQ[ 0]=2'b11; STS_SEQ[ 1]=2'b10; STS_SEQ[ 2]=2'b00; STS_SEQ[ 3]=2'b01;
-    STS_SEQ[ 4]=2'b11; STS_SEQ[ 5]=2'b01; STS_SEQ[ 6]=2'b10; STS_SEQ[ 7]=2'b10;
-    STS_SEQ[ 8]=2'b11; STS_SEQ[ 9]=2'b00; STS_SEQ[10]=2'b00; STS_SEQ[11]=2'b01;
-    STS_SEQ[12]=2'b11; STS_SEQ[13]=2'b01; STS_SEQ[14]=2'b10; STS_SEQ[15]=2'b00;
-    STS_SEQ[16]=2'b11; STS_SEQ[17]=2'b10; STS_SEQ[18]=2'b01; STS_SEQ[19]=2'b10;
-    STS_SEQ[20]=2'b00; STS_SEQ[21]=2'b01; STS_SEQ[22]=2'b11; STS_SEQ[23]=2'b10;
-    STS_SEQ[24]=2'b00; STS_SEQ[25]=2'b01; STS_SEQ[26]=2'b11; STS_SEQ[27]=2'b10;
-    STS_SEQ[28]=2'b01; STS_SEQ[29]=2'b10; STS_SEQ[30]=2'b00; STS_SEQ[31]=2'b01;
-    STS_SEQ[32]=2'b11; STS_SEQ[33]=2'b00; STS_SEQ[34]=2'b10; STS_SEQ[35]=2'b10;
-    STS_SEQ[36]=2'b11; STS_SEQ[37]=2'b01;
+    STS_SEQ[ 0]=2'b11; STS_SEQ[ 1]=2'b01; STS_SEQ[ 2]=2'b10; STS_SEQ[ 3]=2'b01;
+    STS_SEQ[ 4]=2'b00; STS_SEQ[ 5]=2'b00; STS_SEQ[ 6]=2'b11; STS_SEQ[ 7]=2'b01;
+    STS_SEQ[ 8]=2'b10; STS_SEQ[ 9]=2'b10; STS_SEQ[10]=2'b11; STS_SEQ[11]=2'b00;
+    STS_SEQ[12]=2'b11; STS_SEQ[13]=2'b00; STS_SEQ[14]=2'b10; STS_SEQ[15]=2'b01;
+    STS_SEQ[16]=2'b00; STS_SEQ[17]=2'b00; STS_SEQ[18]=2'b11;
 end
 
 // ---------------------------------------------------------------------------
@@ -171,7 +163,7 @@ endtask
 task apply_nts;
     integer k;
     begin
-        for (k = 21; k >= 0; k = k - 1)
+        for (k = 10; k >= 0; k = k - 1)
             apply_dibit(NTS_SEQ[k]);
     end
 endtask
@@ -180,21 +172,19 @@ endtask
 task apply_sts;
     integer k;
     begin
-        for (k = 37; k >= 0; k = k - 1)
+        for (k = 18; k >= 0; k = k - 1)
             apply_dibit(STS_SEQ[k]);
     end
 endtask
 
-// Helper: build NDB burst (preamble + 108 noise + NTS + 15 noise + 108 noise + 1)
-// Returns the symbol offset at which sync_found should fire (= end of NTS).
+// Helper: build NDB continuous burst (§9.4.4.2.5, total 255 symbols):
+//   Tail1(6) + HA(1) + blk1(108) + bb1(7) + NTS(11) + bb2(8) + blk2(108) + HB(1) + Tail2(5)
+// Approximated here as 122 noise + NTS(11) + 122 noise = 255 dibits.
 task apply_ndb_burst;
     begin
-        apply_noise(2);    // PA/FreqCorr preamble
-        apply_noise(108);  // Block 1
-        apply_nts;         // Training sequence — sync_found should fire here
-        apply_noise(15);   // Broadcast Block
-        apply_noise(108);  // Block 2
-        apply_noise(1);    // Guard
+        apply_noise(122); // Tail1 + HA + blk1 + bb1
+        apply_nts;        // NTS (sync_found fires here)
+        apply_noise(122); // bb2 + blk2 + HB + Tail2
     end
 endtask
 
@@ -240,7 +230,7 @@ endtask
 initial begin
     errors       = 0;
     lfsr_state   = 8'hA5;
-    corr_threshold = 6'd18;
+    corr_threshold = 6'd9;
     seq_select   = 2'd0;  // NTS by default
 
     $display("=== tb_tetra_sync_detect: START ===");
@@ -250,9 +240,9 @@ initial begin
     // -----------------------------------------------------------------------
     // TC1: Single NDB burst in noise, NTS correlator
     // -----------------------------------------------------------------------
-    $display("TC1: Single NDB burst (NTS, threshold=18/22)");
+    $display("TC1: Single NDB burst (NTS, threshold=9/11)");
     tc_errors      = 0;
-    corr_threshold = 6'd18;
+    corr_threshold = 6'd9;
     seq_select     = 2'd0;
 
     // Pre-burst noise (no sync expected)
@@ -288,9 +278,9 @@ initial begin
     // -----------------------------------------------------------------------
     // TC2: STS correlator
     // -----------------------------------------------------------------------
-    $display("TC2: STS correlator (threshold=30/38)");
+    $display("TC2: STS correlator (threshold=15/19)");
     tc_errors      = 0;
-    corr_threshold = 6'd30;
+    corr_threshold = 6'd15;
     seq_select     = 2'd2;
 
     apply_noise(30);
@@ -321,7 +311,7 @@ initial begin
     // -----------------------------------------------------------------------
     $display("TC3: 4 NDB bursts, lock detection");
     tc_errors      = 0;
-    corr_threshold = 6'd18;
+    corr_threshold = 6'd9;
     seq_select     = 2'd0;
 
     // Send 4 complete bursts back-to-back
@@ -345,9 +335,9 @@ initial begin
     // -----------------------------------------------------------------------
     // TC4: Pure noise, high threshold → 0 or 1 spurious hits
     // -----------------------------------------------------------------------
-    $display("TC4: Pure noise, threshold=20 — expecting 0 spurious hits");
+    $display("TC4: Pure noise, threshold=10 — expecting 0 spurious hits");
     tc_errors      = 0;
-    corr_threshold = 6'd20;
+    corr_threshold = 6'd10;
     seq_select     = 2'd0;
 
     begin : tc4_block
@@ -378,20 +368,21 @@ initial begin
     // -----------------------------------------------------------------------
     // TC5: NDB with 3 corrupted NTS symbols → still detects (threshold=16)
     // -----------------------------------------------------------------------
-    $display("TC5: NTS with 3 symbol errors (threshold=16/22)");
+    $display("TC5: NTS with 1 symbol error (threshold=8/11)");
     tc_errors      = 0;
-    corr_threshold = 6'd16;
+    corr_threshold = 6'd8;
     seq_select     = 2'd0;
 
     apply_noise(40);
     apply_noise(2);
     apply_noise(108);
 
-    // Send NTS with 3 bit errors at positions 3, 10, 17 (out of 22)
+    // Send NTS with 1 bit error at position 5 (out of 11)
+    // 1 error → 10 matches; threshold=8 should still fire
     begin : tc5_block
         integer j;
-        for (j = 21; j >= 0; j = j - 1) begin
-            if (j == 3 || j == 10 || j == 17)
+        for (j = 10; j >= 0; j = j - 1) begin
+            if (j == 5)
                 apply_dibit((NTS_SEQ[j] + 2'd1));  // Corrupt: shift by 1
             else
                 apply_dibit(NTS_SEQ[j]);
@@ -420,7 +411,7 @@ initial begin
     // -----------------------------------------------------------------------
     $display("TC6: Reset mid-operation");
     tc_errors      = 0;
-    corr_threshold = 6'd18;
+    corr_threshold = 6'd9;
     seq_select     = 2'd0;
 
     // Start receiving a burst
@@ -429,7 +420,7 @@ initial begin
     // Halfway through NTS:
     begin : tc6_block
         integer j;
-        for (j = 21; j >= 11; j = j - 1)
+        for (j = 10; j >= 5; j = j - 1)
             apply_dibit(NTS_SEQ[j]);
     end
 

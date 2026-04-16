@@ -222,6 +222,7 @@ wire [7:0]  sync_thresh_axi;
 wire [5:0]  colour_code_axi;
 wire [6:0]  rx_gain_axi;
 wire [7:0]  tx_att_axi;
+wire        tx_test_prbs_en_axi;
 
 // Synchronize static AXI control bits into the consuming clock domains.
 (* ASYNC_REG = "TRUE" *) reg ctrl_loopback_lvds_r0;
@@ -230,10 +231,13 @@ wire [7:0]  tx_att_axi;
 (* ASYNC_REG = "TRUE" *) reg ctrl_reset_cnt_sys_r1;
 (* ASYNC_REG = "TRUE" *) reg ctrl_loopback_sys_r0;
 (* ASYNC_REG = "TRUE" *) reg ctrl_loopback_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg tx_test_prbs_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg tx_test_prbs_sys_r1;
 
 wire ctrl_loopback_en_lvds = ctrl_loopback_lvds_r1;
 wire ctrl_reset_counters_sys = ctrl_reset_cnt_sys_r1;
 wire ctrl_loopback_en_sys = ctrl_loopback_sys_r1;
+wire tx_test_prbs_en_sys = tx_test_prbs_sys_r1;
 
 // =============================================================================
 // axi_ad9361 Adapter — fabric IQ interface to/from ADI IP block
@@ -592,48 +596,53 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
 end
 
 // Slot pulse fires every timeslot.  Burst type per slot controls what
-// is transmitted: SB on slot 0, Idle on slots 1–3.
-// TX blanking in tx_chain zeros output during Idle bursts.
+// Continuous downlink: all 4 slots always transmit (no TX blanking).
+// Slot 0 = SDB (Synchronization Burst), Slots 1-3 = NDB (zero payload).
 wire tx_slot_pulse_sys_w;
 assign tx_slot_pulse_sys_w = tx_slot_pulse_free_sys;
 
 // SB data for base station operation — driven by AXI-Lite registers
 // PS software writes channel-coded BSCH/BNCH/AACH payload via registers
-// at offsets 0x40–0x7C. Default (all zeros) = idle SB until PS writes data.
-wire [239:0] sb_bkn1_data_sys; // BSCH: 120 symbols = 240 bits
+// at offsets 0x40–0x7C. Default (all zeros) = idle burst until PS writes data.
+wire [119:0] sb_sb1_data_sys;  // BSCH sb1: 60 symbols = 120 bits (RCPC 2/3)
 wire [215:0] sb_bkn2_data_sys; // BNCH: 108 symbols = 216 bits
-wire [27:0]  sb_bb_data_sys;   // BB: 14 symbols = 28 bits
+wire [29:0]  sb_bb_data_sys;   // BB/AACH: 15 symbols = 30 bits (shared all slots)
 wire [31:0]  nco_phase_inc_sys; // NCO phase increment for LO offset
+// NDB block1/block2 channel-coded filler (written by PS, broadcast to all 4 slots)
+wire [215:0] ndb_block1_data_sys;
+wire [215:0] ndb_block2_data_sys;
 // These wires are driven by the AXI-Lite register bank (connected below).
 
-// Burst type per slot: Slot 1=SB, Slots 2-4=Idle (ETSI TDMA framing)
-// Encoding: {slot4[1:0], slot3[1:0], slot2[1:0], slot1[1:0]}
-//   0=NDB, 1=SB, 2=Idle
-wire [7:0] slot_burst_type_sys;
-assign slot_burst_type_sys = 8'b10_10_10_01; // slot1=SB, slot2-4=Idle
+// Burst type per slot: Slot 0=SDB, Slots 1-3=NDB (continuous downlink)
+// 1 bit per slot: 0=NDB, 1=SDB
+wire [3:0] slot_burst_type_sys;
+assign slot_burst_type_sys = 4'b0001; // slot0=SDB, slot1-3=NDB
 
 tetra_tx_chain #(
         .IQ_WIDTH (IQ_WIDTH),
         .BLOCK_BITS(BLOCK_BITS),
         .BB_BITS (BB_BITS),
-        .BKN1_SB_BITS(240),
-        .BB_SB_BITS (28)
+        .SB1_BITS (120)
     ) u_tx_chain (
         .clk_sys (clk_sys),
         .rst_n_sys (rst_n_sys),
-        // Slot payload buses (NDB) — zeros for now
-        .block1_sys ({(4*BLOCK_BITS){1'b0}}),
-        .block2_sys ({(4*BLOCK_BITS){1'b0}}),
-        .bb_sys ({(4*BB_BITS){1'b0}}),
-        // SB payload — used for slot 0 (base station sync burst)
-        .sb_bkn1_data_sys (sb_bkn1_data_sys),
+        // Slot payload buses (NDB) — same 216-bit channel-coded filler
+        // broadcast to all 4 slots so every NDB slot carries modulated
+        // content (avoids narrow-CW from zero payload; see fix_plan)
+        .block1_sys ({4{ndb_block1_data_sys}}),
+        .block2_sys ({4{ndb_block2_data_sys}}),
+        // BB/AACH — shared across all burst types (from SB BB register)
+        .bb_sys (sb_bb_data_sys),
+        // SDB payload — used for slot 0 (base station sync burst)
+        .sb_sb1_data_sys (sb_sb1_data_sys),
         .sb_bkn2_data_sys (sb_bkn2_data_sys),
-        .sb_bb_data_sys (sb_bb_data_sys),
         // Per-slot configuration
         .slot_en_sys (4'b1111), // All slots enabled
         .slot_burst_type_sys(slot_burst_type_sys),
         // NCO phase increment for LO leakage avoidance
         .nco_phase_inc_sys (nco_phase_inc_sys),
+        // Diagnostic: replace builder dibit with 15-bit LFSR PRBS
+        .tx_test_prbs_en_sys(tx_test_prbs_en_sys),
         // TX timing from free-running timer (BUG-01 fix)
         .tx_slot_num_sys (tx_slot_cnt_sys),
         .tx_slot_pulse_sys(tx_slot_pulse_sys_w),
@@ -857,11 +866,15 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         ctrl_reset_cnt_sys_r1 <= 1'b0;
         ctrl_loopback_sys_r0 <= 1'b0;
         ctrl_loopback_sys_r1 <= 1'b0;
+        tx_test_prbs_sys_r0 <= 1'b0;
+        tx_test_prbs_sys_r1 <= 1'b0;
     end else begin
         ctrl_reset_cnt_sys_r0 <= ctrl_reset_counters_axi;
         ctrl_reset_cnt_sys_r1 <= ctrl_reset_cnt_sys_r0;
         ctrl_loopback_sys_r0 <= ctrl_loopback_en_axi;
         ctrl_loopback_sys_r1 <= ctrl_loopback_sys_r0;
+        tx_test_prbs_sys_r0 <= tx_test_prbs_en_axi;
+        tx_test_prbs_sys_r1 <= tx_test_prbs_sys_r0;
     end
 end
 
@@ -921,10 +934,14 @@ tetra_axi_lite_regs u_axi_regs (
     .tx_att_axi              (tx_att_axi),
     .irq_enable_axi          (),
     // SB Payload registers (PS-writable broadcast data → TX chain)
-    .sb_bkn1_axi             (sb_bkn1_data_sys),
+    .sb_sb1_axi              (sb_sb1_data_sys),
     .sb_bkn2_axi             (sb_bkn2_data_sys),
     .sb_bb_axi               (sb_bb_data_sys),
     .nco_phase_inc_axi       (nco_phase_inc_sys),
+    .tx_test_prbs_en_axi     (tx_test_prbs_en_axi),
+    // NDB block1/block2 broadcast to all 4 NDB slots (no narrow-CW on empty slots)
+    .ndb_block1_axi          (ndb_block1_data_sys),
+    .ndb_block2_axi          (ndb_block2_data_sys),
     .irq_out_axi             (o_irq)
 );
 

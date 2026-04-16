@@ -3,6 +3,14 @@
 # Target: Zynq-7020 (XC7Z020-CLG484)
 # Simulator: iverilog + vvp
 
+> **STATUS (2026-04-16):** Continuous-Downlink-SB + NDB-Filler deployed (Variant C).
+> TX-Chain validiert: mit PRBS (REG_TX_TEST=1) sauberes RRC-Spektrum, 3dB BW ~15.5 kHz.
+> NDB-Datenpfad validiert: AA-Pattern in 0x88–0xBC verschiebt Peak von -4.5 kHz auf -13.5 kHz
+> (dibit=10-Ton) — beweist, dass `burst_mux` für Slots 1–3 korrekt aus den NDB-Registern liest.
+> **Offen:** Rest-narrow-CW aus `REG_SB_BKN2=0` (108 dibit=00 Symbole in Slot 0) und
+> `scripts/decode_sb.py` matcht nur den NON-continuous SB-Aufbau (STS=38 statt 19 Symbole,
+> sb1=60 statt bkn1=120).
+>
 > **STATUS (2026-04-13):** Letzter Sim-Lauf: **PASS=22, FAIL=0** (alle 22 Module)
 > Digitaler Loopback: **30/30 SYNC_LOCKED=1** über 30s (CTRL[2]=1).
 > RF Antennen-Loopback: **27/30 SYNC_LOCKED=1** über 30s (TX→10cm Luft→RX, TX=RX=430 MHz, -50 dB TX ATT).
@@ -131,6 +139,7 @@ TC1 PASS: all-zeros NDB, 0 bit errors
 
 | Datum      | Änderung                                                                                              |
 |------------|-------------------------------------------------------------------------------------------------------|
+| 2026-04-16 | Continuous-DL SB + NDB-Filler (Variant C): `REG_SB_SB1_*`, `REG_NDB_BLK1/2_*`, `REG_TX_TEST` deployed. RTL-SDR-Messung über TX_LO+106 kHz: PRBS-Mode 3dB BW 15.5 kHz (RRC OK), NDB-Filler 93% Energie in ±12.5 kHz (TETRA-Kanal) aber Rest-narrow-CW aus `SB_BKN2=0` (108 dibit=00 Symbole). AA-Test in NDB-Regs bestätigt Datenpfad. Decoder (`decode_sb.py`) matcht nur NON-cont SB — STS-Korrelation 0.49 (halbe STS-Länge), CRC FAIL. |
 | 2026-04-13 | RF Loopback **27/30** (ADC dfmt fix 0x01→0x51 + CIC_GAIN_SHF=6); Digital Loopback **30/30** |
 | 2026-04-12 | RF Antennen-Loopback — ADI DAC-Core init fix (dac_init in tetra_ctrl.sh + hw_deploy.sh) |
 | 2026-04-12 | HW-Loopback verifiziert 59/60; CIC_SHIFT=24, SYNC_THRESH=20, LOCK_TIMEOUT=512 fixes (`a684455`); alle 22 Sims PASS |

@@ -195,7 +195,8 @@ synth_design \
 -top tetra_system_top \
 -part $PART \
 -flatten_hierarchy rebuilt \
--directive PerformanceOptimized
+-directive PerformanceOptimized \
+-retiming
 
 report_utilization -file "$REPORT_DIR/synth_utilization.rpt"
 report_timing_summary -file "$REPORT_DIR/synth_timing.rpt" -max_paths 10

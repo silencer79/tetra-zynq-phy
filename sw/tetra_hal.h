@@ -51,23 +51,39 @@
 #define STATUS_FIFO_FULL    (1 << 3)
 
 /* SB Payload registers (PS-writable broadcast data for TX chain) */
-#define REG_SB_BKN1_0      0x40  /* bkn1 word 0 (bits [31:0])   */
-#define REG_SB_BKN1_1      0x44  /* bkn1 word 1 (bits [63:32])  */
-#define REG_SB_BKN1_2      0x48  /* bkn1 word 2 (bits [95:64])  */
-#define REG_SB_BKN1_3      0x4C  /* bkn1 word 3 (bits [127:96]) */
-#define REG_SB_BKN1_4      0x50  /* bkn1 word 4 (bits [159:128])*/
-#define REG_SB_BKN1_5      0x54  /* bkn1 word 5 (bits [191:160])*/
-#define REG_SB_BKN1_6      0x58  /* bkn1 word 6 (bits [223:192])*/
-#define REG_SB_BKN1_7      0x5C  /* bkn1 word 7 (bits [239:224])*/
-#define REG_SB_BKN2_0      0x60  /* bkn2 word 0 (bits [31:0])   */
-#define REG_SB_BKN2_1      0x64  /* bkn2 word 1 (bits [63:32])  */
-#define REG_SB_BKN2_2      0x68  /* bkn2 word 2 (bits [95:64])  */
-#define REG_SB_BKN2_3      0x6C  /* bkn2 word 3 (bits [127:96]) */
-#define REG_SB_BKN2_4      0x70  /* bkn2 word 4 (bits [159:128])*/
-#define REG_SB_BKN2_5      0x74  /* bkn2 word 5 (bits [191:160])*/
-#define REG_SB_BKN2_6      0x78  /* bkn2 word 6 (bits [215:192])*/
-#define REG_SB_BB           0x7C  /* bb word 0   (bits [27:0])   */
+#define REG_SB_SB1_0       0x40  /* sb1 word 0 (bits [119:88])  */
+#define REG_SB_SB1_1       0x44  /* sb1 word 1 (bits [87:56])   */
+#define REG_SB_SB1_2       0x48  /* sb1 word 2 (bits [55:24])   */
+#define REG_SB_SB1_3       0x4C  /* sb1 word 3 (bits [23:0])    */
+/* 0x50–0x5C: unused (freed from old 240-bit bkn1) */
+#define REG_SB_BKN2_0      0x60  /* bkn2 word 0 (bits [215:184])*/
+#define REG_SB_BKN2_1      0x64  /* bkn2 word 1 (bits [183:152])*/
+#define REG_SB_BKN2_2      0x68  /* bkn2 word 2 (bits [151:120])*/
+#define REG_SB_BKN2_3      0x6C  /* bkn2 word 3 (bits [119:88]) */
+#define REG_SB_BKN2_4      0x70  /* bkn2 word 4 (bits [87:56])  */
+#define REG_SB_BKN2_5      0x74  /* bkn2 word 5 (bits [55:24])  */
+#define REG_SB_BKN2_6      0x78  /* bkn2 word 6 (bits [23:0])   */
+#define REG_SB_BB           0x7C  /* bb word 0   (bits [29:0])   */
 #define REG_NCO_PHASE_INC  0x80  /* NCO phase increment [31:0]  */
+#define REG_TX_TEST        0x84  /* [0] PRBS enable              */
+
+/* NDB block1/block2 payload registers (216 bits each, broadcast to all 4 slots).
+ * Channel-coded SCH/F filler fills NDB bursts with scrambled modulated content
+ * so the spectrum is continuous instead of narrow-CW from an all-zero payload. */
+#define REG_NDB_BLK1_0     0x88  /* block1 word 0 (bits [215:184]) */
+#define REG_NDB_BLK1_1     0x8C
+#define REG_NDB_BLK1_2     0x90
+#define REG_NDB_BLK1_3     0x94
+#define REG_NDB_BLK1_4     0x98
+#define REG_NDB_BLK1_5     0x9C
+#define REG_NDB_BLK1_6     0xA0  /* block1 word 6 (bits [23:0] used) */
+#define REG_NDB_BLK2_0     0xA4
+#define REG_NDB_BLK2_1     0xA8
+#define REG_NDB_BLK2_2     0xAC
+#define REG_NDB_BLK2_3     0xB0
+#define REG_NDB_BLK2_4     0xB4
+#define REG_NDB_BLK2_5     0xB8
+#define REG_NDB_BLK2_6     0xBC  /* block2 word 6 (bits [23:0] used) */
 
 /* ========================================================================
  * HAL Context
@@ -154,6 +170,14 @@ void tetra_scramble(const uint8_t *bits, int len, uint8_t *out,
 /* Build SYSINFO PDU, channel-code it, write to SB payload registers.
  * Returns 0 on success. */
 int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info);
+
+/* Build a SCH/F channel-coded filler payload (268 type-1 pseudo-random bits
+ * -> CRC-16 -> tail -> RCPC 2/3 -> interleave N=432 a=103 -> scramble) and
+ * write the two 216-bit halves to the NDB_BLK1 and NDB_BLK2 register banks.
+ * The same 216+216 filler is broadcast to all 4 NDB slots by the FPGA.
+ * Returns 0 on success. */
+int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
+                            uint16_t mcc, uint16_t mnc);
 
 /* Set TX NCO frequency offset in Hz (shifts signal away from LO leakage).
  * AD9361 TX LO should be set freq_hz lower than desired TX frequency. */

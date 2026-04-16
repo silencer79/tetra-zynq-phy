@@ -8,9 +8,9 @@
  * AXI-Lite SB payload registers.  The FPGA burst_builder shifts them out
  * as pi/4-DQPSK symbols — no further coding in hardware.
  *
- * Channel coding chain (EN 300 392-2 §8):
+ * Channel coding chain (EN 300 392-2 §8, continuous downlink burst):
  *   SYSINFO PDU (60 type-1) → CRC-16 (76 type-2) → tail (80 type-3)
- *   → RCPC rate 1/3 (240 type-4) → interleave (240) → scramble (240 type-5)
+ *   → RCPC rate 2/3 (120 type-4) → interleave (120) → scramble (120 type-5)
  *
  * Target: LibreSDR (Zynq-7020), armv7l, gcc cross-compile
  * License: GPL v2
@@ -161,6 +161,7 @@ void tetra_interleave(const uint8_t *bits, int len, uint8_t *out)
     case 240: R = 16; C = 15; break;
     case 216: R = 24; C =  9; break;
     case 162: R = 18; C =  9; break;
+    case 120: R =  8; C = 15; break;  /* BSCH continuous downlink */
     case  28: R =  4; C =  7; break;
     default:  /* No interleaving — pass through */
         memcpy(out, bits, len);
@@ -267,12 +268,12 @@ static void tetra_scramble_bsch(const uint8_t *bits, int len, uint8_t *out)
 #define SYSINFO_BITS      60
 #define SYSINFO_CRC_BITS  (SYSINFO_BITS + 16)   /* 76 */
 #define SYSINFO_TAIL_BITS (SYSINFO_CRC_BITS + 4) /* 80 */
-#define BSCH_CODED_BITS   240
+#define BSCH_CODED_BITS   120  /* RCPC 2/3 for continuous downlink burst */
 #define BNCH_INFO_BITS    124
 #define BNCH_CRC_BITS     (BNCH_INFO_BITS + 16)  /* 140 */
 #define BNCH_TAIL_BITS    (BNCH_CRC_BITS + 4)    /* 144 */
 #define BNCH_CODED_BITS   216
-#define AACH_BITS         28
+#define AACH_BITS         30   /* RM(30,14) full output for continuous burst */
 #define BKN2_CODED_BITS   216
 
 static void pack_bits(uint8_t *out, int *pos, uint32_t value, int nbits)
@@ -355,7 +356,7 @@ static uint32_t tetra_rm3014_compute(uint16_t in)
  * ======================================================================== */
 
 static void build_aach(uint8_t colour_code, uint8_t ts_assign,
-                       uint8_t *out28)
+                       uint8_t *out30)
 {
     uint8_t info[14];
     int pos = 0;
@@ -370,10 +371,10 @@ static void build_aach(uint8_t colour_code, uint8_t ts_assign,
     for (int i = 0; i < 14; i++)
         in_word |= (uint16_t)(info[i] & 1) << (13 - i);
 
-    /* RM(30,14) encode → 30 bits, take upper 28 (discard 2 LSBs) */
+    /* RM(30,14) encode → 30 bits, use all (continuous downlink burst) */
     uint32_t coded = tetra_rm3014_compute(in_word);
-    for (int i = 0; i < 28; i++)
-        out28[i] = (coded >> (29 - i)) & 1;
+    for (int i = 0; i < 30; i++)
+        out30[i] = (coded >> (29 - i)) & 1;
 }
 
 /* ========================================================================
@@ -398,28 +399,26 @@ static void bits_to_words(const uint8_t *bits, int nbits,
 /* ========================================================================
  * tetra_write_sysinfo — Full channel coding + register write
  *
- * BSCH (bkn1, 240 type-5):
+ * BSCH (sb1, 120 type-5, continuous downlink §9.4.4.2.6):
  *   60 type-1 → CRC-16 → 76 type-2 → +4 tail → 80 type-3
- *   → RCPC rate 1/3 → 240 type-4 → interleave → scramble → 240 type-5
+ *   → RCPC rate 2/3 → 120 type-4 → interleave → scramble → 120 type-5
  *
  * BNCH (bkn2, 216 type-5):
  *   For now: all zeros (time broadcast not yet implemented).
- *   The FPGA transmits only 81 symbols (162 bits) from the 216-bit register
- *   in SB mode, but we fill all 216 bits.
  *
- * AACH (bb, 28 type-5):
- *   14 info → (14,28) repetition code.
+ * AACH (bb, 30 type-5):
+ *   14 info → RM(30,14) → 30 coded bits (full output, no truncation).
  * ======================================================================== */
 
 int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
 {
-    /* --- BSCH: SYSINFO PDU → 240 coded bits --- */
+    /* --- BSCH: SYSINFO PDU → 120 coded bits (RCPC 2/3, continuous DL) --- */
     uint8_t type1[SYSINFO_BITS];
     uint8_t type2[SYSINFO_CRC_BITS];
     uint8_t type3[SYSINFO_TAIL_BITS];
     uint8_t type4[BSCH_CODED_BITS];
     uint8_t type4i[BSCH_CODED_BITS];
-    uint8_t type5_bkn1[BSCH_CODED_BITS];
+    uint8_t type5_sb1[BSCH_CODED_BITS];
 
     /* Step 1: Build PDU (60 type-1 bits) */
     build_sysinfo_pdu(info, type1);
@@ -431,22 +430,24 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
     memcpy(type3, type2, SYSINFO_CRC_BITS);
     memset(type3 + SYSINFO_CRC_BITS, 0, 4);
 
-    /* Step 4: RCPC rate 1/3 (80 → 240 type-4 bits) */
-    int coded = tetra_rcpc_encode(type3, SYSINFO_TAIL_BITS, type4, 0);
+    /* Step 4: RCPC rate 2/3 (80 → 120 type-4 bits)
+     * Continuous downlink burst uses rate 2/3 instead of 1/3 because
+     * the sb1 field is only 60 symbols (120 bits). */
+    int coded = tetra_rcpc_encode(type3, SYSINFO_TAIL_BITS, type4, 1);
     if (coded != BSCH_CODED_BITS) {
         fprintf(stderr, "tetra_hal: BSCH RCPC output %d, expected %d\n",
                 coded, BSCH_CODED_BITS);
         return -1;
     }
 
-    /* Step 5: Block interleave (240 type-4 bits) */
+    /* Step 5: Block interleave (120 type-4 bits, 8×15 matrix) */
     tetra_interleave(type4, BSCH_CODED_BITS, type4i);
 
-    /* Step 6: Scramble (240 → 240 type-5 bits)
+    /* Step 6: Scramble (120 → 120 type-5 bits)
      * BSCH uses fixed scrambler init = SCRAMB_INIT = 3 (§8.2.5.2).
      * The cell identity (MCC/MNC/CC) is INSIDE the BSCH, so the receiver
      * can't derive the scrambler seed yet — hence the fixed init. */
-    tetra_scramble_bsch(type4i, BSCH_CODED_BITS, type5_bkn1);
+    tetra_scramble_bsch(type4i, BSCH_CODED_BITS, type5_sb1);
 
     /* --- BNCH: placeholder (all zeros for now) --- */
     uint8_t type5_bkn2[BKN2_CODED_BITS];
@@ -457,20 +458,20 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
     build_aach(info->colour_code, info->timeslot_assigned, type5_bb);
 
     /* --- Pack into 32-bit words and write to AXI-Lite registers --- */
-    uint32_t bkn1_words[8];
+    uint32_t sb1_words[4];
     uint32_t bkn2_words[7];
     uint32_t bb_word;
 
-    bits_to_words(type5_bkn1, 240, bkn1_words, 8);
-    bkn1_words[7] >>= 16;  /* align 16 remaining bits into [15:0] for FPGA w7 */
+    bits_to_words(type5_sb1, 120, sb1_words, 4);
+    sb1_words[3] >>= 8;    /* align 24 remaining bits into [23:0] for FPGA w3 */
     bits_to_words(type5_bkn2, 216, bkn2_words, 7);
     bkn2_words[6] >>= 8;   /* align 24 remaining bits into [23:0] for FPGA w6 */
-    bits_to_words(type5_bb, 28, &bb_word, 1);
-    bb_word >>= 4;          /* align 28 remaining bits into [27:0] for FPGA */
+    bits_to_words(type5_bb, 30, &bb_word, 1);
+    bb_word >>= 2;          /* align 30 remaining bits into [29:0] for FPGA */
 
-    /* Write bkn1 (8 registers: 0x40–0x5C) */
-    for (int i = 0; i < 8; i++)
-        tetra_reg_write(hal, REG_SB_BKN1_0 + i * 4, bkn1_words[i]);
+    /* Write sb1 (4 registers: 0x40–0x4C) */
+    for (int i = 0; i < 4; i++)
+        tetra_reg_write(hal, REG_SB_SB1_0 + i * 4, sb1_words[i]);
 
     /* Write bkn2 (7 registers: 0x60–0x78) */
     for (int i = 0; i < 7; i++)
@@ -482,6 +483,118 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
     printf("SYSINFO written: MCC=%u MNC=%u LA=%u CC=%u\n",
            info->mcc, info->mnc, info->la, info->colour_code);
 
+    return 0;
+}
+
+/* ========================================================================
+ * SCH/F Block Interleaver  (EN 300 392-2 §8.2.4.1)
+ *
+ * Permutation j(k,K) = 1 + (a·k) mod N  (1-based).
+ * For SCH/F: N = 432, a = 103 (TETRA §8.2.4.1 Table 8.19).
+ * gcd(103, 432) = 1 → bijective permutation.
+ *
+ * Equivalent 0-based loop:
+ *   for k in 1..N:  out[k-1] = in[((a*k) mod N) + 1 - 1]
+ * ======================================================================== */
+
+static void tetra_interleave_perm(const uint8_t *in, int N, int a, uint8_t *out)
+{
+    for (int k = 1; k <= N; k++) {
+        int j = 1 + ((a * k) % N);   /* 1..N */
+        out[k - 1] = in[j - 1];
+    }
+}
+
+/* ========================================================================
+ * SCH/F Encoder: 268 type-1 bits → 432 type-5 bits
+ *
+ *   info (268) → CRC-16 → type-2 (284) → +4 tail → type-3 (288)
+ *   → RCPC rate 2/3 → type-4 (432) → bit-interleave → type-4' (432)
+ *   → scramble → type-5 (432)
+ *
+ * Scrambler init: (cc | mnc<<6 | mcc<<20) << 2 | slot_num  (§8.2.5.2)
+ * All 4 NDB slots receive the same 432 bits, so slot_num is fixed to 0
+ * (scrambling is only "correct" for slot 0; slots 1-3 are modulated but
+ * semantically invalid).
+ * ======================================================================== */
+
+#define SCHF_INFO_BITS   268
+#define SCHF_CRC_BITS    (SCHF_INFO_BITS + 16)   /* 284 */
+#define SCHF_TAIL_BITS   (SCHF_CRC_BITS + 4)     /* 288 */
+#define SCHF_CODED_BITS  432
+
+static int tetra_schf_encode(const uint8_t *info_bits,
+                              uint8_t colour_code, uint8_t slot_num,
+                              uint16_t mcc, uint16_t mnc,
+                              uint8_t *out_432)
+{
+    uint8_t type2[SCHF_CRC_BITS];
+    uint8_t type3[SCHF_TAIL_BITS];
+    uint8_t type4[SCHF_CODED_BITS];
+    uint8_t type4i[SCHF_CODED_BITS];
+
+    /* CRC-16 */
+    tetra_crc16(info_bits, SCHF_INFO_BITS, type2);
+    /* Append 4 tail bits (zeros) */
+    memcpy(type3, type2, SCHF_CRC_BITS);
+    memset(type3 + SCHF_CRC_BITS, 0, 4);
+    /* RCPC rate 2/3: 288 → 432 */
+    int coded = tetra_rcpc_encode(type3, SCHF_TAIL_BITS, type4, 1);
+    if (coded != SCHF_CODED_BITS)
+        return -1;
+    /* SCH/F block bit-interleaver */
+    tetra_interleave_perm(type4, SCHF_CODED_BITS, 103, type4i);
+    /* Scramble (§8.2.5) */
+    uint32_t lfsr = scrambler_init(colour_code, slot_num, mcc, mnc);
+    if (lfsr == 0)
+        lfsr = 0xFFFFFFFF;
+    for (int i = 0; i < SCHF_CODED_BITS; i++)
+        out_432[i] = (type4i[i] ^ next_lfsr_bit(&lfsr)) & 1;
+    return 0;
+}
+
+/* ========================================================================
+ * tetra_write_ndb_filler — Fill NDB block1/block2 registers with a
+ * channel-coded pseudo-random MAC-NULL-like payload.  Ensures all four
+ * NDB slots carry modulated content (no narrow-CW from zero payload).
+ * ======================================================================== */
+
+int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
+                            uint16_t mcc, uint16_t mnc)
+{
+    /* 268 type-1 info bits: 4-bit MAC-NULL PDU type (0) + 264 pseudo-random
+     * filler from 15-bit LFSR (x^15 + x^14 + 1). */
+    uint8_t info[SCHF_INFO_BITS];
+    info[0] = 0; info[1] = 0; info[2] = 0; info[3] = 0;
+    uint16_t lfsr = 0x7FFFu;
+    for (int i = 4; i < SCHF_INFO_BITS; i++) {
+        uint16_t fb = ((lfsr >> 14) ^ (lfsr >> 13)) & 1u;
+        lfsr = ((uint16_t)(lfsr << 1) | fb) & 0x7FFFu;
+        info[i] = (lfsr >> 14) & 1u;
+    }
+
+    uint8_t type5[SCHF_CODED_BITS];
+    if (tetra_schf_encode(info, colour_code, 0, mcc, mnc, type5) != 0) {
+        fprintf(stderr, "tetra_hal: SCH/F encoding failed\n");
+        return -1;
+    }
+
+    /* Split 432 bits → block1[0..215] + block2[216..431] → 7+7 words */
+    uint32_t blk1_words[7];
+    uint32_t blk2_words[7];
+    bits_to_words(&type5[0],   216, blk1_words, 7);
+    blk1_words[6] >>= 8;   /* align 24 remaining bits into [23:0] */
+    bits_to_words(&type5[216], 216, blk2_words, 7);
+    blk2_words[6] >>= 8;
+
+    for (int i = 0; i < 7; i++)
+        tetra_reg_write(hal, REG_NDB_BLK1_0 + i * 4, blk1_words[i]);
+    for (int i = 0; i < 7; i++)
+        tetra_reg_write(hal, REG_NDB_BLK2_0 + i * 4, blk2_words[i]);
+
+    printf("NDB filler written: 268-bit info -> 432 type-5 bits "
+           "(CC=%u MCC=%u MNC=%u slot=0, broadcast all 4 slots)\n",
+           colour_code, mcc, mnc);
     return 0;
 }
 
@@ -639,6 +752,15 @@ int main(int argc, char *argv[])
 
     /* Write SYSINFO to SB payload registers */
     if (tetra_write_sysinfo(&hal, &info) != 0) {
+        tetra_hal_close(&hal);
+        return 1;
+    }
+
+    /* Fill NDB block1/block2 with channel-coded SCH/F payload so slots 1-3
+     * (and the NDB half of every even multiframe) carry modulated content
+     * instead of narrow-CW from an all-zero payload. */
+    if (tetra_write_ndb_filler(&hal, info.colour_code,
+                                info.mcc, info.mnc) != 0) {
         tetra_hal_close(&hal);
         return 1;
     }

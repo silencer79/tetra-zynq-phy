@@ -14,7 +14,7 @@
 //
 //   When phase_inc = 0, output equals input (unity gain, no shift).
 //
-// Pipeline: 3 cycles latency (LUT read → multiply → add/saturate)
+// Pipeline: 4 cycles latency (LUT read → DSP AREG → multiply → add/saturate)
 //
 // Resources: ~4 DSP48, 1 BRAM18 (or distributed RAM), ~50 FF
 //
@@ -165,14 +165,45 @@ always @(posedge clk_lvds or negedge rst_n_lvds) begin
 end
 
 // =========================================================================
+// Pipeline Stage 1b: DSP AREG/BREG — 2-deep input register chain
+//
+// Each input feeds 2 DSPs. With synth_design -retiming enabled in
+// vivado_build.tcl, Vivado retimes these registers INTO the DSP48E1
+// AREG/BREG. This drops DSP Setup_CLK_A from 3.72ns to ~0.4ns.
+// No max_fanout attr — would prevent retiming. Duplication happens
+// automatically during DSP absorption.
+// =========================================================================
+(* retiming_forward = 1 *) reg signed [IQ_WIDTH-1:0] i_p1r_lvds;
+(* retiming_forward = 1 *) reg signed [IQ_WIDTH-1:0] q_p1r_lvds;
+(* retiming_forward = 1 *) reg signed [IQ_WIDTH-1:0] sin_r_lvds;
+(* retiming_forward = 1 *) reg signed [IQ_WIDTH-1:0] cos_r_lvds;
+reg                                                   valid_p1r_lvds;
+
+always @(posedge clk_lvds or negedge rst_n_lvds) begin
+    if (!rst_n_lvds) begin
+        i_p1r_lvds    <= {IQ_WIDTH{1'b0}};
+        q_p1r_lvds    <= {IQ_WIDTH{1'b0}};
+        sin_r_lvds    <= {IQ_WIDTH{1'b0}};
+        cos_r_lvds    <= {IQ_WIDTH{1'b0}};
+        valid_p1r_lvds <= 1'b0;
+    end else begin
+        i_p1r_lvds    <= i_p1_lvds;
+        q_p1r_lvds    <= q_p1_lvds;
+        sin_r_lvds    <= sin_val_lvds;
+        cos_r_lvds    <= cos_val_lvds;
+        valid_p1r_lvds <= valid_p1_lvds;
+    end
+end
+
+// =========================================================================
 // Pipeline Stage 2: Complex multiply
 //   I_mix = I·cos − Q·sin
 //   Q_mix = I·sin + Q·cos
 // =========================================================================
-reg signed [2*IQ_WIDTH-1:0] p_ic_lvds;  // I × cos
-reg signed [2*IQ_WIDTH-1:0] p_qs_lvds;  // Q × sin
-reg signed [2*IQ_WIDTH-1:0] p_is_lvds;  // I × sin
-reg signed [2*IQ_WIDTH-1:0] p_qc_lvds;  // Q × cos
+(* use_dsp = "yes" *) reg signed [2*IQ_WIDTH-1:0] p_ic_lvds;  // I × cos
+(* use_dsp = "yes" *) reg signed [2*IQ_WIDTH-1:0] p_qs_lvds;  // Q × sin
+(* use_dsp = "yes" *) reg signed [2*IQ_WIDTH-1:0] p_is_lvds;  // I × sin
+(* use_dsp = "yes" *) reg signed [2*IQ_WIDTH-1:0] p_qc_lvds;  // Q × cos
 reg                          valid_p2_lvds;
 
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
@@ -183,11 +214,11 @@ always @(posedge clk_lvds or negedge rst_n_lvds) begin
         p_qc_lvds <= {(2*IQ_WIDTH){1'b0}};
         valid_p2_lvds <= 1'b0;
     end else begin
-        p_ic_lvds <= i_p1_lvds * cos_val_lvds;
-        p_qs_lvds <= q_p1_lvds * sin_val_lvds;
-        p_is_lvds <= i_p1_lvds * sin_val_lvds;
-        p_qc_lvds <= q_p1_lvds * cos_val_lvds;
-        valid_p2_lvds <= valid_p1_lvds;
+        p_ic_lvds <= i_p1r_lvds * cos_r_lvds;
+        p_qs_lvds <= q_p1r_lvds * sin_r_lvds;
+        p_is_lvds <= i_p1r_lvds * sin_r_lvds;
+        p_qc_lvds <= q_p1r_lvds * cos_r_lvds;
+        valid_p2_lvds <= valid_p1r_lvds;
     end
 end
 

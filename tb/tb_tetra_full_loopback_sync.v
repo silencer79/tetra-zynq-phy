@@ -17,9 +17,8 @@ reg rst_n_lvds;
 reg  [215:0] block1_data_sys;
 reg  [215:0] block2_data_sys;
 reg  [29:0]  bb_data_sys;
-reg  [239:0] bkn1_sb_data_sys;
-reg  [27:0]  bb_sb_data_sys;
-reg  [1:0]   burst_type_sys;
+reg  [119:0] sb1_data_sys;
+reg          burst_type_sys;
 reg          build_req_sys;
 reg          idle_request_armed;
 
@@ -83,8 +82,7 @@ always #CLK_HALF clk_lvds = ~clk_lvds;
 tetra_burst_builder #(
     .BLOCK_BITS   (216),
     .BB_BITS      (30),
-    .BB_SB_BITS   (28),
-    .BKN1_SB_BITS (240),
+    .SB1_BITS     (120),
     .SYM_DIV      (SYM_DIV)
 ) dut_builder (
     .clk_sys            (clk_sys),
@@ -92,8 +90,7 @@ tetra_burst_builder #(
     .block1_data_sys    (block1_data_sys),
     .block2_data_sys    (block2_data_sys),
     .bb_data_sys        (bb_data_sys),
-    .bkn1_sb_data_sys   (bkn1_sb_data_sys),
-    .bb_sb_data_sys     (bb_sb_data_sys),
+    .sb1_data_sys       (sb1_data_sys),
     .burst_type_sys     (burst_type_sys),
     .build_req_sys      (build_req_sys),
     .tx_dibit_sys       (builder_dibit_sys),
@@ -211,7 +208,7 @@ tetra_sync_detect #(
     .rst_n_sample   (rst_n_sys),
     .dibit_in       (demod_dibit_sys),
     .dibit_valid    (demod_valid_sys),
-    .corr_threshold (6'd30),
+    .corr_threshold (6'd15),
     .seq_select     (2'd2),
     .sync_found     (sync_found),
     .sync_locked    (sync_locked),
@@ -338,11 +335,9 @@ initial begin
     // (non-periodic avoids Gardner TED false-lock that 0x1B cycling data causes)
     block2_data_sys = 216'hB81F981169D98E949B1E87E9CE5528DF8CA1890DBFE6426841992D;
     bb_data_sys = 30'd0;
-    // BKN1 (120 dibits) — AES S-box bytes 0..29 for pseudo-random timing stimulus
-    // (cycling 0x1B creates period-4 IQ that has 4 stable TED zeros; loop picks wrong one)
-    bkn1_sb_data_sys = 240'h637C777BF26B6FC53001672BFED7AB76CA82C97DFA5947F0ADD4A2AF9CA4;
-    bb_sb_data_sys = 28'd0;
-    burst_type_sys = 2'b01;
+    // SB1 (60 symbols = 120 bits) — AES S-box bytes 0..14 for pseudo-random stimulus
+    sb1_data_sys = 120'h637C777BF26B6FC53001672BFED7;
+    burst_type_sys = 1'b1;
     build_req_sys = 1'b0;
     idle_request_armed = 1'b1;
     bursts_sent = 0;
