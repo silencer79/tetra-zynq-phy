@@ -397,6 +397,45 @@ static void bits_to_words(const uint8_t *bits, int nbits,
 }
 
 /* ========================================================================
+ * BNCH Encoder — 124 type-1 bits → 216 type-5 bits (EN 300 392-2 §8.2.3.1)
+ *
+ *   info (124) → CRC-16 → type-2 (140) → +4 tail → type-3 (144)
+ *   → RCPC rate 2/3 → type-4 (216) → block interleave 24×9 → type-4'
+ *   → scramble (slot-specific init) → type-5 (216)
+ *
+ * Used for the SDB bkn2 field (slot 0 BNCH on continuous downlink).  The
+ * scrambler uses the regular (cc, slot, mcc, mnc) init — not the BSCH-fixed
+ * init=3 — because the receiver already knows cell identity once it has
+ * decoded sb1.
+ * ======================================================================== */
+
+static int tetra_bnch_encode(const uint8_t *info_bits,
+                              uint8_t colour_code, uint8_t slot_num,
+                              uint16_t mcc, uint16_t mnc,
+                              uint8_t *out_216)
+{
+    uint8_t type2[BNCH_CRC_BITS];
+    uint8_t type3[BNCH_TAIL_BITS];
+    uint8_t type4[BNCH_CODED_BITS];
+    uint8_t type4i[BNCH_CODED_BITS];
+
+    tetra_crc16(info_bits, BNCH_INFO_BITS, type2);
+    memcpy(type3, type2, BNCH_CRC_BITS);
+    memset(type3 + BNCH_CRC_BITS, 0, 4);
+    int coded = tetra_rcpc_encode(type3, BNCH_TAIL_BITS, type4, 1);
+    if (coded != BNCH_CODED_BITS)
+        return -1;
+    tetra_interleave(type4, BNCH_CODED_BITS, type4i);
+
+    uint32_t lfsr = scrambler_init(colour_code, slot_num, mcc, mnc);
+    if (lfsr == 0)
+        lfsr = 0xFFFFFFFF;
+    for (int i = 0; i < BNCH_CODED_BITS; i++)
+        out_216[i] = (type4i[i] ^ next_lfsr_bit(&lfsr)) & 1;
+    return 0;
+}
+
+/* ========================================================================
  * tetra_write_sysinfo — Full channel coding + register write
  *
  * BSCH (sb1, 120 type-5, continuous downlink §9.4.4.2.6):
@@ -404,7 +443,9 @@ static void bits_to_words(const uint8_t *bits, int nbits,
  *   → RCPC rate 2/3 → 120 type-4 → interleave → scramble → 120 type-5
  *
  * BNCH (bkn2, 216 type-5):
- *   For now: all zeros (time broadcast not yet implemented).
+ *   124 pseudo-random type-1 (PN-filler) → full BNCH coding chain →
+ *   216 scrambled type-5.  Ensures slot 0 carries broadband modulated
+ *   content instead of a narrow-CW residue from an all-zero payload.
  *
  * AACH (bb, 30 type-5):
  *   14 info → RM(30,14) → 30 coded bits (full output, no truncation).
@@ -449,9 +490,28 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
      * can't derive the scrambler seed yet — hence the fixed init. */
     tetra_scramble_bsch(type4i, BSCH_CODED_BITS, type5_sb1);
 
-    /* --- BNCH: placeholder (all zeros for now) --- */
+    /* --- BNCH: pseudo-random filler → full channel coding (slot 0) ---
+     * 124 info bits seeded from a 15-bit LFSR (x^15+x^14+1, seed 0x5A5A —
+     * distinct from the NDB-filler seed 0x7FFF so bkn2 ≠ NDB content).
+     * The full BNCH chain (CRC + tail + RCPC 2/3 + 24×9 interleave +
+     * slot-0 scramble) guarantees the 216 type-5 bits are broadband,
+     * eliminating the narrow-CW residue of an all-zero payload. */
+    uint8_t bnch_info[BNCH_INFO_BITS];
+    {
+        uint16_t bnch_lfsr = 0x5A5Au;
+        for (int i = 0; i < BNCH_INFO_BITS; i++) {
+            uint16_t fb = ((bnch_lfsr >> 14) ^ (bnch_lfsr >> 13)) & 1u;
+            bnch_lfsr = ((uint16_t)(bnch_lfsr << 1) | fb) & 0x7FFFu;
+            bnch_info[i] = (bnch_lfsr >> 14) & 1u;
+        }
+    }
+
     uint8_t type5_bkn2[BKN2_CODED_BITS];
-    memset(type5_bkn2, 0, sizeof(type5_bkn2));
+    if (tetra_bnch_encode(bnch_info, info->colour_code, 0,
+                           info->mcc, info->mnc, type5_bkn2) != 0) {
+        fprintf(stderr, "tetra_hal: BNCH filler encoding failed\n");
+        return -1;
+    }
 
     /* --- AACH: Colour Code broadcast --- */
     uint8_t type5_bb[AACH_BITS];

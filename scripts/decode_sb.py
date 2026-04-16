@@ -1,101 +1,139 @@
 #!/usr/bin/env python3
 """
-decode_sb.py — TETRA Synchronization Burst decoder for RTL-SDR captures.
+decode_sb.py — TETRA Continuous Synchronization Burst decoder for RTL-SDR.
 
-Decodes SYSINFO from a TETRA downlink captured with RTL-SDR.
-Implements: pi/4-DQPSK demod → STS correlation → burst extraction →
-descramble → de-interleave → Viterbi decode → CRC-16 check → SYSINFO parse.
+Decodes SYSINFO from a TETRA downlink captured with RTL-SDR.  Targets the
+**Continuous Downlink SB** (§9.4.4.2.6) emitted by this project's FPGA:
+
+    Tail1(6) + HC(1) + FreqCor(40) + sb1(60) + STS(19) + bb(15) +
+    bkn2(108) + HD(1) + Tail2(5)  =  255 symbols = 510 bits
+
+Pipeline:
+    π/4-DQPSK demod → STS correlation (19 dibits) → burst alignment →
+    descramble (BSCH init=3) → de-interleave (8×15) →
+    Viterbi rate 2/3 depuncture → CRC-16 → SYSINFO parse.
 
 Usage:
-    # Capture with RTL-SDR (signal at 439.100 MHz):
-    rtl_sdr -d 1 -f 439100000 -s 2400000 -g 40 -n 4800000 /tmp/capture.bin
-    python3 scripts/decode_sb.py /tmp/capture.bin --sr 2400000
+    # Capture with RTL-SDR (signal at TX_LO + 106 kHz):
+    rtl_sdr -d 0 -f 440106000 -s 2048000 -g 40 -n 4096000 /tmp/cap.bin
+    python3 scripts/decode_sb.py /tmp/cap.bin --sr 2048000
 
     # Or let this script capture automatically:
-    python3 scripts/decode_sb.py --capture --freq 439100000
+    python3 scripts/decode_sb.py --capture --freq 440106000 --sr 2048000
 """
 
 import argparse
 import sys
-import struct
 import numpy as np
-from numpy.fft import fft, fftshift
+from numpy.fft import fft
 
 # =============================================================================
 # TETRA Constants (EN 300 392-2)
 # =============================================================================
 
-SYMBOL_RATE = 18000  # 18 ksymbol/s
-CHANNEL_BW = 25000   # 25 kHz
+SYMBOL_RATE = 18000
+CHANNEL_BW = 25000
 
-# SB structure: FC(2) + bkn1(120) + STS(38) + bb(14) + bkn2(81) = 255 symbols
-SB_FC_LEN = 2
-SB_BKN1_LEN = 120
-SB_STS_LEN = 38
-SB_BB_LEN = 14
-SB_BKN2_LEN = 81
+# Continuous SDB structure (§9.4.4.2.6) — symbol offsets within the 255-symbol burst
+SDB_TAIL1_LEN = 6
+SDB_HC_LEN = 1
+SDB_FC_LEN = 40      # FreqCor
+SDB_SB1_LEN = 60     # sb1 (120 bits)
+SDB_STS_LEN = 19     # 19 dibits (§9.4.4.3.4)
+SDB_BB_LEN = 15      # bb / AACH (30 bits)
+SDB_BKN2_LEN = 108   # bkn2 (216 bits)
+SDB_HD_LEN = 1
+SDB_TAIL2_LEN = 5
 SB_TOTAL = 255
 
-# Synchronization Training Sequence (Table 9.14) — 38 dibits
-# From burst_builder.v STS_REF, MSB-first: [75:74]=sym0 ... [1:0]=sym37
-STS_DIBITS = [
-    0b01, 0b11, 0b10, 0b10, 0b00, 0b11, 0b01, 0b00,
-    0b10, 0b01, 0b10, 0b11, 0b01, 0b00, 0b10, 0b11,
-    0b01, 0b00, 0b10, 0b01, 0b10, 0b11, 0b00, 0b10,
-    0b01, 0b11, 0b01, 0b00, 0b00, 0b11, 0b10, 0b10,
-    0b01, 0b11, 0b01, 0b00, 0b10, 0b11,
-]
+# Symbol-index boundaries inside the burst (0-based, inclusive of start)
+SDB_OFF_HC = SDB_TAIL1_LEN                              # 6
+SDB_OFF_FC = SDB_OFF_HC + SDB_HC_LEN                    # 7
+SDB_OFF_SB1 = SDB_OFF_FC + SDB_FC_LEN                   # 47
+SDB_OFF_STS = SDB_OFF_SB1 + SDB_SB1_LEN                 # 107
+SDB_OFF_BB = SDB_OFF_STS + SDB_STS_LEN                  # 126
+SDB_OFF_BKN2 = SDB_OFF_BB + SDB_BB_LEN                  # 141
+SDB_OFF_HD = SDB_OFF_BKN2 + SDB_BKN2_LEN                # 249
+SDB_OFF_TAIL2 = SDB_OFF_HD + SDB_HD_LEN                 # 250
+assert SDB_OFF_TAIL2 + SDB_TAIL2_LEN == SB_TOTAL
 
-# pi/4-DQPSK phase increments for each dibit (EN 300 392-2, Table 9.1)
-# dibit → differential phase increment
+# STS reference (19 dibits) — from rtl/tx/tetra_burst_builder.v lines 121-125.
+# MSB of that Verilog literal is the first transmitted dibit.
+STS_DIBITS = [
+    0b11, 0b00, 0b00, 0b01, 0b10, 0b01, 0b11, 0b00,
+    0b11, 0b10, 0b10, 0b01, 0b11, 0b00, 0b00, 0b01,
+    0b10, 0b01, 0b11,
+]
+assert len(STS_DIBITS) == SDB_STS_LEN
+
+# π/4-DQPSK differential phase per dibit (ETSI EN 300 392-2 §5.5.2.3)
 DIBIT_TO_DPHASE = {
     0b00: np.pi / 4,
     0b01: 3 * np.pi / 4,
-    0b10: -3 * np.pi / 4,
-    0b11: -np.pi / 4,
+    0b10: -np.pi / 4,
+    0b11: -3 * np.pi / 4,
 }
 
-# RCPC encoder polynomials (K=5, rate 1/3)
-# G1=0x1B (11011), G2=0x19 (11001), G3=0x15 (10101)
+# Convolutional encoder (K=5): G1=0x1B, G2=0x19, G3=0x15 — rate 1/3 mother code
 G1, G2, G3 = 0x1B, 0x19, 0x15
 
-# CRC-16-CCITT polynomial
+# CRC-16-CCITT
 CRC_POLY = 0x1021
 CRC_INIT = 0xFFFF
 
-# BSCH channel coding: 60 type-1 → 76 type-2 → 80 type-3 → 240 type-4/5
+# BSCH (continuous SB) coding — §9.4.4.2.6:
+#     60 type-1 → CRC-16 → 76 type-2 → +4 tail → 80 type-3
+#     → RCPC rate 2/3 → 120 type-4 → interleave 8×15 → scramble (init=3) → 120 type-5
 SYSINFO_BITS = 60
-BSCH_CODED_BITS = 240
+BSCH_TYPE3_BITS = 80
+BSCH_CODED_BITS = 120   # type-4 / type-5
 
-# Scrambler init for BSCH = 3 (fixed, §8.2.5.2)
+# Scrambler init for BSCH is fixed = 3 (§8.2.5.2)
 SCRAMB_INIT = 3
 
 
 # =============================================================================
-# pi/4-DQPSK Reference signal from STS dibits
+# π/4-DQPSK helpers
 # =============================================================================
 
-def dibits_to_symbols(dibits):
-    """Convert dibit sequence to complex pi/4-DQPSK symbols."""
-    phase = 0.0
-    symbols = []
-    for d in dibits:
-        phase += DIBIT_TO_DPHASE[d]
-        symbols.append(np.exp(1j * phase))
-    return np.array(symbols)
+def dibits_to_symbols(dibits, phase0=0.0):
+    """Convert a dibit sequence into complex π/4-DQPSK symbols."""
+    phase = phase0
+    out = np.empty(len(dibits), dtype=np.complex128)
+    for i, d in enumerate(dibits):
+        phase += DIBIT_TO_DPHASE[int(d)]
+        out[i] = np.exp(1j * phase)
+    return out
 
 
 def build_sts_reference():
-    """Build STS reference waveform for correlation."""
+    """STS reference waveform (19 complex symbols)."""
     return dibits_to_symbols(STS_DIBITS)
 
 
+def demod_pi4dqpsk(symbols):
+    """Differential demodulation → dibit stream (len = len(symbols)-1).
+    ETSI EN 300 392-2 §5.5.2.3 inverse mapping:
+      +π/4 → 00, +3π/4 → 01, -π/4 → 10, -3π/4 → 11."""
+    dphi = np.angle(symbols[1:] * np.conj(symbols[:-1]))
+    out = np.empty(len(dphi), dtype=np.int32)
+    for i, p in enumerate(dphi):
+        if -np.pi / 2 < p <= 0:
+            out[i] = 0b10         # -π/4
+        elif 0 < p <= np.pi / 2:
+            out[i] = 0b00         # +π/4
+        elif np.pi / 2 < p <= np.pi:
+            out[i] = 0b01         # +3π/4
+        else:
+            out[i] = 0b11         # -3π/4
+    return out
+
+
 # =============================================================================
-# RRC filter
+# RRC matched filter
 # =============================================================================
 
 def rrc_filter(ntaps, alpha, sps):
-    """Root Raised Cosine filter."""
     t = np.arange(-ntaps // 2, ntaps // 2 + 1) / sps
     h = np.zeros_like(t, dtype=float)
     for i, ti in enumerate(t):
@@ -115,98 +153,68 @@ def rrc_filter(ntaps, alpha, sps):
 
 
 # =============================================================================
-# pi/4-DQPSK Demodulator
+# STS correlation (19 dibits → 18 differential symbols)
 # =============================================================================
 
-def demod_pi4dqpsk(symbols):
-    """Differential demodulation: compute phase difference between consecutive symbols."""
-    dphi = np.angle(symbols[1:] * np.conj(symbols[:-1]))
-    dibits = np.zeros(len(dphi), dtype=int)
-
-    # Decision regions (EN 300 392-2 Table 9.1)
-    for i, p in enumerate(dphi):
-        if -np.pi / 2 < p <= 0:
-            dibits[i] = 0b11   # -pi/4
-        elif 0 < p <= np.pi / 2:
-            dibits[i] = 0b00   # +pi/4
-        elif np.pi / 2 < p <= np.pi:
-            dibits[i] = 0b01   # +3pi/4
-        else:  # -pi < p <= -pi/2
-            dibits[i] = 0b10   # -3pi/4
-
-    return dibits
-
-
-# =============================================================================
-# STS Correlator — find Sync Bursts
-# =============================================================================
-
-def find_sync_bursts(iq, sps, min_corr=0.5):
-    """Find STS positions via differential correlation."""
-    # Generate STS differential reference (phase differences)
+def find_sync_bursts(iq, sps, min_corr=0.4):
+    """Find positions where the 19-dibit STS pattern is present (differential)."""
     sts_ref = build_sts_reference()
-    sts_diff = sts_ref[1:] * np.conj(sts_ref[:-1])  # 37 differential symbols
+    sts_diff = sts_ref[1:] * np.conj(sts_ref[:-1])             # 18 complex values
+    sts_norm = sts_diff / (np.abs(sts_diff) + 1e-12)
 
-    # Compute differential of input at symbol-spaced positions
-    # We slide through the IQ at every sample
     n = len(iq)
-    sts_len_samples = int(SB_STS_LEN * sps)
+    sts_len_samples = int(SDB_STS_LEN * sps)
+    step = max(1, int(sps / 4))
 
-    # Downsample-correlate approach: for each candidate offset, extract
-    # symbol-spaced samples, compute differential, correlate with STS_diff
-    best_corrs = []
-    step = max(1, int(sps / 4))  # search at quarter-symbol resolution
-
+    best = []
     for offset in range(0, n - sts_len_samples - int(sps), step):
-        # Extract symbol-spaced samples
-        indices = np.round(np.arange(SB_STS_LEN) * sps + offset).astype(int)
+        indices = np.round(np.arange(SDB_STS_LEN) * sps + offset).astype(int)
         if indices[-1] >= n:
             break
         syms = iq[indices]
-        # Differential
         diff = syms[1:] * np.conj(syms[:-1])
-        # Normalize
         diff_norm = diff / (np.abs(diff) + 1e-12)
-        sts_norm = sts_diff / (np.abs(sts_diff) + 1e-12)
-        # Correlation
-        corr = np.abs(np.sum(diff_norm * np.conj(sts_norm))) / len(sts_diff)
-        best_corrs.append((offset, corr))
+        corr = np.abs(np.sum(diff_norm * np.conj(sts_norm))) / len(sts_norm)
+        best.append((offset, corr))
 
-    if not best_corrs:
-        return []
+    best.sort(key=lambda x: -x[1])
 
-    best_corrs.sort(key=lambda x: -x[1])
-
-    # Extract peaks above threshold, with minimum spacing
+    # Deduplicate peaks within one burst length
     min_spacing = int(SB_TOTAL * sps * 0.8)
     peaks = []
-    for offset, corr in best_corrs:
+    for offset, corr in best:
         if corr < min_corr:
             break
-        too_close = False
-        for po, _ in peaks:
-            if abs(offset - po) < min_spacing:
-                too_close = True
-                break
-        if not too_close:
+        if all(abs(offset - po) >= min_spacing for po, _ in peaks):
             peaks.append((offset, corr))
-
     return peaks
 
 
+def estimate_freq_from_sts(iq_burst, sps, sts_offset_in_burst):
+    """Residual freq/phase from STS differential phase error."""
+    sts_ref = build_sts_reference()
+    sts_diff_ref = sts_ref[1:] * np.conj(sts_ref[:-1])
+    indices = np.round(np.arange(SDB_STS_LEN) * sps + sts_offset_in_burst).astype(int)
+    indices = np.clip(indices, 0, len(iq_burst) - 1)
+    syms = iq_burst[indices]
+    diff = syms[1:] * np.conj(syms[:-1])
+    phase_err = np.angle(diff * np.conj(sts_diff_ref))
+    x = np.arange(len(phase_err))
+    slope, mean_off = np.polyfit(x, phase_err, 1)
+    # np.polyfit returns [slope, intercept]; use intercept + slope*mean(x) as mean_off
+    mean_off = float(np.mean(phase_err))
+    return slope, mean_off
+
+
 # =============================================================================
-# Scrambler (Fibonacci LFSR, EN 300 392-2 §8.2.5)
+# Scrambler (Fibonacci LFSR, §8.2.5) — BSCH uses fixed init=3
 # =============================================================================
 
 def scrambler_seq(init, length):
-    """Generate scrambler sequence (Fibonacci LFSR)."""
     lfsr = init & 0xFFFFFFFF
     if lfsr == 0:
         lfsr = 0xFFFFFFFF
-    seq = np.zeros(length, dtype=int)
-    # Taps: 32,26,23,22,16,12,11,10,8,7,5,4,2,1
-    # ETSI tap N → bit position (32-N): 32→0, 26→6, 23→9, 22→10,
-    # 16→16, 12→20, 11→21, 10→22, 8→24, 7→25, 5→27, 4→28, 2→30, 1→31
+    seq = np.zeros(length, dtype=np.int32)
     for i in range(length):
         b = (
             ((lfsr >> 0) ^ (lfsr >> 6) ^ (lfsr >> 9) ^ (lfsr >> 10) ^
@@ -220,19 +228,18 @@ def scrambler_seq(init, length):
 
 
 def descramble_bsch(bits):
-    """Descramble BSCH (fixed init=3)."""
-    seq = scrambler_seq(SCRAMB_INIT, len(bits))
-    return (bits ^ seq) & 1
+    return (bits ^ scrambler_seq(SCRAMB_INIT, len(bits))) & 1
 
 
 # =============================================================================
-# Block De-interleaver (EN 300 392-2 §8.2.4)
+# Block de-interleaver (§8.2.4) — continuous BSCH: 8 rows × 15 cols → 120 bits
 # =============================================================================
 
 def deinterleave(bits, length):
-    """Column-write, row-read → inverse: row-write, column-read."""
-    if length == 240:
-        R, C = 16, 15
+    if length == 120:
+        R, C = 8, 15     # continuous BSCH
+    elif length == 240:
+        R, C = 16, 15    # non-continuous BSCH (kept for reference)
     elif length == 216:
         R, C = 24, 9
     elif length == 162:
@@ -241,8 +248,7 @@ def deinterleave(bits, length):
         R, C = 4, 7
     else:
         return bits.copy()
-
-    out = np.zeros(length, dtype=int)
+    out = np.zeros(length, dtype=np.int32)
     for k in range(length):
         row = k % R
         col = k // R
@@ -251,11 +257,43 @@ def deinterleave(bits, length):
 
 
 # =============================================================================
-# Viterbi Decoder (K=5, rate 1/3)
+# Viterbi — rate 2/3 depuncture to rate 1/3, then K=5 decode
 # =============================================================================
+#
+# TETRA RCPC rate 2/3 (used for continuous BSCH): from mother rate-1/3 output
+# (g1, g2, g3) per input bit, the encoder keeps the following pattern per
+# period of 2 input bits:
+#
+#   input bit index i even → transmit g1, g2
+#   input bit index i odd  → transmit g1
+#
+# Exactly three bits per two input bits = rate 2/3.
+# This matches tetra_hal.c::tetra_rcpc_encode() case 1.
+
+def depuncture_r23(bits23):
+    """120 rate-2/3 bits → 240 rate-1/3 bits with erasures (2 = erased)."""
+    n_in = len(bits23)
+    # Every 2 input bits generate 3 rx bits (g1 g2 | g1)
+    assert n_in % 3 == 0, f"rate-2/3 input must be multiple of 3, got {n_in}"
+    n_info_pairs = n_in // 3
+    n_info = n_info_pairs * 2
+    out = np.full(n_info * 3, 2, dtype=np.int32)  # 2 = erasure
+    rx = 0
+    for p in range(n_info_pairs):
+        i0 = p * 2        # even input
+        i1 = i0 + 1       # odd input
+        # even: g1, g2
+        out[i0 * 3 + 0] = bits23[rx]; rx += 1
+        out[i0 * 3 + 1] = bits23[rx]; rx += 1
+        # even: g3 erased
+        # odd: g1
+        out[i1 * 3 + 0] = bits23[rx]; rx += 1
+        # odd: g2, g3 erased
+    assert rx == n_in
+    return out
+
 
 def parity(x, mask):
-    """Compute parity of x & mask."""
     v = x & mask
     v ^= v >> 4
     v ^= v >> 2
@@ -263,77 +301,72 @@ def parity(x, mask):
     return v & 1
 
 
-def viterbi_decode_r13(coded_bits):
+def viterbi_decode_r13_with_erasures(coded_bits):
     """
-    Viterbi decoder for K=5, rate 1/3, generators G1=0x1B, G2=0x19, G3=0x15.
-    Hard decision.
+    Hard-decision Viterbi, K=5, mother rate 1/3.  Erasure value = 2 → zero-cost branch.
 
-    Shift register convention (matches tetra_hal.c encoder):
+    Shift-register convention matches tetra_hal.c encoder:
       sr = (sr << 1 | input) & 0x1F
-      bit 0 = newest input, bit 4 = oldest
-      state = sr & 0xF (lower 4 bits)
-      For transition: sr = (old_state << 1 | inp) & 0x1F
-                      new_state = sr & 0xF
+      new_state = sr & 0xF
     """
-    n_states = 16  # 2^(K-1)
+    n_states = 16
     n_coded = len(coded_bits)
     n_input = n_coded // 3
+    INF = 10 ** 9
 
-    INF = 999999
-
-    pm = np.full(n_states, INF, dtype=int)
+    pm = np.full(n_states, INF, dtype=np.int64)
     pm[0] = 0
-    tb_state = np.zeros((n_input, n_states), dtype=int)
-    tb_input = np.zeros((n_input, n_states), dtype=int)
+    tb_state = np.zeros((n_input, n_states), dtype=np.int32)
+    tb_input = np.zeros((n_input, n_states), dtype=np.int32)
 
     for i in range(n_input):
-        g1_rx = coded_bits[3 * i]
-        g2_rx = coded_bits[3 * i + 1]
-        g3_rx = coded_bits[3 * i + 2]
-
-        new_pm = np.full(n_states, INF, dtype=int)
+        g1_rx = int(coded_bits[3 * i])
+        g2_rx = int(coded_bits[3 * i + 1])
+        g3_rx = int(coded_bits[3 * i + 2])
+        new_pm = np.full(n_states, INF, dtype=np.int64)
 
         for old_state in range(n_states):
             if pm[old_state] >= INF:
                 continue
-
             for inp in range(2):
                 sr = ((old_state << 1) | inp) & 0x1F
-                new_state = sr & 0xF  # lower 4 bits
-
+                new_state = sr & 0xF
                 e1 = parity(sr, G1)
                 e2 = parity(sr, G2)
                 e3 = parity(sr, G3)
-
-                dist = (e1 ^ g1_rx) + (e2 ^ g2_rx) + (e3 ^ g3_rx)
-                metric = pm[old_state] + dist
-
+                d1 = 0 if g1_rx == 2 else (e1 ^ g1_rx)
+                d2 = 0 if g2_rx == 2 else (e2 ^ g2_rx)
+                d3 = 0 if g3_rx == 2 else (e3 ^ g3_rx)
+                metric = pm[old_state] + d1 + d2 + d3
                 if metric < new_pm[new_state]:
                     new_pm[new_state] = metric
                     tb_state[i, new_state] = old_state
                     tb_input[i, new_state] = inp
-
         pm = new_pm
 
-    # Traceback from state 0 (tail bits flush encoder to zero state)
-    decoded = np.zeros(n_input, dtype=int)
+    # Tail bits force encoder to state 0
+    decoded = np.zeros(n_input, dtype=np.int32)
     state = 0
     for i in range(n_input - 1, -1, -1):
         decoded[i] = tb_input[i, state]
         state = tb_state[i, state]
-
     return decoded
 
 
+def viterbi_decode_r23(coded_bits):
+    """120 rate-2/3 bits → 80 decoded bits."""
+    depunct = depuncture_r23(coded_bits)
+    return viterbi_decode_r13_with_erasures(depunct)
+
+
 # =============================================================================
-# CRC-16-CCITT Check
+# CRC-16-CCITT
 # =============================================================================
 
 def crc16_check(bits):
-    """Check CRC-16-CCITT. bits = type-1 + CRC (76 bits for SYSINFO)."""
     crc = CRC_INIT
     for b in bits:
-        feedback = (b & 1) ^ ((crc >> 15) & 1)
+        feedback = (int(b) & 1) ^ ((crc >> 15) & 1)
         crc = (crc << 1) & 0xFFFF
         if feedback:
             crc ^= CRC_POLY
@@ -341,11 +374,10 @@ def crc16_check(bits):
 
 
 # =============================================================================
-# SYSINFO PDU Parser (EN 300 392-2 §15.3.8)
+# SYSINFO parser (§15.3.8)
 # =============================================================================
 
 def parse_sysinfo(bits):
-    """Parse 60 type-1 bits into SYSINFO fields."""
     if len(bits) < SYSINFO_BITS:
         return None
 
@@ -370,11 +402,10 @@ def parse_sysinfo(bits):
 
 
 # =============================================================================
-# Main decode pipeline
+# IQ loading and coarse frequency estimation
 # =============================================================================
 
 def load_rtlsdr_iq(filename):
-    """Load RTL-SDR IQ file (uint8 interleaved)."""
     raw = np.fromfile(filename, dtype=np.uint8)
     iq = (raw[0::2].astype(np.float64) - 127.5) / 127.5 + \
         1j * (raw[1::2].astype(np.float64) - 127.5) / 127.5
@@ -382,78 +413,53 @@ def load_rtlsdr_iq(filename):
 
 
 def estimate_freq_offset(iq, sample_rate):
-    """Estimate residual frequency offset from spectral peak."""
     nfft = 8192
     spec = np.abs(fft(iq[:nfft] * np.hanning(nfft))) ** 2
     freqs = np.fft.fftfreq(nfft, 1 / sample_rate)
-    # Ignore DC bin
-    spec[0] = 0
-    spec[1] = 0
-    spec[-1] = 0
-    peak = np.argmax(spec)
+    # Suppress DC
+    spec[0] = spec[1] = spec[-1] = 0
+    peak = int(np.argmax(spec))
     f_off = freqs[peak]
-    # Parabolic interpolation for sub-bin accuracy
     if 1 < peak < nfft - 1:
-        alpha = np.log(spec[peak - 1] + 1e-12)
-        beta = np.log(spec[peak] + 1e-12)
-        gamma = np.log(spec[peak + 1] + 1e-12)
-        delta = 0.5 * (alpha - gamma) / (alpha - 2 * beta + gamma)
-        f_off = freqs[peak] + delta * (freqs[1] - freqs[0])
-    return f_off
+        a = np.log(spec[peak - 1] + 1e-12)
+        b = np.log(spec[peak] + 1e-12)
+        c = np.log(spec[peak + 1] + 1e-12)
+        denom = (a - 2 * b + c)
+        if abs(denom) > 1e-12:
+            f_off = freqs[peak] + 0.5 * (a - c) / denom * (freqs[1] - freqs[0])
+    return float(f_off)
 
 
-def estimate_freq_from_sts(iq_burst, sps, sts_offset_in_burst):
-    """Estimate freq offset from STS phase slope."""
-    sts_ref = build_sts_reference()
-    sts_diff_ref = sts_ref[1:] * np.conj(sts_ref[:-1])
+# =============================================================================
+# Main decoder
+# =============================================================================
 
-    indices = np.round(np.arange(SB_STS_LEN) * sps + sts_offset_in_burst).astype(int)
-    indices = np.clip(indices, 0, len(iq_burst) - 1)
-    syms = iq_burst[indices]
-    diff = syms[1:] * np.conj(syms[:-1])
-
-    # Phase error per symbol: actual_diff vs expected_diff
-    phase_err = np.angle(diff * np.conj(sts_diff_ref))
-    # Linear fit → slope is frequency offset in rad/symbol
-    x = np.arange(len(phase_err))
-    slope = np.polyfit(x, phase_err, 1)[0]
-    # Also get mean phase offset
-    mean_offset = np.mean(phase_err)
-
-    return slope, mean_offset
-
-
-def decode_tetra_sb(filename, sample_rate=2400000, freq_offset=0, verbose=True):
-    """Full decode pipeline for TETRA SB from RTL-SDR capture."""
-
-    print(f"=== TETRA SB Decoder ===")
+def decode_tetra_sb(filename, sample_rate=2048000, freq_offset=0.0, verbose=True):
+    print("=== TETRA Continuous-SB Decoder ===")
     print(f"File: {filename}")
     print(f"Sample rate: {sample_rate}")
 
-    # 1. Load IQ data
     iq = load_rtlsdr_iq(filename)
     print(f"Loaded {len(iq)} samples ({len(iq)/sample_rate:.3f}s)")
 
-    # 2. Estimate and correct frequency offset
+    # Coarse frequency correction (optional)
     if freq_offset == 0:
         freq_offset = estimate_freq_offset(iq, sample_rate)
-        print(f"Estimated freq offset: {freq_offset:.1f} Hz")
+        print(f"Estimated freq offset: {freq_offset:+.1f} Hz")
 
     if abs(freq_offset) > 10:
         t = np.arange(len(iq)) / sample_rate
-        iq *= np.exp(-1j * 2 * np.pi * freq_offset * t)
-        print(f"Frequency corrected: {freq_offset:.1f} Hz")
+        iq = iq * np.exp(-1j * 2 * np.pi * freq_offset * t)
+        print(f"Applied freq correction: {freq_offset:+.1f} Hz")
 
-    # 3. Low-pass filter + decimate to ~4x symbol rate
-    sps_target = 4  # samples per symbol
-    target_rate = SYMBOL_RATE * sps_target  # 72 kHz
+    # Decimate to ~sps_target samples/symbol
+    sps_target = 8
+    target_rate = SYMBOL_RATE * sps_target
     decim = max(1, int(sample_rate / target_rate))
     actual_rate = sample_rate / decim
     sps = actual_rate / SYMBOL_RATE
 
-    # Simple CIC-like decimation with anti-alias
     if decim > 1:
-        # FIR low-pass
         ntaps = decim * 8 + 1
         cutoff = target_rate / sample_rate
         h = np.sinc(2 * cutoff * (np.arange(ntaps) - ntaps // 2))
@@ -463,57 +469,52 @@ def decode_tetra_sb(filename, sample_rate=2400000, freq_offset=0, verbose=True):
         iq_dec = iq_filt[::decim]
     else:
         iq_dec = iq
+    print(f"Decimated: {decim}× → {actual_rate:.0f} Hz, {sps:.2f} samples/symbol")
 
-    print(f"Decimated: {decim}x → {actual_rate:.0f} sps, {sps:.2f} samples/symbol")
-
-    # 4. RRC matched filter
+    # RRC matched filter
     rrc_ntaps = int(6 * sps) * 2 + 1
     rrc = rrc_filter(rrc_ntaps, 0.35, sps)
     iq_rrc = np.convolve(iq_dec, rrc, mode='same')
-    print(f"RRC filter: {rrc_ntaps} taps, α=0.35")
+    print(f"RRC matched filter: {rrc_ntaps} taps, α=0.35")
 
-    # 5. Find STS (Sync Training Sequence)
-    print(f"\nSearching for Sync Bursts...")
+    # Locate STS occurrences
+    print("\nSearching for Continuous SB via 19-dibit STS correlation...")
     peaks = find_sync_bursts(iq_rrc, sps, min_corr=0.35)
-
     if not peaks:
-        print("ERROR: No sync bursts found!")
-        print("Check: signal present? frequency correct? gain sufficient?")
+        print("ERROR: No STS matches above threshold.")
         return False
-
     print(f"Found {len(peaks)} candidate SB(s):")
     for i, (off, corr) in enumerate(peaks[:5]):
-        print(f"  [{i}] sample {off}, correlation {corr:.3f}")
+        print(f"  [{i}] sample {off}, STS corr {corr:.3f}")
 
-    # 6. For each detected SB, try to decode
     decoded_any = False
 
     for sb_idx, (sts_offset, corr) in enumerate(peaks[:5]):
-        print(f"\n--- Decoding SB #{sb_idx} (corr={corr:.3f}) ---")
+        print(f"\n--- Decoding SB #{sb_idx} (STS corr = {corr:.3f}) ---")
 
-        # STS starts at offset. Burst start = STS - (FC + BKN1) symbols
-        burst_start = sts_offset - int((SB_FC_LEN + SB_BKN1_LEN) * sps)
+        # Burst start is SDB_OFF_STS symbols before the STS position
+        burst_start = sts_offset - int(SDB_OFF_STS * sps)
         if burst_start < 0:
             print("  Burst start before capture, skipping")
             continue
-
         burst_end = burst_start + int(SB_TOTAL * sps)
         if burst_end > len(iq_rrc):
             print("  Burst extends beyond capture, skipping")
             continue
 
-        # Extract symbol-spaced samples for entire burst
-        # Fine timing: try sub-sample offsets around STS peak
-        best_timing = 0
-        best_corr = 0
+        # Refine timing with sub-sample sweep
+        best_timing = 0.0
+        best_corr = 0.0
+        sts_ref = build_sts_reference()
+        sts_diff = sts_ref[1:] * np.conj(sts_ref[:-1])
+        sts_norm = sts_diff / (np.abs(sts_diff) + 1e-12)
         for dt in np.linspace(-0.5, 0.5, 21):
-            indices = np.round(np.arange(SB_STS_LEN) * sps + sts_offset + dt * sps / sps).astype(int)
+            indices = np.round(np.arange(SDB_STS_LEN) * sps + sts_offset + dt).astype(int)
             indices = np.clip(indices, 0, len(iq_rrc) - 1)
             syms = iq_rrc[indices]
             diff = syms[1:] * np.conj(syms[:-1])
-            sts_ref = build_sts_reference()
-            sts_diff = sts_ref[1:] * np.conj(sts_ref[:-1])
-            c = np.abs(np.sum(diff / (np.abs(diff) + 1e-12) * np.conj(sts_diff / (np.abs(sts_diff) + 1e-12)))) / len(sts_diff)
+            diff_norm = diff / (np.abs(diff) + 1e-12)
+            c = np.abs(np.sum(diff_norm * np.conj(sts_norm))) / len(sts_norm)
             if c > best_corr:
                 best_corr = c
                 best_timing = dt
@@ -525,113 +526,78 @@ def decode_tetra_sb(filename, sample_rate=2400000, freq_offset=0, verbose=True):
         sym_indices = np.clip(sym_indices, 0, len(iq_rrc) - 1)
         burst_syms = iq_rrc[sym_indices]
 
-        # Estimate and correct residual frequency offset using STS
-        sts_start_in_burst = int((SB_FC_LEN + SB_BKN1_LEN) * sps)
-        slope, mean_ph = estimate_freq_from_sts(iq_rrc[int(burst_start):int(burst_end)],
-                                                 sps, sts_start_in_burst)
-        # mean_ph = per-symbol differential phase error → frequency offset
-        # slope = rate of change of differential phase error → chirp
-        # Absolute phase correction = cumulative sum of differential errors
+        # Residual freq/phase correction from STS
+        slope, mean_ph = estimate_freq_from_sts(
+            iq_rrc[int(burst_start):int(burst_end)], sps,
+            int(SDB_OFF_STS * sps) + best_timing
+        )
         freq_err_hz = mean_ph * SYMBOL_RATE / (2 * np.pi)
-        if verbose:
-            print(f"  STS freq err: {freq_err_hz:.1f} Hz, phase bias: {np.degrees(mean_ph):.1f}°/sym")
-
+        print(f"  Fine timing: {best_timing:+.2f} sample, STS refined corr: {best_corr:.3f}")
+        print(f"  STS freq err: {freq_err_hz:+.1f} Hz")
         n = np.arange(SB_TOTAL)
         phase_correction = mean_ph * n + 0.5 * slope * n * n
-        burst_syms *= np.exp(-1j * phase_correction)
+        burst_syms = burst_syms * np.exp(-1j * phase_correction)
 
-        # Demodulate
+        # Differential demod → 254 dibits.
+        # Convention: dibits[k] = dibit transmitted for sym[k+1] (derived from
+        # the phase delta sym[k] → sym[k+1]).  First dibit of sb1 is the one
+        # applied at sym[SDB_OFF_SB1], i.e. dibits[SDB_OFF_SB1 - 1].
         dibits = demod_pi4dqpsk(burst_syms)
-        # dibits has 254 entries (255-1 for differential)
-        # First dibit corresponds to transition sym0→sym1
-
-        # SB layout (symbol indices, 0-based):
-        # FC: sym 0..1 (2 symbols)
-        # BKN1: sym 2..121 (120 symbols)
-        # STS: sym 122..159 (38 symbols)
-        # BB: sym 160..173 (14 symbols)
-        # BKN2: sym 174..254 (81 symbols)
-        #
-        # After differential demod (loses first symbol), dibit indices:
-        # FC: dibit 0..0 (only 1 dibit from 2 FC symbols)
-        # We need to be careful about the offset
-
-        # Actually for differential demod, dibit[k] = phase(sym[k+1]) - phase(sym[k])
-        # The burst has 255 symbols → 254 dibits after demod
-        # FC contributes the first 2 symbols → dibit[0] is FC
-        # BKN1 starts at sym 2 → dibit[1] to dibit[120]  (120 dibits)
-        # STS starts at sym 122 → dibit[121] to dibit[158] (38 dibits... but first STS dibit
-        #   is transition from last BKN1 symbol to first STS symbol)
-        # Actually the dibit IS the symbol in pi/4-DQPSK — each symbol's dibit encodes the
-        # differential phase from the previous symbol. So sym[k] carries dibit[k-1].
-        # The FC symbols serve as a phase reference. After FC, BKN1 starts at dibit index 1.
-
-        # BKN1: 120 dibits = 240 bits (type-5)
-        bkn1_start = SB_FC_LEN - 1  # dibit index (differential loses 1)
-        bkn1_dibits = dibits[bkn1_start:bkn1_start + SB_BKN1_LEN]
-
-        if len(bkn1_dibits) < SB_BKN1_LEN:
-            print("  Not enough dibits for BKN1")
+        sb1_start = SDB_OFF_SB1 - 1
+        sb1_dibits = dibits[sb1_start:sb1_start + SDB_SB1_LEN]
+        if len(sb1_dibits) < SDB_SB1_LEN:
+            print("  Not enough dibits for sb1, skipping")
             continue
 
-        # Convert dibits to bits (MSB first per dibit)
-        bkn1_bits = np.zeros(SB_BKN1_LEN * 2, dtype=int)
-        for j, d in enumerate(bkn1_dibits):
-            bkn1_bits[2 * j] = (d >> 1) & 1
-            bkn1_bits[2 * j + 1] = d & 1
+        # dibit → 2 bits (MSB first — matches tetra_hal.c bits_to_words packing)
+        sb1_bits = np.zeros(SDB_SB1_LEN * 2, dtype=np.int32)
+        for j, d in enumerate(sb1_dibits):
+            sb1_bits[2 * j] = (int(d) >> 1) & 1
+            sb1_bits[2 * j + 1] = int(d) & 1
+        print(f"  sb1: {len(sb1_bits)} type-5 bits extracted")
 
-        print(f"  BKN1: {len(bkn1_bits)} type-5 bits extracted")
+        # Descramble (BSCH fixed init=3)
+        type4i = descramble_bsch(sb1_bits)
+        # De-interleave 8×15
+        type4 = deinterleave(type4i, BSCH_CODED_BITS)
+        print(f"  Descrambled (init=3), de-interleaved (8×15)")
 
-        # 7. Descramble (BSCH: fixed init=3)
-        type4 = descramble_bsch(bkn1_bits)
-        print(f"  Descrambled (init={SCRAMB_INIT})")
+        # Viterbi rate 2/3
+        type3 = viterbi_decode_r23(type4)
+        print(f"  Viterbi rate-2/3 decoded: {len(type3)} bits")
+        assert len(type3) == BSCH_TYPE3_BITS
 
-        # 8. De-interleave
-        type4_deint = deinterleave(type4, BSCH_CODED_BITS)
-        print(f"  De-interleaved (16×15)")
-
-        # 9. Viterbi decode (rate 1/3, 240 → 80 bits)
-        type3 = viterbi_decode_r13(type4_deint)
-        print(f"  Viterbi decoded: {len(type3)} bits")
-
-        # Remove 4 tail bits → 76 type-2 bits
-        type2 = type3[:76]
-
-        # 10. CRC-16 check
+        # Strip 4 tail bits → 76 type-2 bits, CRC-16 check
+        type2 = type3[:SYSINFO_BITS + 16]
         crc_ok = crc16_check(type2)
         type1 = type2[:SYSINFO_BITS]
 
         if crc_ok:
-            print(f"  CRC-16: PASS ✓")
             info = parse_sysinfo(type1)
-            print(f"\n  ╔═══════════════════════════════════════╗")
-            print(f"  ║  SYSINFO Decoded Successfully!        ║")
-            print(f"  ╠═══════════════════════════════════════╣")
+            print(f"  CRC-16: PASS ✓")
+            print("\n  ╔═══════════════════════════════════════╗")
+            print("  ║  SYSINFO Decoded Successfully!        ║")
+            print("  ╠═══════════════════════════════════════╣")
             print(f"  ║  MCC:          {info['MCC']:>5d}                ║")
             print(f"  ║  MNC:          {info['MNC']:>5d}                ║")
             print(f"  ║  Location Area:{info['LA']:>5d}                ║")
             print(f"  ║  Colour Code:  {info['CC']:>5d}                ║")
             print(f"  ║  TS assigned:  {info['TS_assigned']:>5d}                ║")
             print(f"  ║  DL usage:     0x{info['DL_usage']:02X}                 ║")
-            print(f"  ╚═══════════════════════════════════════╝")
+            print("  ╚═══════════════════════════════════════╝")
             decoded_any = True
         else:
-            print(f"  CRC-16: FAIL ✗")
-            # Show raw bits for debug
-            if verbose:
-                info = parse_sysinfo(type1)
-                print(f"  (raw) MCC={info['MCC']} MNC={info['MNC']} LA={info['LA']} CC={info['CC']}")
-                # Count bit errors by re-encoding and comparing
-                print(f"  Viterbi path metric (final): likely high error rate")
+            info = parse_sysinfo(type1)
+            print(f"  CRC-16: FAIL ✗  (raw) MCC={info['MCC']} MNC={info['MNC']} "
+                  f"LA={info['LA']} CC={info['CC']}")
 
     if not decoded_any:
         print("\nNo SB decoded successfully.")
         print("Possible issues:")
-        print("  - Frequency offset (try --offset to compensate)")
-        print("  - Weak signal (increase RTL-SDR gain)")
-        print("  - Timing drift over burst")
+        print("  - Frequency offset — try --offset to override")
+        print("  - Low SNR / wrong gain")
+        print("  - Timing drift across burst")
         return False
-
     return True
 
 
@@ -640,21 +606,23 @@ def decode_tetra_sb(filename, sample_rate=2400000, freq_offset=0, verbose=True):
 # =============================================================================
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='TETRA Sync Burst Decoder')
+    parser = argparse.ArgumentParser(description='TETRA Continuous-SB Decoder')
     parser.add_argument('input', nargs='?', default='/tmp/tetra_tx_capture.bin',
                         help='RTL-SDR IQ capture file (uint8)')
-    parser.add_argument('--sr', type=int, default=2400000,
-                        help='Sample rate (default 2400000)')
+    parser.add_argument('--sr', type=int, default=2048000,
+                        help='Sample rate (default 2048000)')
     parser.add_argument('--offset', type=float, default=0,
-                        help='Frequency offset in Hz to correct')
+                        help='Frequency offset in Hz to correct (0 = auto)')
     parser.add_argument('--capture', action='store_true',
                         help='Capture with RTL-SDR first')
-    parser.add_argument('--freq', type=int, default=439100000,
-                        help='Capture frequency (default 439100000)')
+    parser.add_argument('--freq', type=int, default=440106000,
+                        help='Capture frequency in Hz (default 440106000)')
     parser.add_argument('--gain', type=float, default=40,
                         help='RTL-SDR gain (default 40)')
     parser.add_argument('--duration', type=float, default=2.0,
                         help='Capture duration in seconds (default 2)')
+    parser.add_argument('--device', type=int, default=0,
+                        help='RTL-SDR device index (default 0)')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Verbose output')
     args = parser.parse_args()
@@ -663,21 +631,17 @@ if __name__ == '__main__':
         import subprocess
         n_samples = int(args.sr * args.duration)
         capture_file = '/tmp/tetra_tx_capture.bin'
-        print(f"Capturing {args.duration}s at {args.freq/1e6:.3f} MHz...")
+        print(f"Capturing {args.duration}s at {args.freq/1e6:.3f} MHz (dev {args.device})...")
         subprocess.run([
-            'rtl_sdr', '-d', '1',
+            'rtl_sdr', '-d', str(args.device),
             '-f', str(args.freq),
             '-s', str(args.sr),
             '-g', str(args.gain),
             '-n', str(n_samples),
-            capture_file
+            capture_file,
         ], check=True)
         args.input = capture_file
 
-    success = decode_tetra_sb(
-        args.input,
-        sample_rate=args.sr,
-        freq_offset=args.offset,
-        verbose=args.verbose,
-    )
-    sys.exit(0 if success else 1)
+    ok = decode_tetra_sb(args.input, sample_rate=args.sr,
+                         freq_offset=args.offset, verbose=args.verbose)
+    sys.exit(0 if ok else 1)

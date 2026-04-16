@@ -3,13 +3,22 @@
 # Target: Zynq-7020 (XC7Z020-CLG484)
 # Simulator: iverilog + vvp
 
-> **STATUS (2026-04-16):** Continuous-Downlink-SB + NDB-Filler deployed (Variant C).
-> TX-Chain validiert: mit PRBS (REG_TX_TEST=1) sauberes RRC-Spektrum, 3dB BW ~15.5 kHz.
-> NDB-Datenpfad validiert: AA-Pattern in 0x88–0xBC verschiebt Peak von -4.5 kHz auf -13.5 kHz
-> (dibit=10-Ton) — beweist, dass `burst_mux` für Slots 1–3 korrekt aus den NDB-Registern liest.
-> **Offen:** Rest-narrow-CW aus `REG_SB_BKN2=0` (108 dibit=00 Symbole in Slot 0) und
-> `scripts/decode_sb.py` matcht nur den NON-continuous SB-Aufbau (STS=38 statt 19 Symbole,
-> sb1=60 statt bkn1=120).
+> **STATUS (2026-04-16, späte Session):** **Ende-zu-Ende-TX-Validierung über Luft.**
+> Beide offenen Fixes eingebracht → RTL-SDR decodiert SYSINFO korrekt (MCC=901 MNC=1 LA=1 CC=1):
+> - **Fix 1 — BKN2 scrambled filler (`sw/tetra_hal.c`):** Neuer `tetra_bnch_encode()` liefert
+>   216 type-5 bits für BKN2 (124-bit PN → CRC → tail → RCPC 2/3 → interleave 24×9 → scramble
+>   slot=0). Narrow-CW bei -4.5 kHz eliminiert: Peak-median im TETRA-Kanal jetzt 4.3 dB
+>   (vorher ≫10 dB), 84 % Energie in ±12.5 kHz.
+> - **Fix 2 — `scripts/decode_sb.py` Rewrite für continuous SB (§9.4.4.2.6):** 19-dibit STS,
+>   sb1=60 sym, BSCH 120 bits, Viterbi rate 2/3, de-interleave 8×15, scramble init=3.
+>   STS-Korrelation 0.49 → **0.92**. 2/5 SBs über 2-s-Capture dekodieren CRC-PASS mit korrekter
+>   SYSINFO-PDU.
+> - **Fix 3 — π/4-DQPSK dibit 10↔11 ETSI-Revert (`rtl/tx/tetra_pi4dqpsk_mod.v` + `decode_sb.py`):**
+>   Commit `127c3f2` hatte die Phase-Mapping in die falsche Richtung gedreht. Revert auf
+>   ETSI §5.5.2.3 (10→-π/4, 11→-3π/4), bestätigt gegen `SDRSharp.Tetra.dll::SymbolToAngel`.
+>   `tb_tetra_pi4dqpsk_mod` 31/31 PASS, volle Regression **22/22 PASS**.
+> - **STATUS (2026-04-16, frühe Session):** Continuous-Downlink-SB + NDB-Filler deployed (Variant C).
+>   PRBS-Spektrum, NDB-AA-Pattern-Test bestätigen TX-Datenpfad.
 >
 > **STATUS (2026-04-13):** Letzter Sim-Lauf: **PASS=22, FAIL=0** (alle 22 Module)
 > Digitaler Loopback: **30/30 SYNC_LOCKED=1** über 30s (CTRL[2]=1).
@@ -139,7 +148,9 @@ TC1 PASS: all-zeros NDB, 0 bit errors
 
 | Datum      | Änderung                                                                                              |
 |------------|-------------------------------------------------------------------------------------------------------|
-| 2026-04-16 | Continuous-DL SB + NDB-Filler (Variant C): `REG_SB_SB1_*`, `REG_NDB_BLK1/2_*`, `REG_TX_TEST` deployed. RTL-SDR-Messung über TX_LO+106 kHz: PRBS-Mode 3dB BW 15.5 kHz (RRC OK), NDB-Filler 93% Energie in ±12.5 kHz (TETRA-Kanal) aber Rest-narrow-CW aus `SB_BKN2=0` (108 dibit=00 Symbole). AA-Test in NDB-Regs bestätigt Datenpfad. Decoder (`decode_sb.py`) matcht nur NON-cont SB — STS-Korrelation 0.49 (halbe STS-Länge), CRC FAIL. |
+| 2026-04-16 | **π/4-DQPSK dibit 10↔11 ETSI-Revert** (`rtl/tx/tetra_pi4dqpsk_mod.v` + `scripts/decode_sb.py`): Commit `127c3f2` vom 13.04. hatte die Phase-Mapping versehentlich in die falsche Richtung gedreht (10→-3π/4, 11→-π/4). ETSI EN 300 392-2 §5.5.2.3 und `SDRSharp.Tetra.dll::SymbolToAngel` (IL-Disassembly) bestätigen: **10→-π/4, 11→-3π/4**. `decode_sb.py` hatte denselben Bug symmetrisch — Loopback maskierte ihn, aber ETSI-konforme Empfänger (SDR# Plugin) sahen 10/19 STS-Dibits falsch. Jetzt revertiert, `tb_tetra_pi4dqpsk_mod` **31/31 PASS**, gesamte Regression **22/22 PASS**. |
+| 2026-04-16 | **End-to-End-TX-Validierung über Luft**: (a) `tetra_hal.c`: neuer `tetra_bnch_encode()` ersetzt BKN2-Null-Placeholder durch 216-bit scrambled BNCH-Filler (124 PN-bits → CRC-16 → tail → RCPC 2/3 → interleave 24×9 → scramble slot=0). Narrow-CW-Residuum bei -4.5 kHz verschwunden (peak-median 4.3 dB). (b) `scripts/decode_sb.py`: Komplett-Rewrite für continuous SB §9.4.4.2.6 — 19-dibit STS, sb1=60 sym, BSCH 120 bits, Viterbi rate-2/3 depuncture, de-interleave 8×15, scramble init=3. STS-Korrelation 0.49→**0.92**, 2/5 SBs CRC-PASS mit richtiger SYSINFO (MCC=901 MNC=1 LA=1 CC=1). |
+| 2026-04-16 | Continuous-DL SB + NDB-Filler (Variant C): `REG_SB_SB1_*`, `REG_NDB_BLK1/2_*`, `REG_TX_TEST` deployed. RTL-SDR-Messung über TX_LO+106 kHz: PRBS-Mode 3dB BW 15.5 kHz (RRC OK), NDB-Filler 93% Energie in ±12.5 kHz (TETRA-Kanal). AA-Test in NDB-Regs bestätigt burst_mux liest aus NDB-Slots. |
 | 2026-04-13 | RF Loopback **27/30** (ADC dfmt fix 0x01→0x51 + CIC_GAIN_SHF=6); Digital Loopback **30/30** |
 | 2026-04-12 | RF Antennen-Loopback — ADI DAC-Core init fix (dac_init in tetra_ctrl.sh + hw_deploy.sh) |
 | 2026-04-12 | HW-Loopback verifiziert 59/60; CIC_SHIFT=24, SYNC_THRESH=20, LOCK_TIMEOUT=512 fixes (`a684455`); alle 22 Sims PASS |

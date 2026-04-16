@@ -133,11 +133,12 @@ the 24 trailing bits in `[23:0]` with `[31:24]` unused.
 
 BNCH payload for slot 0. SDB uses 108 symbols = 216 bits from this bank.
 
-> **Caveat (2026-04-16):** `tetra_write_sysinfo()` currently fills BKN2 with
-> zeros (placeholder). 108 consecutive dibit=`00` symbols produce a ~2.25 kHz
-> narrow-CW tone in slot 0 — visible as a spectral residual even when NDB
-> slots 1–3 carry scrambled SCH/F filler.  Fix: populate BKN2 with channel-
-> coded BNCH content (or scrambled filler).
+Channel coding (EN 300 392-2 §8.2.3.1):
+124 type-1 PN bits (15-bit LFSR, seed 0x5A5A) → CRC-16 (140) → +4 tail (144)
+→ RCPC rate 2/3 (216) → interleave (24×9) → scramble (cc/slot=0/mcc/mnc)
+→ 216 type-5.  Implemented in `tetra_bnch_encode()` (sw/tetra_hal.c).
+The PN seed is intentionally different from the NDB filler seed (0x7FFF) so
+the slot-0 BNCH content differs from the slots-1..3 NDB filler.
 
 ### BB (AACH — 30 type-5 bits, 1 register 0x7C)
 

@@ -4,11 +4,12 @@
 // ETSI EN 300 392-2 §9.3 (PI/4-DQPSK Modulation)
 //
 // Maps Type-5 dibits to IQ symbol constellation points using differential
-// phase encoding. Phase increments per dibit (ETSI Table 9.1):
-//   dibit=00 → ΔΦ = +π/4   (phase_idx increment +1 mod 8)
-//   dibit=01 → ΔΦ = +3π/4  (phase_idx increment +3 mod 8)
-//   dibit=10 → ΔΦ = -3π/4  (phase_idx increment +5 mod 8)
-//   dibit=11 → ΔΦ = -π/4   (phase_idx increment +7 mod 8)
+// phase encoding. Phase increments per dibit (ETSI EN 300 392-2 §5.5.2.3,
+// confirmed against SDRSharp.Tetra.dll `SymbolToAngel` reference):
+//   dibit=00 (b1=0,b0=0) → ΔΦ = +π/4   (phase_idx increment +1 mod 8)
+//   dibit=01 (b1=0,b0=1) → ΔΦ = +3π/4  (phase_idx increment +3 mod 8)
+//   dibit=10 (b1=1,b0=0) → ΔΦ = -π/4   (phase_idx increment +7 mod 8)
+//   dibit=11 (b1=1,b0=1) → ΔΦ = -3π/4  (phase_idx increment +5 mod 8)
 //
 // Phase represented as 3-bit index (0..7), where idx × (π/4) = absolute phase.
 // Arithmetic is mod-8 naturally via 3-bit overflow — no explicit modulo needed.
@@ -87,7 +88,8 @@ module tetra_pi4dqpsk_mod #(
 
     // -------------------------------------------------------------------------
     // R10/R5: Phase increment — combinatorial, based on dibit_in
-    // dibit=00→+1, 01→+3, 10→+5(=-3 mod8), 11→+7(=-1 mod8)
+    // ETSI EN 300 392-2 §5.5.2.3:
+    //   dibit=00→+1 (+π/4), 01→+3 (+3π/4), 10→+7 (-π/4), 11→+5 (-3π/4)
     // -------------------------------------------------------------------------
     reg [2:0] phase_inc_w;
 
@@ -95,8 +97,8 @@ module tetra_pi4dqpsk_mod #(
         case (dibit_in)
             2'b00:   phase_inc_w = 3'd1;   // +π/4
             2'b01:   phase_inc_w = 3'd3;   // +3π/4
-            2'b10:   phase_inc_w = 3'd5;   // -3π/4
-            2'b11:   phase_inc_w = 3'd7;   // -π/4
+            2'b10:   phase_inc_w = 3'd7;   // -π/4
+            2'b11:   phase_inc_w = 3'd5;   // -3π/4
             default: phase_inc_w = 3'd1;
         endcase
     end
