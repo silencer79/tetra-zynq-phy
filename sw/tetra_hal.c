@@ -10,7 +10,8 @@
  *
  * Channel coding chain (EN 300 392-2 §8, continuous downlink burst):
  *   SYSINFO PDU (60 type-1) → CRC-16 (76 type-2) → tail (80 type-3)
- *   → RCPC rate 2/3 (120 type-4) → interleave (120) → scramble (120 type-5)
+ *   → ETSI RCPC rate 2/3 (120 type-4) → BSCH interleave (120)
+ *   → scramble (120 type-5)
  *
  * Target: LibreSDR (Zynq-7020), armv7l, gcc cross-compile
  * License: GPL v2
@@ -56,9 +57,17 @@ void tetra_hal_close(tetra_hal_t *hal)
 }
 
 /* ========================================================================
- * CRC-16-CCITT  (EN 300 392-2 §8.2.3)
+ * CRC-16-CCITT  (EN 300 392-2 §7.2.1 / §8.2.3, X.25 / ITU-T FCS)
  * Polynomial: x^16 + x^12 + x^5 + 1 (0x1021)
- * Init: 0xFFFF, no final inversion.
+ * Init: 0xFFFF, final FCS is the ONES-COMPLEMENT of the remainder.
+ * Residual at the receiver over info+FCS: 0x1D0F (MSB-first) / 0xF0B8
+ * (LSB-first reflected, as used by SDRSharp.Tetra.CRC16::Process).
+ *
+ * The one-bit inversion of every FCS bit is what distinguishes the ETSI
+ * FCS from a "raw" CRC-CCITT remainder.  Dropping the inversion causes
+ * every ETSI-compliant receiver (osmo-tetra, SDR#-Tetra plugin, …) to
+ * reject our bursts even though the polynomial and init are correct.
+ *
  * Input/output: arrays of uint8_t, each element is 0 or 1.
  * ======================================================================== */
 
@@ -75,7 +84,8 @@ void tetra_crc16(const uint8_t *bits, int len, uint8_t *out)
             crc ^= 0x1021;
     }
 
-    /* Append CRC, MSB first (ETSI bit ordering) */
+    /* X.25 final XOR: append ones-complement of the remainder, MSB first */
+    crc ^= 0xFFFF;
     for (int i = 0; i < 16; i++)
         out[len + i] = (crc >> (15 - i)) & 1;
 }
@@ -141,6 +151,65 @@ int tetra_rcpc_encode(const uint8_t *bits, int len, uint8_t *out,
         }
     }
     return idx;
+}
+
+/* ========================================================================
+ * ETSI BSCH RCPC Encoder  (EN 300 392-2 §8.2.3.1.1 / §8.2.3.1.3)
+ *
+ * Real TETRA BSCH uses a K=5 mother rate-1/4 code with generators:
+ *   G1 = 0x13, G2 = 0x1D, G3 = 0x17, G4 = 0x1B
+ * and puncturing P_2/3 over two input bits:
+ *   keep {g1(a), g2(a), g1(b)}  => 3 output bits / 2 input bits
+ * ======================================================================== */
+
+static int tetra_etsi_conv_encode_r14(const uint8_t *bits, int len, uint8_t *out)
+{
+    uint8_t sr = 0;
+    int idx = 0;
+
+    for (int i = 0; i < len; i++) {
+        sr = ((sr << 1) | (bits[i] & 1)) & 0x1F;
+        out[idx++] = parity5(sr & 0x13);
+        out[idx++] = parity5(sr & 0x1D);
+        out[idx++] = parity5(sr & 0x17);
+        out[idx++] = parity5(sr & 0x1B);
+    }
+    return idx;
+}
+
+static int tetra_etsi_puncture_r23(const uint8_t *bits_r14, int len, uint8_t *out)
+{
+    int idx = 0;
+
+    if ((len % 8) != 0)
+        return -1;
+
+    for (int i = 0; i < len; i += 8) {
+        out[idx++] = bits_r14[i + 0];  /* g1(a) */
+        out[idx++] = bits_r14[i + 1];  /* g2(a) */
+        out[idx++] = bits_r14[i + 4];  /* g1(b) */
+    }
+    return idx;
+}
+
+/* Multiplicative (permutation) interleaver — ETSI EN 300 392-2 §8.2.4.1
+ *   out[k-1] = in[j-1] where j = 1 + (a*k) mod N, k=1..N
+ * Parameters per Table 8.19:
+ *   BSCH sb1:  N=120, a=11
+ *   BNCH / SCH/HD / SCH/HU / STCH: N=216, a=101
+ *   SCH/F / TCH/2.4:               N=432, a=103
+ */
+static void tetra_interleave_perm(const uint8_t *in, int N, int a, uint8_t *out)
+{
+    for (int k = 1; k <= N; k++) {
+        int j = 1 + ((a * k) % N);
+        out[j - 1] = in[k - 1];
+    }
+}
+
+static void tetra_interleave_bsch_etsi(const uint8_t *in, uint8_t *out)
+{
+    tetra_interleave_perm(in, 120, 11, out);
 }
 
 /* ========================================================================
@@ -248,21 +317,14 @@ static void tetra_scramble_bsch(const uint8_t *bits, int len, uint8_t *out)
 }
 
 /* ========================================================================
- * SYSINFO PDU Builder  (EN 300 392-2 §15.3.8)
+ * Synchronization Information Builder (60 type-1 bits)
  *
- * Packs tetra_sysinfo_t fields into 60 type-1 bits (MSB first).
- *
- * Bit layout:
- *   [0..9]   MCC (10 bits)
- *   [10..23] MNC (14 bits)
- *   [24..37] LA  (14 bits)
- *   [38..43] Colour Code (6 bits)
- *   [44..45] Timeslot assigned (2 bits)
- *   [46]     U-plane DTX (1 bit)
- *   [47..48] Frame 18 countdown (2 bits)
- *   [49..52] Access code (4 bits)
- *   [53..58] DL usage marker (6 bits)
- *   [59]     Reserved (1 bit, set to 0)
+ * Field order matches the ETSI sync-info layout used by real cells and by the
+ * decoder's `parse_sysinfo()` helper:
+ *   SystemCode(4), ColorCode(6), TimeSlot(2), Frame(5), MultiFrame(6),
+ *   SharingMode(2), TSReservedFrames(3), UPlaneDTX(1), Frame18Extension(1),
+ *   Reserved(1), MCC(10), MNC(14), NeighbourCellBroadcast(2),
+ *   CellServiceLevel(2), LateEntryInfo(1)
  * ======================================================================== */
 
 #define SYSINFO_BITS      60
@@ -285,16 +347,21 @@ static void pack_bits(uint8_t *out, int *pos, uint32_t value, int nbits)
 static void build_sysinfo_pdu(const tetra_sysinfo_t *info, uint8_t *bits)
 {
     int pos = 0;
-    pack_bits(bits, &pos, info->mcc,              10);
-    pack_bits(bits, &pos, info->mnc,              14);
-    pack_bits(bits, &pos, info->la,               14);
-    pack_bits(bits, &pos, info->colour_code,       6);
-    pack_bits(bits, &pos, info->timeslot_assigned,  2);
-    pack_bits(bits, &pos, info->u_plane,            1);
-    pack_bits(bits, &pos, info->frame_countdown,    2);
-    pack_bits(bits, &pos, info->access_code,        4);
-    pack_bits(bits, &pos, info->dl_usage,           6);
-    pack_bits(bits, &pos, 0,                        1); /* reserved */
+    pack_bits(bits, &pos, info->system_code,               4);
+    pack_bits(bits, &pos, info->colour_code,               6);
+    pack_bits(bits, &pos, info->timeslot_assigned,         2);
+    pack_bits(bits, &pos, info->frame,                     5);
+    pack_bits(bits, &pos, info->multiframe,                6);
+    pack_bits(bits, &pos, info->sharing_mode,              2);
+    pack_bits(bits, &pos, info->ts_reserved_frames,        3);
+    pack_bits(bits, &pos, info->u_plane,                   1);
+    pack_bits(bits, &pos, info->frame_18_extension,        1);
+    pack_bits(bits, &pos, 0,                               1);
+    pack_bits(bits, &pos, info->mcc,                      10);
+    pack_bits(bits, &pos, info->mnc,                      14);
+    pack_bits(bits, &pos, info->neighbour_cell_broadcast,  2);
+    pack_bits(bits, &pos, info->cell_service_level,        2);
+    pack_bits(bits, &pos, info->late_entry_info,           1);
 }
 
 /* ========================================================================
@@ -400,7 +467,8 @@ static void bits_to_words(const uint8_t *bits, int nbits,
  * BNCH Encoder — 124 type-1 bits → 216 type-5 bits (EN 300 392-2 §8.2.3.1)
  *
  *   info (124) → CRC-16 → type-2 (140) → +4 tail → type-3 (144)
- *   → RCPC rate 2/3 → type-4 (216) → block interleave 24×9 → type-4'
+ *   → ETSI rate-1/4 mother (576) → P_2/3 puncture (216 type-4)
+ *   → multiplicative interleave K=216, a=101 (Table 8.19)
  *   → scramble (slot-specific init) → type-5 (216)
  *
  * Used for the SDB bkn2 field (slot 0 BNCH on continuous downlink).  The
@@ -416,16 +484,21 @@ static int tetra_bnch_encode(const uint8_t *info_bits,
 {
     uint8_t type2[BNCH_CRC_BITS];
     uint8_t type3[BNCH_TAIL_BITS];
+    uint8_t mother[BNCH_TAIL_BITS * 4];
     uint8_t type4[BNCH_CODED_BITS];
     uint8_t type4i[BNCH_CODED_BITS];
 
     tetra_crc16(info_bits, BNCH_INFO_BITS, type2);
     memcpy(type3, type2, BNCH_CRC_BITS);
     memset(type3 + BNCH_CRC_BITS, 0, 4);
-    int coded = tetra_rcpc_encode(type3, BNCH_TAIL_BITS, type4, 1);
-    if (coded != BNCH_CODED_BITS)
+
+    int m = tetra_etsi_conv_encode_r14(type3, BNCH_TAIL_BITS, mother);
+    int c = tetra_etsi_puncture_r23(mother, m, type4);
+    if (m != BNCH_TAIL_BITS * 4 || c != BNCH_CODED_BITS)
         return -1;
-    tetra_interleave(type4, BNCH_CODED_BITS, type4i);
+
+    /* Multiplicative interleaver, K=216, a=101 (ETSI §8.2.4.1 Table 8.19) */
+    tetra_interleave_perm(type4, BNCH_CODED_BITS, 101, type4i);
 
     uint32_t lfsr = scrambler_init(colour_code, slot_num, mcc, mnc);
     if (lfsr == 0)
@@ -440,7 +513,9 @@ static int tetra_bnch_encode(const uint8_t *info_bits,
  *
  * BSCH (sb1, 120 type-5, continuous downlink §9.4.4.2.6):
  *   60 type-1 → CRC-16 → 76 type-2 → +4 tail → 80 type-3
- *   → RCPC rate 2/3 → 120 type-4 → interleave → scramble → 120 type-5
+ *   → ETSI rate-1/4 mother code + P_2/3 puncture → 120 type-4
+ *   → multiplicative BSCH interleave (K=120, a=11) → scramble(init=3)
+ *   → 120 type-5
  *
  * BNCH (bkn2, 216 type-5):
  *   124 pseudo-random type-1 (PN-filler) → full BNCH coding chain →
@@ -457,6 +532,7 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
     uint8_t type1[SYSINFO_BITS];
     uint8_t type2[SYSINFO_CRC_BITS];
     uint8_t type3[SYSINFO_TAIL_BITS];
+    uint8_t type4_mother[SYSINFO_TAIL_BITS * 4];
     uint8_t type4[BSCH_CODED_BITS];
     uint8_t type4i[BSCH_CODED_BITS];
     uint8_t type5_sb1[BSCH_CODED_BITS];
@@ -471,18 +547,19 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
     memcpy(type3, type2, SYSINFO_CRC_BITS);
     memset(type3 + SYSINFO_CRC_BITS, 0, 4);
 
-    /* Step 4: RCPC rate 2/3 (80 → 120 type-4 bits)
-     * Continuous downlink burst uses rate 2/3 instead of 1/3 because
-     * the sb1 field is only 60 symbols (120 bits). */
-    int coded = tetra_rcpc_encode(type3, SYSINFO_TAIL_BITS, type4, 1);
-    if (coded != BSCH_CODED_BITS) {
-        fprintf(stderr, "tetra_hal: BSCH RCPC output %d, expected %d\n",
-                coded, BSCH_CODED_BITS);
+    /* Step 4: ETSI BSCH coding:
+     *   80 input bits -> 320 mother bits (rate 1/4) -> puncture P_2/3 -> 120 */
+    int mother = tetra_etsi_conv_encode_r14(type3, SYSINFO_TAIL_BITS, type4_mother);
+    int coded = tetra_etsi_puncture_r23(type4_mother, mother, type4);
+    if (mother != (SYSINFO_TAIL_BITS * 4) || coded != BSCH_CODED_BITS) {
+        fprintf(stderr,
+                "tetra_hal: BSCH ETSI coding mother=%d coded=%d expected=%d\n",
+                mother, coded, BSCH_CODED_BITS);
         return -1;
     }
 
-    /* Step 5: Block interleave (120 type-4 bits, 8×15 matrix) */
-    tetra_interleave(type4, BSCH_CODED_BITS, type4i);
+    /* Step 5: ETSI BSCH interleave (K=120, a=11) */
+    tetra_interleave_bsch_etsi(type4, type4i);
 
     /* Step 6: Scramble (120 → 120 type-5 bits)
      * BSCH uses fixed scrambler init = SCRAMB_INIT = 3 (§8.2.5.2).
@@ -540,36 +617,19 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
     /* Write bb (1 register: 0x7C) */
     tetra_reg_write(hal, REG_SB_BB, bb_word);
 
-    printf("SYSINFO written: MCC=%u MNC=%u LA=%u CC=%u\n",
-           info->mcc, info->mnc, info->la, info->colour_code);
+    printf("SYSINFO written: SC=%u CC=%u TN=%u FN=%u MF=%u MCC=%u MNC=%u\n",
+           info->system_code, info->colour_code, info->timeslot_assigned,
+           info->frame, info->multiframe, info->mcc, info->mnc);
 
     return 0;
-}
-
-/* ========================================================================
- * SCH/F Block Interleaver  (EN 300 392-2 §8.2.4.1)
- *
- * Permutation j(k,K) = 1 + (a·k) mod N  (1-based).
- * For SCH/F: N = 432, a = 103 (TETRA §8.2.4.1 Table 8.19).
- * gcd(103, 432) = 1 → bijective permutation.
- *
- * Equivalent 0-based loop:
- *   for k in 1..N:  out[k-1] = in[((a*k) mod N) + 1 - 1]
- * ======================================================================== */
-
-static void tetra_interleave_perm(const uint8_t *in, int N, int a, uint8_t *out)
-{
-    for (int k = 1; k <= N; k++) {
-        int j = 1 + ((a * k) % N);   /* 1..N */
-        out[k - 1] = in[j - 1];
-    }
 }
 
 /* ========================================================================
  * SCH/F Encoder: 268 type-1 bits → 432 type-5 bits
  *
  *   info (268) → CRC-16 → type-2 (284) → +4 tail → type-3 (288)
- *   → RCPC rate 2/3 → type-4 (432) → bit-interleave → type-4' (432)
+ *   → ETSI rate-1/4 mother (1152) → P_2/3 puncture → type-4 (432)
+ *   → multiplicative interleave K=432, a=103 → type-4' (432)
  *   → scramble → type-5 (432)
  *
  * Scrambler init: (cc | mnc<<6 | mcc<<20) << 2 | slot_num  (§8.2.5.2)
@@ -590,20 +650,25 @@ static int tetra_schf_encode(const uint8_t *info_bits,
 {
     uint8_t type2[SCHF_CRC_BITS];
     uint8_t type3[SCHF_TAIL_BITS];
+    uint8_t mother[SCHF_TAIL_BITS * 4];
     uint8_t type4[SCHF_CODED_BITS];
     uint8_t type4i[SCHF_CODED_BITS];
 
-    /* CRC-16 */
+    /* CRC-16 (ETSI X.25 FCS, complement applied inside tetra_crc16) */
     tetra_crc16(info_bits, SCHF_INFO_BITS, type2);
     /* Append 4 tail bits (zeros) */
     memcpy(type3, type2, SCHF_CRC_BITS);
     memset(type3 + SCHF_CRC_BITS, 0, 4);
-    /* RCPC rate 2/3: 288 → 432 */
-    int coded = tetra_rcpc_encode(type3, SCHF_TAIL_BITS, type4, 1);
-    if (coded != SCHF_CODED_BITS)
+
+    /* ETSI rate-1/4 mother code + P_2/3 puncture: 288 → 1152 → 432 */
+    int m = tetra_etsi_conv_encode_r14(type3, SCHF_TAIL_BITS, mother);
+    int c = tetra_etsi_puncture_r23(mother, m, type4);
+    if (m != SCHF_TAIL_BITS * 4 || c != SCHF_CODED_BITS)
         return -1;
-    /* SCH/F block bit-interleaver */
+
+    /* Multiplicative interleaver, K=432, a=103 (ETSI §8.2.4.1 Table 8.19) */
     tetra_interleave_perm(type4, SCHF_CODED_BITS, 103, type4i);
+
     /* Scramble (§8.2.5) */
     uint32_t lfsr = scrambler_init(colour_code, slot_num, mcc, mnc);
     if (lfsr == 0)

@@ -95,19 +95,33 @@ typedef struct {
 } tetra_hal_t;
 
 /* ========================================================================
- * SYSINFO PDU (EN 300 392-2 section 15.3.8)
+ * Synchronization Information (60 type-1 bits carried in BSCH sb1)
+ *
+ * This matches the field order used by real TETRA cells and by
+ * `scripts/decode_sb.py --etsi`.
  * ======================================================================== */
 
 typedef struct {
-    uint16_t mcc;              /* Mobile Country Code (0-1023, 10 bits) */
-    uint16_t mnc;              /* Mobile Network Code (0-16383, 14 bits) */
-    uint16_t la;               /* Location Area (0-16383, 14 bits) */
-    uint8_t  colour_code;      /* Colour Code (0-63, 6 bits) */
-    uint8_t  timeslot_assigned;/* Number of common ctrl timeslots (2 bits) */
-    uint8_t  u_plane;          /* U-plane DTX (1 bit) */
-    uint8_t  frame_countdown;  /* Frame 18 countdown (2 bits) */
-    uint8_t  access_code;      /* Subscriber class (4 bits) */
-    uint8_t  dl_usage;         /* DL usage marker (6 bits) */
+    uint8_t  system_code;              /* 4 bits */
+    uint8_t  colour_code;              /* 6 bits */
+    uint8_t  timeslot_assigned;        /* 2 bits */
+    uint8_t  frame;                    /* 5 bits */
+    uint8_t  multiframe;               /* 6 bits */
+    uint8_t  sharing_mode;             /* 2 bits */
+    uint8_t  ts_reserved_frames;       /* 3 bits */
+    uint8_t  u_plane;                  /* U-plane DTX, 1 bit */
+    uint8_t  frame_18_extension;       /* 1 bit */
+    uint16_t mcc;                      /* 10 bits */
+    uint16_t mnc;                      /* 14 bits */
+    uint8_t  neighbour_cell_broadcast; /* 2 bits */
+    uint8_t  cell_service_level;       /* 2 bits */
+    uint8_t  late_entry_info;          /* 1 bit */
+
+    /* Deprecated project-internal fields kept for source compatibility. */
+    uint16_t la;
+    uint8_t  frame_countdown;
+    uint8_t  access_code;
+    uint8_t  dl_usage;
 } tetra_sysinfo_t;
 
 /* ========================================================================
