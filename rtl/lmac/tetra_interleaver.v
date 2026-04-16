@@ -4,17 +4,19 @@
 //
 // Implements the TETRA block interleaving (ETSI EN 300 392-2 §8.2.4).
 //
-// Algorithm — Step Interleaver:
+// Algorithm — ETSI Multiplicative Interleaver (EN 300 392-2 §8.2.4.1):
 //   FILL phase: write data bits into flat buffer sequentially
 //               buf[0], buf[1], ..., buf[K-1] ← data_in (one per valid cycle)
 //
-//   DRAIN phase: read buffer with permuted address sequence
-//               address sequence: 0, STEP, 2×STEP, ..., (K-1)×STEP  (mod K)
-//               Since gcd(STEP, K)=1 this visits all K positions exactly once.
+//   DRAIN phase: read buffer with multiplicative permutation
+//               k = 1 + (a · i) mod K, for i = 1..K  (ETSI 1-based)
+//               Equivalent to step=a starting at rd_addr=a (not 0).
+//               Since gcd(a, K)=1 this visits all K positions exactly once.
 //
-//   Interleave   (TX, mode=0): STEP = 11   → d[j] = buf[11j mod K]
-//   Deinterleave (RX, mode=1): STEP = 59   (K=216: 11⁻¹ mod 216)
-//                               STEP = 275  (K=432: 11⁻¹ mod 432)
+//   Parameters per Table 8.19:
+//     BSCH  (K=120): a=11
+//     BNCH  (K=216): a=101
+//     SCH/F (K=432): a=103
 //
 // NOTE: The step value STEP=11 is derived from common TETRA implementations
 //   (EN 300 392-2 §8.2.4.3).  Verify against tetra-bluestation reference
@@ -75,15 +77,18 @@ module tetra_interleaver #(
 );
 
 // ---------------------------------------------------------------------------
-// Step constants (EN 300 392-2 §8.2.4.3)
+// ETSI Multiplicative Interleaver Parameters (EN 300 392-2 §8.2.4.1)
 // ---------------------------------------------------------------------------
-// Interleaving step (TX): STEP=11 for all block sizes.
-// Deinterleaving step (RX): modular inverse of 11 mod K.
-//   K=216: 11^{-1} mod 216 = 59   (verify: 11×59 = 649 = 3×216+1 ✓)
-//   K=432: 11^{-1} mod 432 = 275  (verify: 11×275 = 3025 = 7×432+1 ✓)
-localparam [8:0] STEP_TX        = 9'd11;
-localparam [8:0] STEP_RX_NDB    = 9'd59;    // K=216
-localparam [8:0] STEP_RX_SCHF   = 9'd275;   // K=432
+// Permutation: out[i-1] = in[k-1], k = 1 + (a·i) mod K.
+// This is equivalent to step=a starting at rd_addr=a (not 0).
+//   BSCH  (K=120): a=11
+//   BNCH  (K=216): a=101
+//   SCH/F (K=432): a=103
+// TX interleave uses same formula in SW (tetra_hal.c); this module
+// handles RX deinterleave only in practice.
+localparam [8:0] STEP_BSCH  = 9'd11;    // K=120
+localparam [8:0] STEP_BNCH  = 9'd101;   // K=216
+localparam [8:0] STEP_SCHF  = 9'd103;   // K=432
 
 // ---------------------------------------------------------------------------
 // FSM states
@@ -115,10 +120,13 @@ reg [MAX_BLOCK_SIZE-1:0] buf_sys;
 // Combinatorial signals
 // ---------------------------------------------------------------------------
 
-// Read step: depends on mode and block_size
-wire [8:0] rd_step_sys = mode ?
-    ((block_size == 9'd432) ? STEP_RX_SCHF : STEP_RX_NDB) :
-    STEP_TX;
+// ETSI multiplicative 'a' parameter — derived from block_size
+wire [8:0] a_param_sys = (block_size == 9'd432) ? STEP_SCHF :
+                         (block_size == 9'd216) ? STEP_BNCH :
+                                                  STEP_BSCH;
+
+// Read step: always 'a' for ETSI multiplicative permutation
+wire [8:0] rd_step_sys = a_param_sys;
 
 // Fill-done: last input bit of the block
 wire fill_done_sys = (state_sys == S_FILL) && data_in_valid &&
@@ -188,15 +196,15 @@ end
 
 // ---------------------------------------------------------------------------
 // rd_addr_sys — permuted read address during DRAIN
-// Steps by rd_step_sys modulo block_size each drain cycle.
-// Reset to 0 when not in DRAIN state.
+// ETSI multiplicative: k = 1 + (a·i) mod K  →  first read at a, step by a.
+// Reset to a_param (not 0) on fill-to-drain transition.
 // Pipeline Stage 1: read address
 // ---------------------------------------------------------------------------
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys)
         rd_addr_sys <= 9'd0;
     else if (state_sys == S_FILL)
-        rd_addr_sys <= 9'd0;
+        rd_addr_sys <= a_param_sys;   // start at 'a' for multiplicative perm
     else if (state_sys == S_DRAIN)
         rd_addr_sys <= rd_next_sys;
 end

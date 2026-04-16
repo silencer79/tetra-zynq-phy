@@ -5,10 +5,10 @@
 // Implements the TETRA Frame Check Sequence (FCS) as defined in
 // ETSI EN 300 392-2 §8.2.6.
 //
-// Algorithm: CRC-16-CCITT (also known as CRC-16/CCITT-FALSE)
+// Algorithm: CRC-16-CCITT X.25 (HDLC-style complemented FCS)
 //   Polynomial : G(x) = x^16 + x^12 + x^5 + 1  →  0x1021
 //   Initial CRC: 0xFFFF
-//   Final XOR  : none
+//   Final XOR  : 0xFFFF (ones-complement before transmission)
 //   Bit order  : MSB-first (network byte order, as transmitted in TETRA)
 //
 // Serial computation (one bit per valid clock cycle):
@@ -33,7 +33,7 @@
 //   2. Feed data bits followed by the 16 received FCS bits (MSB first)
 //   3. Assert done_in_sys on/after the last FCS bit
 //   4. One cycle later crc_valid_sys pulses HIGH;
-//      crc_ok_sys == 1'b1 iff no bit errors  (residue == 16'h0000)
+//      crc_ok_sys == 1'b1 iff no bit errors  (residue == 16'h1D0F)
 //
 // Priority:
 //   init_sys overrides data_valid_sys on the same clock edge.
@@ -79,11 +79,10 @@ module tetra_crc16 (
 localparam [15:0] POLY_MASK = 16'h1021;
 
 // CRC residue for error-free RX: CRC(data || FCS) == CRC_RESIDUE
-// For CRC-16-CCITT-FALSE (init=0xFFFF, poly=0x1021, no final XOR,
-// FCS transmitted WITHOUT complement), the verification residue is 0x0000.
-// Note: 0x1D0F is the residue for HDLC-style (complemented FCS), which
-// TETRA does NOT use. TETRA transmits the raw CRC as FCS (§8.2.6).
-localparam [15:0] CRC_RESIDUE = 16'h0000;
+// For CRC-16-CCITT X.25 (init=0xFFFF, poly=0x1021, final XOR=0xFFFF),
+// feeding data + complemented FCS through the CRC engine yields 0x1D0F
+// (the "magic" HDLC residue). Matches tetra_hal.c TX-side encoding.
+localparam [15:0] CRC_RESIDUE = 16'h1D0F;
 
 // ---------------------------------------------------------------------------
 // Combinatorial: one-step CRC update

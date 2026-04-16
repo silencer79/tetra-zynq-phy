@@ -8,7 +8,7 @@
 //   wires them in the RX and TX signal paths.
 //
 //   RX path (after burst_demux):
-//     block data → descrambler → deinterleaver → viterbi_decoder → CRC-16
+//     block data → descrambler → deinterleaver → depuncturer → viterbi_decoder → CRC-16
 //     bb data     → reed_muller (decoder)
 //
 //   TX path (before burst_mux):
@@ -17,10 +17,10 @@
 //
 //   steal_detect is wired to the RX path to flag traffic vs. signalling bursts.
 //
-// Note: In Phase 3, this module is structural only. The soft-decision interface
-//   for the Viterbi decoder (3-bit soft bits) is currently driven by the hard-
-//   decision demod output (MSB = sign, all others = 0). Full soft-decision
-//   requires a LLR computation stage in rx_frontend (future work).
+// Note: In Phase 3, this module is structural only. Hard-decision bits from
+//   the deinterleaver are fed through the rate-2/3 depuncturer which inserts
+//   erasures (soft=4) at punctured positions, then into the rate-1/4 Viterbi
+//   decoder. Full soft-decision requires LLR from the demodulator (future work).
 //
 // Coding rules: Verilog-2001 strict (R1–R10 per PROMPT.md)
 // =============================================================================
@@ -99,6 +99,12 @@ wire rx_descr_valid_sys;
 wire rx_deintlv_out_sys;
 wire rx_deintlv_valid_sys;
 wire rx_deintlv_done_sys;
+wire [2:0] rx_depunct_soft0_sys;
+wire [2:0] rx_depunct_soft1_sys;
+wire [2:0] rx_depunct_soft2_sys;
+wire [2:0] rx_depunct_soft3_sys;
+wire       rx_depunct_valid_sys;
+wire       rx_depunct_done_sys;
 
 // ---- TX path ----------------------------------------------------------------
 wire tx_enc_bit2_sys;
@@ -159,20 +165,41 @@ tetra_interleaver #(
     .block_done    (rx_deintlv_done_sys)
 );
 
-// ---- Step 3: Viterbi Decoder ─────────────────────────────────────────────────
-// Hard-decision input: soft_bit_2 = data bit, soft_bit_1/0 = 0 (MSB = sign)
-// (Full soft-decision: future work — requires LLR from demodulator)
+// ---- Step 3: Depuncturer (rate-2/3 over rate-1/4 mother) ─────────────────────
+// 3 hard bits in → 2 trellis stages × 4 soft values out (with erasures)
+tetra_depuncture_r23 #(
+    .SOFT_WIDTH(3)
+) u_depuncturer (
+    .clk_sys      (clk_sys),
+    .rst_n_sys    (rst_n_sys),
+    .data_in      (rx_deintlv_out_sys),
+    .data_in_valid(rx_deintlv_valid_sys),
+    .soft_0       (rx_depunct_soft0_sys),
+    .soft_1       (rx_depunct_soft1_sys),
+    .soft_2       (rx_depunct_soft2_sys),
+    .soft_3       (rx_depunct_soft3_sys),
+    .output_valid (rx_depunct_valid_sys),
+    .block_start  (rx_slot_valid_sys),
+    .block_done   (rx_depunct_done_sys)
+);
+
+// ---- Step 4: Viterbi Decoder (rate-1/4, ETSI generators) ─────────────────────
+// Hard-decision input via depuncturer soft values (0=strong_0, 7=strong_1, 4=erasure)
+// num_stages: BNCH=144 (140 info+4 tail), SCH/F=288 (284 info+4 tail)
+// Using 144 for slot-0 BNCH decode path.
 tetra_viterbi_decoder #(
     .SOFT_WIDTH(3),
-    .TRACEBACK (20),
+    .TRACEBACK (32),
     .MAX_STAGES(436)
 ) u_viterbi (
     .clk_sys        (clk_sys),
     .rst_n_sys      (rst_n_sys),
-    .soft_bit_0     ({2'b0, rx_deintlv_out_sys}),
-    .soft_bit_1     (3'd0),
-    .soft_bit_2     (3'd0),
-    .input_valid    (rx_deintlv_valid_sys),
+    .soft_bit_0     (rx_depunct_soft0_sys),
+    .soft_bit_1     (rx_depunct_soft1_sys),
+    .soft_bit_2     (rx_depunct_soft2_sys),
+    .soft_bit_3     (rx_depunct_soft3_sys),
+    .input_valid    (rx_depunct_valid_sys),
+    .num_stages     (9'd144),
     .punct_pattern  (punct_pattern_sys),
     .decoded_bit    (rx_decoded_bit_sys),
     .decoded_valid  (rx_decoded_valid_sys),
@@ -180,7 +207,7 @@ tetra_viterbi_decoder #(
     .path_metric_min(rx_path_metric_sys)
 );
 
-// ---- Step 4: CRC-16 (RX checker) ────────────────────────────────────────────
+// ---- Step 5: CRC-16 (RX checker) ────────────────────────────────────────────
 tetra_crc16 u_rx_crc (
     .clk_sys      (clk_sys),
     .rst_n_sys    (rst_n_sys),
@@ -193,7 +220,7 @@ tetra_crc16 u_rx_crc (
     .crc_ok_sys   (rx_crc_ok_sys)
 );
 
-// ---- Step 5: Reed-Muller Decoder (BB / AACH) ─────────────────────────────────
+// ---- Step 6: Reed-Muller Decoder (BB / AACH) ─────────────────────────────────
 tetra_reed_muller #(
     .N(30),
     .K(14)

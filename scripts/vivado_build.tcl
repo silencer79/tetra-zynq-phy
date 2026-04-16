@@ -135,6 +135,7 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_lmac.v \
  $PROJ_DIR/rtl/lmac/tetra_scrambler.v \
  $PROJ_DIR/rtl/lmac/tetra_interleaver.v \
+ $PROJ_DIR/rtl/lmac/tetra_depuncture_r23.v \
  $PROJ_DIR/rtl/lmac/tetra_rcpc_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_viterbi_decoder.v \
  $PROJ_DIR/rtl/lmac/tetra_reed_muller.v \

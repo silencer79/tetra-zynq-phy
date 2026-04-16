@@ -2,8 +2,8 @@
 // tetra_viterbi_decoder.v — 16-State Soft-Decision Viterbi Decoder
 // =============================================================================
 // ETSI EN 300 392-2 §8.2.3
-// Rate 1/3 mother code, Constraint Length K=5, 16 states
-// Generator polynomials (octal): G1=33 (0x1B), G2=31 (0x19), G3=25 (0x15)
+// Rate 1/4 mother code, Constraint Length K=5, 16 states
+// Generator polynomials: G1=0x13, G2=0x1D, G3=0x17, G4=0x1B
 // Soft-decision: 3-bit unsigned  0=strong_0 .. 7=strong_1, 4=erasure
 //
 // Trellis convention:
@@ -11,10 +11,12 @@
 //   new_state  = {input_bit, prev_state[3:1]}
 //   Predecessors of state s: prev0 = {s[2:0], 0}, prev1 = {s[2:0], 1}
 //   Input bit for both predecessors = s[3]
-//   Branch outputs: g1_p0 = s[3]^s[2]^s[0]  (G1=0x1B: taps 4,3,1,0)
-//                   g2_p0 = s[3]^s[2]        (G2=0x19: taps 4,3,0)
-//                   g3_p0 = s[3]^s[1]        (G3=0x15: taps 4,2,0)
-//                   g{1,2,3}_p1 = NOT g{1,2,3}_p0  => bm1 = 21 - bm0
+//   Branch outputs (for P0 predecessor, sr LSB=0):
+//     g1_p0 = s[3]^s[0]         (G1=0x13: taps 4,1,0)
+//     g2_p0 = s[3]^s[2]^s[1]    (G2=0x1D: taps 4,3,2,0)
+//     g3_p0 = s[3]^s[1]^s[0]    (G3=0x17: taps 4,2,1,0)
+//     g4_p0 = s[3]^s[2]^s[0]    (G4=0x1B: taps 4,3,1,0)
+//   All generators have tap at position 0 => g_p1 = ~g_p0 => bm1 = 28 - bm0
 //
 // Operation (block-based, one block at a time):
 //   S_IDLE      — wait for first input_valid
@@ -30,7 +32,7 @@
 // Resource estimate: ~2500 LUT, ~7800 FF, 0 DSP, 0 BRAM
 //
 // Ports:
-//   soft_bit_0/1/2  — G1/G2/G3 soft values, one triplet per trellis stage
+//   soft_bit_0/1/2/3 — G1/G2/G3/G4 soft values, one quad per trellis stage
 //   num_stages      — total trellis stages = info_bits + K-1 tail (e.g. 220, 436)
 //   punct_pattern   — reserved (depuncturing / erasure insertion is upstream)
 //   path_metric_min — minimum final path metric, proxy for BER estimation
@@ -45,10 +47,11 @@ module tetra_viterbi_decoder #(
 )(
     input  wire                  clk_sys,
     input  wire                  rst_n_sys,
-    // Soft-decision input (one triplet per trellis stage; erasures pre-inserted)
-    input  wire [SOFT_WIDTH-1:0] soft_bit_0,   // G1=0x1B channel
-    input  wire [SOFT_WIDTH-1:0] soft_bit_1,   // G2=0x19 channel
-    input  wire [SOFT_WIDTH-1:0] soft_bit_2,   // G3=0x15 channel
+    // Soft-decision input (one quad per trellis stage; erasures pre-inserted)
+    input  wire [SOFT_WIDTH-1:0] soft_bit_0,   // G1=0x13 channel
+    input  wire [SOFT_WIDTH-1:0] soft_bit_1,   // G2=0x1D channel
+    input  wire [SOFT_WIDTH-1:0] soft_bit_2,   // G3=0x17 channel
+    input  wire [SOFT_WIDTH-1:0] soft_bit_3,   // G4=0x1B channel
     input  wire                  input_valid,
     // Block configuration
     input  wire [8:0]            num_stages,   // info_bits + K-1  (e.g. 220 or 436)
@@ -137,9 +140,9 @@ module tetra_viterbi_decoder #(
     // For each new_state s:
     //   P0 = (s & 7) << 1       predecessor with LSB=0
     //   P1 = ((s & 7) << 1) | 1 predecessor with LSB=1
-    //   G1P0 = s[3]^s[2]^s[0], G2P0 = s[3]^s[2], G3P0 = s[3]^s[1]
-    //   bm0 = sum( G_k ? (7-soft_k) : soft_k  for k in {0,1,2} )
-    //   bm1 = 21 - bm0  (butterfly: g_p1 = ~g_p0)
+    //   G1P0 = s[3]^s[0], G2P0 = s[3]^s[2]^s[1], G3P0 = s[3]^s[1]^s[0], G4P0 = s[3]^s[2]^s[0]
+    //   bm0 = sum( G_k ? (7-soft_k) : soft_k  for k in {0,1,2,3} )
+    //   bm1 = 28 - bm0  (butterfly: g_p1 = ~g_p0)
     //   cost0 = pm[P0] + bm0,  cost1 = pm[P1] + bm1
     //   surv  = (cost1 < cost0) ? 1 : 0
     //   raw   = min(cost0, cost1)
@@ -154,18 +157,20 @@ module tetra_viterbi_decoder #(
         // Compile-time constants — predecessor indices and branch outputs
         localparam P0   = (s & 7) << 1;
         localparam P1   = ((s & 7) << 1) | 1;
-        localparam G1P0 = ((s >> 3) ^ (s >> 2) ^ s) & 1;  // s[3]^s[2]^s[0]
-        localparam G2P0 = ((s >> 3) ^ (s >> 2)) & 1;       // s[3]^s[2]
-        localparam G3P0 = ((s >> 3) ^ (s >> 1)) & 1;       // s[3]^s[1]
+        localparam G1P0 = ((s >> 3) ^ s) & 1;                // s[3]^s[0]        G1=0x13
+        localparam G2P0 = ((s >> 3) ^ (s >> 2) ^ (s >> 1)) & 1; // s[3]^s[2]^s[1]  G2=0x1D
+        localparam G3P0 = ((s >> 3) ^ (s >> 1) ^ s) & 1;  // s[3]^s[1]^s[0]  G3=0x17
+        localparam G4P0 = ((s >> 3) ^ (s >> 2) ^ s) & 1;  // s[3]^s[2]^s[0]  G4=0x1B
 
-        // Branch metric for P0 path (3 terms each 0..7, sum 0..21, 5-bit)
+        // Branch metric for P0 path (4 terms each 0..7, sum 0..28, 5-bit)
         wire [4:0] bm0_w =
             ({2'b0, G1P0[0] ? (3'd7 - soft_bit_0) : soft_bit_0}) +
             ({2'b0, G2P0[0] ? (3'd7 - soft_bit_1) : soft_bit_1}) +
-            ({2'b0, G3P0[0] ? (3'd7 - soft_bit_2) : soft_bit_2});
-        wire [4:0] bm1_w = 5'd21 - bm0_w;
+            ({2'b0, G3P0[0] ? (3'd7 - soft_bit_2) : soft_bit_2}) +
+            ({2'b0, G4P0[0] ? (3'd7 - soft_bit_3) : soft_bit_3});
+        wire [4:0] bm1_w = 5'd28 - bm0_w;
 
-        // ACS (17-bit: 16-bit metric + 5-bit bm; max 0xFFFF+21 fits in 17 bits)
+        // ACS (17-bit: 16-bit metric + 5-bit bm; max 0xFFFF+28 fits in 17 bits)
         wire [16:0] cost0_w = {1'b0, pm_flat_sys[P0*16 +: 16]} + {12'b0, bm0_w};
         wire [16:0] cost1_w = {1'b0, pm_flat_sys[P1*16 +: 16]} + {12'b0, bm1_w};
 
@@ -217,7 +222,7 @@ module tetra_viterbi_decoder #(
     wire [16:0] pm_raw_min_w = (mn07 <= mn8F) ? mn07 : mn8F;
 
     // Normalized new metrics: subtract minimum so best state = 0 (clamp at 16'hFFFF)
-    // Since raw >= min, subtraction can't underflow; max spread bounded by TRACEBACK*21
+    // Since raw >= min, subtraction can't underflow; max spread bounded by TRACEBACK*28
     generate
     for (s = 0; s < 16; s = s + 1) begin : g_norm
         wire [16:0] diff_w = g_acs[s].raw_w - pm_raw_min_w;
