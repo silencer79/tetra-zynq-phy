@@ -7,7 +7,7 @@
 // TX Chain Container — instantiates and connects all TX datapath modules:
 //
 // AXI-DMA (MM2S) ─► burst_mux ─► burst_builder ─► pi4dqpsk_mod
-// ─► rrc_filter ─► tx_frontend ─► tx_nco ─► AD9361
+// ─► rrc_filter ─► tx_frontend ─► AD9361
 //
 // Continuous downlink: all 4 timeslots always transmit (SDB or NDB).
 // No TX blanking — the continuous burst format with tail symbols ensures
@@ -16,10 +16,10 @@
 // Signal flow (clk_sys, all modules):
 // burst_mux → build_req → burst_builder → tx_dibit → pi4dqpsk_mod
 // pi4dqpsk_mod → dibit → sample_valid → rrc_filter
-// rrc_filter → IQ → tx_frontend (CDC) → tx_nco → tx_i/q/valid_lvds
+// rrc_filter → IQ → tx_frontend (CDC) → tx_i/q/valid_lvds
 //
 // Resource estimate (sum of sub-modules):
-// LUT : ~400 FF : ~1700 DSP48 : 1 BRAM : 1
+// LUT : ~280 FF : ~1500 DSP48 : 1 BRAM : 1
 //
 // Coding rules: Verilog-2001 strict (R1–R10 per PROMPT.md)
 // =============================================================================
@@ -31,8 +31,7 @@ module tetra_tx_chain #(
  parameter IQ_WIDTH = 16,
  parameter BLOCK_BITS = 216,
  parameter BB_BITS = 30,
- parameter SB1_BITS = 120, // SDB sb1 bits (60 symbols × 2)
- parameter PHASE_WIDTH = 32  // NCO phase accumulator width
+ parameter SB1_BITS = 120  // SDB sb1 bits (60 symbols × 2)
 )(
  // -------------------------------------------------------------------------
  // clk_sys domain
@@ -61,9 +60,6 @@ module tetra_tx_chain #(
  // Per-slot configuration
  input wire [3:0] slot_en_sys,
  input wire [3:0] slot_burst_type_sys, // 1 bit per slot: 0=NDB, 1=SDB
-
- // NCO phase increment (from AXI register, sys domain)
- input wire [PHASE_WIDTH-1:0] nco_phase_inc_sys,
 
  // Diagnostic test mode: when HIGH, the builder dibit feeding the modulator
  // is replaced by a 15-bit LFSR PRBS.  Used for spectrum verification — all
@@ -124,10 +120,7 @@ wire signed [IQ_WIDTH-1:0] rrc_i_sys;
 wire signed [IQ_WIDTH-1:0] rrc_q_sys;
 wire rrc_sample_valid_sys;
 
-// tx_frontend → tx_nco
-wire signed [IQ_WIDTH-1:0] fe_i_lvds;
-wire signed [IQ_WIDTH-1:0] fe_q_lvds;
-wire fe_valid_lvds;
+// tx_frontend → output
 
 // =============================================================================
 // burst_mux
@@ -272,28 +265,9 @@ tetra_tx_frontend #(
  .sample_valid_in(rrc_sample_valid_sys),
  .clk_lvds (clk_lvds),
  .rst_n_lvds (rst_n_lvds),
- .tx_i_lvds (fe_i_lvds),
- .tx_q_lvds (fe_q_lvds),
- .tx_valid_lvds (fe_valid_lvds)
-);
-
-// =============================================================================
-// tx_nco — complex frequency shifter (LO leakage avoidance)
-// =============================================================================
-tetra_tx_nco #(
- .IQ_WIDTH (IQ_WIDTH),
- .PHASE_WIDTH(PHASE_WIDTH),
- .LUT_BITS (10)
-) u_tx_nco (
- .clk_lvds       (clk_lvds),
- .rst_n_lvds     (rst_n_lvds),
- .phase_inc_sys  (nco_phase_inc_sys),
- .i_in           (fe_i_lvds),
- .q_in           (fe_q_lvds),
- .valid_in       (fe_valid_lvds),
- .i_out          (tx_i_lvds),
- .q_out          (tx_q_lvds),
- .valid_out      (tx_valid_lvds)
+ .tx_i_lvds (tx_i_lvds),
+ .tx_q_lvds (tx_q_lvds),
+ .tx_valid_lvds (tx_valid_lvds)
 );
 
 // =============================================================================

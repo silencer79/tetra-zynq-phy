@@ -32,7 +32,7 @@
 //   0x40–0x4C SB_SB1_0..3 R/W  BSCH coded payload, 120 bits (w3 [23:0])
 //   0x60–0x78 SB_BKN2_0..6 R/W BNCH coded payload, 216 bits (w6 [23:0])
 //   0x7C  SB_BB         R/W  AACH coded payload,  30 bits [29:0]
-//   0x80  NCO_PHASE_INC R/W  [31:0]
+//   0x80  (removed — was NCO_PHASE_INC)
 //   0x84  TX_TEST       R/W  [0] PRBS_EN
 //   0x88–0xA0 NDB_BLK1_0..6 R/W NDB block1 coded payload, 216 bits (w6 [23:0])
 //   0xA4–0xBC NDB_BLK2_0..6 R/W NDB block2 coded payload, 216 bits (w6 [23:0])
@@ -115,6 +115,11 @@ module tetra_axi_lite_regs (
     input  wire [4:0]  tx_frame_axi,      // TX free-running frame (1-18)
     input  wire [5:0]  tx_mf_axi,         // TX free-running multiframe (1-60)
 
+    // RX debug counters (clk_sys domain, reset by CTRL[3])
+    input  wire [31:0] dbg_fe_cnt_axi,    // RX frontend out_valid count
+    input  wire [31:0] dbg_demod_cnt_axi, // Demod dibit_valid count
+    input  wire [31:0] dbg_sync_cnt_axi,  // Sync found count
+
     // Interrupt inputs (1-cycle pulses, pre-synchronized to axi domain)
     input  wire        irq_mac_block_axi,
     input  wire        irq_sync_acquired_axi,
@@ -147,9 +152,6 @@ module tetra_axi_lite_regs (
     output wire [119:0] sb_sb1_axi,
     output wire [215:0] sb_bkn2_axi,
     output wire [29:0]  sb_bb_axi,
-
-    // NCO phase increment (for TX LO offset)
-    output reg  [31:0] nco_phase_inc_axi,
 
     // TX test mode (0x84 bit 0): PRBS dibit injection for spectrum verification
     output reg         tx_test_prbs_en_axi,
@@ -204,7 +206,10 @@ localparam [5:0] REG_SB_SB1_0    = 6'h10; // 0x40
 localparam [5:0] REG_SB_SB1_1    = 6'h11; // 0x44
 localparam [5:0] REG_SB_SB1_2    = 6'h12; // 0x48
 localparam [5:0] REG_SB_SB1_3    = 6'h13; // 0x4C  (bits [23:0] used)
-// 0x50–0x5C: unused (freed from old 240-bit bkn1)
+// RX debug counters (read-only, reset by CTRL[3])
+localparam [5:0] REG_DBG_FE_CNT   = 6'h14; // 0x50  RX frontend valid count
+localparam [5:0] REG_DBG_DEMOD_CNT= 6'h15; // 0x54  Demod dibit valid count
+localparam [5:0] REG_DBG_SYNC_CNT = 6'h16; // 0x58  Sync found count
 // bkn2: 216 bits in 7 words (word 6 bits [23:0] only)
 localparam [5:0] REG_SB_BKN2_0   = 6'h18; // 0x60
 localparam [5:0] REG_SB_BKN2_1   = 6'h19; // 0x64
@@ -215,9 +220,6 @@ localparam [5:0] REG_SB_BKN2_5   = 6'h1D; // 0x74
 localparam [5:0] REG_SB_BKN2_6   = 6'h1E; // 0x78  (bits [23:0] used)
 // bb: 30 bits in 1 word
 localparam [5:0] REG_SB_BB       = 6'h1F; // 0x7C  (bits [29:0] used)
-
-// NCO phase increment (0x80)
-localparam [5:0] REG_NCO_PHASE_INC = 6'h20; // 0x80  [31:0] signed
 
 // TX test register (0x84)
 //   [0] TX_PRBS_EN — replace burst_builder dibit with 15-bit LFSR-PRBS
@@ -380,6 +382,9 @@ always @(*) begin
         REG_SYNC_LST_CNT:rdata_mux_axi = {16'b0, sync_lost_count_axi};
         REG_TX_TDMA:      rdata_mux_axi = {19'b0, tx_mf_axi, tx_frame_axi, tx_slot_axi};
         REG_SCRATCH:      rdata_mux_axi = scratch_axi;
+        REG_DBG_FE_CNT:   rdata_mux_axi = dbg_fe_cnt_axi;
+        REG_DBG_DEMOD_CNT: rdata_mux_axi = dbg_demod_cnt_axi;
+        REG_DBG_SYNC_CNT: rdata_mux_axi = dbg_sync_cnt_axi;
         // SB Payload readback
         REG_SB_SB1_0:    rdata_mux_axi = sb_sb1_w0_axi;
         REG_SB_SB1_1:    rdata_mux_axi = sb_sb1_w1_axi;
@@ -393,7 +398,6 @@ always @(*) begin
         REG_SB_BKN2_5:   rdata_mux_axi = sb_bkn2_w5_axi;
         REG_SB_BKN2_6:   rdata_mux_axi = {8'b0, sb_bkn2_w6_axi};
         REG_SB_BB:        rdata_mux_axi = {2'b0, sb_bb_w0_axi};
-        REG_NCO_PHASE_INC: rdata_mux_axi = nco_phase_inc_axi;
         REG_TX_TEST:       rdata_mux_axi = {31'b0, tx_test_prbs_en_axi};
         // NDB block1/block2 readback
         REG_NDB_BLK1_0:   rdata_mux_axi = ndb_blk1_w0_axi;
@@ -463,7 +467,7 @@ assign ctrl_reset_counters_axi = ctrl_reg_axi[3];
 // ---- SYNC_THRESH register (0x0C) ----
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
-        sync_thresh_axi <= 8'h14; // default 20; verified on hardware as a better lock/false-trigger tradeoff
+        sync_thresh_axi <= 8'h0F; // default 15; must be ≤19 for STS (19 symbols), ≤11 for NTS
     else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SYNC_THRESH) & wr_strb_axi[0])
         sync_thresh_axi <= wr_data_axi[7:0];
 end
@@ -626,12 +630,6 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
 end
 
 assign sb_bb_axi = sb_bb_w0_axi;
-
-// ---- NCO_PHASE_INC register (0x80) ----
-always @(posedge clk_axi or negedge rst_n_axi) begin
-    if (!rst_n_axi) nco_phase_inc_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NCO_PHASE_INC)) nco_phase_inc_axi <= wr_data_axi;
-end
 
 // ---- TX_TEST register (0x84) ----
 // Bit [0] = PRBS enable (inject 15-bit LFSR dibits into TX chain for spectrum test)

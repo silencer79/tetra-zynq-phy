@@ -65,7 +65,6 @@
 #define REG_SB_BKN2_5      0x74  /* bkn2 word 5 (bits [55:24])  */
 #define REG_SB_BKN2_6      0x78  /* bkn2 word 6 (bits [23:0])   */
 #define REG_SB_BB           0x7C  /* bb word 0   (bits [29:0])   */
-#define REG_NCO_PHASE_INC  0x80  /* NCO phase increment [31:0]  */
 #define REG_TX_TEST        0x84  /* [0] PRBS enable              */
 
 /* NDB block1/block2 payload registers (216 bits each, broadcast to all 4 slots).
@@ -193,10 +192,6 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info);
  * Returns 0 on success. */
 int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
                             uint16_t mcc, uint16_t mnc);
-
-/* Set TX NCO frequency offset in Hz (shifts signal away from LO leakage).
- * AD9361 TX LO should be set freq_hz lower than desired TX frequency. */
-void tetra_set_nco_offset(tetra_hal_t *hal, int32_t freq_hz);
 
 /* Enable TX+RX (CTRL = 0x03), optionally set SYNC_THRESH */
 void tetra_enable(tetra_hal_t *hal, uint8_t sync_thresh);

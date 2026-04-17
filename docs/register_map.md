@@ -45,7 +45,7 @@ Address space: 256 bytes (0x00 – 0xFF), 32-bit word-aligned accesses only.
 | 0x74   | SB_BKN2_5         | R/W    | 0x0000_0000| SDB bkn2 word 5 (bits [55:24])       |
 | 0x78   | SB_BKN2_6         | R/W    | 0x0000_0000| SDB bkn2 word 6 (bits [23:0])        |
 | 0x7C   | SB_BB             | R/W    | 0x0000_0000| AACH bb (bits [29:0])                |
-| 0x80   | NCO_PHASE_INC     | R/W    | 0x0000_0000| TX NCO phase increment [31:0]        |
+| 0x80   | *(removed)*       | —      | —          | Was NCO_PHASE_INC (removed 2026-04-17) |
 | 0x84   | TX_TEST           | R/W    | 0x0000_0000| Diagnostic: bit[0] = PRBS enable     |
 | 0x88   | NDB_BLK1_0        | R/W    | 0x0000_0000| NDB block1 word 0 (bits [215:184])   |
 | 0x8C   | NDB_BLK1_1        | R/W    | 0x0000_0000| NDB block1 word 1 (bits [183:152])   |
@@ -166,20 +166,6 @@ First half of SCH/F output. MSB-first. Concat: `{w0..w5, w6[23:0]}` → 216 bits
 ### NDB_BLK2 (216 type-5 bits, 7 registers 0xA4–0xBC)
 
 Second half of SCH/F output. Same layout as NDB_BLK1.
-
----
-
-## NCO_PHASE_INC (0x80)
-
-TX NCO phase accumulator increment. Shifts the TX signal away from LO leakage.
-
-Formula: `phase_inc = f_offset_hz × 2^32 / 4608000`
-
-| Offset (Hz) | phase_inc (hex) | Notes |
-|-------------|-----------------|-------|
-| 25,000      | 0x0163_8E90     | Too close to LO (~8 dB separation) |
-| 100,000     | 0x058E_38E3     | Good (48 dB separation) |
-| **106,000** | **0x05E3_8E39** | **Default — signal at 440.106 MHz when TX_LO=440 MHz** |
 
 ---
 

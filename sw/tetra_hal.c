@@ -727,16 +727,6 @@ int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
  * Control Functions
  * ======================================================================== */
 
-/* Set TX NCO phase increment for LO offset.
- * phase_inc = (int32_t)(f_offset_hz * 4294967296.0 / 4608000.0)
- * Example: 25000 Hz → 23301840 (0x01638E90) */
-void tetra_set_nco_offset(tetra_hal_t *hal, int32_t freq_hz)
-{
-    int32_t phase_inc = (int32_t)((double)freq_hz * 4294967296.0 / 4608000.0);
-    tetra_reg_write(hal, REG_NCO_PHASE_INC, (uint32_t)phase_inc);
-    printf("NCO offset: %d Hz (phase_inc=0x%08X)\n", freq_hz, (uint32_t)phase_inc);
-}
-
 void tetra_enable(tetra_hal_t *hal, uint8_t sync_thresh)
 {
     if (sync_thresh > 0)
@@ -797,7 +787,6 @@ static void usage(const char *prog)
         "  --la N        Location Area (0-16383, default 1)\n"
         "  --cc N        Colour Code (0-63, default 1)\n"
         "  --thresh N    Sync threshold (1-255, default 0=unchanged)\n"
-        "  --nco N       TX NCO offset in Hz (default 25000)\n"
         "  --status      Print status registers and exit\n"
         "  --no-enable   Write SYSINFO but don't enable TX/RX\n"
         "  -h, --help    Show this help\n",
@@ -818,7 +807,6 @@ int main(int argc, char *argv[])
         .dl_usage         = 0x3F,  /* All slots available */
     };
     int sync_thresh = 0;
-    int nco_offset_hz = 106000;
     int status_only = 0;
     int no_enable = 0;
 
@@ -828,7 +816,6 @@ int main(int argc, char *argv[])
         {"la",        required_argument, NULL, 'l'},
         {"cc",        required_argument, NULL, 'c'},
         {"thresh",    required_argument, NULL, 't'},
-        {"nco",       required_argument, NULL, 'o'},
         {"status",    no_argument,       NULL, 's'},
         {"no-enable", no_argument,       NULL, 'x'},
         {"help",      no_argument,       NULL, 'h'},
@@ -836,14 +823,13 @@ int main(int argc, char *argv[])
     };
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "m:n:l:c:t:o:sxh", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "m:n:l:c:t:sxh", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'm': info.mcc         = atoi(optarg); break;
         case 'n': info.mnc         = atoi(optarg); break;
         case 'l': info.la          = atoi(optarg); break;
         case 'c': info.colour_code = atoi(optarg); break;
         case 't': sync_thresh      = atoi(optarg); break;
-        case 'o': nco_offset_hz    = atoi(optarg); break;
         case 's': status_only      = 1;            break;
         case 'x': no_enable        = 1;            break;
         case 'h': /* fall through */
@@ -899,10 +885,6 @@ int main(int argc, char *argv[])
     tetra_reg_write(&hal, REG_COLOUR_CODE,
                     scrambler_init(info.colour_code, 0,
                                    info.mcc, info.mnc));
-
-    /* Set TX NCO offset to shift signal away from LO leakage.
-     * AD9361 TX LO must be set nco_offset_hz lower to compensate. */
-    tetra_set_nco_offset(&hal, nco_offset_hz);
 
     if (!no_enable)
         tetra_enable(&hal, sync_thresh);

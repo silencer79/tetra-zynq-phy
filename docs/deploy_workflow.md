@@ -1,427 +1,164 @@
 # Deployment Workflow — TETRA PHY on LibreSDR
 
-This document describes the step-by-step process for deploying the TETRA PHY/LMAC bitstream to LibreSDR using FPGA Manager (dynamic loading without reboot).
+**Last Updated:** 2026-04-17
 
 ---
 
 ## Overview
 
-The deployment uses **Option B: FPGA Manager Dynamic Loading** (chosen by Kevin).
-
-**Workflow:**
+Deploy pipeline from Vivado source to running TETRA basestation on LibreSDR.
 
 ```
-Vivado Build → Bitstream Conversion → Transfer → full_init (2× Bitstream + 2× AD9361 + DAC + ADC) → Test
+Vivado Build → bootgen (.bit → .bit.bin) → Cross-Compile SW → SCP Upload → full_init → RF Loopback
 ```
 
-**Empfohlen:** `tetra_ctrl.sh full_init` automatisiert alle Schritte nach dem Transfer.
+**Empfohlen:** `scripts/deploy.sh` automatisiert Build + Convert + Compile + Upload.
 
 ---
 
-## Prerequisites
-
-Before starting, ensure:
-
-1. ✅ LibreSDR is powered on and network-accessible (see [hw_setup.md](./hw_setup.md))
-2. ✅ Build successful: `build/tetra_zynq_phy.bit` exists
-3. ✅ SSH access to LibreSDR works: `ssh root@192.168.2.180`
-4. ✅ FPGA Manager kernel support enabled (OpenWiFi image)
-
----
-
-## Phase 1: Build Verification
-
-### Step 1.1: Verify Bitstream
+## Quick Reference
 
 ```bash
-# On Host
-ls -lh build/tetra_zynq_phy.bit
-# Expected: ~4 MB file
+# Full pipeline: Build + Convert + Compile + Upload
+./scripts/deploy.sh
 
-# Check build timestamp
-stat build/tetra_zynq_phy.bit
+# Skip Vivado build (use existing .bit)
+./scripts/deploy.sh --no-build
+
+# Skip SW compile
+./scripts/deploy.sh --no-sw
+
+# Only build, nothing else
+./scripts/deploy.sh --build-only
+
+# Include full_init + tetra_sysinfo after upload (opt-in)
+./scripts/deploy.sh --init
 ```
 
-### Step 1.2: Verify Probes (ILA Debug)
+Nach dem Deploy (ohne `--init`):
 
 ```bash
-ls -lh build/tetra_zynq_phy.ltx
-# Expected: ~7 KB file
-```
-
----
-
-## Phase 2: Bitstream Conversion
-
-Convert Vivado `.bit` format to Linux FPGA Manager `.bit.bin` format.
-
-**Prerequisites:**
-- ✅ Bitstream: `build/tetra_zynq_phy.bit` (from Phase 1)
-- ✅ Vivado environment sourced
-
-### Step 2.1: Run Conversion Script
-
-```bash
-# Ensure Vivado environment is sourced
-source /opt/Xilinx/Vivado/2022.2/settings64.sh
-
-# Run conversion from build directory
-./scripts/convert_bitstream.sh
-
-# Output: build/tetra_zynq_phy.bit.bin
-```
-
-**What happens:**
-- Creates BIF (Boot Image Format) configuration
-- Uses Xilinx `bootgen` tool
-- Adds Linux-specific headers for FPGA Manager
-- Creates BIN-formatted bitstream
-
-### Step 2.2: Verify Converted Bitstream
-
-```bash
-file build/tetra_zynq_phy.bit.bin
-# Expected: "data" (binary file)
-
-# Size comparison
-ls -lh build/tetra_zynq_phy.bit*
-# .bit and .bit.bin should be similar size
-```
-
----
-
-## Phase 3: Transfer to Target
-
-### Step 3.1: Create Firmware Directory
-
-On LibreSDR:
-
-```bash
-ssh root@192.168.2.180 "mkdir -p /lib/firmware"       
-```
-
-### Step 3.2: Transfer Bitstream
-
-```bash
-# Using scp
-scp build/tetra_zynq_phy.bit.bin root@192.168.2.180:/lib/firmware/
-
-# Using rsync (preferred for large files)
-rsync -av build/tetra_zynq_phy.bit.bin root@192.168.2.180:/lib/firmware/
-```
-
-### Step 3.3: Transfer ILA Probes (for Debug)
-
-```bash
-scp build/tetra_zynq_phy.ltx root@192.168.2.180:/lib/firmware/
-```
-
----
-
-## Phase 4: FPGA Manager Loading
-
-### Empfohlen: `full_init` (automatisiert)
-
-```bash
+# Board initialisieren (2x Bitstream + 2x AD9361 + DAC/ADC)
 ./scripts/tetra_ctrl.sh full_init 430000000 430000000
-```
 
-Führt automatisch aus:
-1. Erster Bitstream-Load
-2. AD9361 Init (4.608 MSPS, slow_attack AGC)
-3. Zweiter Bitstream-Load (MMCM sieht jetzt stabilen DATA_CLK)
-4. AD9361 Re-Init (stellt AXI-Register her, die Step 3 zurücksetzt)
-5. DAC-Core Init (RSTN + fabric data mode)
-6. ADC-Core Init (**CH0/CH1 = 0x51** = enable + sign-extend 12→16 bit)
+# tetra_sysinfo starten
+ssh root@192.168.2.180 'nohup /root/tetra_sysinfo > /tmp/tetra_sysinfo.log 2>&1 &'
 
-### Cold-Boot Rule: Bitstream MUSS zweimal geladen werden
+# RF Loopback konfigurieren (TX_ATT=-10 dB empfohlen)
+./scripts/tetra_ctrl.sh rf_loopback 430000000 430000000 15 -10
 
-After a board reboot, the first bitstream load only brings up the FPGA fabric.
-The `axi_ad9361` clocking depends on the AD9361 DATA_CLK, and that clock
-is only stable after `ad9361_init.sh` has configured the chip.
-
-If the second load is skipped, `l_clk` / `clk_lvds` may stay dead and TX/RX can
-look partially alive while the LVDS-domain logic is still stalled.
-
-### KRITISCH: ADC Channel Register = 0x51
-
-Nach jedem `adc_init` MUSS gelten:
-- ADC CH0 (I): `busybox devmem $((ADC+0x400))` → `0x00000051`
-- ADC CH1 (Q): `busybox devmem $((ADC+0x440))` → `0x00000051`
-
-`0x51` = dfmt_se (bit6) + dfmt_enable (bit4) + enable (bit0).
-**Bei 0x01 (nur enable) wird das 12-bit ADC-Signal zero-extended statt sign-extended
-→ RF Loopback SYNC unmöglich!** (Root Cause des RF-Failures, behoben 2026-04-13)
-
-### DAC Debug Note
-
-This design is built with `CONFIG.DAC_DDS_DISABLE=1` in
-[`scripts/create_bd.tcl`](../scripts/create_bd.tcl). Do not use
-`DAT_SEL=0` as a proof that the RF TX path is alive; the internal ADI DDS test
-source is disabled here. A narrow CW-like line on the SDR can still be simple
-LO leakage from the AD9361.
-
-### Step 4.1: Unload Existing FPGA Configuration
-
-If a bitstream is already loaded:
-
-```bash
-ssh root@192.168.2.180 << 'EOF'
-# Check current FPGA state
-cat /sys/class/fpga_manager/fpga0/state
-
-# If "operating", unload it
-echo 0 > /sys/class/fpga_manager/fpga0/flags
-EOF
-```
-
-### Step 4.2: Load New Bitstream
-
-```bash
-ssh root@192.168.2.180 << 'EOF'
-# Set firmware name
-echo tetra_zynq_phy.bit.bin > /sys/class/fpga_manager/fpga0/firmware
-
-# Trigger FPGA configuration
-echo 1 > /sys/class/fpga_manager/fpga0/flags
-
-# Wait for configuration
-sleep 2
-
-# Verify state
-cat /sys/class/fpga_manager/fpga0/state
-# Expected: "operating"
-EOF
-```
-
-### Step 4.3: Verify FPGA Status
-
-```bash
-ssh root@192.168.2.180 << 'EOF'
-# Check FPGA status
-dmesg | tail -20 | grep -i fpga
-
-# Expected: "fpga_manager fpga0: writing tetra_zynq_phy.bit.bin"
-EOF
+# Lock prüfen
+./scripts/tetra_ctrl.sh monitor
 ```
 
 ---
 
-## Phase 5: AD9361 RF Configuration
+## Was deploy.sh macht
 
-Bei Nutzung von `full_init` ist dieser Schritt bereits enthalten. Für manuelle Konfiguration:
+| Schritt | Beschreibung | Flag zum Überspringen |
+|---------|-------------|----------------------|
+| 1. Vivado Build | Synthese + Implementierung + Bitstream | `--no-build` |
+| 2. bootgen | `.bit` → `.bit.bin` Konvertierung | — (immer) |
+| 3. Cross-Compile | `arm-linux-gnueabihf-gcc` → `tetra_sysinfo` | `--no-sw` |
+| 4. Upload | SCP Bitstream + SW aufs Board, MD5-Verify | — (immer) |
 
-### Step 5.1: Configure AD9361
-
-```bash
-# Auf dem Host:
-./scripts/ad9361_init.sh --agc --freq 430000000
-```
-
-**Parameters set:**
-- RX/TX Frequency: 430 MHz (70cm Amateur Band)
-- Sample Rate: 4.608 MSPS (≠ 4.096!)
-- RX Bandwidth: 5.76 MHz
-- Gain: slow_attack AGC
-- LVDS Mode: 2R2T (Full Duplex, FDD)
-
-### Step 5.2: Verify AD9361 Settings
-
-```bash
-# iio_attr Syntax (libiio 0.24): -c für Kanal, -d für Device
-iio_attr -c ad9361-phy altvoltage0 frequency     # RX LO → 430000000
-iio_attr -c ad9361-phy voltage0 sampling_frequency # → 4607999
-iio_attr -c ad9361-phy voltage0 gain_control_mode  # → slow_attack
-```
+**Wichtig:** `full_init` wird NICHT automatisch ausgeführt (kann Board crashen).
+Opt-in mit `--init`.
 
 ---
 
-## Phase 6: Register Access Test
+## full_init Ablauf
 
-### Step 6.1: Direct mmap Access
+`./scripts/tetra_ctrl.sh full_init [RX_Hz] [TX_Hz]`
 
-Test AXI-Lite register interface:
+1. **Erster Bitstream-Load** via FPGA Manager
+2. **AD9361 Init** (Sample Rate 4.608 MSPS, LO, AGC slow_attack, FDD)
+3. **Zweiter Bitstream-Load** (MMCM sieht jetzt stabilen DATA_CLK)
+4. **AD9361 Re-Init** (stellt Register wieder her die Step 3 zurücksetzt)
+5. **DAC Core Init** (RSTN + fabric data mode)
+6. **ADC Core Init** (CH0/CH1 = 0x51 = enable + sign-extend)
 
-```bash
-ssh root@192.168.2.180 << 'EOF'
-# Create test program (if not exists)
-cat > /tmp/test_regs.c << 'CCODE'
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <sys/mman.h>
+### Warum 2x Bitstream?
 
-#define AXI_LITE_BASE 0x40000000
-#define REG_SIZE 0x10000
+Beim Kaltstart ist DATA_CLK vom AD9361 noch nicht da. Der erste Load bringt
+die FPGA-Fabric hoch, aber MMCM hat keinen stabilen Clock-Input. Nach AD9361
+Init liefert DATA_CLK, und der zweite Load konfiguriert die MMCM korrekt.
 
-int main() {
-    int fd = open("/dev/mem", O_RDWR);
-    if (fd < 0) {
-        perror("open /dev/mem");
-        return 1;
-    }
+### Bekanntes Problem: Board-Crash
 
-    volatile uint32_t *regs = mmap(NULL, REG_SIZE,
-        PROT_READ | PROT_WRITE, MAP_SHARED, fd, AXI_LITE_BASE);
-
-    if (regs == MAP_FAILED) {
-        perror("mmap");
-        return 1;
-    }
-
-    // Read STATUS register (offset 0x0004)
-    uint32_t status = regs[0x0004 / 4];
-    printf("STATUS: 0x%08x\n", status);
-    printf("SYNC_LOCKED: %d\n", (status >> 0) & 0x1);
-
-    // Read VERSION register (offset 0x0000)
-    uint32_t version = regs[0x0000 / 4];
-    printf("VERSION: 0x%08x\n", version);
-
-    close(fd);
-    return 0;
-}
-CCODE
-
-# Compile
-gcc -o /tmp/test_regs /tmp/test_regs.c
-
-# Run
-/tmp/test_regs
-EOF
-```
-
-**Expected output:**
-- STATUS register shows SYNC_LOCKED bit
-- VERSION register matches expected value
+Der Bitstream-Load über FPGA Manager crasht das Board gelegentlich. Nach einem
+Crash muss das Board physisch resettet werden. Der Bitstream bleibt auf dem
+Dateisystem erhalten (persistenter Storage).
 
 ---
 
-## Phase 7: Hardware Test (ILA Capture)
-
-### Step 7.1: Capture ILA Data
-
-If ILA cores are present in design:
+## RF Loopback Parameter
 
 ```bash
-# On Host: Use hw_deploy.sh (if available)
-./scripts/hw_deploy.sh --no-flash --timeout 60000
-
-# Or manually via Vivado Hardware Manager
-vivado -mode batch -source scripts/ila_capture.tcl \
-  -tclargs --timeout_ms 60000 --out_dir build/ila_data
+./scripts/tetra_ctrl.sh rf_loopback [RX_Hz] [TX_Hz] [SYNC_THRESH] [TX_ATT_dB]
 ```
 
-### Step 7.2: Analyze ILA Data
+| Parameter | Default | Empfohlen | Beschreibung |
+|-----------|---------|-----------|--------------|
+| RX_Hz | 430000000 | 430000000 | RX LO Frequenz |
+| TX_Hz | 430000000 | 430000000 | TX LO (MUSS = RX für Loopback) |
+| SYNC_THRESH | 15 | 15 | Korrelator-Schwelle (max 19) |
+| TX_ATT_dB | -50 | **-10** | TX Dämpfung (0 bis -89 dB) |
 
-```bash
-# Python analysis script
-python3 scripts/analyze_ila.py \
-  --ila_lvds build/ila_data/ila_lvds_data.csv \
-  --ila_sys build/ila_data/ila_sys_data.csv \
-  --output build/ila_data/analysis_report.txt
-```
+**TX_ATT Sweep (2026-04-17, 10cm Luft-Loopback):**
+
+| TX_ATT | AGC | RSSI | Lock |
+|--------|-----|------|------|
+| -10 dB | 49 dB | 71 dB | ✅ stabil (10/10) |
+| -30 dB | 56 dB | 76 dB | ⚠️ instabil |
+| -50 dB | 73 dB | 98 dB | ❌ zu schwach |
+
+---
+
+## Sync Lock FSM Parameter (tetra_sync_detect.v)
+
+| Parameter | Wert | Beschreibung |
+|-----------|------|--------------|
+| LOCK_TOL | 30 | ±Symbole Toleranz für Spacing-Check |
+| LOCK_TIMEOUT | 3060 | Symbole ohne sync_fire → Unlock (3 Frames) |
+| LOCK_COUNT | 4 | Konsekutive Hits für Lock-Akquisition |
+| HOLDOFF | 220 | Symbole Sperrzeit nach sync_fire |
+
+spacing_ok akzeptiert Frame-Vielfache: 1020 ± 30, 2040 ± 30, 3060 ± 30.
 
 ---
 
 ## Troubleshooting
 
-### FPGA Manager Fails to Load
+### Board crasht bei full_init
+- Board physisch resetten
+- Bitstream ist noch auf `/lib/firmware/` (persistent)
+- Erneut `full_init` versuchen
 
-**Symptom:** `cat /sys/class/fpga_manager/fpga0/state` shows "unknown" or error.
+### SYNC_LOCKED=0 trotz corr_peak=19/19
+- tetra_sysinfo läuft? → `pgrep tetra_sysinfo`
+- TX_ATT zu hoch? → `-10 dB` versuchen
+- ADC Core OK? → `dmesg | grep ad9361` (kein "Tuning RX FAILED")
 
-**Checks:**
-
-1. Verify `.bit.bin` format:
-   ```bash
-   file /lib/firmware/tetra/tetra_zynq_phy.bit.bin
-   # Should be valid binary, not raw .bit
-   ```
-
-2. Check kernel logs:
-   ```bash
-   dmesg | grep -i fpga
-   # Look for "invalid bitstream" or "header not found"
-   ```
-
-3. Try manual conversion:
-   ```bash
-   # Ensure bootgen ran correctly
-   bootgen -w on -process_bitstream bin \
-     -image build/tetra_zynq_phy.xsa \
-     -o build/tetra_zynq_phy.bit.bin
-   ```
-
-### AD9361 Configuration Fails
-
-**Symptom:** `iio_attr` returns "Device not found".
-
-**Checks:**
-
-1. Verify kernel driver:
-   ```bash
-   lsmod | grep ad9361
-   # Should show ad9361_drv
-   ```
-
-2. Check IIO device:
-   ```bash
-   ls /sys/bus/iio/devices/
-   # Should show iio:device0 (ad9361-phy)
-   ```
-
-3. Reboot if driver not loaded:
-   ```bash
-   reboot
-   ```
-
-### Sync Locked Never Asserts
-
-**Symptom:** STATUS register bit 0 stays 0.
-
-**Checks:**
-
-1. AD9361 RX path enabled?
-   ```bash
-   iio_attr -d ad9361-phy -c RX_EN
-   # Should be 1
-   ```
-
-2. Antenna connected to RX port?
-
-3. Signal source transmitting TETRA burst?
-
-4. Check RX frequency:
-   ```bash
-   iio_attr -d ad9361-phy -c RX_LO frequency
-   # Should be 430000000 (or expected frequency)
-   ```
+### AD9361 IIO-Device nicht gefunden
+- Device ist `iio:device1` (nicht device0, das ist XADC)
+- `cat /sys/bus/iio/devices/iio:device1/name` → `ad9361-phy`
 
 ---
 
-## Next Steps
+## Dateien auf dem Board
 
-1. Full-Duplex On-Air Testing (echtes TETRA-Signal)
-2. BER-Messung bei verschiedenen SNR-Pegeln
-3. PS HAL-Software für TETRA-MAC-Stack
-
----
-
-## Alternative: JTAG Deployment
-
-If FPGA Manager is problematic, use JTAG (slower, but reliable):
-
-```bash
-# Program FPGA via JTAG
-vivado -mode batch -source scripts/program_fpga.tcl
-
-# Note: Requires JTAG programmer and USB connection
-```
+| Pfad | Inhalt |
+|------|--------|
+| `/lib/firmware/tetra_zynq_phy.bit.bin` | FPGA Bitstream |
+| `/root/tetra_sysinfo` | SYSINFO-Writer (ARM binary) |
+| `/tmp/tetra_sysinfo.log` | Sysinfo Log-Ausgabe |
 
 ---
 
-## Reference
+## Referenzen
 
-- [FPGA Manager Kernel Documentation](https://www.kernel.org/doc/html/latest/driver-api/fpga/fpga-mgr.html)
-- [AD9361 Linux Driver](https://wiki.analog.com/resources/tools-software/linux-drivers/iio-transceiver/ad9361)
-- [OpenWiFi Deployment Scripts](https://github.com/open-sdr/openwifi)
+- `scripts/deploy.sh` — Build + Deploy Pipeline
+- `scripts/tetra_ctrl.sh` — Board-Steuerung (init, loopback, monitor)
+- `scripts/ad9361_init.sh` — AD9361 Initialisierung
+- `docs/register_map.md` — AXI-Lite Register

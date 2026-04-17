@@ -331,6 +331,7 @@ wire         sync_locked_sys;
 wire         sync_found_sys;
 wire [7:0]   slot_position_sys;
 wire signed  [15:0] phase_error_sys;
+wire [CORR_WIDTH-1:0] corr_peak_sys;
 
 // RX chain debug signals
 wire dbg_fe_valid_sys;
@@ -353,6 +354,7 @@ tetra_rx_chain #(
     // config from AXI-Lite (clk_axi ≈ clk_sys — no CDC for single-source clock)
     .corr_threshold_sys ({16'd0, sync_thresh_axi}),   // zero-extend 8→24-bit
     .seq_select_sys     (2'd2),                        // STS — matches SB burst TX in BS mode
+    .loopback_en_sys    (ctrl_loopback_en_sys),         // bypass CIC gain in digital loopback
     .block1_out_sys     (rx_block1_sys),
     .block2_out_sys     (rx_block2_sys),
     .bb_out_sys         (rx_bb_sys),
@@ -369,6 +371,7 @@ tetra_rx_chain #(
     .sync_found_sys     (sync_found_sys),
     .slot_position_sys  (slot_position_sys),
     .phase_error_sys    (phase_error_sys),
+    .corr_peak_sys      (corr_peak_sys),
   .dbg_fe_valid_sys (dbg_fe_valid_sys),
   .dbg_tr_valid_sys (dbg_tr_valid_sys),
   .dbg_demod_valid_sys (dbg_demod_valid_sys)
@@ -615,7 +618,6 @@ assign tx_slot_pulse_sys_w = tx_slot_pulse_free_sys;
 wire [119:0] sb_sb1_data_sys;  // BSCH sb1: 60 symbols = 120 bits (RCPC 2/3)
 wire [215:0] sb_bkn2_data_sys; // BNCH: 108 symbols = 216 bits
 wire [29:0]  sb_bb_data_sys;   // BB/AACH: 15 symbols = 30 bits (shared all slots)
-wire [31:0]  nco_phase_inc_sys; // NCO phase increment for LO offset
 // NDB block1/block2 channel-coded filler (written by PS, broadcast to all 4 slots)
 wire [215:0] ndb_block1_data_sys;
 wire [215:0] ndb_block2_data_sys;
@@ -647,8 +649,6 @@ tetra_tx_chain #(
         // Per-slot configuration
         .slot_en_sys (4'b1111), // All slots enabled
         .slot_burst_type_sys(slot_burst_type_sys),
-        // NCO phase increment for LO leakage avoidance
-        .nco_phase_inc_sys (nco_phase_inc_sys),
         // Diagnostic: replace builder dibit with 15-bit LFSR PRBS
         .tx_test_prbs_en_sys(tx_test_prbs_en_sys),
         // TX timing from free-running timer (BUG-01 fix)
@@ -924,6 +924,10 @@ tetra_axi_lite_regs u_axi_regs (
     .tx_slot_axi             (tx_slot_cnt_sys),
     .tx_frame_axi            (tx_frame_cnt_sys),
     .tx_mf_axi               (tx_mf_cnt_sys),
+    // RX debug counters
+    .dbg_fe_cnt_axi          (dbg_fe_cnt_sys),
+    .dbg_demod_cnt_axi       (dbg_demod_cnt_sys),
+    .dbg_sync_cnt_axi        (dbg_sync_packed_sys),
     // IRQ inputs (axi domain)
     .irq_mac_block_axi       (irq_mac_block_axi),
     .irq_sync_acquired_axi   (irq_sync_acquired_axi),
@@ -948,7 +952,6 @@ tetra_axi_lite_regs u_axi_regs (
     .sb_sb1_axi              (sb_sb1_data_sys),
     .sb_bkn2_axi             (sb_bkn2_data_sys),
     .sb_bb_axi               (sb_bb_data_sys),
-    .nco_phase_inc_axi       (nco_phase_inc_sys),
     .tx_test_prbs_en_axi     (tx_test_prbs_en_axi),
     // NDB block1/block2 broadcast to all 4 NDB slots (no narrow-CW on empty slots)
     .ndb_block1_axi          (ndb_block1_data_sys),
@@ -1043,6 +1046,39 @@ end
 always @(posedge clk_sys) begin
   dbg_demod_valid_ila_sys <= dbg_demod_valid_sys;
 end
+
+// =========================================================================
+// RX Debug Counters — readable via AXI at 0x50, 0x54, 0x58
+// Count valid pulses at each RX pipeline stage. Reset with CTRL[3].
+// =========================================================================
+reg [31:0] dbg_fe_cnt_sys;
+reg [31:0] dbg_demod_cnt_sys;
+reg [31:0] dbg_sync_cnt_sys;
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys)                   dbg_fe_cnt_sys <= 32'd0;
+    else if (ctrl_reset_counters_sys) dbg_fe_cnt_sys <= 32'd0;
+    else if (dbg_fe_valid_sys)        dbg_fe_cnt_sys <= dbg_fe_cnt_sys + 32'd1;
+end
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys)                   dbg_demod_cnt_sys <= 32'd0;
+    else if (ctrl_reset_counters_sys) dbg_demod_cnt_sys <= 32'd0;
+    else if (dbg_demod_valid_sys)     dbg_demod_cnt_sys <= dbg_demod_cnt_sys + 32'd1;
+end
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys)                   dbg_sync_cnt_sys <= 32'd0;
+    else if (ctrl_reset_counters_sys) dbg_sync_cnt_sys <= 32'd0;
+    else if (sync_found_sys)          dbg_sync_cnt_sys <= dbg_sync_cnt_sys + 32'd1;
+end
+
+// corr_peak_sys is CORR_WIDTH=24 bits from sync_detect; pack into AXI register
+// Read at 0x58 as: {corr_peak[7:0], sync_cnt[23:0]} — but for simplicity,
+// expose corr_peak on the existing demod_cnt upper bits.
+// Actually, use the AXI register module — add a new wire to dbg_sync_cnt_axi read path.
+// For now, override: pack corr_peak into bits [31:24] of sync_cnt AXI readback.
+wire [31:0] dbg_sync_packed_sys = {corr_peak_sys[7:0], dbg_sync_cnt_sys[23:0]};
 
 endmodule
 `default_nettype wire

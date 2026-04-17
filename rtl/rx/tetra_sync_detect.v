@@ -77,8 +77,8 @@ module tetra_sync_detect #(
     parameter HOLDOFF      = 220,   // Symbols blocked after sync_fire
     parameter LOCK_COUNT   = 4,     // Consecutive hits needed for lock
     parameter SLOT_SYMS    = 255,   // Symbols per TDMA timeslot
-    parameter LOCK_TOL     = 8,     // ±symbols tolerance for lock spacing
-    parameter LOCK_TIMEOUT = 512    // Symbols without sync_fire → unlock (~2 slots)
+    parameter LOCK_TOL     = 30,    // ±symbols tolerance for lock spacing (wider for RF path jitter)
+    parameter LOCK_TIMEOUT = 3060   // Symbols without sync_fire → unlock (survives 2 missed frames, < 4095)
 )(
     input  wire                      clk_sample,
     input  wire                      rst_n_sample,
@@ -92,7 +92,9 @@ module tetra_sync_detect #(
     output reg                       sync_found,
     output reg                       sync_locked,
     output reg [7:0]                 slot_position,
-    output reg [1:0]                 slot_number
+    output reg [1:0]                 slot_number,
+    // Debug: peak correlation value since last reset (AXI-readable)
+    output reg [CORR_WIDTH-1:0]      corr_peak
 );
 
 // ---------------------------------------------------------------------------
@@ -374,12 +376,19 @@ localparam [1:0] S_HUNT = 2'd0,
 
 reg [1:0]  lock_state_sample;
 reg [1:0]  next_lock_state_sample;
-reg [9:0]  spacing_cnt_sample;
+reg [11:0] spacing_cnt_sample;
 reg [2:0]  consec_cnt_sample;
 
 // Spacing in range?
-wire spacing_ok_sample = (spacing_cnt_sample >= (SLOT_SYMS - LOCK_TOL)) &&
-                         (spacing_cnt_sample <= (SLOT_SYMS + LOCK_TOL));
+// STS fires once per frame (4 slots × 255 symbols = 1020).
+// Accept spacing near multiples of frame length to tolerate missed detections.
+wire [11:0] sp1 = SLOT_SYMS * 4;      // 1020 (1 frame)
+wire [11:0] sp2 = SLOT_SYMS * 4 * 2;  // 2040 (2 frames — 1 missed)
+wire [11:0] sp3 = SLOT_SYMS * 4 * 3;  // 3060 (3 frames — 2 missed)
+wire spacing_ok_sample =
+    ((spacing_cnt_sample >= (sp1 - LOCK_TOL)) && (spacing_cnt_sample <= (sp1 + LOCK_TOL))) ||
+    ((spacing_cnt_sample >= (sp2 - LOCK_TOL)) && (spacing_cnt_sample <= (sp2 + LOCK_TOL))) ||
+    ((spacing_cnt_sample >= (sp3 - LOCK_TOL)) && (spacing_cnt_sample <= (sp3 + LOCK_TOL)));
 
 // Spacing timed out (no sync for too long)?
 wire spacing_timeout_sample = (spacing_cnt_sample > LOCK_TIMEOUT);
@@ -395,12 +404,12 @@ end
 // R1: Spacing counter
 always @(posedge clk_sample or negedge rst_n_sample) begin
     if (!rst_n_sample)
-        spacing_cnt_sample <= 10'd0;
+        spacing_cnt_sample <= 12'd0;
     else if (dibit_valid) begin
         if (sync_fire_sample)
-            spacing_cnt_sample <= 10'd0;
-        else if (spacing_cnt_sample < 10'd1023)
-            spacing_cnt_sample <= spacing_cnt_sample + 10'd1;
+            spacing_cnt_sample <= 12'd0;
+        else if (spacing_cnt_sample < 12'd4095)
+            spacing_cnt_sample <= spacing_cnt_sample + 12'd1;
     end
 end
 
@@ -458,6 +467,17 @@ always @(posedge clk_sample or negedge rst_n_sample) begin
         sync_locked <= 1'b0;
     else
         sync_locked <= (lock_state_sample == S_LOCK);
+end
+
+// ---------------------------------------------------------------------------
+// R1: corr_peak — tracks maximum correlation value since last reset.
+// Readable via AXI for diagnostic purposes.  Resets on rst_n_sample only.
+// ---------------------------------------------------------------------------
+always @(posedge clk_sample or negedge rst_n_sample) begin
+    if (!rst_n_sample)
+        corr_peak <= {CORR_WIDTH{1'b0}};
+    else if (dibit_valid && (corr_sel_sample > corr_peak[CORR_WIDTH-1:0]))
+        corr_peak <= {{(CORR_WIDTH-6){1'b0}}, corr_sel_sample};
 end
 
 endmodule
