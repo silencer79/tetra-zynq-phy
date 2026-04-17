@@ -36,7 +36,7 @@ set -euo pipefail
 SSH_HOST="192.168.2.180"
 SSH_USER="root"
 SSH_PASS="openwifi"
-RX_FREQ_HZ=429000000
+RX_FREQ_HZ=429937500
 SAMPLERATE_HZ=4608000
 RX_GAIN_DB=40
 GAIN_MODE="slow_attack"    # manual | slow_attack | fast_attack
@@ -157,7 +157,7 @@ echo ""
 echo "--- AD9361 TETRA-Konfiguration ---"
 
 TX_FREQ_HZ=$(( RX_FREQ_HZ + 10000000 ))
-BW_HZ=$(( SAMPLERATE_HZ * 5 / 4 ))
+BW_HZ=200000  # 200 kHz — minimum AD9361, optimal for 25 kHz TETRA
 
 # 1. Samplerate RX (setzt automatisch BBPLL + Decimation)
 iio_set_ch "voltage0" "sampling_frequency" "${SAMPLERATE_HZ}"

@@ -593,8 +593,8 @@ static void build_bnch_sysinfo(const tetra_sysinfo_t *info, uint8_t *bits)
     pack_bits(bits, &bp, band, 4);
     /* Offset (2 bits): 00 = normal */
     pack_bits(bits, &bp, 0, 2);
-    /* Duplex spacing (3 bits): 001 = 10 MHz (standard for 400 MHz bands) */
-    pack_bits(bits, &bp, 1, 3);
+    /* Duplex spacing (3 bits): 000 = default for band (10 MHz @ 400 MHz) */
+    pack_bits(bits, &bp, 0, 3);
     /* Reverse operation (1 bit): 0 = normal (UL below DL) */
     pack_bits(bits, &bp, 0, 1);
     /* Number of common secondary ctrl channels (2 bits): 00 = none */
@@ -751,7 +751,7 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
      * This gives the MS RACH params once per MF (every 18 frames ≈ 1s)
      * while keeping the carrier display stable. */
     uint8_t bnch_info[BNCH_INFO_BITS];
-    if (info->frame == 1 && info->multiframe == 1)
+    if (info->frame == 18)
         build_bnch_access_define(bnch_info);
     else
         build_bnch_sysinfo(info, bnch_info);
@@ -967,7 +967,7 @@ static void usage(const char *prog)
         "\n"
         "Write SYSINFO to TETRA PHY and enable TX+RX.\n"
         "\n"
-        "  --freq N      DL frequency in Hz (default 430000000)\n"
+        "  --freq N      DL frequency in Hz (default 439937500)\n"
         "  --mcc N       Mobile Country Code (0-1023, default 901=test)\n"
         "  --mnc N       Mobile Network Code (0-16383, default 9998)\n"
         "  --la N        Location Area (0-16383, default 1)\n"
@@ -983,7 +983,7 @@ int main(int argc, char *argv[])
 {
     tetra_sysinfo_t info = {
         .system_code      = 0,     /* V+D mode (EN 300 392-2 §18.4.2.1) */
-        .dl_freq_hz       = 430000000, /* 430 MHz default */
+        .dl_freq_hz       = 439937500, /* 430 MHz default */
         .mcc              = 901,   /* Test network (ITU-T E.212) */
         .mnc              = 9998,
         .la               = 1,

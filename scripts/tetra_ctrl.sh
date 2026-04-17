@@ -381,8 +381,8 @@ cmd_rf_loopback() {
 # Prerequisite: /lib/firmware/tetra_zynq_phy.bit.bin must exist on the board.
 # Use after: session start, reboot, or when clk_lvds appears dead (digital loopback fails).
 cmd_full_init() {
-    local rx_freq="${2:-430000000}"
-    local tx_freq="${3:-430000000}"
+    local rx_freq="${2:-429937500}"
+    local tx_freq="${3:-439937500}"
 
     echo "=== Full board init (2x bitstream load + 2x AD9361 + DAC/ADC init) ==="
 
