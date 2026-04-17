@@ -746,15 +746,11 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
 
     /* --- BNCH: Alternate SYSINFO (type 00) and ACCESS_DEFINE (type 01) ---
      *
-     * Frame 0 of each multiframe: ACCESS_DEFINE (RACH parameters)
-     * All other frames: SYSINFO (carrier, LA, services)
-     * This gives the MS RACH params once per MF (every 18 frames ≈ 1s)
-     * while keeping the carrier display stable. */
+     * Always SYSINFO — real TETRA BSes never send ACCESS_DEFINE on BNCH.
+     * ACCESS_DEFINE is a legacy spec provision for QAM that was never deployed.
+     * Confirmed by: WAV decode (125/125 = SYSINFO), osmo-tetra (no ACCESS_DEFINE). */
     uint8_t bnch_info[BNCH_INFO_BITS];
-    if (info->frame == 18)
-        build_bnch_access_define(bnch_info);
-    else
-        build_bnch_sysinfo(info, bnch_info);
+    build_bnch_sysinfo(info, bnch_info);
 
     uint8_t type5_bkn2[BKN2_CODED_BITS];
     if (tetra_bnch_encode(bnch_info, info->colour_code, 0,
