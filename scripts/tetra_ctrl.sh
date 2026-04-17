@@ -136,7 +136,7 @@ cmd_enable() {
 # Sets SYNC_THRESH, resets counters, then enables digital loopback.
 # Prerequisite: full_init (DAC/ADC cores must be initialized after bitstream load).
 cmd_loopback() {
-    local sync_thresh="${2:-20}"
+    local sync_thresh="${2:-15}"
 
     echo "Enabling digital loopback (TX→RX), SYNC_THRESH=${sync_thresh}..."
 
@@ -296,7 +296,7 @@ cmd_tx_monitor() {
 cmd_rf_loopback() {
     local rx_freq="${2:-430000000}"
     local tx_freq="${3:-430000000}"
-    local sync_thresh="${4:-20}"
+    local sync_thresh="${4:-15}"
     local tx_att_db="${5:--50}"
 
     echo "Configuring external RF loopback path RX=${rx_freq} Hz TX=${tx_freq} Hz TX_ATT=${tx_att_db} dB..."
@@ -426,6 +426,11 @@ cmd_full_init() {
     echo "--- Step 6: ADC core init (r1_mode=0, channel enable) ---"
     cmd_adc_init
 
+    echo "--- Step 7: XO correction (calibrated VCXO offset) ---"
+    ${SSH_CMD} "echo 39999408 > /sys/devices/soc0/amba/e0006000.spi/spi_master/spi0/spi0.0/iio:device1/xo_correction" && \
+        echo "xo_correction set to 39999408 Hz (-14.8 ppm)" || \
+        echo "WARN: xo_correction failed"
+
     echo "=== Full init complete. Board is ready for rf_loopback. ==="
     echo "Run: $0 rf_loopback ${rx_freq} ${tx_freq}"
 }
@@ -442,7 +447,7 @@ cmd_disable() {
 
 # Command: monitor — poll STATUS until SYNC_LOCKED=1
 cmd_monitor() {
-    echo "Monitoring STATUS register (Ctrl+C to stop)..."
+    echo "Monitoring STATUS + debug registers (Ctrl+C to stop)..."
     echo "Waiting for SYNC_LOCKED=1..."
     echo ""
 
@@ -452,12 +457,21 @@ cmd_monitor() {
         local status_dec=$(($status))
         local sync_locked=$(( (status_dec >> 0) & 0x1 ))
 
-        printf "\r[%04d] STATUS=%s SYNC_LOCKED=%d" "$count" "$status" "$sync_locked"
+        # Debug counters
+        local fe_cnt=$(read_reg "0x50")
+        local demod_cnt=$(read_reg "0x54")
+        local sync_raw=$(read_reg "0x58")
+        local sync_raw_dec=$(($sync_raw))
+        local corr_peak=$(( (sync_raw_dec >> 24) & 0xFF ))
+        local sync_cnt=$(( sync_raw_dec & 0xFFFFFF ))
+
+        printf "\r[%04d] LOCKED=%d fe=%d demod=%d sync=%d corr_peak=%d/19" \
+            "$count" "$sync_locked" "$(($fe_cnt))" "$(($demod_cnt))" "$sync_cnt" "$corr_peak"
 
         if [ "$sync_locked" -eq 1 ]; then
             echo ""
             echo ""
-            echo "✓ SYNC_LOCKED detected! TX successfully received by RX."
+            echo "✓ SYNC_LOCKED detected! corr_peak=${corr_peak}/19"
             echo ""
             format_status "$status"
             return 0

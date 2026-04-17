@@ -746,10 +746,15 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
 
     /* --- BNCH: Alternate SYSINFO (type 00) and ACCESS_DEFINE (type 01) ---
      *
-     * For now: always SYSINFO so the carrier display is stable.
-     * TODO: alternate with ACCESS_DEFINE when RACH is needed (M1). */
+     * Frame 0 of each multiframe: ACCESS_DEFINE (RACH parameters)
+     * All other frames: SYSINFO (carrier, LA, services)
+     * This gives the MS RACH params once per MF (every 18 frames ≈ 1s)
+     * while keeping the carrier display stable. */
     uint8_t bnch_info[BNCH_INFO_BITS];
-    build_bnch_sysinfo(info, bnch_info);
+    if (info->frame == 1 && info->multiframe == 1)
+        build_bnch_access_define(bnch_info);
+    else
+        build_bnch_sysinfo(info, bnch_info);
 
     uint8_t type5_bkn2[BKN2_CODED_BITS];
     if (tetra_bnch_encode(bnch_info, info->colour_code, 0,
@@ -794,7 +799,7 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
         printf("SYSINFO written: FN=%u MF=%u MCC=%u MNC=%u "
                "BNCH=%s freq=%.3fMHz band=%u carrier=%u\n",
                info->frame, info->multiframe, info->mcc, info->mnc,
-               (info->frame & 1) ? "ACCESS_DEF" : "SYSINFO",
+               (info->frame == 1) ? "ACCESS_DEF" : "SYSINFO",
                info->dl_freq_hz / 1e6, band, carrier);
     }
 
