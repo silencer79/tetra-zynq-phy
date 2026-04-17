@@ -117,8 +117,11 @@ typedef struct {
     uint8_t  cell_service_level;       /* 2 bits */
     uint8_t  late_entry_info;          /* 1 bit */
 
+    /* BNCH SYSINFO fields (EN 300 392-2 §18.4.2.1, MAC-BROADCAST type 00) */
+    uint32_t dl_freq_hz;               /* DL frequency in Hz (auto → band + carrier) */
+    uint16_t la;                       /* Location Area, 14 bits */
+
     /* Deprecated project-internal fields kept for source compatibility. */
-    uint16_t la;
     uint8_t  frame_countdown;
     uint8_t  access_code;
     uint8_t  dl_usage;

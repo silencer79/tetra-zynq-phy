@@ -411,27 +411,36 @@ static uint32_t tetra_rm3014_compute(uint16_t in)
 }
 
 /* ========================================================================
- * AACH Builder  (EN 300 392-2 §8.2.3.3)
+ * AACH Builder  (EN 300 392-2 §21.5.2, Table 21.77)
  *
- * Access Assignment Channel — carries Colour Code in bb field.
- * 14 type-1 bits → RM(30,14) → 30 coded bits → take upper 28 for BB.
+ * Access Assignment Channel — 14 type-1 bits → RM(30,14) → 30 coded bits.
  *
- * AACH type-1 (14 bits):
- *   [0..5]  Header (fixed 0b000000 for DL main carrier)
- *   [6..11] Colour Code (6 bits)
- *   [12..13] Timeslot assignment (2 bits)
+ * AACH type-1 (14 bits) — format for Main Carrier (§21.5.2):
+ *   Header (2):  00 = downlink and uplink usage markers present
+ *   Field1 (6):  DL usage (3 bits) + UL usage (3 bits)
+ *   Field2 (6):  Colour Code
+ *
+ * DL usage marker (3 bits, §21.5.2.1):
+ *   000 = Unallocated (slot available for assignment)
+ *   001 = Assigned, common control
+ *
+ * UL usage marker (3 bits, §21.5.2.2):
+ *   001 = Assigned for random access (MS may send RACH)
  * ======================================================================== */
 
-static void build_aach(uint8_t colour_code, uint8_t ts_assign,
+static void build_aach(uint8_t colour_code, uint8_t dl_usage, uint8_t ul_usage,
                        uint8_t *out30)
 {
     uint8_t info[14];
     int pos = 0;
 
-    /* Header: field1 = 0b0000 (downlink), field2 = 0b00 (main carrier) */
-    pack_bits(info, &pos, 0x00, 6);
+    /* Header: 00 = DL+UL usage markers present */
+    pack_bits(info, &pos, 0, 2);
+    /* Field1: DL usage marker (3 bits) + UL usage marker (3 bits) */
+    pack_bits(info, &pos, dl_usage & 0x07, 3);
+    pack_bits(info, &pos, ul_usage & 0x07, 3);
+    /* Field2: Colour Code (6 bits) */
     pack_bits(info, &pos, colour_code, 6);
-    pack_bits(info, &pos, ts_assign, 2);
 
     /* Pack 14 info bits into uint16_t for RM encoder */
     uint16_t in_word = 0;
@@ -469,12 +478,14 @@ static void bits_to_words(const uint8_t *bits, int nbits,
  *   info (124) → CRC-16 → type-2 (140) → +4 tail → type-3 (144)
  *   → ETSI rate-1/4 mother (576) → P_2/3 puncture (216 type-4)
  *   → multiplicative interleave K=216, a=101 (Table 8.19)
- *   → scramble (slot-specific init) → type-5 (216)
+ *   → scramble (init=3, fixed) → type-5 (216)
  *
- * Used for the SDB bkn2 field (slot 0 BNCH on continuous downlink).  The
- * scrambler uses the regular (cc, slot, mcc, mnc) init — not the BSCH-fixed
- * init=3 — because the receiver already knows cell identity once it has
- * decoded sb1.
+ * Used for the SDB bkn2 field (slot 0 BNCH on continuous downlink).
+ *
+ * Scrambler init: cell-identity based (cc | mnc<<6 | mcc<<20) << 2 | TN
+ * Verified from SDRSharp.Tetra.dll: TMO path uses ExtractLogicChannelFromBKN
+ * which unscrambles with _scramblerSquence (cell-identity), NOT init=3.
+ * (Only the DMO path ExtractLogicChannelFromBKN2 uses init=3.)
  * ======================================================================== */
 
 static int tetra_bnch_encode(const uint8_t *info_bits,
@@ -500,12 +511,178 @@ static int tetra_bnch_encode(const uint8_t *info_bits,
     /* Multiplicative interleaver, K=216, a=101 (ETSI §8.2.4.1 Table 8.19) */
     tetra_interleave_perm(type4, BNCH_CODED_BITS, 101, type4i);
 
-    uint32_t lfsr = scrambler_init(colour_code, slot_num, mcc, mnc);
+    /* Scramble with cell-identity init (SDR# CreateScramblerCode:
+     * init = (mcc<<22) | (mnc<<8) | (colour<<2) | 3
+     * Lower 2 bits are always 3, NOT the timeslot number!) */
+    uint32_t lfsr = ((uint32_t)(mcc & 0x3FF) << 22)
+                   | ((uint32_t)(mnc & 0x3FFF) << 8)
+                   | ((uint32_t)(colour_code & 0x3F) << 2)
+                   | 3u;
     if (lfsr == 0)
         lfsr = 0xFFFFFFFF;
     for (int i = 0; i < BNCH_CODED_BITS; i++)
         out_216[i] = (type4i[i] ^ next_lfsr_bit(&lfsr)) & 1;
     return 0;
+}
+
+/* ========================================================================
+ * Frequency ↔ Carrier conversion (EN 300 392-2 §4.4, SDR# Tetra plugin)
+ *
+ * Formula from SDRSharp.Tetra.dll FrequencyCalc/CarrierCalc:
+ *   DL_freq = band × 100_000_000 + carrier × 25_000
+ *   carrier = round((DL_freq - band × 100_000_000) / 25_000)
+ *
+ * Band is the 4-bit frequency_band field (0-15).
+ * Carrier is the 12-bit main_carrier field (0-4095).
+ *
+ * For 410-450 MHz:  band=4, carrier = (freq - 400 MHz) / 25 kHz
+ *   410 MHz → carrier=400, 420 MHz → 800, 430 MHz → 1200, 440 MHz → 1600
+ * ======================================================================== */
+
+static void tetra_freq_to_carrier(uint32_t dl_freq_hz,
+                                   uint8_t *band, uint16_t *carrier)
+{
+    *band = (uint8_t)(dl_freq_hz / 100000000);
+    uint32_t remainder = dl_freq_hz - (uint32_t)(*band) * 100000000;
+    *carrier = (uint16_t)((remainder + 12500) / 25000);  /* round */
+}
+
+static uint32_t tetra_carrier_to_freq(uint8_t band, uint16_t carrier)
+{
+    return (uint32_t)band * 100000000 + (uint32_t)carrier * 25000;
+}
+
+/* ========================================================================
+ * Build BNCH SYSINFO PDU — 124 type-1 bits (MAC-BROADCAST type 00)
+ *
+ * This is the broadcast SYSINFO carried on the BNCH (bkn2), NOT the
+ * BSCH sync-info.  It tells the MS the main carrier frequency, duplex
+ * spacing, location area, subscriber class, and service capabilities.
+ *
+ * Field order from SDRSharp.Tetra.dll _sysInfoRules (§18.4.2.1):
+ *   Main_Carrier(12), Frequency_Band(4), Offset(2), Duplex_Spacing(3),
+ *   Reverse_Operation(1), NumberOfCommon_SC(2), MS_TXPwr_Max_Cell(3),
+ *   RXLevel_Access_Min(4), Access_Parameter(4), Radio_DL_Timeout(4),
+ *   HF_or_CK_flag(2), [conditional], Optional_field_flag(1),
+ *   [conditional], Location_Area(14), Subscriber_Class(16),
+ *   Registration_required(1), De_registration_required(1),
+ *   Priority_cell(1), Cell_never_uses_minimum_mode(1),
+ *   Migration_supported(1), System_wide_services(1),
+ *   TETRA_voice_service(1), Circuit_mode_data_service(1),
+ *   Reserved(1), SNDCP_Service(1), Air_interface_encryption(1),
+ *   Advanced_link_supported(1)
+ * ======================================================================== */
+
+static void build_bnch_sysinfo(const tetra_sysinfo_t *info, uint8_t *bits)
+{
+    uint8_t band;
+    uint16_t carrier;
+    tetra_freq_to_carrier(info->dl_freq_hz, &band, &carrier);
+
+    int bp = 0;
+    memset(bits, 0, BNCH_INFO_BITS);
+
+    /* MAC PDU type (2 bits): 10 = Broadcast (Table 21.73) */
+    pack_bits(bits, &bp, 2, 2);
+    /* MAC-BROADCAST sub-type (2 bits): 00 = SYSINFO */
+    pack_bits(bits, &bp, 0, 2);
+
+    /* Main Carrier (12 bits) */
+    pack_bits(bits, &bp, carrier, 12);
+    /* Frequency Band (4 bits) */
+    pack_bits(bits, &bp, band, 4);
+    /* Offset (2 bits): 00 = normal */
+    pack_bits(bits, &bp, 0, 2);
+    /* Duplex spacing (3 bits): 001 = 10 MHz (standard for 400 MHz bands) */
+    pack_bits(bits, &bp, 1, 3);
+    /* Reverse operation (1 bit): 0 = normal (UL below DL) */
+    pack_bits(bits, &bp, 0, 1);
+    /* Number of common secondary ctrl channels (2 bits): 00 = none */
+    pack_bits(bits, &bp, 0, 2);
+    /* MS TX power max cell (3 bits): 000 = no limit */
+    pack_bits(bits, &bp, 0, 3);
+    /* RX level access minimum (4 bits): 0000 = weakest allowed */
+    pack_bits(bits, &bp, 0, 4);
+    /* Access parameter (4 bits): 0000 */
+    pack_bits(bits, &bp, 0, 4);
+    /* Radio downlink timeout (4 bits): 1111 = max (generous) */
+    pack_bits(bits, &bp, 15, 4);
+    /* Hyperframe/cipher key flag (1 bit): 0 = hyperframe number follows */
+    pack_bits(bits, &bp, 0, 1);
+    /* Hyperframe number (16 bits): conditional on HF_or_CK_flag == 0 */
+    pack_bits(bits, &bp, 0, 16);
+    /* Optional field flag (2 bits): 00 = default optional field (20 bits follow) */
+    pack_bits(bits, &bp, 0, 2);
+    /* Optional field value (20 bits): 0 = reserved/default */
+    pack_bits(bits, &bp, 0, 20);
+
+    /* Location Area (14 bits) */
+    pack_bits(bits, &bp, info->la, 14);
+    /* Subscriber Class (16 bits): 0xFFFF = all classes allowed */
+    pack_bits(bits, &bp, 0xFFFF, 16);
+    /* Registration required (1): 1 = yes */
+    pack_bits(bits, &bp, 1, 1);
+    /* De-registration required (1): 0 */
+    pack_bits(bits, &bp, 0, 1);
+    /* Priority cell (1): 0 */
+    pack_bits(bits, &bp, 0, 1);
+    /* Cell never uses minimum mode (1): 0 */
+    pack_bits(bits, &bp, 0, 1);
+    /* Migration supported (1): 0 */
+    pack_bits(bits, &bp, 0, 1);
+    /* System wide services (1): 0 */
+    pack_bits(bits, &bp, 0, 1);
+    /* TETRA voice service (1): 1 = supported */
+    pack_bits(bits, &bp, 1, 1);
+    /* Circuit mode data service (1): 0 */
+    pack_bits(bits, &bp, 0, 1);
+    /* Reserved (1): 0 */
+    pack_bits(bits, &bp, 0, 1);
+    /* SNDCP service (1): 0 */
+    pack_bits(bits, &bp, 0, 1);
+    /* Air interface encryption (1): 0 = not supported */
+    pack_bits(bits, &bp, 0, 1);
+    /* Advanced link supported (1): 0 */
+    pack_bits(bits, &bp, 0, 1);
+    /* Remaining bits stay zero (fill to 124) */
+}
+
+/* ========================================================================
+ * Build BNCH ACCESS_DEFINE PDU — 124 type-1 bits (MAC-BROADCAST type 01)
+ * ======================================================================== */
+
+static void build_bnch_access_define(uint8_t *bits)
+{
+    int bp = 0;
+    memset(bits, 0, BNCH_INFO_BITS);
+
+    /* MAC PDU type (2 bits): 10 = Broadcast (Table 21.73) */
+    pack_bits(bits, &bp, 2, 2);
+    /* MAC-BROADCAST sub-type (2 bits): 01 = ACCESS-DEFINE */
+    pack_bits(bits, &bp, 1, 2);
+    /* Fill bit indication: 0 = no fill bits */
+    pack_bits(bits, &bp, 0, 1);
+    /* Encryption mode: 00 = clear mode */
+    pack_bits(bits, &bp, 0, 2);
+    /* Random access flag: 1 = access parms follow */
+    pack_bits(bits, &bp, 1, 1);
+    /* Access code: 0000 = AC0 (all subscriber classes) */
+    pack_bits(bits, &bp, 0, 4);
+    /* Immediate: 1 = immediate access allowed */
+    pack_bits(bits, &bp, 1, 1);
+    /* Waiting time: 2 (short) */
+    pack_bits(bits, &bp, 2, 4);
+    /* Number of random access transmissions: 3 */
+    pack_bits(bits, &bp, 3, 4);
+    /* Frame length factor: 0 = 1 frame */
+    pack_bits(bits, &bp, 0, 1);
+    /* Timeslot pointer: 0001 = slot 1 */
+    pack_bits(bits, &bp, 1, 4);
+    /* Minimum PDU priority: 000 = no minimum */
+    pack_bits(bits, &bp, 0, 3);
+    /* Random access flag: 0 = no more access definitions */
+    pack_bits(bits, &bp, 0, 1);
+    /* Remaining bits stay zero (fill) */
 }
 
 /* ========================================================================
@@ -567,32 +744,25 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
      * can't derive the scrambler seed yet — hence the fixed init. */
     tetra_scramble_bsch(type4i, BSCH_CODED_BITS, type5_sb1);
 
-    /* --- BNCH: pseudo-random filler → full channel coding (slot 0) ---
-     * 124 info bits seeded from a 15-bit LFSR (x^15+x^14+1, seed 0x5A5A —
-     * distinct from the NDB-filler seed 0x7FFF so bkn2 ≠ NDB content).
-     * The full BNCH chain (CRC + tail + RCPC 2/3 + 24×9 interleave +
-     * slot-0 scramble) guarantees the 216 type-5 bits are broadband,
-     * eliminating the narrow-CW residue of an all-zero payload. */
+    /* --- BNCH: Alternate SYSINFO (type 00) and ACCESS_DEFINE (type 01) ---
+     *
+     * For now: always SYSINFO so the carrier display is stable.
+     * TODO: alternate with ACCESS_DEFINE when RACH is needed (M1). */
     uint8_t bnch_info[BNCH_INFO_BITS];
-    {
-        uint16_t bnch_lfsr = 0x5A5Au;
-        for (int i = 0; i < BNCH_INFO_BITS; i++) {
-            uint16_t fb = ((bnch_lfsr >> 14) ^ (bnch_lfsr >> 13)) & 1u;
-            bnch_lfsr = ((uint16_t)(bnch_lfsr << 1) | fb) & 0x7FFFu;
-            bnch_info[i] = (bnch_lfsr >> 14) & 1u;
-        }
-    }
+    build_bnch_sysinfo(info, bnch_info);
 
     uint8_t type5_bkn2[BKN2_CODED_BITS];
     if (tetra_bnch_encode(bnch_info, info->colour_code, 0,
-                           info->mcc, info->mnc, type5_bkn2) != 0) {
-        fprintf(stderr, "tetra_hal: BNCH filler encoding failed\n");
+                          info->mcc, info->mnc, type5_bkn2) != 0) {
+        fprintf(stderr, "tetra_hal: BNCH encoding failed\n");
         return -1;
     }
 
-    /* --- AACH: Colour Code broadcast --- */
+    /* --- AACH: Access Assignment (Colour Code + UL access allowed) ---
+     * DL usage = 001 (assigned, common control channel)
+     * UL usage = 001 (assigned for random access — MS may send RACH) */
     uint8_t type5_bb[AACH_BITS];
-    build_aach(info->colour_code, info->timeslot_assigned, type5_bb);
+    build_aach(info->colour_code, 1, 1, type5_bb);
 
     /* --- Pack into 32-bit words and write to AXI-Lite registers --- */
     uint32_t sb1_words[4];
@@ -617,9 +787,16 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
     /* Write bb (1 register: 0x7C) */
     tetra_reg_write(hal, REG_SB_BB, bb_word);
 
-    printf("SYSINFO written: SC=%u CC=%u TN=%u FN=%u MF=%u MCC=%u MNC=%u\n",
-           info->system_code, info->colour_code, info->timeslot_assigned,
-           info->frame, info->multiframe, info->mcc, info->mnc);
+    {
+        uint8_t band;
+        uint16_t carrier;
+        tetra_freq_to_carrier(info->dl_freq_hz, &band, &carrier);
+        printf("SYSINFO written: FN=%u MF=%u MCC=%u MNC=%u "
+               "BNCH=%s freq=%.3fMHz band=%u carrier=%u\n",
+               info->frame, info->multiframe, info->mcc, info->mnc,
+               (info->frame & 1) ? "ACCESS_DEF" : "SYSINFO",
+               info->dl_freq_hz / 1e6, band, carrier);
+    }
 
     return 0;
 }
@@ -669,8 +846,11 @@ static int tetra_schf_encode(const uint8_t *info_bits,
     /* Multiplicative interleaver, K=432, a=103 (ETSI §8.2.4.1 Table 8.19) */
     tetra_interleave_perm(type4, SCHF_CODED_BITS, 103, type4i);
 
-    /* Scramble (§8.2.5) */
-    uint32_t lfsr = scrambler_init(colour_code, slot_num, mcc, mnc);
+    /* Scramble (§8.2.5) — SDR# uses (mcc<<22)|(mnc<<8)|(cc<<2)|3 */
+    uint32_t lfsr = ((uint32_t)(mcc & 0x3FF) << 22)
+                   | ((uint32_t)(mnc & 0x3FFF) << 8)
+                   | ((uint32_t)(colour_code & 0x3F) << 2)
+                   | 3u;
     if (lfsr == 0)
         lfsr = 0xFFFFFFFF;
     for (int i = 0; i < SCHF_CODED_BITS; i++)
@@ -782,8 +962,9 @@ static void usage(const char *prog)
         "\n"
         "Write SYSINFO to TETRA PHY and enable TX+RX.\n"
         "\n"
+        "  --freq N      DL frequency in Hz (default 430000000)\n"
         "  --mcc N       Mobile Country Code (0-1023, default 901=test)\n"
-        "  --mnc N       Mobile Network Code (0-16383, default 1)\n"
+        "  --mnc N       Mobile Network Code (0-16383, default 9998)\n"
         "  --la N        Location Area (0-16383, default 1)\n"
         "  --cc N        Colour Code (0-63, default 1)\n"
         "  --thresh N    Sync threshold (1-255, default 0=unchanged)\n"
@@ -796,12 +977,19 @@ static void usage(const char *prog)
 int main(int argc, char *argv[])
 {
     tetra_sysinfo_t info = {
+        .system_code      = 0,     /* V+D mode (EN 300 392-2 §18.4.2.1) */
+        .dl_freq_hz       = 430000000, /* 430 MHz default */
         .mcc              = 901,   /* Test network (ITU-T E.212) */
-        .mnc              = 1,
+        .mnc              = 9998,
         .la               = 1,
         .colour_code      = 1,
         .timeslot_assigned = 1,    /* 1 common ctrl timeslot */
+        .sharing_mode     = 0,     /* continuous carrier */
         .u_plane          = 0,
+        .frame_18_extension = 0,
+        .neighbour_cell_broadcast = 0,  /* no NCB */
+        .cell_service_level = 3,   /* level 3 = service available (§18.4.2.1) */
+        .late_entry_info  = 1,     /* late entry supported */
         .frame_countdown  = 0,
         .access_code      = 0x0F,  /* All subscriber classes allowed */
         .dl_usage         = 0x3F,  /* All slots available */
@@ -811,6 +999,7 @@ int main(int argc, char *argv[])
     int no_enable = 0;
 
     static struct option long_opts[] = {
+        {"freq",      required_argument, NULL, 'f'},
         {"mcc",       required_argument, NULL, 'm'},
         {"mnc",       required_argument, NULL, 'n'},
         {"la",        required_argument, NULL, 'l'},
@@ -823,8 +1012,9 @@ int main(int argc, char *argv[])
     };
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "m:n:l:c:t:sxh", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "f:m:n:l:c:t:sxh", long_opts, NULL)) != -1) {
         switch (opt) {
+        case 'f': info.dl_freq_hz  = strtoul(optarg, NULL, 10); break;
         case 'm': info.mcc         = atoi(optarg); break;
         case 'n': info.mnc         = atoi(optarg); break;
         case 'l': info.la          = atoi(optarg); break;
@@ -842,6 +1032,23 @@ int main(int argc, char *argv[])
         info.colour_code > 63) {
         fprintf(stderr, "Error: parameter out of range\n");
         return 1;
+    }
+
+    /* Validate frequency: must produce valid 12-bit carrier (0-4095) */
+    {
+        uint8_t band;
+        uint16_t carrier;
+        tetra_freq_to_carrier(info.dl_freq_hz, &band, &carrier);
+        if (band > 15 || carrier > 4095) {
+            fprintf(stderr, "Error: frequency %u Hz out of range "
+                    "(band=%u carrier=%u)\n",
+                    info.dl_freq_hz, band, carrier);
+            return 1;
+        }
+        printf("Frequency: %.3f MHz → band=%u carrier=%u "
+               "(UL=%.3f MHz, duplex=10 MHz)\n",
+               info.dl_freq_hz / 1e6, band, carrier,
+               (info.dl_freq_hz - 10000000) / 1e6);
     }
 
     /* Init RM(30,14) lookup table */
