@@ -36,12 +36,12 @@
 #   --read       Aktuellen GPIO-Zustand lesen
 #   --init       GPIOs exportieren + auf Output konfigurieren
 #   --deinit     GPIOs wieder unexporten
-#   --xo HZ      AD9361 xo_correction setzen (Hz, z.B. 39999800)
+#   --xo HZ      AD9361 xo_correction setzen (Hz, z.B. 40000000)
 #
 # Beispiel (Mittelstellung, dann feinjustieren):
 #   ./scripts/vcxo_cal.sh --init
 #   ./scripts/vcxo_cal.sh --dac 128
-#   ./scripts/vcxo_cal.sh --xo 39999900
+#   ./scripts/vcxo_cal.sh --xo 40000000
 # =============================================================================
 
 set -euo pipefail

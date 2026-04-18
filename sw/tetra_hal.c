@@ -591,30 +591,30 @@ static void build_bnch_sysinfo(const tetra_sysinfo_t *info, uint8_t *bits)
     pack_bits(bits, &bp, carrier, 12);
     /* Frequency Band (4 bits) */
     pack_bits(bits, &bp, band, 4);
-    /* Offset (2 bits): 00 = normal */
+    /* Offset (2 bits): 0 = no offset (our freq is on 25 kHz grid) */
     pack_bits(bits, &bp, 0, 2);
-    /* Duplex spacing (3 bits): 000 = default for band (10 MHz @ 400 MHz) */
-    pack_bits(bits, &bp, 0, 3);
+    /* Duplex spacing (3 bits): 3 = -7.6 MHz (§18.4.2.1 Table 18.25) */
+    pack_bits(bits, &bp, 3, 3);
     /* Reverse operation (1 bit): 0 = normal (UL below DL) */
     pack_bits(bits, &bp, 0, 1);
     /* Number of common secondary ctrl channels (2 bits): 00 = none */
     pack_bits(bits, &bp, 0, 2);
-    /* MS TX power max cell (3 bits): 000 = no limit */
-    pack_bits(bits, &bp, 0, 3);
-    /* RX level access minimum (4 bits): 0000 = weakest allowed */
-    pack_bits(bits, &bp, 0, 4);
-    /* Access parameter (4 bits): 0000 */
-    pack_bits(bits, &bp, 0, 4);
-    /* Radio downlink timeout (4 bits): 1111 = max (generous) */
-    pack_bits(bits, &bp, 15, 4);
+    /* MS TX power max cell (3 bits): 5 = class 3L (real cell value) */
+    pack_bits(bits, &bp, 5, 3);
+    /* RX level access minimum (4 bits): 2 (real cell value) */
+    pack_bits(bits, &bp, 2, 4);
+    /* Access parameter (4 bits): 8 (real cell value) */
+    pack_bits(bits, &bp, 8, 4);
+    /* Radio downlink timeout (4 bits): 8 (real cell value) */
+    pack_bits(bits, &bp, 8, 4);
     /* Hyperframe/cipher key flag (1 bit): 0 = hyperframe number follows */
     pack_bits(bits, &bp, 0, 1);
-    /* Hyperframe number (16 bits): conditional on HF_or_CK_flag == 0 */
-    pack_bits(bits, &bp, 0, 16);
-    /* Optional field flag (2 bits): 00 = default optional field (20 bits follow) */
-    pack_bits(bits, &bp, 0, 2);
-    /* Optional field value (20 bits): 0 = reserved/default */
-    pack_bits(bits, &bp, 0, 20);
+    /* Hyperframe number (16 bits): running counter */
+    pack_bits(bits, &bp, info->hyperframe, 16);
+    /* Optional field flag (2 bits): 10 = default freq + ext services */
+    pack_bits(bits, &bp, 2, 2);
+    /* Optional field value (20 bits): 1011456 = 0x0F6F40 (real cell) */
+    pack_bits(bits, &bp, 1011456, 20);
 
     /* Location Area (14 bits) */
     pack_bits(bits, &bp, info->la, 14);
@@ -622,29 +622,28 @@ static void build_bnch_sysinfo(const tetra_sysinfo_t *info, uint8_t *bits)
     pack_bits(bits, &bp, 0xFFFF, 16);
     /* Registration required (1): 1 = yes */
     pack_bits(bits, &bp, 1, 1);
-    /* De-registration required (1): 0 */
-    pack_bits(bits, &bp, 0, 1);
-    /* Priority cell (1): 0 */
-    pack_bits(bits, &bp, 0, 1);
-    /* Cell never uses minimum mode (1): 0 */
-    pack_bits(bits, &bp, 0, 1);
-    /* Migration supported (1): 0 */
-    pack_bits(bits, &bp, 0, 1);
-    /* System wide services (1): 0 */
-    pack_bits(bits, &bp, 0, 1);
+    /* De-registration required (1): 1 (real cell) */
+    pack_bits(bits, &bp, 1, 1);
+    /* Priority cell (1): 1 (real cell) */
+    pack_bits(bits, &bp, 1, 1);
+    /* Cell never uses minimum mode (1): 1 (real cell) */
+    pack_bits(bits, &bp, 1, 1);
+    /* Migration supported (1): 1 (real cell) */
+    pack_bits(bits, &bp, 1, 1);
+    /* System wide services (1): 1 (real cell) */
+    pack_bits(bits, &bp, 1, 1);
     /* TETRA voice service (1): 1 = supported */
     pack_bits(bits, &bp, 1, 1);
-    /* Circuit mode data service (1): 0 */
-    pack_bits(bits, &bp, 0, 1);
+    /* Circuit mode data service (1): 1 (real cell) */
+    pack_bits(bits, &bp, 1, 1);
     /* Reserved (1): 0 */
     pack_bits(bits, &bp, 0, 1);
-    /* SNDCP service (1): 0 */
-    pack_bits(bits, &bp, 0, 1);
+    /* SNDCP service (1): 1 (real cell) */
+    pack_bits(bits, &bp, 1, 1);
     /* Air interface encryption (1): 0 = not supported */
     pack_bits(bits, &bp, 0, 1);
-    /* Advanced link supported (1): 0 */
-    pack_bits(bits, &bp, 0, 1);
-    /* Remaining bits stay zero (fill to 124) */
+    /* Advanced link supported (1): 1 (real cell) */
+    pack_bits(bits, &bp, 1, 1);
 }
 
 /* ========================================================================
@@ -787,17 +786,6 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
 
     /* Write bb (1 register: 0x7C) */
     tetra_reg_write(hal, REG_SB_BB, bb_word);
-
-    {
-        uint8_t band;
-        uint16_t carrier;
-        tetra_freq_to_carrier(info->dl_freq_hz, &band, &carrier);
-        printf("SYSINFO written: FN=%u MF=%u MCC=%u MNC=%u "
-               "BNCH=%s freq=%.3fMHz band=%u carrier=%u\n",
-               info->frame, info->multiframe, info->mcc, info->mnc,
-               (info->frame == 1) ? "ACCESS_DEF" : "SYSINFO",
-               info->dl_freq_hz / 1e6, band, carrier);
-    }
 
     return 0;
 }
@@ -963,7 +951,7 @@ static void usage(const char *prog)
         "\n"
         "Write SYSINFO to TETRA PHY and enable TX+RX.\n"
         "\n"
-        "  --freq N      DL frequency in Hz (default 439937500)\n"
+        "  --freq N      DL frequency in Hz (default 439950000)\n"
         "  --mcc N       Mobile Country Code (0-1023, default 901=test)\n"
         "  --mnc N       Mobile Network Code (0-16383, default 9998)\n"
         "  --la N        Location Area (0-16383, default 1)\n"
@@ -978,8 +966,8 @@ static void usage(const char *prog)
 int main(int argc, char *argv[])
 {
     tetra_sysinfo_t info = {
-        .system_code      = 0,     /* V+D mode (EN 300 392-2 §18.4.2.1) */
-        .dl_freq_hz       = 439937500, /* 430 MHz default */
+        .system_code      = 3,     /* V+D mode (EN 300 392-2 §18.4.2.1, Table 18.14) */
+        .dl_freq_hz       = 439950000, /* 439.950 MHz (on 25 kHz grid, carrier 1598) */
         .mcc              = 901,   /* Test network (ITU-T E.212) */
         .mnc              = 9998,
         .la               = 1,
@@ -1109,22 +1097,40 @@ int main(int argc, char *argv[])
      * well before the next slot 0.
      * ================================================================ */
     uint32_t last_tdma = 0;
+    uint32_t last_mf = 0;
+    uint16_t hyperframe = 0;
     printf("Running SYSINFO loop (Ctrl-C to stop)...\n");
 
     for (;;) {
         uint32_t tdma = tetra_reg_read(&hal, REG_TX_TDMA);
-        uint32_t fn = (tdma >> 2) & 0x1F;
-        uint32_t mf = (tdma >> 7) & 0x3F;
+        uint32_t slot = tdma & 0x03;
+        uint32_t fn   = (tdma >> 2) & 0x1F;
+        uint32_t mf   = (tdma >> 7) & 0x3F;
 
-        /* Re-encode only when frame or multiframe changed */
+        /* Re-encode only when frame or multiframe changed.
+         * Write registers mid-slot (slot != 0) to avoid tearing —
+         * the burst_mux latches payload at each slot_pulse, so writing
+         * while the builder is busy ensures consistent data at next latch. */
         if (tdma != last_tdma) {
+            /* Hyperframe increments on multiframe wrap (59→0 or any decrease) */
+            if (mf < last_mf)
+                hyperframe++;
+            last_mf = mf;
+
             info.frame      = (uint8_t)fn;
             info.multiframe = (uint8_t)mf;
+            info.hyperframe = hyperframe;
             tetra_write_sysinfo(&hal, &info);
             last_tdma = tdma;
+
+            /* Log once per multiframe (~1.02s) to avoid printf overhead */
+            if (fn == 1 && slot == 0) {
+                printf("MF=%u HF=%u\n", (unsigned)mf, (unsigned)hyperframe);
+                fflush(stdout);
+            }
         }
 
-        usleep(10000);  /* 10 ms */
+        usleep(2000);  /* 2 ms — poll ~7× per slot (14 ms/slot) */
     }
 
     /* not reached */

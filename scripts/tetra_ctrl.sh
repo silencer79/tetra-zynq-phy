@@ -381,8 +381,8 @@ cmd_rf_loopback() {
 # Prerequisite: /lib/firmware/tetra_zynq_phy.bit.bin must exist on the board.
 # Use after: session start, reboot, or when clk_lvds appears dead (digital loopback fails).
 cmd_full_init() {
-    local rx_freq="${2:-429937500}"
-    local tx_freq="${3:-439937500}"
+    local rx_freq="${2:-429950000}"
+    local tx_freq="${3:-439950000}"
 
     echo "=== Full board init (2x bitstream load + 2x AD9361 + DAC/ADC init) ==="
 
@@ -426,9 +426,18 @@ cmd_full_init() {
     echo "--- Step 6: ADC core init (r1_mode=0, channel enable) ---"
     cmd_adc_init
 
-    echo "--- Step 7: XO correction (calibrated VCXO offset) ---"
-    ${SSH_CMD} "echo 39999408 > /sys/devices/soc0/amba/e0006000.spi/spi_master/spi0/spi0.0/iio:device1/xo_correction" && \
-        echo "xo_correction set to 39999408 Hz (-14.8 ppm)" || \
+    echo "--- Step 7: VCXO GPIO init ---"
+    ${SSH_CMD} "
+        for pin in 1011 1012 1013; do
+            echo \$pin > /sys/class/gpio/export 2>/dev/null
+            echo out > /sys/class/gpio/gpio\${pin}/direction
+        done
+        echo 'VCXO GPIOs 1011-1013 exported + output'
+    " || echo "WARN: VCXO GPIO init failed"
+
+    echo "--- Step 8: XO correction ---"
+    ${SSH_CMD} "echo 40000000 > /sys/bus/iio/devices/iio:device1/xo_correction" && \
+        echo "xo_correction set to 40000000 Hz (nominal)" || \
         echo "WARN: xo_correction failed"
 
     echo "=== Full init complete. Board is ready for rf_loopback. ==="

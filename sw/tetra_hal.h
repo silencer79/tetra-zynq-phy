@@ -120,6 +120,7 @@ typedef struct {
     /* BNCH SYSINFO fields (EN 300 392-2 §18.4.2.1, MAC-BROADCAST type 00) */
     uint32_t dl_freq_hz;               /* DL frequency in Hz (auto → band + carrier) */
     uint16_t la;                       /* Location Area, 14 bits */
+    uint16_t hyperframe;               /* Hyperframe number, 16 bits (0–65535, wraps) */
 
     /* Deprecated project-internal fields kept for source compatibility. */
     uint8_t  frame_countdown;

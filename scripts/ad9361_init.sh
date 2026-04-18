@@ -36,7 +36,7 @@ set -euo pipefail
 SSH_HOST="192.168.2.180"
 SSH_USER="root"
 SSH_PASS="openwifi"
-RX_FREQ_HZ=429937500
+RX_FREQ_HZ=429950000
 SAMPLERATE_HZ=4608000
 RX_GAIN_DB=40
 GAIN_MODE="slow_attack"    # manual | slow_attack | fast_attack
@@ -200,6 +200,15 @@ TX_GAIN_RESULT=$( ${SSH_CMD} "
     fi
 " 2>&1 )
 echo "  voltage0/hardwaregain(TX1) = ${TX_GAIN_RESULT}"
+
+# 7. TX Quadratur-Kalibrierung triggern
+#    Der OpenWiFi-Kernel exportiert keine TX-Tracking-Attribute (kein
+#    out_voltage_quadrature_tracking_en). Die TX I/Q-Balance muss daher
+#    explizit über calib_mode getriggert werden. Ohne diesen Schritt hat
+#    der TX-Pfad unkalibrierte I/Q-Imbalance und LO-Leakage → MER-Boden.
+echo ""
+echo "--- TX Quadratur-Kalibrierung ---"
+iio_set_dev "calib_mode" "tx_quad"
 
 echo ""
 echo "--- Verifizierung ---"
