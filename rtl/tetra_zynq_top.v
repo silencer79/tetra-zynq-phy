@@ -566,41 +566,69 @@ tetra_axi_dma_bridge #(
 // Phase 4: Free-running TX timer + SB burst support for base station operation
 // =============================================================================
 
-// TX Self-Timer: generates slot pulses and sym_en from clk_sys
-// 100 MHz / 5555 = 18,001.8 Hz symbol rate (~100 ppm error, acceptable for now)
-// 255 symbols × 5555 cycles = 1,416,525 cycles per burst
-// Slot timer: 1,416,667 cycles (exact ETSI slot duration at 100 MHz)
-localparam TX_SLOT_CYCLES = 21'd1_416_667;
-localparam SYM_DIV = 13'd5554; // 0..5554 = 5555 cycles per symbol
+// =============================================================================
+// Symbol tick generator — exact 18,000 Hz from clk_lvds (AD9361 DATA_CLK)
+//
+// clk_lvds = 18.432 MHz (AD9361 DATA_CLK, 2× RX sample rate in 1R1T)
+// 18,432,000 / 1024 = 18,000.000 Hz — exact, zero jitter.
+//
+// A toggle signal crosses to clk_sys via 2-FF synchronizer + edge detect,
+// producing a 1-cycle sym_en pulse in clk_sys domain.
+// =============================================================================
+reg [9:0] sym_div_lvds;
+reg       sym_toggle_lvds;
 
-reg [20:0] tx_timer_sys;
-reg [12:0] sym_div_cnt_sys;
-reg [1:0]  tx_slot_cnt_sys;
-reg [4:0]  tx_frame_cnt_sys;   // 1–18 (ETSI 1-based)
-reg [5:0]  tx_mf_cnt_sys;      // 1–60 (ETSI 1-based multiframe)
-reg        tx_slot_pulse_free_sys;
+always @(posedge clk_lvds or negedge rst_n_lvds) begin
+ if (!rst_n_lvds) begin
+  sym_div_lvds   <= 10'd0;
+  sym_toggle_lvds <= 1'b0;
+ end else if (sym_div_lvds == 10'd1023) begin
+  sym_div_lvds   <= 10'd0;
+  sym_toggle_lvds <= ~sym_toggle_lvds;
+ end else begin
+  sym_div_lvds <= sym_div_lvds + 10'd1;
+ end
+end
 
-// Free-running symbol enable — never stops, independent of tx_busy
-wire sym_en_sys_w = (sym_div_cnt_sys == 13'd0);
+// 2-FF CDC: toggle from clk_lvds → clk_sys
+(* ASYNC_REG = "TRUE" *) reg sym_toggle_meta_sys;
+(* ASYNC_REG = "TRUE" *) reg sym_toggle_sync_sys;
+reg sym_toggle_prev_sys;
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys) begin
- tx_timer_sys <= 21'd0;
- sym_div_cnt_sys <= 13'd0;
+  sym_toggle_meta_sys <= 1'b0;
+  sym_toggle_sync_sys <= 1'b0;
+  sym_toggle_prev_sys <= 1'b0;
+ end else begin
+  sym_toggle_meta_sys <= sym_toggle_lvds;
+  sym_toggle_sync_sys <= sym_toggle_meta_sys;
+  sym_toggle_prev_sys <= sym_toggle_sync_sys;
+ end
+end
+
+wire sym_en_sys_w = sym_toggle_sync_sys ^ sym_toggle_prev_sys;
+
+// TX Slot Timer — derived from sym_en_sys_w (exact 18,000 Hz from clk_lvds)
+// Counts 255 symbol ticks per slot, then pulses tx_slot_pulse.
+// All TX timing is now locked to AD9361 DATA_CLK — zero drift.
+
+reg [7:0]  tx_sym_cnt_sys;      // 0..254 symbols per slot
+reg [1:0]  tx_slot_cnt_sys;
+reg [4:0]  tx_frame_cnt_sys;    // 1–18 (ETSI 1-based)
+reg [5:0]  tx_mf_cnt_sys;       // 1–60 (ETSI 1-based multiframe)
+reg        tx_slot_pulse_free_sys;
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ tx_sym_cnt_sys <= 8'd0;
  tx_slot_cnt_sys <= 2'd0;
  tx_frame_cnt_sys <= 5'd1;
  tx_mf_cnt_sys <= 6'd1;
  tx_slot_pulse_free_sys <= 1'b0;
- end else begin
-  // Symbol divider — free-running
-  if (sym_div_cnt_sys == SYM_DIV)
-   sym_div_cnt_sys <= 13'd0;
-  else
-   sym_div_cnt_sys <= sym_div_cnt_sys + 13'd1;
-
-  // Slot timer
-  if (tx_timer_sys == TX_SLOT_CYCLES - 21'd1) begin
-   tx_timer_sys <= 21'd0;
+ end else if (sym_en_sys_w) begin
+  if (tx_sym_cnt_sys == 8'd254) begin
+   tx_sym_cnt_sys <= 8'd0;
    tx_slot_cnt_sys <= tx_slot_cnt_sys + 2'd1;
    tx_slot_pulse_free_sys <= 1'b1;
    if (tx_slot_cnt_sys == 2'd3) begin
@@ -615,9 +643,11 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
     end
    end
   end else begin
-   tx_timer_sys <= tx_timer_sys + 21'd1;
+   tx_sym_cnt_sys <= tx_sym_cnt_sys + 8'd1;
    tx_slot_pulse_free_sys <= 1'b0;
   end
+ end else begin
+  tx_slot_pulse_free_sys <= 1'b0;
  end
 end
 
