@@ -593,28 +593,28 @@ static void build_bnch_sysinfo(const tetra_sysinfo_t *info, uint8_t *bits)
     pack_bits(bits, &bp, band, 4);
     /* Offset (2 bits): 0 = no offset (our freq is on 25 kHz grid) */
     pack_bits(bits, &bp, 0, 2);
-    /* Duplex spacing (3 bits): 3 = -7.6 MHz (§18.4.2.1 Table 18.25) */
-    pack_bits(bits, &bp, 3, 3);
+    /* Duplex spacing (3 bits) */
+    pack_bits(bits, &bp, info->duplex_spacing, 3);
     /* Reverse operation (1 bit): 0 = normal (UL below DL) */
     pack_bits(bits, &bp, 0, 1);
     /* Number of common secondary ctrl channels (2 bits): 00 = none */
     pack_bits(bits, &bp, 0, 2);
-    /* MS TX power max cell (3 bits): 5 = class 3L (real cell value) */
-    pack_bits(bits, &bp, 5, 3);
-    /* RX level access minimum (4 bits): 2 (real cell value) */
-    pack_bits(bits, &bp, 2, 4);
-    /* Access parameter (4 bits): 8 (real cell value) */
-    pack_bits(bits, &bp, 8, 4);
-    /* Radio downlink timeout (4 bits): 8 (real cell value) */
-    pack_bits(bits, &bp, 8, 4);
+    /* MS TX power max cell (3 bits) */
+    pack_bits(bits, &bp, info->ms_txpwr_max_cell, 3);
+    /* RX level access minimum (4 bits) */
+    pack_bits(bits, &bp, info->rxlevel_access_min, 4);
+    /* Access parameter (4 bits) */
+    pack_bits(bits, &bp, info->access_parameter, 4);
+    /* Radio downlink timeout (4 bits) */
+    pack_bits(bits, &bp, info->radio_dl_timeout, 4);
     /* Hyperframe/cipher key flag (1 bit): 0 = hyperframe number follows */
     pack_bits(bits, &bp, 0, 1);
     /* Hyperframe number (16 bits): running counter */
     pack_bits(bits, &bp, info->hyperframe, 16);
     /* Optional field flag (2 bits): 10 = default freq + ext services */
     pack_bits(bits, &bp, 2, 2);
-    /* Optional field value (20 bits): 1011456 = 0x0F6F40 (real cell) */
-    pack_bits(bits, &bp, 1011456, 20);
+    /* Optional field value (20 bits) */
+    pack_bits(bits, &bp, info->optional_field_value, 20);
 
     /* Location Area (14 bits) */
     pack_bits(bits, &bp, info->la, 14);
@@ -624,12 +624,12 @@ static void build_bnch_sysinfo(const tetra_sysinfo_t *info, uint8_t *bits)
     pack_bits(bits, &bp, 1, 1);
     /* De-registration required (1): 1 (real cell) */
     pack_bits(bits, &bp, 1, 1);
-    /* Priority cell (1): 1 (real cell) */
+    /* Priority cell (1) */
+    pack_bits(bits, &bp, info->priority_cell, 1);
+    /* Cell never uses minimum mode (1): 1 */
     pack_bits(bits, &bp, 1, 1);
-    /* Cell never uses minimum mode (1): 1 (real cell) */
-    pack_bits(bits, &bp, 1, 1);
-    /* Migration supported (1): 1 (real cell) */
-    pack_bits(bits, &bp, 1, 1);
+    /* Migration supported (1) */
+    pack_bits(bits, &bp, info->migration_supported, 1);
     /* System wide services (1): 1 (real cell) */
     pack_bits(bits, &bp, 1, 1);
     /* TETRA voice service (1): 1 = supported */
@@ -951,11 +951,22 @@ static void usage(const char *prog)
         "\n"
         "Write SYSINFO to TETRA PHY and enable TX+RX.\n"
         "\n"
-        "  --freq N      DL frequency in Hz (default 439950000)\n"
+        "  --freq N      DL frequency in Hz (default 438250000)\n"
         "  --mcc N       Mobile Country Code (0-1023, default 901=test)\n"
         "  --mnc N       Mobile Network Code (0-16383, default 9998)\n"
         "  --la N        Location Area (0-16383, default 1)\n"
-        "  --cc N        Colour Code (0-63, default 1)\n"
+        "  --cc N        Colour Code (0-63, default 49)\n"
+        "  --sc N        System Code (0-15, default 2)\n"
+        "  --duplex N    Duplex Spacing (0-7, default 1)\n"
+        "  --txpwr N     MS TXPwr Max Cell (0-7, default 6)\n"
+        "  --rxmin N     RXLevel Access Min (0-15, default 0)\n"
+        "  --access N    Access Parameter (0-15, default 10)\n"
+        "  --dltimo N    Radio DL Timeout (0-15, default 5)\n"
+        "  --optfield N  Optional field value (0-1048575, default 24448)\n"
+        "  --prio N      Priority cell (0-1, default 0)\n"
+        "  --migr N      Migration supported (0-1, default 0)\n"
+        "  --ncb N       Neighbour Cell Broadcast (0-3, default 3)\n"
+        "  --csl N       Cell Service Level (0-3, default 0)\n"
         "  --thresh N    Sync threshold (1-255, default 0=unchanged)\n"
         "  --status      Print status registers and exit\n"
         "  --no-enable   Write SYSINFO but don't enable TX/RX\n"
@@ -966,19 +977,27 @@ static void usage(const char *prog)
 int main(int argc, char *argv[])
 {
     tetra_sysinfo_t info = {
-        .system_code      = 3,     /* V+D mode (EN 300 392-2 §18.4.2.1, Table 18.14) */
-        .dl_freq_hz       = 439950000, /* 439.950 MHz (on 25 kHz grid, carrier 1598) */
+        .system_code      = 2,     /* V+D mode (HamTetra cell value) */
+        .dl_freq_hz       = 438250000, /* 438.250 MHz (HamTetra cell frequency) */
         .mcc              = 901,   /* Test network (ITU-T E.212) */
         .mnc              = 9998,
         .la               = 1,
-        .colour_code      = 1,
+        .colour_code      = 49,    /* HamTetra cell value */
         .timeslot_assigned = 1,    /* 1 common ctrl timeslot */
         .sharing_mode     = 0,     /* continuous carrier */
         .u_plane          = 0,
         .frame_18_extension = 0,
-        .neighbour_cell_broadcast = 0,  /* no NCB */
-        .cell_service_level = 3,   /* level 3 = service available (§18.4.2.1) */
+        .neighbour_cell_broadcast = 3,  /* HamTetra cell value */
+        .cell_service_level = 0,   /* HamTetra cell value */
         .late_entry_info  = 1,     /* late entry supported */
+        .duplex_spacing   = 1,     /* -7.6 MHz */
+        .ms_txpwr_max_cell = 6,
+        .rxlevel_access_min = 0,
+        .access_parameter = 10,
+        .radio_dl_timeout = 5,
+        .optional_field_value = 24448,
+        .priority_cell    = 0,
+        .migration_supported = 0,
         .frame_countdown  = 0,
         .access_code      = 0x0F,  /* All subscriber classes allowed */
         .dl_usage         = 0x3F,  /* All slots available */
@@ -987,12 +1006,28 @@ int main(int argc, char *argv[])
     int status_only = 0;
     int no_enable = 0;
 
+    enum {
+        OPT_SC = 256, OPT_DUPLEX, OPT_TXPWR, OPT_RXMIN,
+        OPT_ACCESS, OPT_DLTIMO, OPT_OPTFIELD, OPT_PRIO,
+        OPT_MIGR, OPT_NCB, OPT_CSL
+    };
     static struct option long_opts[] = {
         {"freq",      required_argument, NULL, 'f'},
         {"mcc",       required_argument, NULL, 'm'},
         {"mnc",       required_argument, NULL, 'n'},
         {"la",        required_argument, NULL, 'l'},
         {"cc",        required_argument, NULL, 'c'},
+        {"sc",        required_argument, NULL, OPT_SC},
+        {"duplex",    required_argument, NULL, OPT_DUPLEX},
+        {"txpwr",     required_argument, NULL, OPT_TXPWR},
+        {"rxmin",     required_argument, NULL, OPT_RXMIN},
+        {"access",    required_argument, NULL, OPT_ACCESS},
+        {"dltimo",    required_argument, NULL, OPT_DLTIMO},
+        {"optfield",  required_argument, NULL, OPT_OPTFIELD},
+        {"prio",      required_argument, NULL, OPT_PRIO},
+        {"migr",      required_argument, NULL, OPT_MIGR},
+        {"ncb",       required_argument, NULL, OPT_NCB},
+        {"csl",       required_argument, NULL, OPT_CSL},
         {"thresh",    required_argument, NULL, 't'},
         {"status",    no_argument,       NULL, 's'},
         {"no-enable", no_argument,       NULL, 'x'},
@@ -1008,6 +1043,17 @@ int main(int argc, char *argv[])
         case 'n': info.mnc         = atoi(optarg); break;
         case 'l': info.la          = atoi(optarg); break;
         case 'c': info.colour_code = atoi(optarg); break;
+        case OPT_SC:       info.system_code          = atoi(optarg); break;
+        case OPT_DUPLEX:   info.duplex_spacing       = atoi(optarg); break;
+        case OPT_TXPWR:    info.ms_txpwr_max_cell    = atoi(optarg); break;
+        case OPT_RXMIN:    info.rxlevel_access_min   = atoi(optarg); break;
+        case OPT_ACCESS:   info.access_parameter     = atoi(optarg); break;
+        case OPT_DLTIMO:   info.radio_dl_timeout     = atoi(optarg); break;
+        case OPT_OPTFIELD: info.optional_field_value  = strtoul(optarg, NULL, 10); break;
+        case OPT_PRIO:     info.priority_cell         = atoi(optarg); break;
+        case OPT_MIGR:     info.migration_supported   = atoi(optarg); break;
+        case OPT_NCB:      info.neighbour_cell_broadcast = atoi(optarg); break;
+        case OPT_CSL:      info.cell_service_level    = atoi(optarg); break;
         case 't': sync_thresh      = atoi(optarg); break;
         case 's': status_only      = 1;            break;
         case 'x': no_enable        = 1;            break;

@@ -50,6 +50,9 @@ module tetra_rx_chain #(
     input  wire [CORR_WIDTH-1:0]  corr_threshold_sys,
     input  wire [1:0]             seq_select_sys,
 
+    // Digital loopback mode — bypasses CIC ×64 gain in rx_frontend
+    input  wire                   loopback_en_sys,
+
     // -------------------------------------------------------------------------
     // Outputs to LMAC / AXI-DMA (clk_sys domain)
     // -------------------------------------------------------------------------
@@ -78,6 +81,9 @@ module tetra_rx_chain #(
 
     // Phase error for timing recovery diagnostics
     output wire signed [15:0] phase_error_sys,
+
+    // Debug: peak STS correlation value
+    output wire [CORR_WIDTH-1:0] corr_peak_sys,
 
   // -------------------------------------------------------------------------
   // Debug outputs (ILA probes)
@@ -110,6 +116,7 @@ wire signed [15:0] demod_phase_err_sys;
 wire        sync_found_w;
 wire        sync_locked_w;
 wire [7:0]  slot_position_w;
+wire [CORR_WIDTH-1:0] corr_peak_w;
 wire [1:0]  slot_number_w;
 
 // burst_demux internal signal (slot_valid is both an output and feeds frame_counter)
@@ -134,7 +141,8 @@ tetra_rx_frontend #(
     .rst_n_sys    (rst_n_sys),
     .i_out_sys    (fe_i_sys),
     .q_out_sys    (fe_q_sys),
-    .out_valid_sys(fe_valid_sys)
+    .out_valid_sys(fe_valid_sys),
+    .loopback_en_sys(loopback_en_sys)
 );
 
 // =============================================================================
@@ -190,7 +198,8 @@ tetra_sync_detect #(
     .sync_found     (sync_found_w),
     .sync_locked    (sync_locked_w),
     .slot_position  (slot_position_w),
-    .slot_number    (slot_number_w)
+    .slot_number    (slot_number_w),
+    .corr_peak      (corr_peak_w)
 );
 
 // =============================================================================
@@ -240,6 +249,7 @@ assign sync_locked_sys   = sync_locked_w;
 assign sync_found_sys    = sync_found_w;
 assign slot_position_sys = slot_position_w;
 assign phase_error_sys   = demod_phase_err_sys;
+assign corr_peak_sys     = corr_peak_w;
 
 // Debug outputs for ILA
 assign dbg_fe_valid_sys = fe_valid_sys;

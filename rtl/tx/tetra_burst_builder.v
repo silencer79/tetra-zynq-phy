@@ -4,54 +4,31 @@
 // File: rtl/tx/tetra_burst_builder.v
 //
 // Description:
-// Assembles TETRA Continuous Downlink Bursts (NDB, SDB) and streams them
-// out as a sequential dibit (2-bit symbol) stream at ~18 kHz symbol rate.
+// Continuous Downlink Burst Builder — assembles 255-symbol TETRA bursts
+// (NDB or SDB) and streams dibits to the pi4dqpsk modulator.
 //
-// Implements ETSI EN 300 392-2 §9.4.4.2.5 (Normal Continuous Downlink Burst)
-// and §9.4.4.2.6 (Synchronization Continuous Downlink Burst).
+// Supports seamless burst chaining: build_req can arrive while the current
+// burst is still transmitting.  The new burst data is latched into shadow
+// registers and automatically loaded when the current burst completes,
+// producing a gap-free continuous symbol stream.
 //
-// Architecture: single 510-bit shift register loaded with the complete
-// pre-assembled burst on build_req, then shifted out MSB-first at the
-// symbol rate.  This replaces the previous multi-state FSM with a trivial
-// IDLE → SHIFT → DONE state machine.
+// Burst format (510 bits = 255 symbols × 2):
+//   SDB: TAIL1(6) + HC(1) + FC(40) + sb1(60) + STS(19) + bb(15)
+//        + bkn2(108) + HD(1) + TAIL2(5)
+//   NDB: TAIL1(6) + HA(1) + blk1(108) + bb1(7) + NTS(11) + bb2(8)
+//        + blk2(108) + HA(1) + TAIL2(5)
 //
-// SDB structure (§9.4.4.2.6, 255 symbols = 510 bits):
-// ┌───────┬────┬─────────┬──────┬─────┬────┬───────┬────┬───────┐
-// │ Tail1 │ HC │ FreqCor │ sb1  │ STS │ bb │ bkn2  │ HD │ Tail2 │
-// │ 6 sym │ 1  │ 40 sym  │60sym │19sym│15s │108 sym│ 1  │ 5 sym │
-// └───────┴────┴─────────┴──────┴─────┴────┴───────┴────┴───────┘
+// Symbol enable (sym_en_ext_sys):
+// Derived from AD9361 DATA_CLK (18.432 MHz ÷ 1024 = exact 18,000 Hz),
+// synchronized to clk_sys in tetra_zynq_top.  Zero jitter, zero drift.
 //
-// NDB structure (§9.4.4.2.5, 255 symbols = 510 bits):
-// ┌───────┬────┬─────────┬──────┬─────┬──────┬─────────┬────┬───────┐
-// │ Tail1 │ HA │  blk1   │ bb1  │ NTS │ bb2  │  blk2   │ HB │ Tail2 │
-// │ 6 sym │ 1  │ 108 sym │ 7sym │11sym│ 8sym │ 108 sym │ 1  │ 5 sym │
-// └───────┴────┴─────────┴──────┴─────┴──────┴─────────┴────┴───────┘
-//
-// Tail symbols: from NTS q-sequence (§9.4.4.3.2) for inter-slot continuity.
-// Phase adjustment bits (HA/HB/HC/HD): set to 00 (placeholder).
-// Frequency correction: 40-symbol pattern (§9.4.4.3.1).
-//
-// Interfaces:
-// - build_req_sys: one-cycle pulse, triggers assembly of one burst
-// - block1/block2_data_sys: 216-bit NDB payload (108 symbols each)
-// - sb1_data_sys: 120-bit SDB sb1 payload (60 symbols)
-// - bb_data_sys: 30-bit BB/AACH field (15 symbols, shared NDB/SDB)
-// - tx_dibit_sys + tx_dibit_valid_sys: sequential output stream
-// - tx_done_sys: one-cycle pulse on last output symbol
-// - tx_busy_sys: HIGH from build_req until tx_done
-//
-// Pipeline: 1-cycle latency. tx_dibit_valid goes HIGH one cycle after
-// the first sym_en_w; tx_done aligns with last valid symbol.
-//
-// Clock domain: _sys (100 MHz system clock)
-// Reset: Active-low asynchronous rst_n_sys
-//
-// Resource estimate: LUT ~180 FF ~530 DSP 0 BRAM 0
-// (510-bit shift register + assembly MUX + sym_div counter)
+// Burst chaining:
+// When build_req_sys fires while tx_busy_sys is HIGH, the new payload is
+// latched into shadow registers.  At sym_cnt=254, if a chain is pending,
+// the shift register reloads and sym_cnt wraps to 0 — tx_busy stays HIGH,
+// the first sym_en_w pulse.  tx_done aligns with last valid symbol.
 //
 // Coding rules: Verilog-2001 strict (R1–R10 per PROMPT.md)
-//
-// Ref: ETSI EN 300 392-2 §9.4.4.2.5 (NDB cont.), §9.4.4.2.6 (SDB cont.)
 // =============================================================================
 
 `timescale 1ns / 1ps
@@ -60,11 +37,13 @@
 module tetra_burst_builder #(
  parameter BLOCK_BITS = 216, // bits per NDB block (108 symbols × 2)
  parameter BB_BITS = 30, // BB/AACH field bits (15 symbols × 2)
- parameter SB1_BITS = 120, // SDB sb1 field bits (60 symbols × 2)
- parameter SYM_DIV = 13'd5554 // counter wraps 0..5554 = 5555 cycles/symbol
+ parameter SB1_BITS = 120  // SDB sb1 field bits (60 symbols × 2)
 )(
  input wire clk_sys,
  input wire rst_n_sys,
+
+ // Symbol enable — exact 18,000 Hz from clk_lvds ÷ 1024, synced to clk_sys
+ input wire sym_en_ext_sys,
 
  // NDB payload inputs (latched on build_req_sys pulse)
  input wire [BLOCK_BITS-1:0] block1_data_sys, // Block 1 (NDB), MSB = first symbol
@@ -133,24 +112,14 @@ localparam [21:0] NTS1_REF = {
 };
 
 // =============================================================================
-// Symbol rate divider — generates sym_en_w at ~18 kHz from 100 MHz clk_sys
+// Symbol rate enable — derived from external sym_en_ext_sys
+//
+// The symbol clock is generated in tetra_zynq_top from clk_lvds (AD9361
+// DATA_CLK = 18.432 MHz) with a divide-by-1024 counter, giving exactly
+// 18,000.000 Hz with zero jitter.  The pulse is synchronized to clk_sys
+// before arriving here as sym_en_ext_sys.
 // =============================================================================
-reg [12:0] sym_div_sys;
-wire       sym_en_w;
-
-// R1: symbol-rate divider counter — runs only while tx_busy
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys)
-  sym_div_sys <= 13'd0;
- else if (!tx_busy_sys)
-  sym_div_sys <= 13'd0;
- else if (sym_div_sys == SYM_DIV)
-  sym_div_sys <= 13'd0;
- else
-  sym_div_sys <= sym_div_sys + 13'd1;
-end
-
-assign sym_en_w = tx_busy_sys && (sym_div_sys == 13'd0);
+wire sym_en_w = tx_busy_sys && sym_en_ext_sys;
 
 // =============================================================================
 // FSM state and symbol counter
@@ -158,31 +127,56 @@ assign sym_en_w = tx_busy_sys && (sym_div_sys == 13'd0);
 reg [1:0] state_sys;
 reg [7:0] sym_cnt_sys;
 
-// build_req_pending_sys: latches build_req_sys so next_state sees it at the
-// first sym_en_w pulse.  Clears when sym_en_w fires in S_IDLE.
+// =============================================================================
+// Burst chaining — shadow registers for next burst
+//
+// When build_req fires while tx_busy is HIGH, the payload is latched into
+// shadow registers and chain_pending is set.  At sym_cnt=254 the builder
+// reloads from the shadow burst and continues without going idle.
+// =============================================================================
+reg        chain_pending_sys;
+reg [BURST_BITS-1:0] chain_burst_sys;
+
+// build_req_pending_sys: for cold start (first burst from S_IDLE)
 reg build_req_pending_sys;
 
-// R1: build_req_pending
+// R1: build_req handling — cold start vs chain
 always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys)
+ if (!rst_n_sys) begin
   build_req_pending_sys <= 1'b0;
- else if (build_req_sys)
-  build_req_pending_sys <= 1'b1;
- else if (sym_en_w && state_sys == S_IDLE)
-  build_req_pending_sys <= 1'b0;
+  chain_pending_sys <= 1'b0;
+  chain_burst_sys <= {BURST_BITS{1'b0}};
+ end else if (build_req_sys) begin
+  if (tx_busy_sys) begin
+   // Builder is active: latch into shadow for seamless chain
+   chain_pending_sys <= 1'b1;
+   if (burst_type_sys)
+    chain_burst_sys <= {TAIL1, PADJ, FC_PAT, sb1_data_sys, STS_REF,
+                        bb_data_sys, block2_data_sys, PADJ, TAIL2};
+   else
+    chain_burst_sys <= {TAIL1, PADJ, block1_data_sys, bb_data_sys[BB_BITS-1:16],
+                        NTS1_REF, bb_data_sys[15:0], block2_data_sys, PADJ, TAIL2};
+  end else begin
+   // Builder is idle: cold start
+   build_req_pending_sys <= 1'b1;
+  end
+ end else begin
+  if (sym_en_w && state_sys == S_IDLE)
+   build_req_pending_sys <= 1'b0;
+  // chain_pending clears when shift register reloads at sym_cnt=254
+  if (sym_en_w && state_sys == S_SHIFT && sym_cnt_sys == SYM_LAST && chain_pending_sys)
+   chain_pending_sys <= 1'b0;
+ end
 end
 
 // =============================================================================
 // 510-bit burst shift register
-// Loaded on build_req_sys; shifted left 2 on each sym_en_w during S_SHIFT.
+// Loaded on build_req (cold start) or from chain shadow at sym_cnt=254.
 // burst_sreg[509:508] = current output dibit (MSB = first transmitted).
 // =============================================================================
 reg [BURST_BITS-1:0] burst_sreg_sys;
 
-// Combinatorial: assemble NDB or SDB burst pattern
-// Both patterns are exactly 510 bits:
-//   SDB: TAIL1(12) + HC(2) + FC(80) + sb1(120) + STS(38) + bb(30) + bkn2(216) + HD(2) + TAIL2(10)
-//   NDB: TAIL1(12) + HA(2) + blk1(216) + bb1(14) + NTS(22) + bb2(16) + blk2(216) + HA(2) + TAIL2(10)
+// Combinatorial: assemble burst pattern for cold start
 wire [BURST_BITS-1:0] sdb_burst_w;
 wire [BURST_BITS-1:0] ndb_burst_w;
 
@@ -192,15 +186,19 @@ assign sdb_burst_w = {TAIL1, PADJ, FC_PAT, sb1_data_sys, STS_REF,
 assign ndb_burst_w = {TAIL1, PADJ, block1_data_sys, bb_data_sys[BB_BITS-1:16],
                       NTS1_REF, bb_data_sys[15:0], block2_data_sys, PADJ, TAIL2};
 
-// R1: burst_sreg_sys — load on build_req, shift during S_SHIFT
+// R1: burst_sreg_sys — load on cold start, chain reload, or shift
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
   burst_sreg_sys <= {BURST_BITS{1'b0}};
  else if (state_sys == S_IDLE && build_req_sys) begin
+  // Cold start: load directly
   if (burst_type_sys)
    burst_sreg_sys <= sdb_burst_w;
   else
    burst_sreg_sys <= ndb_burst_w;
+ end else if (sym_en_w && state_sys == S_SHIFT && sym_cnt_sys == SYM_LAST && chain_pending_sys) begin
+  // Chain reload: seamless transition to next burst
+  burst_sreg_sys <= chain_burst_sys;
  end else if (state_sys == S_SHIFT && sym_en_w)
   burst_sreg_sys <= {burst_sreg_sys[BURST_BITS-3:0], 2'b00};
 end
@@ -214,7 +212,14 @@ always @(*) begin
  next_state_sys = state_sys;
  case (state_sys)
  S_IDLE: if (build_req_pending_sys) next_state_sys = S_SHIFT;
- S_SHIFT: if (sym_cnt_sys == SYM_LAST) next_state_sys = S_DONE;
+ S_SHIFT: begin
+  if (sym_cnt_sys == SYM_LAST) begin
+   if (chain_pending_sys)
+    next_state_sys = S_SHIFT; // Stay in S_SHIFT, reload from chain
+   else
+    next_state_sys = S_DONE;  // No next burst, stop
+  end
+ end
  S_DONE: next_state_sys = S_IDLE;
  default: next_state_sys = S_IDLE;
  endcase
@@ -235,13 +240,15 @@ end
 
 // =============================================================================
 // R1: symbol counter — counts 0..254 during S_SHIFT
-// Resets on state transition; increments on sym_en_w while shifting.
+// Wraps to 0 on chain reload (sym_cnt=254 + chain_pending).
 // =============================================================================
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
   sym_cnt_sys <= 8'd0;
  else if (sym_en_w) begin
-  if (state_sys != next_state_sys)
+  if (state_sys == S_SHIFT && sym_cnt_sys == SYM_LAST && chain_pending_sys)
+   sym_cnt_sys <= 8'd0; // Chain: wrap to 0
+  else if (state_sys != next_state_sys)
    sym_cnt_sys <= 8'd0;
   else if (state_sys == S_SHIFT)
    sym_cnt_sys <= sym_cnt_sys + 8'd1;
@@ -276,12 +283,13 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
   tx_done_sys <= 1'b0;
  else
-  tx_done_sys <= sym_en_w && (next_state_sys == S_DONE);
+  tx_done_sys <= sym_en_w && (sym_cnt_sys == SYM_LAST) && (state_sys == S_SHIFT);
 end
 
 // =============================================================================
 // R1: tx_busy_sys — HIGH while burst in progress
-// Set immediately on build_req; cleared on S_DONE (no sym_en gate).
+// Set on build_req (cold or chain); cleared on S_DONE only.
+// During chained bursts, tx_busy stays HIGH continuously.
 // =============================================================================
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)

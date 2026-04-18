@@ -114,9 +114,8 @@ always @(*) begin
  next_state_sys = state_sys;
  case (state_sys)
  S_IDLE: if (tx_slot_pulse_sys) next_state_sys = S_PENDING;
- S_PENDING: if (!builder_busy_sys) next_state_sys = S_REQ;
- S_REQ: next_state_sys = S_WAIT;
- S_WAIT: if (!builder_busy_sys) next_state_sys = S_IDLE;
+ S_PENDING: next_state_sys = S_REQ; // No wait — builder accepts req while busy (chain)
+ S_REQ: next_state_sys = S_IDLE;    // Done — builder latches data immediately
  default: next_state_sys = S_IDLE;
  endcase
 end

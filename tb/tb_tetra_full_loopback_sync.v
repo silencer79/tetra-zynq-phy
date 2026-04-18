@@ -161,7 +161,8 @@ tetra_rx_frontend #(
     .rx_valid_lvds (tx_valid_lvds),
     .i_out_sys     (fe_i_sys),
     .q_out_sys     (fe_q_sys),
-    .out_valid_sys (fe_valid_sys)
+    .out_valid_sys (fe_valid_sys),
+    .loopback_en_sys(1'b1)          // Loopback TB: bypass CIC gain
 );
 
 tetra_timing_recovery #(
@@ -213,7 +214,8 @@ tetra_sync_detect #(
     .sync_found     (sync_found),
     .sync_locked    (sync_locked),
     .slot_position  (slot_position),
-    .slot_number    (slot_number)
+    .slot_number    (slot_number),
+    .corr_peak      ()
 );
 
 always @(posedge clk_sys) begin

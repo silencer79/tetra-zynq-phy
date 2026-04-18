@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TETRA Cell Config</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 16px; }
+h1 { font-size: 1.3em; margin-bottom: 12px; color: #00d4ff; }
+h2 { font-size: 1em; margin: 16px 0 8px; color: #7eb8da; border-bottom: 1px solid #333; padding-bottom: 4px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+label { font-size: 0.85em; color: #aaa; display: flex; flex-direction: column; gap: 2px; }
+label span { font-size: 0.75em; color: #666; }
+input, select { background: #16213e; border: 1px solid #333; color: #e0e0e0; padding: 6px 8px;
+  border-radius: 4px; font-size: 0.9em; font-family: monospace; }
+input:focus, select:focus { border-color: #00d4ff; outline: none; }
+.full { grid-column: 1 / -1; }
+.actions { margin-top: 16px; display: flex; gap: 8px; }
+button { padding: 10px 20px; border: none; border-radius: 4px; font-size: 0.9em; cursor: pointer; font-weight: 600; }
+.btn-apply { background: #00d4ff; color: #000; }
+.btn-apply:hover { background: #00b8d9; }
+.btn-stop { background: #ff4444; color: #fff; }
+.btn-stop:hover { background: #cc3333; }
+.btn-status { background: #333; color: #e0e0e0; }
+.btn-status:hover { background: #444; }
+#status { margin-top: 12px; padding: 10px; background: #0d1117; border-radius: 4px;
+  font-family: monospace; font-size: 0.8em; white-space: pre-wrap; min-height: 60px;
+  border: 1px solid #333; display: none; }
+.spinner { display: none; }
+.spinner.active { display: inline-block; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.tag { display: inline-block; background: #16213e; padding: 2px 6px; border-radius: 3px;
+  font-size: 0.7em; color: #7eb8da; margin-left: 6px; }
+</style>
+</head>
+<body>
+
+<h1>TETRA Cell Config <span class="tag" id="cellState">--</span></h1>
+
+<form id="cfg">
+
+<h2>Frequenz</h2>
+<div class="grid">
+  <label>DL Frequenz (Hz)
+    <input name="freq" type="number" value="438250000" step="25000">
+  </label>
+  <label>TX Attenuation (dB)
+    <span>0 = max, -89.75 = min</span>
+    <input name="tx_atten" type="number" value="-10" step="0.25" min="-89.75" max="0">
+  </label>
+</div>
+
+<h2>Netzwerk-Identifikation</h2>
+<div class="grid">
+  <label>MCC <span>0-1023</span>
+    <input name="mcc" type="number" value="901" min="0" max="1023">
+  </label>
+  <label>MNC <span>0-16383</span>
+    <input name="mnc" type="number" value="9998" min="0" max="16383">
+  </label>
+  <label>Location Area <span>0-16383</span>
+    <input name="la" type="number" value="1" min="0" max="16383">
+  </label>
+  <label>Colour Code <span>0-63</span>
+    <input name="cc" type="number" value="49" min="0" max="63">
+  </label>
+  <label>System Code <span>0-15</span>
+    <input name="system_code" type="number" value="2" min="0" max="15">
+  </label>
+</div>
+
+<h2>SYSINFO (BNCH)</h2>
+<div class="grid">
+  <label>Duplex Spacing <span>3 bits</span>
+    <select name="duplex_spacing">
+      <option value="0">0 = reserved</option>
+      <option value="1" selected>1 = -7.6 MHz</option>
+      <option value="2">2 = reserved</option>
+      <option value="3">3 = -10 MHz</option>
+      <option value="4">4 = +10 MHz</option>
+      <option value="5">5 = reserved</option>
+      <option value="6">6 = reserved</option>
+      <option value="7">7 = simplex</option>
+    </select>
+  </label>
+  <label>MS TXPwr Max Cell <span>3 bits (0-7)</span>
+    <input name="ms_txpwr" type="number" value="6" min="0" max="7">
+  </label>
+  <label>RXLevel Access Min <span>4 bits (0-15)</span>
+    <input name="rxlevel_min" type="number" value="0" min="0" max="15">
+  </label>
+  <label>Access Parameter <span>4 bits (0-15)</span>
+    <input name="access_param" type="number" value="10" min="0" max="15">
+  </label>
+  <label>Radio DL Timeout <span>4 bits (0-15)</span>
+    <input name="radio_dl_timeout" type="number" value="5" min="0" max="15">
+  </label>
+  <label>Optional Field Value <span>20 bits</span>
+    <input name="opt_field" type="number" value="24448" min="0" max="1048575">
+  </label>
+</div>
+
+<h2>Zell-Eigenschaften</h2>
+<div class="grid">
+  <label>Priority Cell
+    <select name="priority_cell"><option value="0" selected>0 = Nein</option><option value="1">1 = Ja</option></select>
+  </label>
+  <label>Migration Supported
+    <select name="migration"><option value="0" selected>0 = Nein</option><option value="1">1 = Ja</option></select>
+  </label>
+  <label>Neighbour Cell Broadcast <span>2 bits</span>
+    <input name="ncb" type="number" value="3" min="0" max="3">
+  </label>
+  <label>Cell Service Level <span>2 bits</span>
+    <input name="csl" type="number" value="0" min="0" max="3">
+  </label>
+</div>
+
+</form>
+
+<div class="actions">
+  <button class="btn-apply" onclick="apply()">Apply <span class="spinner" id="sp">&#x21bb;</span></button>
+  <button class="btn-status" onclick="getStatus()">Status</button>
+  <button class="btn-stop" onclick="stopCell()">Stop</button>
+</div>
+
+<div id="status"></div>
+
+<script>
+function qs(s) { return document.querySelector(s); }
+function showStatus(txt) { var el = qs('#status'); el.style.display = 'block'; el.textContent = txt; }
+
+function apply() {
+  var sp = qs('#sp'); sp.classList.add('active');
+  var fd = new FormData(qs('#cfg'));
+  var params = new URLSearchParams(fd).toString();
+  fetch('/cgi-bin/apply.cgi?' + params)
+    .then(function(r) { return r.text(); })
+    .then(function(t) { showStatus(t); sp.classList.remove('active'); getState(); })
+    .catch(function(e) { showStatus('Error: ' + e); sp.classList.remove('active'); });
+}
+
+function getStatus() {
+  fetch('/cgi-bin/status.cgi')
+    .then(function(r) { return r.text(); })
+    .then(function(t) { showStatus(t); })
+    .catch(function(e) { showStatus('Error: ' + e); });
+}
+
+function stopCell() {
+  fetch('/cgi-bin/stop.cgi')
+    .then(function(r) { return r.text(); })
+    .then(function(t) { showStatus(t); getState(); })
+    .catch(function(e) { showStatus('Error: ' + e); });
+}
+
+function getState() {
+  fetch('/cgi-bin/status.cgi?brief=1')
+    .then(function(r) { return r.text(); })
+    .then(function(t) {
+      var el = qs('#cellState');
+      if (t.indexOf('TX=1') >= 0) { el.textContent = 'ON AIR'; el.style.background = '#00aa44'; el.style.color = '#fff'; }
+      else { el.textContent = 'OFF'; el.style.background = '#ff4444'; el.style.color = '#fff'; }
+    })
+    .catch(function() {});
+}
+
+getState();
+</script>
+</body>
+</html>

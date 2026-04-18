@@ -121,6 +121,14 @@ typedef struct {
     uint32_t dl_freq_hz;               /* DL frequency in Hz (auto → band + carrier) */
     uint16_t la;                       /* Location Area, 14 bits */
     uint16_t hyperframe;               /* Hyperframe number, 16 bits (0–65535, wraps) */
+    uint8_t  duplex_spacing;           /* 3 bits */
+    uint8_t  ms_txpwr_max_cell;        /* 3 bits */
+    uint8_t  rxlevel_access_min;       /* 4 bits */
+    uint8_t  access_parameter;         /* 4 bits */
+    uint8_t  radio_dl_timeout;         /* 4 bits */
+    uint32_t optional_field_value;     /* 20 bits */
+    uint8_t  priority_cell;            /* 1 bit */
+    uint8_t  migration_supported;      /* 1 bit */
 
     /* Deprecated project-internal fields kept for source compatibility. */
     uint8_t  frame_countdown;

@@ -122,7 +122,8 @@ tetra_rx_frontend #(
     .rx_valid_lvds (rx_valid_lvds),
     .i_out_sys     (i_out_sys),
     .q_out_sys     (q_out_sys),
-    .out_valid_sys (out_valid_sys)
+    .out_valid_sys (out_valid_sys),
+    .loopback_en_sys(1'b0)          // TB tests RF-mode CIC gain
 );
 
 // =============================================================================

@@ -84,7 +84,8 @@ tetra_sync_detect #(
     .sync_found    (sync_found),
     .sync_locked   (sync_locked),
     .slot_position (slot_position),
-    .slot_number   (slot_number)
+    .slot_number   (slot_number),
+    .corr_peak     ()
 );
 
 // ---------------------------------------------------------------------------

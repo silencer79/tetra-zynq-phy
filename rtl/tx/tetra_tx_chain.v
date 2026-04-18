@@ -74,6 +74,9 @@ module tetra_tx_chain #(
  input wire [1:0] tx_slot_num_sys,
  input wire tx_slot_pulse_sys,
 
+ // Symbol enable — exact 18,000 Hz derived from clk_lvds, synced to clk_sys
+ input wire sym_en_ext_sys,
+
  // -------------------------------------------------------------------------
  // clk_lvds domain (AD9361 DATA_CLK)
  // -------------------------------------------------------------------------
@@ -168,6 +171,7 @@ tetra_burst_builder #(
 ) u_burst_builder (
  .clk_sys (clk_sys),
  .rst_n_sys (rst_n_sys),
+ .sym_en_ext_sys (sym_en_ext_sys),
  // NDB inputs
  .block1_data_sys (mux_block1_sys),
  .block2_data_sys (mux_block2_sys),

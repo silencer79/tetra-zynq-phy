@@ -427,7 +427,7 @@ cmd_full_init() {
     cmd_adc_init
 
     echo "--- Step 7: VCXO GPIO init ---"
-    ${SSH_CMD} "
+    ssh_cmd "
         for pin in 1011 1012 1013; do
             echo \$pin > /sys/class/gpio/export 2>/dev/null
             echo out > /sys/class/gpio/gpio\${pin}/direction
@@ -436,7 +436,7 @@ cmd_full_init() {
     " || echo "WARN: VCXO GPIO init failed"
 
     echo "--- Step 8: XO correction ---"
-    ${SSH_CMD} "echo 40000000 > /sys/bus/iio/devices/iio:device1/xo_correction" && \
+    ssh_cmd "echo 40000000 > /sys/bus/iio/devices/iio:device1/xo_correction" && \
         echo "xo_correction set to 40000000 Hz (nominal)" || \
         echo "WARN: xo_correction failed"
 
