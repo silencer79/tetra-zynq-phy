@@ -69,7 +69,8 @@
 
 /* NDB block1/block2 payload registers (216 bits each, broadcast to all 4 slots).
  * Channel-coded SCH/F filler fills NDB bursts with scrambled modulated content
- * so the spectrum is continuous instead of narrow-CW from an all-zero payload. */
+ * so the spectrum is continuous instead of narrow-CW from an all-zero payload.
+ * Scrambled with slot_num=1 (MCCH) — only slot 1 descrambles correctly. */
 #define REG_NDB_BLK1_0     0x88  /* block1 word 0 (bits [215:184]) */
 #define REG_NDB_BLK1_1     0x8C
 #define REG_NDB_BLK1_2     0x90

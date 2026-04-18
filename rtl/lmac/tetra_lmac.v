@@ -107,12 +107,11 @@ wire       rx_depunct_valid_sys;
 wire       rx_depunct_done_sys;
 
 // ---- TX path ----------------------------------------------------------------
-wire tx_enc_bit2_sys;
-wire tx_enc_bit1_sys;
-wire tx_enc_bit0_sys;
+wire [3:0] tx_enc_coded_sys;
 wire tx_enc_valid_sys;
 wire [1:0] tx_punct_bits_sys;
 wire       tx_punct_valid_sys;
+wire       tx_punct_cnt_sys;
 
 wire tx_intlv_out_sys;
 wire tx_intlv_valid_sys;
@@ -151,12 +150,11 @@ tetra_scrambler #(
 );
 
 // ---- Step 2: Deinterleaver ───────────────────────────────────────────────────
-tetra_interleaver #(
+tetra_deinterleaver #(
     .MAX_BLOCK_SIZE(432)
 ) u_rx_deinterleaver (
     .clk_sys       (clk_sys),
     .rst_n_sys     (rst_n_sys),
-    .mode          (1'b1),           // 1 = Deinterleave (RX)
     .block_size    (9'd216),
     .data_in       (rx_descr_out_sys),
     .data_in_valid (rx_descr_valid_sys),
@@ -283,11 +281,35 @@ tetra_rcpc_encoder #(
     .data_valid   (tx_data_valid_sys),
     .punct_pattern(punct_pattern_sys),
     .flush        (tx_flush_sys),
-    .coded_bits   ({tx_enc_bit2_sys, tx_enc_bit1_sys, tx_enc_bit0_sys}),
+    .coded_bits   (tx_enc_coded_sys),
     .coded_valid  (tx_enc_valid_sys),
     .punct_out_bits(tx_punct_bits_sys),
-    .punct_valid  (tx_punct_valid_sys)
+    .punct_valid  (tx_punct_valid_sys),
+    .punct_out_cnt(tx_punct_cnt_sys)
 );
+
+// ---- Step 2b: Puncture serializer ────────────────────────────────────────────
+// Rate-2/3 puncture outputs 2 bits (even) or 1 bit (odd) per input bit.
+// Serialize to 1-bit stream for the interleaver.
+reg        tx_ser_pending_sys;    // 1 = second bit buffered
+reg        tx_ser_bit_sys;        // buffered g2(a) bit
+wire       tx_ser_out_sys   = tx_ser_pending_sys ? tx_ser_bit_sys
+                                                 : tx_punct_bits_sys[0];
+wire       tx_ser_valid_sys = tx_ser_pending_sys | tx_punct_valid_sys;
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        tx_ser_pending_sys <= 1'b0;
+        tx_ser_bit_sys     <= 1'b0;
+    end else if (tx_ser_pending_sys) begin
+        // Output buffered bit this cycle; clear pending
+        tx_ser_pending_sys <= 1'b0;
+    end else if (tx_punct_valid_sys && !tx_punct_cnt_sys) begin
+        // Even cycle: 2 bits. Output bit[0]=g1(a) now, buffer bit[1]=g2(a)
+        tx_ser_pending_sys <= 1'b1;
+        tx_ser_bit_sys     <= tx_punct_bits_sys[1];
+    end
+end
 
 // ---- Step 3: Interleaver ─────────────────────────────────────────────────────
 tetra_interleaver #(
@@ -295,10 +317,9 @@ tetra_interleaver #(
 ) u_tx_interleaver (
     .clk_sys       (clk_sys),
     .rst_n_sys     (rst_n_sys),
-    .mode          (1'b0),           // 0 = Interleave (TX)
     .block_size    (9'd216),
-    .data_in       (tx_punct_bits_sys[0]),
-    .data_in_valid (tx_punct_valid_sys),
+    .data_in       (tx_ser_out_sys),
+    .data_in_valid (tx_ser_valid_sys),
     .data_out      (tx_intlv_out_sys),
     .data_out_valid(tx_intlv_valid_sys),
     .block_done    (tx_intlv_done_sys)

@@ -743,13 +743,26 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
      * can't derive the scrambler seed yet — hence the fixed init. */
     tetra_scramble_bsch(type4i, BSCH_CODED_BITS, type5_sb1);
 
-    /* --- BNCH: Alternate SYSINFO (type 00) and ACCESS_DEFINE (type 01) ---
+    /* --- BNCH: SYSINFO (type 00) on most frames, ACCESS_DEFINE (type 01)
+     * on frame 18 (control frame).
      *
-     * Always SYSINFO — real TETRA BSes never send ACCESS_DEFINE on BNCH.
-     * ACCESS_DEFINE is a legacy spec provision for QAM that was never deployed.
-     * Confirmed by: WAV decode (125/125 = SYSINFO), osmo-tetra (no ACCESS_DEFINE). */
+     * The MS needs both:
+     * - SYSINFO for cell identity, frequency, LA, subscriber class
+     * - ACCESS_DEFINE for random access parameters (access code, immediate
+     *   flag, waiting time, retries, frame length)
+     * Send ACCESS_DEFINE on frame 18 (ETSI control frame), SYSINFO on
+     * all other frames.  This avoids confusing decoders that expect
+     * SYSINFO on every BNCH. */
     uint8_t bnch_info[BNCH_INFO_BITS];
-    build_bnch_sysinfo(info, bnch_info);
+    /* MCCH = bkn2 of SDB (ETSI TN 1).  The MS reads SYSINFO and
+     * ACCESS-DEFINE from here.  Send ACCESS-DEFINE on frame 18
+     * (ETSI control frame) and SYSINFO on all other frames.
+     * Decision is based on info->frame (1-based from FPGA). */
+    /* Frame is 0-based in SYNC PDU (0..17).  ETSI frame 18 = index 17. */
+    if (info->frame == 17)
+        build_bnch_access_define(bnch_info);
+    else
+        build_bnch_sysinfo(info, bnch_info);
 
     uint8_t type5_bkn2[BKN2_CODED_BITS];
     if (tetra_bnch_encode(bnch_info, info->colour_code, 0,
@@ -799,9 +812,10 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
  *   → scramble → type-5 (432)
  *
  * Scrambler init: (cc | mnc<<6 | mcc<<20) << 2 | slot_num  (§8.2.5.2)
- * All 4 NDB slots receive the same 432 bits, so slot_num is fixed to 0
- * (scrambling is only "correct" for slot 0; slots 1-3 are modulated but
- * semantically invalid).
+ * All 4 NDB slots receive the same 432 bits.  slot_num is set to 1
+ * (MCCH slot) so the MS can correctly descramble the main control channel.
+ * Slots 2-3 use the same data and are therefore scrambled "wrong" but
+ * only carry filler — the MS doesn't expect signaling on them.
  * ======================================================================== */
 
 #define SCHF_INFO_BITS   268
@@ -835,7 +849,10 @@ static int tetra_schf_encode(const uint8_t *info_bits,
     /* Multiplicative interleaver, K=432, a=103 (ETSI §8.2.4.1 Table 8.19) */
     tetra_interleave_perm(type4, SCHF_CODED_BITS, 103, type4i);
 
-    /* Scramble (§8.2.5) — SDR# uses (mcc<<22)|(mnc<<8)|(cc<<2)|3 */
+    /* Scramble (§8.2.5.2) — cell-identity scrambler init:
+     * e(0)..e(31) = MCC(10) | MNC(14) | CC(6) | slot_num(2)
+     * Lower 2 bits fixed to 3 (matches SDR# and osmo-tetra convention
+     * for downlink non-BSCH channels). */
     uint32_t lfsr = ((uint32_t)(mcc & 0x3FF) << 22)
                    | ((uint32_t)(mnc & 0x3FFF) << 8)
                    | ((uint32_t)(colour_code & 0x3F) << 2)
@@ -848,27 +865,80 @@ static int tetra_schf_encode(const uint8_t *info_bits,
 }
 
 /* ========================================================================
+ * build_mcch_access_define — Build a 268-bit (SCH/F) MAC-BROADCAST PDU
+ * containing ACCESS-DEFINE for the MCCH (NDB slot 1).
+ *
+ * This is the full-slot version of build_bnch_access_define (which builds
+ * 124-bit SCH/HD for bkn2).  The MS locates the MCCH on slot 1 and decodes
+ * SCH/F signalling here.  Without a valid MAC PDU the MS sees CRC failures
+ * and won't register.
+ *
+ * PDU format: MAC-BROADCAST (type 10, sub-type 01 = ACCESS_DEFINE)
+ * per EN 300 392-2 §21.4.7.2.  Remaining bits are fill (zero).
+ * ======================================================================== */
+
+static void build_mcch_access_define(uint8_t *bits)
+{
+    int bp = 0;
+    memset(bits, 0, SCHF_INFO_BITS);
+
+    /* MAC PDU type (2 bits): 10 = Broadcast (Table 21.73) */
+    pack_bits(bits, &bp, 2, 2);
+    /* MAC-BROADCAST sub-type (2 bits): 01 = ACCESS-DEFINE */
+    pack_bits(bits, &bp, 1, 2);
+    /* Fill bit indication (1 bit): 1 = fill bits present */
+    pack_bits(bits, &bp, 1, 1);
+    /* Encryption mode (2 bits): 00 = clear mode */
+    pack_bits(bits, &bp, 0, 2);
+
+    /* --- ACCESS-DEFINE element (§21.5.2) --- */
+    /* Random access flag (1 bit): 1 = access parms follow */
+    pack_bits(bits, &bp, 1, 1);
+    /* Access code (4 bits): 0000 = AC0 (all subscriber classes) */
+    pack_bits(bits, &bp, 0, 4);
+    /* Immediate (1 bit): 1 = immediate access allowed */
+    pack_bits(bits, &bp, 1, 1);
+    /* Waiting time (4 bits): 2 (short) */
+    pack_bits(bits, &bp, 2, 4);
+    /* Number of random access transmissions on up-link (4 bits): 3 */
+    pack_bits(bits, &bp, 3, 4);
+    /* Frame length factor (1 bit): 0 = 1 frame */
+    pack_bits(bits, &bp, 0, 1);
+    /* Timeslot pointer (4 bits): 0001 = slot 1 */
+    pack_bits(bits, &bp, 1, 4);
+    /* Minimum PDU priority (3 bits): 000 = no minimum */
+    pack_bits(bits, &bp, 0, 3);
+
+    /* Random access flag (1 bit): 0 = no more access definitions */
+    pack_bits(bits, &bp, 0, 1);
+
+    /* Remaining bits (268 - bp) are zero fill */
+}
+
+/* ========================================================================
  * tetra_write_ndb_filler — Fill NDB block1/block2 registers with a
- * channel-coded pseudo-random MAC-NULL-like payload.  Ensures all four
- * NDB slots carry modulated content (no narrow-CW from zero payload).
+ * channel-coded MAC-BROADCAST ACCESS-DEFINE PDU (SCH/F, 268 type-1 bits).
+ *
+ * The MS decodes slot 1 as MCCH and expects valid MAC signalling PDUs.
+ * This gives it both a decodable MAC PDU AND the random access parameters
+ * needed for RACH (ACCESS-DEFINE).
  * ======================================================================== */
 
 int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
                             uint16_t mcc, uint16_t mnc)
 {
-    /* 268 type-1 info bits: 4-bit MAC-NULL PDU type (0) + 264 pseudo-random
-     * filler from 15-bit LFSR (x^15 + x^14 + 1). */
+    /* Build valid MAC-BROADCAST ACCESS-DEFINE PDU (268 type-1 bits) */
     uint8_t info[SCHF_INFO_BITS];
-    info[0] = 0; info[1] = 0; info[2] = 0; info[3] = 0;
-    uint16_t lfsr = 0x7FFFu;
-    for (int i = 4; i < SCHF_INFO_BITS; i++) {
-        uint16_t fb = ((lfsr >> 14) ^ (lfsr >> 13)) & 1u;
-        lfsr = ((uint16_t)(lfsr << 1) | fb) & 0x7FFFu;
-        info[i] = (lfsr >> 14) & 1u;
-    }
+    build_mcch_access_define(info);
 
+    /* Scramble with slot_num=1 (MCCH slot).  The FPGA replicates this data
+     * to all 4 NDB slots ({4{ndb_block1_data_sys}}), so only slot 1 gets
+     * correctly descrambled by the MS.  Slot 0 is SDB (doesn't use NDB regs),
+     * slots 2-3 carry modulated filler that the MS won't try to decode as
+     * signaling.  Per-slot register sets would fix slots 2-3 but require
+     * RTL expansion — future enhancement. */
     uint8_t type5[SCHF_CODED_BITS];
-    if (tetra_schf_encode(info, colour_code, 0, mcc, mnc, type5) != 0) {
+    if (tetra_schf_encode(info, colour_code, 1, mcc, mnc, type5) != 0) {
         fprintf(stderr, "tetra_hal: SCH/F encoding failed\n");
         return -1;
     }
@@ -886,8 +956,8 @@ int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
     for (int i = 0; i < 7; i++)
         tetra_reg_write(hal, REG_NDB_BLK2_0 + i * 4, blk2_words[i]);
 
-    printf("NDB filler written: 268-bit info -> 432 type-5 bits "
-           "(CC=%u MCC=%u MNC=%u slot=0, broadcast all 4 slots)\n",
+    printf("NDB MCCH written: ACCESS-DEFINE PDU (268 type-1) -> 432 type-5 bits "
+           "(CC=%u MCC=%u MNC=%u slot=1/MCCH)\n",
            colour_code, mcc, mnc);
     return 0;
 }
@@ -977,7 +1047,7 @@ static void usage(const char *prog)
 int main(int argc, char *argv[])
 {
     tetra_sysinfo_t info = {
-        .system_code      = 2,     /* V+D mode (HamTetra cell value) */
+        .system_code      = 3,     /* V+D mode (real cell uses 3, not 2) */
         .dl_freq_hz       = 438250000, /* 438.250 MHz (HamTetra cell frequency) */
         .mcc              = 901,   /* Test network (ITU-T E.212) */
         .mnc              = 9998,
@@ -1163,9 +1233,21 @@ int main(int argc, char *argv[])
                 hyperframe++;
             last_mf = mf;
 
-            info.frame      = (uint8_t)fn;
-            info.multiframe = (uint8_t)mf;
+            /* FPGA counts 1-based (fn=1..18, mf=1..60) but the air
+             * interface SYNC PDU uses 0-based numbering.  The receiver
+             * (SDR# TETRA plugin, osmo-tetra, MS firmware) adds +1
+             * internally after reading the raw SB value. */
+            info.frame      = (uint8_t)(fn - 1);
+            info.multiframe = (uint8_t)(mf - 1);
             info.hyperframe = hyperframe;
+
+            /* BSCH timeslot rotation (ETSI §21.4.4.1):
+             * BSCH_TN = 4 - ((MN + 1) mod 4)  (1-based TN, 1-based MN)
+             * SYNC PDU TimeSlot field is 0-based → subtract 1.
+             * Must match the RTL slot_burst_type decode in tetra_zynq_top.v. */
+            uint32_t bsch_tn_1based = 4 - ((mf + 1) % 4);
+            info.timeslot_assigned = (uint8_t)(bsch_tn_1based - 1);
+
             tetra_write_sysinfo(&hal, &info);
             last_tdma = tdma;
 
