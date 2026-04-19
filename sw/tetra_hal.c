@@ -438,8 +438,22 @@ static uint32_t tetra_rm3014_compute(uint16_t in)
  *   001 = Assigned for random access (MS may send RACH)
  * ======================================================================== */
 
-static void build_aach(uint8_t colour_code, uint8_t dl_usage, uint8_t ul_usage,
-                       uint16_t mcc, uint16_t mnc, uint8_t *out30)
+static void aach_scramble(uint16_t mcc, uint16_t mnc, uint8_t colour_code,
+                          uint8_t *bits, int nbits)
+{
+    uint32_t lfsr = ((uint32_t)(mcc & 0x3FF) << 22)
+                   | ((uint32_t)(mnc & 0x3FFF) << 8)
+                   | ((uint32_t)(colour_code & 0x3F) << 2)
+                   | 3u;
+    if (lfsr == 0)
+        lfsr = 0xFFFFFFFF;
+    for (int i = 0; i < nbits; i++)
+        bits[i] = (bits[i] ^ next_lfsr_bit(&lfsr)) & 1;
+}
+
+static void build_aach(uint8_t aach_cc, uint8_t dl_usage, uint8_t ul_usage,
+                       uint8_t scramb_cc, uint16_t mcc, uint16_t mnc,
+                       uint8_t *out30)
 {
     uint8_t info[14];
     int pos = 0;
@@ -449,8 +463,8 @@ static void build_aach(uint8_t colour_code, uint8_t dl_usage, uint8_t ul_usage,
     /* Field1: DL usage marker (3 bits) + UL usage marker (3 bits) */
     pack_bits(info, &pos, dl_usage & 0x07, 3);
     pack_bits(info, &pos, ul_usage & 0x07, 3);
-    /* Field2: Colour Code (6 bits) */
-    pack_bits(info, &pos, colour_code, 6);
+    /* Field2: Colour Code in AACH content (6 bits) */
+    pack_bits(info, &pos, aach_cc, 6);
 
     /* Pack 14 info bits into uint16_t for RM encoder */
     uint16_t in_word = 0;
@@ -462,16 +476,27 @@ static void build_aach(uint8_t colour_code, uint8_t dl_usage, uint8_t ul_usage,
     for (int i = 0; i < 30; i++)
         out30[i] = (coded >> (29 - i)) & 1;
 
-    /* Scramble with cell-identity code (SDR# DLL: BB uses scrambCode).
-     * init = (MCC<<22) | (MNC<<8) | (CC<<2) | 3 */
-    uint32_t lfsr = ((uint32_t)(mcc & 0x3FF) << 22)
-                   | ((uint32_t)(mnc & 0x3FFF) << 8)
-                   | ((uint32_t)(colour_code & 0x3F) << 2)
-                   | 3u;
-    if (lfsr == 0)
-        lfsr = 0xFFFFFFFF;
+    /* Scrambler always uses cell's real CC, not the AACH content CC */
+    aach_scramble(mcc, mnc, scramb_cc, out30, 30);
+}
+
+/* ========================================================================
+ * build_aach_capaloc — Capacity Allocation AACH for FN=1-17
+ *
+ * Real TETRA cells use CapAlloc (Header=11) on normal frames.
+ * Confirmed from WAV decode: 0x3000 = 11_000000_000000.
+ * ======================================================================== */
+static void build_aach_capaloc(uint8_t colour_code,
+                               uint16_t mcc, uint16_t mnc, uint8_t *out30)
+{
+    /* 14-bit info: Header(2)=11, Field1(6)=0, Field2(6)=0 → 0x3000 */
+    uint16_t in_word = 0x3000;
+
+    uint32_t coded = tetra_rm3014_compute(in_word);
     for (int i = 0; i < 30; i++)
-        out30[i] = (out30[i] ^ next_lfsr_bit(&lfsr)) & 1;
+        out30[i] = (coded >> (29 - i)) & 1;
+
+    aach_scramble(mcc, mnc, colour_code, out30, 30);
 }
 
 /* ========================================================================
@@ -937,11 +962,17 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
         return -1;
     }
 
-    /* --- AACH: Access Assignment (Colour Code + UL access allowed) ---
-     * DL usage = 001 (assigned, common control channel)
-     * UL usage = 001 (assigned for random access — MS may send RACH) */
+    /* --- AACH: Access Assignment ---
+     * FN=18: DL/UL-Assign (Header=00) DL=Unalloc(0) UL=Random(1) CC=0
+     *        Confirmed from real cell WAV decode (dist=0).
+     *        AACH content CC=0, but scrambler uses cell CC.
+     * FN=1-17: CapAlloc (Header=11) field1=0 field2=0
+     *          Confirmed from real cell WAV decode (0x3000, dist=2-3). */
     uint8_t type5_bb[AACH_BITS];
-    build_aach(info->colour_code, 1, 1, info->mcc, info->mnc, type5_bb);
+    if (info->frame == 18)
+        build_aach(0, 0, 1, info->colour_code, info->mcc, info->mnc, type5_bb);
+    else
+        build_aach_capaloc(info->colour_code, info->mcc, info->mnc, type5_bb);
 
     /* --- Pack into 32-bit words and write to AXI-Lite registers --- */
     uint32_t sb1_words[4];
@@ -1261,7 +1292,10 @@ int main(int argc, char *argv[])
         .timeslot_assigned = 1,    /* 1 common ctrl timeslot */
         .sharing_mode     = 0,     /* continuous carrier */
         .u_plane          = 0,
-        .frame_18_extension = 0,
+        /* Real cell (MCC=262/MNC=106, WAV-Analyse 2026-04-20) sets F18ext=1
+         * because BKN2 on frame 18 carries BNCH SYSINFO extension.  Our TX
+         * always sends SYSINFO in BKN2 on F18 → must also announce extension. */
+        .frame_18_extension = 1,
         .neighbour_cell_broadcast = 3,  /* HamTetra cell value */
         .cell_service_level = 0,   /* HamTetra cell value */
         .late_entry_info  = 1,     /* late entry supported */
