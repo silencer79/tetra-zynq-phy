@@ -230,14 +230,6 @@ void tetra_scramble(const uint8_t *bits, int len, uint8_t *out,
  * Returns 0 on success. */
 int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info);
 
-/* Build a SCH/F channel-coded filler payload (268 type-1 pseudo-random bits
- * -> CRC-16 -> tail -> RCPC 2/3 -> interleave N=432 a=103 -> scramble) and
- * write the two 216-bit halves to the NDB_BLK1 and NDB_BLK2 register banks.
- * The same 216+216 filler is broadcast to all 4 NDB slots by the FPGA.
- * Returns 0 on success. */
-int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
-                            uint16_t mcc, uint16_t mnc);
-
 /* Build SYSINFO as SCH/HD (124 info bits per block → CRC-16 → tail →
  * RCPC rate 2/3 → interleave K=216 a=101 → scramble → 216 coded bits)
  * and write the two independent 216-bit blocks to BNCH_BLK1/BLK2 registers.

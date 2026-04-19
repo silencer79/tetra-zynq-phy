@@ -149,14 +149,18 @@ Packed MSB-first in bits [29:0]; `[31:30]` unused.
 
 ## NDB Payload Registers (0x88–0xBC) — Normal DL Burst Filler
 
-Written by `tetra_write_ndb_filler()`. **The same 216 + 216 bits are broadcast
-to all four NDB timeslots** via `{4{ndb_block1_data_sys}}` replication in
-`tetra_zynq_top.v`, so slot 0 SDB coexists with slots 1–3 NDB carrying
-identical channel-coded SCH/F filler.
+Written inline by `tetra_sysinfo` main() at startup and on hyperframe wrap.
+**The same 216 + 216 bits are broadcast to all four NDB timeslots** via
+`{4{ndb_block1_data_sys}}` replication in `tetra_zynq_top.v`, so slot 0 SDB
+coexists with slots 1–3 NDB carrying identical channel-coded SCH/F SYSINFO.
+
+Payload: SCH/F MAC-BROADCAST SYSINFO (same bit layout as BNCH SYSINFO,
+padded to 268 bits).  Matches real-cell behavior — WAV analysis of a live
+TETRA cell confirms every BKN2 carries SYSINFO, never NULL PDUs.
 
 Channel coding (EN 300 392-2 §8.2.3.1.1):
-268 type-1 (4-bit MAC-NULL PDU + 264 LFSR bits) → CRC-16 (284) → +4 tail (288)
-→ RCPC rate 2/3 (432) → interleave (N=432, a=103) → scramble (cc/mcc/mnc/slot=0)
+268 type-1 (SCH/F SYSINFO) → CRC-16 (284) → +4 tail (288)
+→ RCPC rate 2/3 (432) → interleave (N=432, a=103) → scramble (cc/mcc/mnc/slot=1)
 → 432 type-5 = two 216-bit halves.
 
 ### NDB_BLK1 (216 type-5 bits, 7 registers 0x88–0xA0)
