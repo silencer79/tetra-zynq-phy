@@ -429,7 +429,7 @@ static uint32_t tetra_rm3014_compute(uint16_t in)
  * ======================================================================== */
 
 static void build_aach(uint8_t colour_code, uint8_t dl_usage, uint8_t ul_usage,
-                       uint8_t *out30)
+                       uint16_t mcc, uint16_t mnc, uint8_t *out30)
 {
     uint8_t info[14];
     int pos = 0;
@@ -451,6 +451,17 @@ static void build_aach(uint8_t colour_code, uint8_t dl_usage, uint8_t ul_usage,
     uint32_t coded = tetra_rm3014_compute(in_word);
     for (int i = 0; i < 30; i++)
         out30[i] = (coded >> (29 - i)) & 1;
+
+    /* Scramble with cell-identity code (SDR# DLL: BB uses scrambCode).
+     * init = (MCC<<22) | (MNC<<8) | (CC<<2) | 3 */
+    uint32_t lfsr = ((uint32_t)(mcc & 0x3FF) << 22)
+                   | ((uint32_t)(mnc & 0x3FFF) << 8)
+                   | ((uint32_t)(colour_code & 0x3F) << 2)
+                   | 3u;
+    if (lfsr == 0)
+        lfsr = 0xFFFFFFFF;
+    for (int i = 0; i < 30; i++)
+        out30[i] = (out30[i] ^ next_lfsr_bit(&lfsr)) & 1;
 }
 
 /* ========================================================================
@@ -743,26 +754,13 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
      * can't derive the scrambler seed yet — hence the fixed init. */
     tetra_scramble_bsch(type4i, BSCH_CODED_BITS, type5_sb1);
 
-    /* --- BNCH: SYSINFO (type 00) on most frames, ACCESS_DEFINE (type 01)
-     * on frame 18 (control frame).
+    /* --- BNCH: Always SYSINFO (type 00) ---
      *
-     * The MS needs both:
-     * - SYSINFO for cell identity, frequency, LA, subscriber class
-     * - ACCESS_DEFINE for random access parameters (access code, immediate
-     *   flag, waiting time, retries, frame length)
-     * Send ACCESS_DEFINE on frame 18 (ETSI control frame), SYSINFO on
-     * all other frames.  This avoids confusing decoders that expect
-     * SYSINFO on every BNCH. */
+     * Real TETRA BSes send SYSINFO on every BNCH (bkn2 of SDB).
+     * Confirmed: WAV decode of HamTetra cell = 125/125 SYSINFO.
+     * ACCESS_DEFINE is delivered via MCCH (NDB slot 1, SCH/F). */
     uint8_t bnch_info[BNCH_INFO_BITS];
-    /* MCCH = bkn2 of SDB (ETSI TN 1).  The MS reads SYSINFO and
-     * ACCESS-DEFINE from here.  Send ACCESS-DEFINE on frame 18
-     * (ETSI control frame) and SYSINFO on all other frames.
-     * Decision is based on info->frame (1-based from FPGA). */
-    /* Frame is 0-based in SYNC PDU (0..17).  ETSI frame 18 = index 17. */
-    if (info->frame == 17)
-        build_bnch_access_define(bnch_info);
-    else
-        build_bnch_sysinfo(info, bnch_info);
+    build_bnch_sysinfo(info, bnch_info);
 
     uint8_t type5_bkn2[BKN2_CODED_BITS];
     if (tetra_bnch_encode(bnch_info, info->colour_code, 0,
@@ -775,7 +773,7 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
      * DL usage = 001 (assigned, common control channel)
      * UL usage = 001 (assigned for random access — MS may send RACH) */
     uint8_t type5_bb[AACH_BITS];
-    build_aach(info->colour_code, 1, 1, type5_bb);
+    build_aach(info->colour_code, 1, 1, info->mcc, info->mnc, type5_bb);
 
     /* --- Pack into 32-bit words and write to AXI-Lite registers --- */
     uint32_t sb1_words[4];
@@ -1233,12 +1231,14 @@ int main(int argc, char *argv[])
                 hyperframe++;
             last_mf = mf;
 
-            /* FPGA counts 1-based (fn=1..18, mf=1..60) but the air
-             * interface SYNC PDU uses 0-based numbering.  The receiver
-             * (SDR# TETRA plugin, osmo-tetra, MS firmware) adds +1
-             * internally after reading the raw SB value. */
-            info.frame      = (uint8_t)(fn - 1);
-            info.multiframe = (uint8_t)(mf - 1);
+            /* FPGA counts 1-based (fn=1..18, mf=1..60).
+             * ETSI EN 300 392-2 §21.4.3.1 SYNC PDU:
+             *   TN = 0-based (0..3)  — receiver adds +1 internally
+             *   FN = 1-based (1..18) — used directly by receiver
+             *   MN = 1-based (1..60) — used directly by receiver
+             * DLL Synchronize() only adds +1 to TN, not FN/MN. */
+            info.frame      = (uint8_t)fn;
+            info.multiframe = (uint8_t)mf;
             info.hyperframe = hyperframe;
 
             /* BSCH timeslot rotation (ETSI §21.4.4.1):
