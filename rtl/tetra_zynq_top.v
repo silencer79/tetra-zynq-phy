@@ -699,24 +699,15 @@ end
 
 // BNCH slot rotation (ETSI §21.4.4.1):
 //   BNCH_TN = 4 - ((MN + 3) mod 4)  (1-based TN, 1-based MN)
-// On frame 18 only, the BNCH slot sends NDB2 (NTS2 training sequence)
-// so the receiver decodes it as SCH/HD and finds SYSINFO.
+// ETSI says BNCH uses NDB2 (NTS2 → SCH/HD), but the SDR# DLL does not
+// correlate against NTS2 — it only detects NTS1 and STS.  An NDB2 burst
+// shows up as "missing training sequence" (+1.0 MER per burst = 1.4%).
+// Fix: use NDB1 (NTS1) on all slots, encode BNCH as SCH/F (combined).
+// The payload mux still routes BNCH registers to the correct frame-18
+// slot — only the training sequence changes from NTS2 to NTS1.
 //   mf%4 == 0 → BNCH TN=1 → slot 0    mf%4 == 1 → BNCH TN=4 → slot 3
 //   mf%4 == 2 → BNCH TN=3 → slot 2    mf%4 == 3 → BNCH TN=2 → slot 1
-reg [3:0] slot_ndb2_sys;
-always @(*) begin
-    if (tx_frame_cnt_sys == 5'd18) begin
-        case (tx_mf_cnt_sys[1:0])
-            2'd0: slot_ndb2_sys = 4'b0001; // BNCH on slot 0
-            2'd1: slot_ndb2_sys = 4'b1000; // BNCH on slot 3
-            2'd2: slot_ndb2_sys = 4'b0100; // BNCH on slot 2
-            2'd3: slot_ndb2_sys = 4'b0010; // BNCH on slot 1
-            default: slot_ndb2_sys = 4'b0000;
-        endcase
-    end else begin
-        slot_ndb2_sys = 4'b0000; // NDB1 on all slots for frames 1-17
-    end
-end
+wire [3:0] slot_ndb2_sys = 4'b0000; // NDB1 (NTS1) on all slots always
 
 // Per-slot block1/block2 payload selection:
 //   - Slot 1 always gets MCCH (ACCESS-DEFINE SCH/F)
