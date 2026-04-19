@@ -663,9 +663,15 @@ assign tx_slot_pulse_sys_w = tx_slot_pulse_free_sys;
 wire [119:0] sb_sb1_data_sys;  // BSCH sb1: 60 symbols = 120 bits (RCPC 2/3)
 wire [215:0] sb_bkn2_data_sys; // BNCH: 108 symbols = 216 bits
 wire [29:0]  sb_bb_data_sys;   // BB/AACH: 15 symbols = 30 bits (shared all slots)
-// NDB block1/block2 channel-coded filler (written by PS, broadcast to all 4 slots)
+// NDB block1/block2 — filler for slots 0/2/3 (SYSINFO SCH/F)
 wire [215:0] ndb_block1_data_sys;
 wire [215:0] ndb_block2_data_sys;
+// MCCH block1/block2 — dedicated for slot 1 (ACCESS-DEFINE SCH/F)
+wire [215:0] mcch_block1_data_sys;
+wire [215:0] mcch_block2_data_sys;
+// BNCH block1/block2 — frame 18 rotating slot (SYSINFO SCH/HD)
+wire [215:0] bnch_block1_data_sys;
+wire [215:0] bnch_block2_data_sys;
 // These wires are driven by the AXI-Lite register bank (connected below).
 
 // Burst type per slot: exactly 1 slot = SDB, other 3 = NDB (continuous downlink)
@@ -688,6 +694,57 @@ always @(*) begin
     endcase
 end
 
+// BNCH slot rotation (ETSI §21.4.4.1):
+//   BNCH_TN = 4 - ((MN + 3) mod 4)  (1-based TN, 1-based MN)
+// On frame 18 only, the BNCH slot sends NDB2 (NTS2 training sequence)
+// so the receiver decodes it as SCH/HD and finds SYSINFO.
+//   mf%4 == 0 → BNCH TN=1 → slot 0    mf%4 == 1 → BNCH TN=4 → slot 3
+//   mf%4 == 2 → BNCH TN=3 → slot 2    mf%4 == 3 → BNCH TN=2 → slot 1
+reg [3:0] slot_ndb2_sys;
+always @(*) begin
+    if (tx_frame_cnt_sys == 5'd18) begin
+        case (tx_mf_cnt_sys[1:0])
+            2'd0: slot_ndb2_sys = 4'b0001; // BNCH on slot 0
+            2'd1: slot_ndb2_sys = 4'b1000; // BNCH on slot 3
+            2'd2: slot_ndb2_sys = 4'b0100; // BNCH on slot 2
+            2'd3: slot_ndb2_sys = 4'b0010; // BNCH on slot 1
+            default: slot_ndb2_sys = 4'b0000;
+        endcase
+    end else begin
+        slot_ndb2_sys = 4'b0000; // NDB1 on all slots for frames 1-17
+    end
+end
+
+// Per-slot block1/block2 payload selection:
+//   - Slot 1 always gets MCCH (ACCESS-DEFINE SCH/F)
+//   - On frame 18, the BNCH slot gets BNCH registers (SYSINFO SCH/HD)
+//   - All other NDB slots get NDB filler (SYSINFO SCH/F)
+// Flat bus: {slot3, slot2, slot1, slot0}
+reg [BLOCK_BITS-1:0] tx_blk1_slot0_w, tx_blk1_slot1_w, tx_blk1_slot2_w, tx_blk1_slot3_w;
+reg [BLOCK_BITS-1:0] tx_blk2_slot0_w, tx_blk2_slot1_w, tx_blk2_slot2_w, tx_blk2_slot3_w;
+
+always @(*) begin
+    // Default: NDB filler on slots 0/2/3, MCCH on slot 1
+    tx_blk1_slot0_w = ndb_block1_data_sys;
+    tx_blk1_slot1_w = mcch_block1_data_sys;
+    tx_blk1_slot2_w = ndb_block1_data_sys;
+    tx_blk1_slot3_w = ndb_block1_data_sys;
+    tx_blk2_slot0_w = ndb_block2_data_sys;
+    tx_blk2_slot1_w = mcch_block2_data_sys;
+    tx_blk2_slot2_w = ndb_block2_data_sys;
+    tx_blk2_slot3_w = ndb_block2_data_sys;
+    // Frame 18: override BNCH slot with BNCH registers
+    if (tx_frame_cnt_sys == 5'd18) begin
+        case (tx_mf_cnt_sys[1:0])
+            2'd0: begin tx_blk1_slot0_w = bnch_block1_data_sys; tx_blk2_slot0_w = bnch_block2_data_sys; end
+            2'd1: begin tx_blk1_slot3_w = bnch_block1_data_sys; tx_blk2_slot3_w = bnch_block2_data_sys; end
+            2'd2: begin tx_blk1_slot2_w = bnch_block1_data_sys; tx_blk2_slot2_w = bnch_block2_data_sys; end
+            2'd3: begin tx_blk1_slot1_w = bnch_block1_data_sys; tx_blk2_slot1_w = bnch_block2_data_sys; end
+            default: ; // no override
+        endcase
+    end
+end
+
 tetra_tx_chain #(
         .IQ_WIDTH (IQ_WIDTH),
         .BLOCK_BITS(BLOCK_BITS),
@@ -696,11 +753,11 @@ tetra_tx_chain #(
     ) u_tx_chain (
         .clk_sys (clk_sys),
         .rst_n_sys (rst_n_sys),
-        // Slot payload buses (NDB) — same 216-bit channel-coded filler
-        // broadcast to all 4 slots so every NDB slot carries modulated
-        // content (avoids narrow-CW from zero payload; see fix_plan)
-        .block1_sys ({4{ndb_block1_data_sys}}),
-        .block2_sys ({4{ndb_block2_data_sys}}),
+        // Slot payload buses (NDB) — per-slot mux: MCCH/BNCH/filler
+        .block1_sys ({tx_blk1_slot3_w, tx_blk1_slot2_w,
+                      tx_blk1_slot1_w, tx_blk1_slot0_w}),
+        .block2_sys ({tx_blk2_slot3_w, tx_blk2_slot2_w,
+                      tx_blk2_slot1_w, tx_blk2_slot0_w}),
         // BB/AACH — shared across all burst types (from SB BB register)
         .bb_sys (sb_bb_data_sys),
         // SDB payload — used for slot 0 (base station sync burst)
@@ -709,6 +766,7 @@ tetra_tx_chain #(
         // Per-slot configuration
         .slot_en_sys (4'b1111), // All slots enabled
         .slot_burst_type_sys(slot_burst_type_sys),
+        .slot_ndb2_sys      (slot_ndb2_sys),
         // Diagnostic: replace builder dibit with 15-bit LFSR PRBS
         .tx_test_prbs_en_sys(tx_test_prbs_en_sys),
         // TX timing from free-running timer (BUG-01 fix)
@@ -1015,9 +1073,13 @@ tetra_axi_lite_regs u_axi_regs (
     .sb_bkn2_axi             (sb_bkn2_data_sys),
     .sb_bb_axi               (sb_bb_data_sys),
     .tx_test_prbs_en_axi     (tx_test_prbs_en_axi),
-    // NDB block1/block2 broadcast to all 4 NDB slots (no narrow-CW on empty slots)
+    // NDB filler (slots 0/2/3) and MCCH (slot 1)
     .ndb_block1_axi          (ndb_block1_data_sys),
     .ndb_block2_axi          (ndb_block2_data_sys),
+    .mcch_block1_axi         (mcch_block1_data_sys),
+    .mcch_block2_axi         (mcch_block2_data_sys),
+    .bnch_block1_axi         (bnch_block1_data_sys),
+    .bnch_block2_axi         (bnch_block2_data_sys),
     .irq_out_axi             (o_irq)
 );
 

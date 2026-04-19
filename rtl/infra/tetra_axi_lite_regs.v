@@ -36,6 +36,10 @@
 //   0x84  TX_TEST       R/W  [0] PRBS_EN
 //   0x88–0xA0 NDB_BLK1_0..6 R/W NDB block1 coded payload, 216 bits (w6 [23:0])
 //   0xA4–0xBC NDB_BLK2_0..6 R/W NDB block2 coded payload, 216 bits (w6 [23:0])
+//   0xC0–0xD8 MCCH_BLK1_0..6 R/W MCCH block1 coded payload, 216 bits (w6 [23:0])
+//   0xDC–0xF4 MCCH_BLK2_0..6 R/W MCCH block2 coded payload, 216 bits (w6 [23:0])
+//   0xF8–0x110 BNCH_BLK1_0..6 R/W BNCH block1 coded payload, 216 bits (w6 [23:0])
+//   0x114–0x12C BNCH_BLK2_0..6 R/W BNCH block2 coded payload, 216 bits (w6 [23:0])
 //
 // IRQ_STATUS bits:
 //   [0] IRQ_MAC_BLOCK_RDY   — MAC block available in DMA buffer
@@ -164,6 +168,14 @@ module tetra_axi_lite_regs (
     output wire [215:0] ndb_block1_axi,
     output wire [215:0] ndb_block2_axi,
 
+    // MCCH (slot 1) dedicated payload registers
+    output wire [215:0] mcch_block1_axi,
+    output wire [215:0] mcch_block2_axi,
+
+    // BNCH (frame 18, rotating slot) — SCH/HD encoded payload
+    output wire [215:0] bnch_block1_axi,
+    output wire [215:0] bnch_block2_axi,
+
     // IRQ output to PS interrupt controller
     output reg         irq_out_axi
 );
@@ -181,71 +193,104 @@ wire _unused_prot = |s_axi_awprot | |s_axi_arprot;
 // synthesis translate_on
 
 // ---------------------------------------------------------------------------
-// Register index decode  (bits [7:2] select word; [1:0] always 0)
+// Register index decode  (bits [8:2] select word; [1:0] always 0)
 // ---------------------------------------------------------------------------
-localparam [5:0] REG_CTRL         = 6'h00; // 0x00
-localparam [5:0] REG_STATUS       = 6'h01; // 0x04
-localparam [5:0] REG_VERSION      = 6'h02; // 0x08
-localparam [5:0] REG_SYNC_THRESH  = 6'h03; // 0x0C
-localparam [5:0] REG_COLOUR_CODE  = 6'h04; // 0x10
-localparam [5:0] REG_FRAME_NUM    = 6'h05; // 0x14
-localparam [5:0] REG_SLOT_NUM     = 6'h06; // 0x18
-localparam [5:0] REG_RX_GAIN      = 6'h07; // 0x1C
-localparam [5:0] REG_TX_ATT       = 6'h08; // 0x20
-localparam [5:0] REG_IRQ_ENABLE   = 6'h09; // 0x24
-localparam [5:0] REG_IRQ_STATUS   = 6'h0A; // 0x28
-localparam [5:0] REG_DMA_BLK_CNT = 6'h0B; // 0x2C
-localparam [5:0] REG_CRC_ERR_CNT = 6'h0C; // 0x30
-localparam [5:0] REG_SYNC_LST_CNT= 6'h0D; // 0x34
-localparam [5:0] REG_TX_TDMA      = 6'h0E; // 0x38  [12:0] TX slot/frame/mf
-localparam [5:0] REG_SCRATCH      = 6'h0F; // 0x3C
+localparam [6:0] REG_CTRL         = 7'h00; // 0x00
+localparam [6:0] REG_STATUS       = 7'h01; // 0x04
+localparam [6:0] REG_VERSION      = 7'h02; // 0x08
+localparam [6:0] REG_SYNC_THRESH  = 7'h03; // 0x0C
+localparam [6:0] REG_COLOUR_CODE  = 7'h04; // 0x10
+localparam [6:0] REG_FRAME_NUM    = 7'h05; // 0x14
+localparam [6:0] REG_SLOT_NUM     = 7'h06; // 0x18
+localparam [6:0] REG_RX_GAIN      = 7'h07; // 0x1C
+localparam [6:0] REG_TX_ATT       = 7'h08; // 0x20
+localparam [6:0] REG_IRQ_ENABLE   = 7'h09; // 0x24
+localparam [6:0] REG_IRQ_STATUS   = 7'h0A; // 0x28
+localparam [6:0] REG_DMA_BLK_CNT = 7'h0B; // 0x2C
+localparam [6:0] REG_CRC_ERR_CNT = 7'h0C; // 0x30
+localparam [6:0] REG_SYNC_LST_CNT= 7'h0D; // 0x34
+localparam [6:0] REG_TX_TDMA      = 7'h0E; // 0x38  [12:0] TX slot/frame/mf
+localparam [6:0] REG_SCRATCH      = 7'h0F; // 0x3C
 
 // SB Payload registers (0x40–0x7C)
 // sb1: 120 bits in 4 words (word 3 bits [23:0] only)
-localparam [5:0] REG_SB_SB1_0    = 6'h10; // 0x40
-localparam [5:0] REG_SB_SB1_1    = 6'h11; // 0x44
-localparam [5:0] REG_SB_SB1_2    = 6'h12; // 0x48
-localparam [5:0] REG_SB_SB1_3    = 6'h13; // 0x4C  (bits [23:0] used)
+localparam [6:0] REG_SB_SB1_0    = 7'h10; // 0x40
+localparam [6:0] REG_SB_SB1_1    = 7'h11; // 0x44
+localparam [6:0] REG_SB_SB1_2    = 7'h12; // 0x48
+localparam [6:0] REG_SB_SB1_3    = 7'h13; // 0x4C  (bits [23:0] used)
 // RX debug counters (read-only, reset by CTRL[3])
-localparam [5:0] REG_DBG_FE_CNT   = 6'h14; // 0x50  RX frontend valid count
-localparam [5:0] REG_DBG_DEMOD_CNT= 6'h15; // 0x54  Demod dibit valid count
-localparam [5:0] REG_DBG_SYNC_CNT = 6'h16; // 0x58  Sync found count
+localparam [6:0] REG_DBG_FE_CNT   = 7'h14; // 0x50  RX frontend valid count
+localparam [6:0] REG_DBG_DEMOD_CNT= 7'h15; // 0x54  Demod dibit valid count
+localparam [6:0] REG_DBG_SYNC_CNT = 7'h16; // 0x58  Sync found count
 // bkn2: 216 bits in 7 words (word 6 bits [23:0] only)
-localparam [5:0] REG_SB_BKN2_0   = 6'h18; // 0x60
-localparam [5:0] REG_SB_BKN2_1   = 6'h19; // 0x64
-localparam [5:0] REG_SB_BKN2_2   = 6'h1A; // 0x68
-localparam [5:0] REG_SB_BKN2_3   = 6'h1B; // 0x6C
-localparam [5:0] REG_SB_BKN2_4   = 6'h1C; // 0x70
-localparam [5:0] REG_SB_BKN2_5   = 6'h1D; // 0x74
-localparam [5:0] REG_SB_BKN2_6   = 6'h1E; // 0x78  (bits [23:0] used)
+localparam [6:0] REG_SB_BKN2_0   = 7'h18; // 0x60
+localparam [6:0] REG_SB_BKN2_1   = 7'h19; // 0x64
+localparam [6:0] REG_SB_BKN2_2   = 7'h1A; // 0x68
+localparam [6:0] REG_SB_BKN2_3   = 7'h1B; // 0x6C
+localparam [6:0] REG_SB_BKN2_4   = 7'h1C; // 0x70
+localparam [6:0] REG_SB_BKN2_5   = 7'h1D; // 0x74
+localparam [6:0] REG_SB_BKN2_6   = 7'h1E; // 0x78  (bits [23:0] used)
 // bb: 30 bits in 1 word
-localparam [5:0] REG_SB_BB       = 6'h1F; // 0x7C  (bits [29:0] used)
+localparam [6:0] REG_SB_BB       = 7'h1F; // 0x7C  (bits [29:0] used)
 
 // TX test register (0x84)
 //   [0] TX_PRBS_EN — replace burst_builder dibit with 15-bit LFSR-PRBS
 //                    (diagnostic: forces varying π/4-DQPSK symbols so the
 //                     modulation chain produces proper RRC-shaped spread
 //                     spectrum instead of a degenerate CW at f_NCO).
-localparam [5:0] REG_TX_TEST       = 6'h21; // 0x84
+localparam [6:0] REG_TX_TEST       = 7'h21; // 0x84
 
 // NDB block1/block2 payload registers (0x88–0xBC)
 // Each block: 216 bits in 7 × 32-bit words (word 6 bits [23:0] only).
 // Broadcast to all 4 NDB slots in tetra_zynq_top.v so every slot
 // sends channel-coded modulated data (no narrow-CW from all-zero payload).
-localparam [5:0] REG_NDB_BLK1_0    = 6'h22; // 0x88
-localparam [5:0] REG_NDB_BLK1_1    = 6'h23; // 0x8C
-localparam [5:0] REG_NDB_BLK1_2    = 6'h24; // 0x90
-localparam [5:0] REG_NDB_BLK1_3    = 6'h25; // 0x94
-localparam [5:0] REG_NDB_BLK1_4    = 6'h26; // 0x98
-localparam [5:0] REG_NDB_BLK1_5    = 6'h27; // 0x9C
-localparam [5:0] REG_NDB_BLK1_6    = 6'h28; // 0xA0  (bits [23:0] used)
-localparam [5:0] REG_NDB_BLK2_0    = 6'h29; // 0xA4
-localparam [5:0] REG_NDB_BLK2_1    = 6'h2A; // 0xA8
-localparam [5:0] REG_NDB_BLK2_2    = 6'h2B; // 0xAC
-localparam [5:0] REG_NDB_BLK2_3    = 6'h2C; // 0xB0
-localparam [5:0] REG_NDB_BLK2_4    = 6'h2D; // 0xB4
-localparam [5:0] REG_NDB_BLK2_5    = 6'h2E; // 0xB8
-localparam [5:0] REG_NDB_BLK2_6    = 6'h2F; // 0xBC  (bits [23:0] used)
+localparam [6:0] REG_NDB_BLK1_0    = 7'h22; // 0x88
+localparam [6:0] REG_NDB_BLK1_1    = 7'h23; // 0x8C
+localparam [6:0] REG_NDB_BLK1_2    = 7'h24; // 0x90
+localparam [6:0] REG_NDB_BLK1_3    = 7'h25; // 0x94
+localparam [6:0] REG_NDB_BLK1_4    = 7'h26; // 0x98
+localparam [6:0] REG_NDB_BLK1_5    = 7'h27; // 0x9C
+localparam [6:0] REG_NDB_BLK1_6    = 7'h28; // 0xA0  (bits [23:0] used)
+localparam [6:0] REG_NDB_BLK2_0    = 7'h29; // 0xA4
+localparam [6:0] REG_NDB_BLK2_1    = 7'h2A; // 0xA8
+localparam [6:0] REG_NDB_BLK2_2    = 7'h2B; // 0xAC
+localparam [6:0] REG_NDB_BLK2_3    = 7'h2C; // 0xB0
+localparam [6:0] REG_NDB_BLK2_4    = 7'h2D; // 0xB4
+localparam [6:0] REG_NDB_BLK2_5    = 7'h2E; // 0xB8
+localparam [6:0] REG_NDB_BLK2_6    = 7'h2F; // 0xBC  (bits [23:0] used)
+
+// MCCH (slot 1) dedicated block1/block2 registers — ACCESS-DEFINE PDU
+localparam [6:0] REG_MCCH_BLK1_0   = 7'h30; // 0xC0
+localparam [6:0] REG_MCCH_BLK1_1   = 7'h31; // 0xC4
+localparam [6:0] REG_MCCH_BLK1_2   = 7'h32; // 0xC8
+localparam [6:0] REG_MCCH_BLK1_3   = 7'h33; // 0xCC
+localparam [6:0] REG_MCCH_BLK1_4   = 7'h34; // 0xD0
+localparam [6:0] REG_MCCH_BLK1_5   = 7'h35; // 0xD4
+localparam [6:0] REG_MCCH_BLK1_6   = 7'h36; // 0xD8  (bits [23:0] used)
+localparam [6:0] REG_MCCH_BLK2_0   = 7'h37; // 0xDC
+localparam [6:0] REG_MCCH_BLK2_1   = 7'h38; // 0xE0
+localparam [6:0] REG_MCCH_BLK2_2   = 7'h39; // 0xE4
+localparam [6:0] REG_MCCH_BLK2_3   = 7'h3A; // 0xE8
+localparam [6:0] REG_MCCH_BLK2_4   = 7'h3B; // 0xEC
+localparam [6:0] REG_MCCH_BLK2_5   = 7'h3C; // 0xF0
+localparam [6:0] REG_MCCH_BLK2_6   = 7'h3D; // 0xF4  (bits [23:0] used)
+
+// BNCH (frame 18, rotating slot) block1/block2 registers (0xF8–0x12C)
+// SCH/HD encoded payload — each block independently coded (216 bits each)
+localparam [6:0] REG_BNCH_BLK1_0   = 7'h3E; // 0xF8
+localparam [6:0] REG_BNCH_BLK1_1   = 7'h3F; // 0xFC
+localparam [6:0] REG_BNCH_BLK1_2   = 7'h40; // 0x100
+localparam [6:0] REG_BNCH_BLK1_3   = 7'h41; // 0x104
+localparam [6:0] REG_BNCH_BLK1_4   = 7'h42; // 0x108
+localparam [6:0] REG_BNCH_BLK1_5   = 7'h43; // 0x10C
+localparam [6:0] REG_BNCH_BLK1_6   = 7'h44; // 0x110  (bits [23:0] used)
+localparam [6:0] REG_BNCH_BLK2_0   = 7'h45; // 0x114
+localparam [6:0] REG_BNCH_BLK2_1   = 7'h46; // 0x118
+localparam [6:0] REG_BNCH_BLK2_2   = 7'h47; // 0x11C
+localparam [6:0] REG_BNCH_BLK2_3   = 7'h48; // 0x120
+localparam [6:0] REG_BNCH_BLK2_4   = 7'h49; // 0x124
+localparam [6:0] REG_BNCH_BLK2_5   = 7'h4A; // 0x128
+localparam [6:0] REG_BNCH_BLK2_6   = 7'h4B; // 0x12C  (bits [23:0] used)
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -271,12 +316,12 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
 end
 
 // R1: Write address register
-reg [7:0] wr_addr_axi;
+reg [8:0] wr_addr_axi;
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
-        wr_addr_axi <= 8'h00;
+        wr_addr_axi <= 9'h000;
     else if (s_axi_awvalid & s_axi_awready)
-        wr_addr_axi <= s_axi_awaddr[7:0];
+        wr_addr_axi <= s_axi_awaddr[8:0];
 end
 
 // R1: W data latch register
@@ -346,12 +391,12 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
 end
 
 // R1: Read address register
-reg [7:0] rd_addr_axi;
+reg [8:0] rd_addr_axi;
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
-        rd_addr_axi <= 8'h00;
+        rd_addr_axi <= 9'h000;
     else if (s_axi_arvalid & s_axi_arready)
-        rd_addr_axi <= s_axi_araddr[7:0];
+        rd_addr_axi <= s_axi_araddr[8:0];
 end
 
 // ---------------------------------------------------------------------------
@@ -363,7 +408,7 @@ reg [31:0] scratch_axi;   // declared below
 
 reg [31:0] rdata_mux_axi;
 always @(*) begin
-    case (rd_addr_axi[7:2])
+    case (rd_addr_axi[8:2])
         REG_CTRL:         rdata_mux_axi = {28'b0, ctrl_reg_axi};
         REG_STATUS:       rdata_mux_axi = {24'b0, slot_status_axi,
                                             rx_fifo_full_axi, rx_fifo_empty_axi,
@@ -414,6 +459,36 @@ always @(*) begin
         REG_NDB_BLK2_4:   rdata_mux_axi = ndb_blk2_w4_axi;
         REG_NDB_BLK2_5:   rdata_mux_axi = ndb_blk2_w5_axi;
         REG_NDB_BLK2_6:   rdata_mux_axi = {8'b0, ndb_blk2_w6_axi};
+        // MCCH block1/block2 readback
+        REG_MCCH_BLK1_0:  rdata_mux_axi = mcch_blk1_w0_axi;
+        REG_MCCH_BLK1_1:  rdata_mux_axi = mcch_blk1_w1_axi;
+        REG_MCCH_BLK1_2:  rdata_mux_axi = mcch_blk1_w2_axi;
+        REG_MCCH_BLK1_3:  rdata_mux_axi = mcch_blk1_w3_axi;
+        REG_MCCH_BLK1_4:  rdata_mux_axi = mcch_blk1_w4_axi;
+        REG_MCCH_BLK1_5:  rdata_mux_axi = mcch_blk1_w5_axi;
+        REG_MCCH_BLK1_6:  rdata_mux_axi = {8'b0, mcch_blk1_w6_axi};
+        REG_MCCH_BLK2_0:  rdata_mux_axi = mcch_blk2_w0_axi;
+        REG_MCCH_BLK2_1:  rdata_mux_axi = mcch_blk2_w1_axi;
+        REG_MCCH_BLK2_2:  rdata_mux_axi = mcch_blk2_w2_axi;
+        REG_MCCH_BLK2_3:  rdata_mux_axi = mcch_blk2_w3_axi;
+        REG_MCCH_BLK2_4:  rdata_mux_axi = mcch_blk2_w4_axi;
+        REG_MCCH_BLK2_5:  rdata_mux_axi = mcch_blk2_w5_axi;
+        REG_MCCH_BLK2_6:  rdata_mux_axi = {8'b0, mcch_blk2_w6_axi};
+        // BNCH block1/block2 readback
+        REG_BNCH_BLK1_0:  rdata_mux_axi = bnch_blk1_w0_axi;
+        REG_BNCH_BLK1_1:  rdata_mux_axi = bnch_blk1_w1_axi;
+        REG_BNCH_BLK1_2:  rdata_mux_axi = bnch_blk1_w2_axi;
+        REG_BNCH_BLK1_3:  rdata_mux_axi = bnch_blk1_w3_axi;
+        REG_BNCH_BLK1_4:  rdata_mux_axi = bnch_blk1_w4_axi;
+        REG_BNCH_BLK1_5:  rdata_mux_axi = bnch_blk1_w5_axi;
+        REG_BNCH_BLK1_6:  rdata_mux_axi = {8'b0, bnch_blk1_w6_axi};
+        REG_BNCH_BLK2_0:  rdata_mux_axi = bnch_blk2_w0_axi;
+        REG_BNCH_BLK2_1:  rdata_mux_axi = bnch_blk2_w1_axi;
+        REG_BNCH_BLK2_2:  rdata_mux_axi = bnch_blk2_w2_axi;
+        REG_BNCH_BLK2_3:  rdata_mux_axi = bnch_blk2_w3_axi;
+        REG_BNCH_BLK2_4:  rdata_mux_axi = bnch_blk2_w4_axi;
+        REG_BNCH_BLK2_5:  rdata_mux_axi = bnch_blk2_w5_axi;
+        REG_BNCH_BLK2_6:  rdata_mux_axi = {8'b0, bnch_blk2_w6_axi};
         default:          rdata_mux_axi = 32'b0;
     endcase
 end
@@ -454,7 +529,7 @@ end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
         ctrl_reg_axi <= 4'b0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_CTRL) & wr_strb_axi[0])
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_CTRL) & wr_strb_axi[0])
         ctrl_reg_axi <= wr_data_axi[3:0];
 end
 
@@ -468,7 +543,7 @@ assign ctrl_reset_counters_axi = ctrl_reg_axi[3];
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
         sync_thresh_axi <= 8'h0F; // default 15; must be ≤19 for STS (19 symbols), ≤11 for NTS
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SYNC_THRESH) & wr_strb_axi[0])
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SYNC_THRESH) & wr_strb_axi[0])
         sync_thresh_axi <= wr_data_axi[7:0];
 end
 
@@ -476,7 +551,7 @@ end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
         colour_code_axi <= 6'd1; // default 1
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_COLOUR_CODE) & wr_strb_axi[0])
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_COLOUR_CODE) & wr_strb_axi[0])
         colour_code_axi <= wr_data_axi[5:0];
 end
 
@@ -484,7 +559,7 @@ end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
         rx_gain_axi <= 7'h20; // default 32
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_RX_GAIN) & wr_strb_axi[0])
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_RX_GAIN) & wr_strb_axi[0])
         rx_gain_axi <= wr_data_axi[6:0];
 end
 
@@ -492,7 +567,7 @@ end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
         tx_att_axi <= 8'h28; // default 40
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_TX_ATT) & wr_strb_axi[0])
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_TX_ATT) & wr_strb_axi[0])
         tx_att_axi <= wr_data_axi[7:0];
 end
 
@@ -500,7 +575,7 @@ end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
         irq_enable_axi <= 5'b0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_IRQ_ENABLE) & wr_strb_axi[0])
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_IRQ_ENABLE) & wr_strb_axi[0])
         irq_enable_axi <= wr_data_axi[4:0];
 end
 
@@ -515,7 +590,7 @@ wire [4:0] irq_hw_set_axi = {irq_rx_fifo_full_axi,
                               irq_sync_acquired_axi,
                               irq_mac_block_axi};
 
-wire [4:0] irq_sw_clr_axi = (wr_en_axi & (wr_addr_axi[7:2] == REG_IRQ_STATUS))
+wire [4:0] irq_sw_clr_axi = (wr_en_axi & (wr_addr_axi[8:2] == REG_IRQ_STATUS))
                              ? wr_data_axi[4:0] : 5'b0;
 
 // R1: IRQ_STATUS register
@@ -534,7 +609,7 @@ end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
         scratch_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SCRATCH)) begin
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SCRATCH)) begin
         if (wr_strb_axi[0]) scratch_axi[7:0]   <= wr_data_axi[7:0];
         if (wr_strb_axi[1]) scratch_axi[15:8]  <= wr_data_axi[15:8];
         if (wr_strb_axi[2]) scratch_axi[23:16] <= wr_data_axi[23:16];
@@ -563,19 +638,19 @@ reg [23:0] sb_sb1_w3_axi;  // word 3: only [23:0] (120 - 3×32 = 24 bits)
 
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) sb_sb1_w0_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SB_SB1_0)) sb_sb1_w0_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SB_SB1_0)) sb_sb1_w0_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) sb_sb1_w1_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SB_SB1_1)) sb_sb1_w1_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SB_SB1_1)) sb_sb1_w1_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) sb_sb1_w2_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SB_SB1_2)) sb_sb1_w2_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SB_SB1_2)) sb_sb1_w2_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) sb_sb1_w3_axi <= 24'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SB_SB1_3)) sb_sb1_w3_axi <= wr_data_axi[23:0];
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SB_SB1_3)) sb_sb1_w3_axi <= wr_data_axi[23:0];
 end
 
 assign sb_sb1_axi = {sb_sb1_w0_axi, sb_sb1_w1_axi, sb_sb1_w2_axi, sb_sb1_w3_axi};
@@ -591,31 +666,31 @@ reg [23:0] sb_bkn2_w6_axi;  // word 6: only [23:0] (216 - 6×32 = 24 bits)
 
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) sb_bkn2_w0_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SB_BKN2_0)) sb_bkn2_w0_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SB_BKN2_0)) sb_bkn2_w0_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) sb_bkn2_w1_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SB_BKN2_1)) sb_bkn2_w1_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SB_BKN2_1)) sb_bkn2_w1_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) sb_bkn2_w2_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SB_BKN2_2)) sb_bkn2_w2_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SB_BKN2_2)) sb_bkn2_w2_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) sb_bkn2_w3_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SB_BKN2_3)) sb_bkn2_w3_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SB_BKN2_3)) sb_bkn2_w3_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) sb_bkn2_w4_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SB_BKN2_4)) sb_bkn2_w4_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SB_BKN2_4)) sb_bkn2_w4_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) sb_bkn2_w5_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SB_BKN2_5)) sb_bkn2_w5_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SB_BKN2_5)) sb_bkn2_w5_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) sb_bkn2_w6_axi <= 24'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SB_BKN2_6)) sb_bkn2_w6_axi <= wr_data_axi[23:0];
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SB_BKN2_6)) sb_bkn2_w6_axi <= wr_data_axi[23:0];
 end
 
 assign sb_bkn2_axi = {sb_bkn2_w0_axi, sb_bkn2_w1_axi, sb_bkn2_w2_axi, sb_bkn2_w3_axi,
@@ -626,7 +701,7 @@ reg [29:0] sb_bb_w0_axi;
 
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) sb_bb_w0_axi <= 30'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_SB_BB)) sb_bb_w0_axi <= wr_data_axi[29:0];
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SB_BB)) sb_bb_w0_axi <= wr_data_axi[29:0];
 end
 
 assign sb_bb_axi = sb_bb_w0_axi;
@@ -635,7 +710,7 @@ assign sb_bb_axi = sb_bb_w0_axi;
 // Bit [0] = PRBS enable (inject 15-bit LFSR dibits into TX chain for spectrum test)
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) tx_test_prbs_en_axi <= 1'b0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_TX_TEST)) tx_test_prbs_en_axi <= wr_data_axi[0];
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_TX_TEST)) tx_test_prbs_en_axi <= wr_data_axi[0];
 end
 
 // ---------------------------------------------------------------------------
@@ -651,31 +726,31 @@ reg [23:0] ndb_blk1_w6_axi;  // word 6: [23:0] (216 - 6×32 = 24 bits)
 
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk1_w0_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK1_0)) ndb_blk1_w0_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK1_0)) ndb_blk1_w0_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk1_w1_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK1_1)) ndb_blk1_w1_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK1_1)) ndb_blk1_w1_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk1_w2_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK1_2)) ndb_blk1_w2_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK1_2)) ndb_blk1_w2_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk1_w3_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK1_3)) ndb_blk1_w3_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK1_3)) ndb_blk1_w3_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk1_w4_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK1_4)) ndb_blk1_w4_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK1_4)) ndb_blk1_w4_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk1_w5_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK1_5)) ndb_blk1_w5_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK1_5)) ndb_blk1_w5_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk1_w6_axi <= 24'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK1_6)) ndb_blk1_w6_axi <= wr_data_axi[23:0];
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK1_6)) ndb_blk1_w6_axi <= wr_data_axi[23:0];
 end
 
 assign ndb_block1_axi = {ndb_blk1_w0_axi, ndb_blk1_w1_axi, ndb_blk1_w2_axi,
@@ -695,36 +770,214 @@ reg [23:0] ndb_blk2_w6_axi;  // word 6: [23:0]
 
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk2_w0_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK2_0)) ndb_blk2_w0_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK2_0)) ndb_blk2_w0_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk2_w1_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK2_1)) ndb_blk2_w1_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK2_1)) ndb_blk2_w1_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk2_w2_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK2_2)) ndb_blk2_w2_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK2_2)) ndb_blk2_w2_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk2_w3_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK2_3)) ndb_blk2_w3_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK2_3)) ndb_blk2_w3_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk2_w4_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK2_4)) ndb_blk2_w4_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK2_4)) ndb_blk2_w4_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk2_w5_axi <= 32'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK2_5)) ndb_blk2_w5_axi <= wr_data_axi;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK2_5)) ndb_blk2_w5_axi <= wr_data_axi;
 end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) ndb_blk2_w6_axi <= 24'h0;
-    else if (wr_en_axi & (wr_addr_axi[7:2] == REG_NDB_BLK2_6)) ndb_blk2_w6_axi <= wr_data_axi[23:0];
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NDB_BLK2_6)) ndb_blk2_w6_axi <= wr_data_axi[23:0];
 end
 
 assign ndb_block2_axi = {ndb_blk2_w0_axi, ndb_blk2_w1_axi, ndb_blk2_w2_axi,
                           ndb_blk2_w3_axi, ndb_blk2_w4_axi, ndb_blk2_w5_axi,
                           ndb_blk2_w6_axi};
+
+// ---------------------------------------------------------------------------
+// MCCH block1 registers (slot 1 dedicated — ACCESS-DEFINE PDU)
+// R1: one always block per register
+// ---------------------------------------------------------------------------
+reg [31:0] mcch_blk1_w0_axi;
+reg [31:0] mcch_blk1_w1_axi;
+reg [31:0] mcch_blk1_w2_axi;
+reg [31:0] mcch_blk1_w3_axi;
+reg [31:0] mcch_blk1_w4_axi;
+reg [31:0] mcch_blk1_w5_axi;
+reg [23:0] mcch_blk1_w6_axi;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk1_w0_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK1_0)) mcch_blk1_w0_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk1_w1_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK1_1)) mcch_blk1_w1_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk1_w2_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK1_2)) mcch_blk1_w2_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk1_w3_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK1_3)) mcch_blk1_w3_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk1_w4_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK1_4)) mcch_blk1_w4_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk1_w5_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK1_5)) mcch_blk1_w5_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk1_w6_axi <= 24'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK1_6)) mcch_blk1_w6_axi <= wr_data_axi[23:0];
+end
+
+assign mcch_block1_axi = {mcch_blk1_w0_axi, mcch_blk1_w1_axi, mcch_blk1_w2_axi,
+                           mcch_blk1_w3_axi, mcch_blk1_w4_axi, mcch_blk1_w5_axi,
+                           mcch_blk1_w6_axi};
+
+// ---------------------------------------------------------------------------
+// MCCH block2 registers
+// ---------------------------------------------------------------------------
+reg [31:0] mcch_blk2_w0_axi;
+reg [31:0] mcch_blk2_w1_axi;
+reg [31:0] mcch_blk2_w2_axi;
+reg [31:0] mcch_blk2_w3_axi;
+reg [31:0] mcch_blk2_w4_axi;
+reg [31:0] mcch_blk2_w5_axi;
+reg [23:0] mcch_blk2_w6_axi;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk2_w0_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK2_0)) mcch_blk2_w0_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk2_w1_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK2_1)) mcch_blk2_w1_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk2_w2_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK2_2)) mcch_blk2_w2_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk2_w3_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK2_3)) mcch_blk2_w3_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk2_w4_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK2_4)) mcch_blk2_w4_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk2_w5_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK2_5)) mcch_blk2_w5_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) mcch_blk2_w6_axi <= 24'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_MCCH_BLK2_6)) mcch_blk2_w6_axi <= wr_data_axi[23:0];
+end
+
+assign mcch_block2_axi = {mcch_blk2_w0_axi, mcch_blk2_w1_axi, mcch_blk2_w2_axi,
+                           mcch_blk2_w3_axi, mcch_blk2_w4_axi, mcch_blk2_w5_axi,
+                           mcch_blk2_w6_axi};
+
+// ---------------------------------------------------------------------------
+// BNCH block1 registers (0xF8–0x110) — 216 bits in 7 words
+// Frame 18 rotating slot, SCH/HD encoded payload
+// ---------------------------------------------------------------------------
+reg [31:0] bnch_blk1_w0_axi;
+reg [31:0] bnch_blk1_w1_axi;
+reg [31:0] bnch_blk1_w2_axi;
+reg [31:0] bnch_blk1_w3_axi;
+reg [31:0] bnch_blk1_w4_axi;
+reg [31:0] bnch_blk1_w5_axi;
+reg [23:0] bnch_blk1_w6_axi;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk1_w0_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK1_0)) bnch_blk1_w0_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk1_w1_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK1_1)) bnch_blk1_w1_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk1_w2_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK1_2)) bnch_blk1_w2_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk1_w3_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK1_3)) bnch_blk1_w3_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk1_w4_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK1_4)) bnch_blk1_w4_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk1_w5_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK1_5)) bnch_blk1_w5_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk1_w6_axi <= 24'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK1_6)) bnch_blk1_w6_axi <= wr_data_axi[23:0];
+end
+
+assign bnch_block1_axi = {bnch_blk1_w0_axi, bnch_blk1_w1_axi, bnch_blk1_w2_axi,
+                           bnch_blk1_w3_axi, bnch_blk1_w4_axi, bnch_blk1_w5_axi,
+                           bnch_blk1_w6_axi};
+
+// ---------------------------------------------------------------------------
+// BNCH block2 registers (0x114–0x12C) — 216 bits in 7 words
+// ---------------------------------------------------------------------------
+reg [31:0] bnch_blk2_w0_axi;
+reg [31:0] bnch_blk2_w1_axi;
+reg [31:0] bnch_blk2_w2_axi;
+reg [31:0] bnch_blk2_w3_axi;
+reg [31:0] bnch_blk2_w4_axi;
+reg [31:0] bnch_blk2_w5_axi;
+reg [23:0] bnch_blk2_w6_axi;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk2_w0_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK2_0)) bnch_blk2_w0_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk2_w1_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK2_1)) bnch_blk2_w1_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk2_w2_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK2_2)) bnch_blk2_w2_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk2_w3_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK2_3)) bnch_blk2_w3_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk2_w4_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK2_4)) bnch_blk2_w4_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk2_w5_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK2_5)) bnch_blk2_w5_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) bnch_blk2_w6_axi <= 24'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_BNCH_BLK2_6)) bnch_blk2_w6_axi <= wr_data_axi[23:0];
+end
+
+assign bnch_block2_axi = {bnch_blk2_w0_axi, bnch_blk2_w1_axi, bnch_blk2_w2_axi,
+                           bnch_blk2_w3_axi, bnch_blk2_w4_axi, bnch_blk2_w5_axi,
+                           bnch_blk2_w6_axi};
 
 // ---------------------------------------------------------------------------
 // IRQ output — registered OR-reduce of (status & enable)

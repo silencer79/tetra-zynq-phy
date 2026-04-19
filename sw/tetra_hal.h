@@ -86,6 +86,38 @@
 #define REG_NDB_BLK2_5     0xB8
 #define REG_NDB_BLK2_6     0xBC  /* block2 word 6 (bits [23:0] used) */
 
+/* MCCH (slot 1) dedicated block1/block2 registers — ACCESS-DEFINE PDU */
+#define REG_MCCH_BLK1_0    0xC0  /* mcch block1 word 0 (bits [215:184]) */
+#define REG_MCCH_BLK1_1    0xC4
+#define REG_MCCH_BLK1_2    0xC8
+#define REG_MCCH_BLK1_3    0xCC
+#define REG_MCCH_BLK1_4    0xD0
+#define REG_MCCH_BLK1_5    0xD4
+#define REG_MCCH_BLK1_6    0xD8  /* mcch block1 word 6 (bits [23:0] used) */
+#define REG_MCCH_BLK2_0    0xDC  /* mcch block2 word 0 (bits [215:184]) */
+#define REG_MCCH_BLK2_1    0xE0
+#define REG_MCCH_BLK2_2    0xE4
+#define REG_MCCH_BLK2_3    0xE8
+#define REG_MCCH_BLK2_4    0xEC
+#define REG_MCCH_BLK2_5    0xF0
+#define REG_MCCH_BLK2_6    0xF4  /* mcch block2 word 6 (bits [23:0] used) */
+
+/* BNCH (frame 18, rotating slot) block1/block2 registers — SCH/HD encoded */
+#define REG_BNCH_BLK1_0    0xF8   /* bnch block1 word 0 (bits [215:184]) */
+#define REG_BNCH_BLK1_1    0xFC
+#define REG_BNCH_BLK1_2    0x100
+#define REG_BNCH_BLK1_3    0x104
+#define REG_BNCH_BLK1_4    0x108
+#define REG_BNCH_BLK1_5    0x10C
+#define REG_BNCH_BLK1_6    0x110  /* bnch block1 word 6 (bits [23:0] used) */
+#define REG_BNCH_BLK2_0    0x114  /* bnch block2 word 0 (bits [215:184]) */
+#define REG_BNCH_BLK2_1    0x118
+#define REG_BNCH_BLK2_2    0x11C
+#define REG_BNCH_BLK2_3    0x120
+#define REG_BNCH_BLK2_4    0x124
+#define REG_BNCH_BLK2_5    0x128
+#define REG_BNCH_BLK2_6    0x12C  /* bnch block2 word 6 (bits [23:0] used) */
+
 /* ========================================================================
  * HAL Context
  * ======================================================================== */
@@ -205,6 +237,14 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info);
  * Returns 0 on success. */
 int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
                             uint16_t mcc, uint16_t mnc);
+
+/* Build SYSINFO as SCH/HD (124 info bits per block → CRC-16 → tail →
+ * RCPC rate 2/3 → interleave K=216 a=101 → scramble → 216 coded bits)
+ * and write the two independent 216-bit blocks to BNCH_BLK1/BLK2 registers.
+ * The FPGA selects these on the BNCH slot (frame 18, rotating TN).
+ * Returns 0 on success. */
+int tetra_write_bnch(tetra_hal_t *hal, const tetra_sysinfo_t *info,
+                     uint8_t colour_code);
 
 /* Enable TX+RX (CTRL = 0x03), optionally set SYNC_THRESH */
 void tetra_enable(tetra_hal_t *hal, uint8_t sync_thresh);

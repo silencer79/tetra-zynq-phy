@@ -60,6 +60,7 @@ module tetra_tx_chain #(
  // Per-slot configuration
  input wire [3:0] slot_en_sys,
  input wire [3:0] slot_burst_type_sys, // 1 bit per slot: 0=NDB, 1=SDB
+ input wire [3:0] slot_ndb2_sys,       // 1 bit per slot: 0=NDB1, 1=NDB2
 
  // Diagnostic test mode: when HIGH, the builder dibit feeding the modulator
  // is replaced by a 15-bit LFSR PRBS.  Used for spectrum verification — all
@@ -104,6 +105,7 @@ wire [BLOCK_BITS-1:0] mux_block2_sys;
 wire [BB_BITS-1:0] mux_bb_sys;
 wire [SB1_BITS-1:0] mux_sb1_sys;
 wire mux_burst_type_sys;
+wire mux_ndb2_sys;
 wire mux_build_req_sys;
 wire mux_ready_sys;
 
@@ -147,6 +149,7 @@ tetra_burst_mux #(
  // Slot config
  .slot_en_sys (slot_en_sys),
  .slot_burst_type_sys(slot_burst_type_sys),
+ .slot_ndb2_sys      (slot_ndb2_sys),
  // Timing
  .tx_slot_num_sys (tx_slot_num_sys),
  .tx_slot_pulse_sys (tx_slot_pulse_sys),
@@ -156,6 +159,7 @@ tetra_burst_mux #(
  .build_bb_sys (mux_bb_sys),
  .build_sb1_sys (mux_sb1_sys),
  .build_burst_type_sys(mux_burst_type_sys),
+ .build_ndb2_sys      (mux_ndb2_sys),
  .build_req_sys (mux_build_req_sys),
  .builder_busy_sys (builder_busy_sys),
  .mux_ready_sys (mux_ready_sys)
@@ -180,6 +184,7 @@ tetra_burst_builder #(
  .sb1_data_sys (mux_sb1_sys),
  // Control
  .burst_type_sys (mux_burst_type_sys),
+ .burst_ndb2_sys (mux_ndb2_sys),
  .build_req_sys (mux_build_req_sys),
  // Outputs
  .tx_dibit_sys (builder_dibit_sys),

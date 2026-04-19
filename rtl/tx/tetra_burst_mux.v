@@ -66,6 +66,9 @@ module tetra_burst_mux #(
  // bit N: 0=NDB, 1=SDB
  input wire [3:0] slot_burst_type_sys,
 
+ // Per-slot NDB2 flag: bit N = 1 → NDB2 (NTS2, SCH/HD) on slot N
+ input wire [3:0] slot_ndb2_sys,
+
  // -------------------------------------------------------------------------
  // TX frame timing
  // -------------------------------------------------------------------------
@@ -80,6 +83,7 @@ module tetra_burst_mux #(
  output reg [BB_BITS-1:0] build_bb_sys,
  output reg [SB1_BITS-1:0] build_sb1_sys,
  output reg build_burst_type_sys, // 0=NDB, 1=SDB
+ output reg build_ndb2_sys,      // 0=NDB1, 1=NDB2 (NTS2/SCH/HD)
  output reg build_req_sys,
 
  // Feedback from burst_builder
@@ -106,6 +110,7 @@ reg [1:0] next_state_sys;
 reg [1:0] slot_lat_sys;
 reg slot_en_lat_sys;
 reg burst_type_lat_sys;
+reg ndb2_lat_sys;
 
 // =============================================================================
 // R5 — Next-state logic (combinatorial)
@@ -150,6 +155,14 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
   burst_type_lat_sys <= 1'b0;
  else if (state_sys == S_IDLE && tx_slot_pulse_sys)
   burst_type_lat_sys <= slot_burst_type_sys[tx_slot_num_sys];
+end
+
+// R1 — ndb2_lat_sys: NDB2 flag for current slot
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys)
+  ndb2_lat_sys <= 1'b0;
+ else if (state_sys == S_IDLE && tx_slot_pulse_sys)
+  ndb2_lat_sys <= slot_ndb2_sys[tx_slot_num_sys];
 end
 
 // =============================================================================
@@ -235,6 +248,16 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
   build_burst_type_sys <= 1'b0;
  else if (next_state_sys == S_REQ && state_sys == S_PENDING)
   build_burst_type_sys <= burst_type_lat_sys;
+end
+
+// =============================================================================
+// R1 — build_ndb2_sys: NDB2 flag to burst builder
+// =============================================================================
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys)
+  build_ndb2_sys <= 1'b0;
+ else if (next_state_sys == S_REQ && state_sys == S_PENDING)
+  build_ndb2_sys <= ndb2_lat_sys;
 end
 
 // =============================================================================

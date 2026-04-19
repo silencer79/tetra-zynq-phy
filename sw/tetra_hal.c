@@ -668,11 +668,32 @@ static void build_bnch_sysinfo(const tetra_sysinfo_t *info, uint8_t *bits)
 }
 
 /* ========================================================================
+ * build_schf_null_pdu — Build a 268-bit SCH/F NULL PDU (traffic slot filler)
+ *
+ * MAC PDU type 00 (MAC-RESOURCE) with fill-bit indication = 1.
+ * The receiver parses it as an empty resource block — no payload.
+ * Used on traffic slots (0, 2, 3) to fill the spectrum with valid
+ * modulated content without broadcasting control information.
+ * ======================================================================== */
+
+static void build_schf_null_pdu(uint8_t *bits)
+{
+    int bp = 0;
+    memset(bits, 0, SCHF_INFO_BITS);
+
+    /* MAC PDU type (2 bits): 10 = Broadcast */
+    pack_bits(bits, &bp, 2, 2);
+    /* MAC-BROADCAST sub-type (2 bits): 11 = reserved (ignored by plugin) */
+    pack_bits(bits, &bp, 3, 2);
+    /* Remaining 264 bits are zero (fill) */
+}
+
+/* ========================================================================
  * build_schf_sysinfo — Build a 268-bit (SCH/F) MAC-BROADCAST SYSINFO PDU
  *
  * Same content as build_bnch_sysinfo (124-bit BNCH version) but packed
- * into the longer SCH/F format (268 info bits) with fill-bit indication.
- * Used for NDB block2 so the receiver can decode SYSINFO from NDB bursts
+ * into the longer SCH/F format (268 info bits).
+ * Used on MCCH (slot 1) so the receiver can decode SYSINFO from NDB bursts
  * using the SCH/F channel coding path.
  * ======================================================================== */
 
@@ -1053,6 +1074,53 @@ int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
 }
 
 /* ========================================================================
+ * tetra_write_bnch — Write BNCH block1/block2 registers (SCH/HD)
+ *
+ * On frame 18, the BNCH slot uses NDB2 burst type (NTS2 training sequence).
+ * The plugin detects NTS2 and decodes each block independently as SCH/HD:
+ *   124 info bits → CRC-16 → tail → RCPC 2/3 → interleave K=216 a=101
+ *   → scramble → 216 coded bits per block.
+ *
+ * Both blocks carry the same SYSINFO content.
+ * ======================================================================== */
+
+int tetra_write_bnch(tetra_hal_t *hal, const tetra_sysinfo_t *info,
+                     uint8_t colour_code)
+{
+    uint8_t bnch_info[BNCH_INFO_BITS];
+    build_bnch_sysinfo(info, bnch_info);
+
+    uint8_t type5_blk1[BKN2_CODED_BITS];
+    uint8_t type5_blk2[BKN2_CODED_BITS];
+
+    if (tetra_bnch_encode(bnch_info, colour_code, 0,
+                          info->mcc, info->mnc, type5_blk1) != 0) {
+        fprintf(stderr, "tetra_hal: BNCH block1 encoding failed\n");
+        return -1;
+    }
+    if (tetra_bnch_encode(bnch_info, colour_code, 0,
+                          info->mcc, info->mnc, type5_blk2) != 0) {
+        fprintf(stderr, "tetra_hal: BNCH block2 encoding failed\n");
+        return -1;
+    }
+
+    uint32_t blk1_words[7], blk2_words[7];
+    bits_to_words(type5_blk1, 216, blk1_words, 7);
+    blk1_words[6] >>= 8;
+    bits_to_words(type5_blk2, 216, blk2_words, 7);
+    blk2_words[6] >>= 8;
+
+    for (int i = 0; i < 7; i++)
+        tetra_reg_write(hal, REG_BNCH_BLK1_0 + i * 4, blk1_words[i]);
+    for (int i = 0; i < 7; i++)
+        tetra_reg_write(hal, REG_BNCH_BLK2_0 + i * 4, blk2_words[i]);
+
+    printf("BNCH written: SYSINFO SCH/HD (124 type-1) -> 216 type-5 bits × 2 blocks "
+           "(CC=%u MCC=%u MNC=%u)\n", colour_code, info->mcc, info->mnc);
+    return 0;
+}
+
+/* ========================================================================
  * Control Functions
  * ======================================================================== */
 
@@ -1274,10 +1342,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Write NDB block1+block2 with SCH/F-coded SYSINFO (matched pair).
-     * SYSINFO PDU uses BNCH bit layout (no fill-bit/encryption-mode fields)
-     * padded to 268 bits, so the plugin finds Main_Carrier at the expected
-     * bit offsets after SCH/F channel decode.  Written once — static. */
+    /* Write NDB block1+block2 with SCH/F-coded SYSINFO.
+     * All NDB slots (0–3) get SYSINFO — the plugin reads carrier info
+     * from any NDB burst.  Written once at startup — static. */
     {
         uint8_t schf_info[SCHF_INFO_BITS];
         build_schf_sysinfo(&info, schf_info);
@@ -1299,8 +1366,41 @@ int main(int argc, char *argv[])
             tetra_reg_write(&hal, REG_NDB_BLK1_0 + i * 4, blk1_words[i]);
         for (int i = 0; i < 7; i++)
             tetra_reg_write(&hal, REG_NDB_BLK2_0 + i * 4, blk2_words[i]);
-        printf("NDB SYSINFO written: SCH/F-coded BNCH-layout (CC=%u MCC=%u MNC=%u)\n",
+        printf("NDB filler written: SCH/F SYSINFO (CC=%u MCC=%u MNC=%u)\n",
                info.colour_code, info.mcc, info.mnc);
+    }
+
+    /* MCCH (slot 1) gets same SYSINFO as NDB filler.
+     * Written once at startup — updated only on hyperframe change. */
+    uint32_t mcch_sysinfo_blk1[7], mcch_sysinfo_blk2[7];
+    {
+        uint8_t si_info[SCHF_INFO_BITS];
+        build_schf_sysinfo(&info, si_info);
+        uint8_t si_type5[SCHF_CODED_BITS];
+        if (tetra_schf_encode(si_info, info.colour_code, 1,
+                              info.mcc, info.mnc, si_type5) != 0) {
+            fprintf(stderr, "MCCH SYSINFO encoding failed\n");
+            tetra_hal_close(&hal);
+            return 1;
+        }
+        bits_to_words(&si_type5[0],   216, mcch_sysinfo_blk1, 7);
+        mcch_sysinfo_blk1[6] >>= 8;
+        bits_to_words(&si_type5[216], 216, mcch_sysinfo_blk2, 7);
+        mcch_sysinfo_blk2[6] >>= 8;
+
+        for (int i = 0; i < 7; i++)
+            tetra_reg_write(&hal, REG_MCCH_BLK1_0 + i * 4, mcch_sysinfo_blk1[i]);
+        for (int i = 0; i < 7; i++)
+            tetra_reg_write(&hal, REG_MCCH_BLK2_0 + i * 4, mcch_sysinfo_blk2[i]);
+        printf("MCCH init: SYSINFO (CC=%u MCC=%u MNC=%u)\n",
+               info.colour_code, info.mcc, info.mnc);
+    }
+
+    /* BNCH (frame 18, NDB2) — SCH/HD encoded SYSINFO in both blocks */
+    if (tetra_write_bnch(&hal, &info, info.colour_code) != 0) {
+        fprintf(stderr, "BNCH SYSINFO encoding failed\n");
+        tetra_hal_close(&hal);
+        return 1;
     }
 
     /* Also write colour_code to the register for RX scrambler init */
@@ -1338,9 +1438,43 @@ int main(int argc, char *argv[])
          * the burst_mux latches payload at each slot_pulse, so writing
          * while the builder is busy ensures consistent data at next latch. */
         if (tdma != last_tdma) {
-            /* Hyperframe increments on multiframe wrap (59→0 or any decrease) */
-            if (mf < last_mf)
+            /* Hyperframe increments on multiframe wrap (60→1 or any decrease) */
+            if (mf < last_mf) {
                 hyperframe++;
+
+                /* Re-encode NDB filler + MCCH SYSINFO with new hyperframe.
+                 * Happens once per ~61s — negligible overhead. */
+                info.hyperframe = hyperframe;
+
+                uint8_t hf_info[SCHF_INFO_BITS];
+                build_schf_sysinfo(&info, hf_info);
+                uint8_t hf_coded[SCHF_CODED_BITS];
+                tetra_schf_encode(hf_info, info.colour_code, 1,
+                                  info.mcc, info.mnc, hf_coded);
+
+                uint32_t blk1w[7], blk2w[7];
+                bits_to_words(&hf_coded[0],   216, blk1w, 7);
+                blk1w[6] >>= 8;
+                bits_to_words(&hf_coded[216], 216, blk2w, 7);
+                blk2w[6] >>= 8;
+
+                /* Update NDB filler registers */
+                for (int i = 0; i < 7; i++)
+                    tetra_reg_write(&hal, REG_NDB_BLK1_0 + i*4, blk1w[i]);
+                for (int i = 0; i < 7; i++)
+                    tetra_reg_write(&hal, REG_NDB_BLK2_0 + i*4, blk2w[i]);
+
+                /* Update MCCH SYSINFO */
+                memcpy(mcch_sysinfo_blk1, blk1w, sizeof(blk1w));
+                memcpy(mcch_sysinfo_blk2, blk2w, sizeof(blk2w));
+                for (int i = 0; i < 7; i++)
+                    tetra_reg_write(&hal, REG_MCCH_BLK1_0 + i*4, blk1w[i]);
+                for (int i = 0; i < 7; i++)
+                    tetra_reg_write(&hal, REG_MCCH_BLK2_0 + i*4, blk2w[i]);
+
+                /* Update BNCH (frame 18 SCH/HD) */
+                tetra_write_bnch(&hal, &info, info.colour_code);
+            }
             last_mf = mf;
 
             /* FPGA counts 1-based (fn=1..18, mf=1..60).

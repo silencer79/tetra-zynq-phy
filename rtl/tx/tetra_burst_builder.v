@@ -54,6 +54,7 @@ module tetra_burst_builder #(
  input wire [SB1_BITS-1:0] sb1_data_sys, // sb1 (SDB), MSB = first symbol
 
  input wire burst_type_sys, // 0=NDB, 1=SDB
+ input wire burst_ndb2_sys, // 0=NDB1 (NTS1, SCH/F), 1=NDB2 (NTS2, SCH/HD)
 
  // Control
  input wire build_req_sys, // 1-cycle pulse: start burst
@@ -111,6 +112,14 @@ localparam [21:0] NTS1_REF = {
  2'b10, 2'b01, 2'b11, 2'b01, 2'b00
 };
 
+// ---- Normal Training Sequence 2 (11 symbols, §9.4.4.3.3) ----
+// p = [0,1,1,1,1,0,1,0,0,1,0,0,0,0,1,1,0,1,0,1,1,1]
+// Dibits: (01)(11)(10)(10)(01)(00)(00)(11)(01)(01)(11)
+localparam [21:0] NTS2_REF = {
+ 2'b01, 2'b11, 2'b10, 2'b10, 2'b01, 2'b00,
+ 2'b00, 2'b11, 2'b01, 2'b01, 2'b11
+};
+
 // =============================================================================
 // Symbol rate enable — derived from external sym_en_ext_sys
 //
@@ -140,6 +149,9 @@ reg [BURST_BITS-1:0] chain_burst_sys;
 // build_req_pending_sys: for cold start (first burst from S_IDLE)
 reg build_req_pending_sys;
 
+// Select NTS based on NDB2 flag
+wire [21:0] nts_sel_w = burst_ndb2_sys ? NTS2_REF : NTS1_REF;
+
 // R1: build_req handling — cold start vs chain
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys) begin
@@ -155,7 +167,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
                         bb_data_sys, block2_data_sys, PADJ, TAIL2};
    else
     chain_burst_sys <= {TAIL1, PADJ, block1_data_sys, bb_data_sys[BB_BITS-1:16],
-                        NTS1_REF, bb_data_sys[15:0], block2_data_sys, PADJ, TAIL2};
+                        nts_sel_w, bb_data_sys[15:0], block2_data_sys, PADJ, TAIL2};
   end else begin
    // Builder is idle: cold start
    build_req_pending_sys <= 1'b1;
@@ -184,7 +196,7 @@ assign sdb_burst_w = {TAIL1, PADJ, FC_PAT, sb1_data_sys, STS_REF,
                       bb_data_sys, block2_data_sys, PADJ, TAIL2};
 
 assign ndb_burst_w = {TAIL1, PADJ, block1_data_sys, bb_data_sys[BB_BITS-1:16],
-                      NTS1_REF, bb_data_sys[15:0], block2_data_sys, PADJ, TAIL2};
+                      nts_sel_w, bb_data_sys[15:0], block2_data_sys, PADJ, TAIL2};
 
 // R1: burst_sreg_sys — load on cold start, chain reload, or shift
 always @(posedge clk_sys or negedge rst_n_sys) begin
