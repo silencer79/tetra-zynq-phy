@@ -928,10 +928,10 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
     build_bnch_sysinfo(info, bnch_info);
 
     uint8_t type5_bkn2[BKN2_CODED_BITS];
-    /* BSCH BKN2 uses fixed scrambler init=3, same as SB1 (§8.2.5.2).
-     * The cell identity (MCC/MNC/CC) is inside the BSCH, so the receiver
-     * can't derive scrambCode yet — hence fixed init=3. */
-    if (tetra_bnch_encode(bnch_info, info->colour_code, 3,
+    /* BSCH BKN2 uses scrambCode in TMO (DLL has already parsed SB1 and
+     * computed scrambCode by the time it decodes BKN2).
+     * "BKN2 standalone init=3" in the DLL table is for DMO only. */
+    if (tetra_bnch_encode(bnch_info, info->colour_code, 0,
                           info->mcc, info->mnc, type5_bkn2) != 0) {
         fprintf(stderr, "tetra_hal: BNCH encoding failed\n");
         return -1;
@@ -1136,26 +1136,30 @@ int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
 int tetra_write_bnch(tetra_hal_t *hal, const tetra_sysinfo_t *info,
                      uint8_t colour_code)
 {
-    /* Encode SYSINFO as SCH/F (268 type-1 → 432 type-5 bits).
-     * The DLL determines combined vs half-slot decode from the AACH,
-     * not from the training sequence.  Our AACH says "Common" which
-     * triggers combined (SCH/F) decode.  So we must encode as SCH/F
-     * even though the burst uses NTS2 training sequence.
-     * The 432 coded bits are split into block1[0..215] + block2[216..431]. */
-    uint8_t schf_info[SCHF_INFO_BITS];
-    build_schf_sysinfo(info, schf_info);
+    /* Encode SYSINFO as SCH/HD (124 type-1 → 216 type-5 bits per block).
+     * The DLL uses burst type (NDB2 → NTS2) to select half-slot decode,
+     * not the AACH.  Each block is independently coded and scrambled. */
+    uint8_t bnch_info[BNCH_INFO_BITS];
+    build_bnch_sysinfo(info, bnch_info);
 
-    uint8_t type5[SCHF_CODED_BITS];
-    if (tetra_schf_encode(schf_info, colour_code, 1,
-                          info->mcc, info->mnc, type5) != 0) {
-        fprintf(stderr, "tetra_hal: BNCH SCH/F encoding failed\n");
+    uint8_t type5_blk1[BKN2_CODED_BITS];
+    uint8_t type5_blk2[BKN2_CODED_BITS];
+
+    if (tetra_bnch_encode(bnch_info, colour_code, 0,
+                          info->mcc, info->mnc, type5_blk1) != 0) {
+        fprintf(stderr, "tetra_hal: BNCH block1 encoding failed\n");
+        return -1;
+    }
+    if (tetra_bnch_encode(bnch_info, colour_code, 0,
+                          info->mcc, info->mnc, type5_blk2) != 0) {
+        fprintf(stderr, "tetra_hal: BNCH block2 encoding failed\n");
         return -1;
     }
 
     uint32_t blk1_words[7], blk2_words[7];
-    bits_to_words(&type5[0],   216, blk1_words, 7);
+    bits_to_words(type5_blk1, 216, blk1_words, 7);
     blk1_words[6] >>= 8;
-    bits_to_words(&type5[216], 216, blk2_words, 7);
+    bits_to_words(type5_blk2, 216, blk2_words, 7);
     blk2_words[6] >>= 8;
 
     for (int i = 0; i < 7; i++)
@@ -1163,7 +1167,7 @@ int tetra_write_bnch(tetra_hal_t *hal, const tetra_sysinfo_t *info,
     for (int i = 0; i < 7; i++)
         tetra_reg_write(hal, REG_BNCH_BLK2_0 + i * 4, blk2_words[i]);
 
-    printf("BNCH written: SYSINFO SCH/F (268 type-1) -> 432 type-5 bits split 2×216 "
+    printf("BNCH written: SYSINFO SCH/HD (124 type-1) -> 216 type-5 bits × 2 blocks "
            "(CC=%u MCC=%u MNC=%u)\n", colour_code, info->mcc, info->mnc);
     return 0;
 }
