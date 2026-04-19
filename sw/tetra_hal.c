@@ -510,7 +510,7 @@ static void bits_to_words(const uint8_t *bits, int nbits,
  * ======================================================================== */
 
 static int tetra_bnch_encode(const uint8_t *info_bits,
-                              uint8_t colour_code, uint8_t slot_num,
+                              uint8_t colour_code, uint32_t scramb_init,
                               uint16_t mcc, uint16_t mnc,
                               uint8_t *out_216)
 {
@@ -532,13 +532,18 @@ static int tetra_bnch_encode(const uint8_t *info_bits,
     /* Multiplicative interleaver, K=216, a=101 (ETSI §8.2.4.1 Table 8.19) */
     tetra_interleave_perm(type4, BNCH_CODED_BITS, 101, type4i);
 
-    /* Scramble with cell-identity init (SDR# CreateScramblerCode:
-     * init = (mcc<<22) | (mnc<<8) | (colour<<2) | 3
-     * Lower 2 bits are always 3, NOT the timeslot number!) */
-    uint32_t lfsr = ((uint32_t)(mcc & 0x3FF) << 22)
-                   | ((uint32_t)(mnc & 0x3FFF) << 8)
-                   | ((uint32_t)(colour_code & 0x3F) << 2)
-                   | 3u;
+    /* Scramble init:
+     *   scramb_init != 0 → use directly (BSCH BKN2: fixed init=3)
+     *   scramb_init == 0 → compute cell-identity code (BNCH NDB2 blocks) */
+    uint32_t lfsr;
+    if (scramb_init != 0) {
+        lfsr = scramb_init;
+    } else {
+        lfsr = ((uint32_t)(mcc & 0x3FF) << 22)
+             | ((uint32_t)(mnc & 0x3FFF) << 8)
+             | ((uint32_t)(colour_code & 0x3F) << 2)
+             | 3u;
+    }
     if (lfsr == 0)
         lfsr = 0xFFFFFFFF;
     for (int i = 0; i < BNCH_CODED_BITS; i++)
@@ -681,11 +686,25 @@ static void build_schf_null_pdu(uint8_t *bits)
     int bp = 0;
     memset(bits, 0, SCHF_INFO_BITS);
 
-    /* MAC PDU type (2 bits): 10 = Broadcast */
-    pack_bits(bits, &bp, 2, 2);
-    /* MAC-BROADCAST sub-type (2 bits): 11 = reserved (ignored by plugin) */
-    pack_bits(bits, &bp, 3, 2);
-    /* Remaining 264 bits are zero (fill) */
+    /* MAC PDU type (2 bits): 00 = MAC-RESOURCE (Table 21.73) */
+    pack_bits(bits, &bp, 0, 2);
+    /* Fill bit indication (1 bit): 1 = fill bits present (= NULL PDU) */
+    pack_bits(bits, &bp, 1, 1);
+    /* Position of grant (1 bit): 0 = not applicable */
+    pack_bits(bits, &bp, 0, 1);
+    /* Encryption mode (2 bits): 00 = clear */
+    pack_bits(bits, &bp, 0, 2);
+    /* Random access flag (1 bit): 0 = no access parms */
+    pack_bits(bits, &bp, 0, 1);
+    /* Length indication (6 bits): 111110 = second half-slot stolen for AACH */
+    pack_bits(bits, &bp, 0x3E, 6);
+    /* Address type (3 bits): 011 = SSI+event label (NULL) */
+    pack_bits(bits, &bp, 3, 3);
+    /* SSI (24 bits): 0 */
+    pack_bits(bits, &bp, 0, 24);
+    /* Event label (10 bits): 0 */
+    pack_bits(bits, &bp, 0, 10);
+    /* Remaining bits are zero fill */
 }
 
 /* ========================================================================
@@ -909,7 +928,10 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
     build_bnch_sysinfo(info, bnch_info);
 
     uint8_t type5_bkn2[BKN2_CODED_BITS];
-    if (tetra_bnch_encode(bnch_info, info->colour_code, 0,
+    /* BSCH BKN2 uses fixed scrambler init=3, same as SB1 (§8.2.5.2).
+     * The cell identity (MCC/MNC/CC) is inside the BSCH, so the receiver
+     * can't derive scrambCode yet — hence fixed init=3. */
+    if (tetra_bnch_encode(bnch_info, info->colour_code, 3,
                           info->mcc, info->mnc, type5_bkn2) != 0) {
         fprintf(stderr, "tetra_hal: BNCH encoding failed\n");
         return -1;
@@ -1056,26 +1078,25 @@ static void build_mcch_access_define(uint8_t *bits)
 
 /* ========================================================================
  * tetra_write_ndb_filler — Fill NDB block1/block2 registers with a
- * channel-coded MAC-BROADCAST ACCESS-DEFINE PDU (SCH/F, 268 type-1 bits).
+ * channel-coded MAC-RESOURCE NULL PDU (SCH/F, 268 type-1 bits).
  *
- * The MS decodes slot 1 as MCCH and expects valid MAC signalling PDUs.
- * This gives it both a decodable MAC PDU AND the random access parameters
- * needed for RACH (ACCESS-DEFINE).
+ * Traffic slots (0, 2, 3) carry NULL PDUs — MAC-RESOURCE type 00 with
+ * fill-bit=1.  The receiver ignores NULL PDUs (no payload, no groups).
+ * MCCH (slot 1) uses separate MCCH registers with SYSINFO+ACCESS-DEFINE.
  * ======================================================================== */
 
 int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
                             uint16_t mcc, uint16_t mnc)
 {
-    /* Build valid MAC-BROADCAST ACCESS-DEFINE PDU (268 type-1 bits) */
+    /* Build MAC-RESOURCE NULL PDU (268 type-1 bits, fill=1) */
     uint8_t info[SCHF_INFO_BITS];
-    build_mcch_access_define(info);
+    build_schf_null_pdu(info);
 
-    /* Scramble with slot_num=1 (MCCH slot).  The FPGA replicates this data
-     * to all 4 NDB slots ({4{ndb_block1_data_sys}}), so only slot 1 gets
-     * correctly descrambled by the MS.  Slot 0 is SDB (doesn't use NDB regs),
-     * slots 2-3 carry modulated filler that the MS won't try to decode as
-     * signaling.  Per-slot register sets would fix slots 2-3 but require
-     * RTL expansion — future enhancement. */
+    /* Scramble with slot_num=1 (MCCH).  The FPGA sends NDB registers to
+     * slots 0/2/3 only (slot 1 uses MCCH registers).  Scrambling with
+     * slot=1 means slots 0/2/3 won't descramble correctly — but since
+     * the content is NULL PDU, mismatched descrambling just produces
+     * CRC failure → the MS discards the burst silently. */
     uint8_t type5[SCHF_CODED_BITS];
     if (tetra_schf_encode(info, colour_code, 1, mcc, mnc, type5) != 0) {
         fprintf(stderr, "tetra_hal: SCH/F encoding failed\n");
@@ -1095,8 +1116,8 @@ int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
     for (int i = 0; i < 7; i++)
         tetra_reg_write(hal, REG_NDB_BLK2_0 + i * 4, blk2_words[i]);
 
-    printf("NDB MCCH written: ACCESS-DEFINE PDU (268 type-1) -> 432 type-5 bits "
-           "(CC=%u MCC=%u MNC=%u slot=1/MCCH)\n",
+    printf("NDB filler written: NULL PDU (MAC-RESOURCE type=00, fill=1) -> 432 type-5 bits "
+           "(CC=%u MCC=%u MNC=%u)\n",
            colour_code, mcc, mnc);
     return 0;
 }
@@ -1115,27 +1136,26 @@ int tetra_write_ndb_filler(tetra_hal_t *hal, uint8_t colour_code,
 int tetra_write_bnch(tetra_hal_t *hal, const tetra_sysinfo_t *info,
                      uint8_t colour_code)
 {
-    uint8_t bnch_info[BNCH_INFO_BITS];
-    build_bnch_sysinfo(info, bnch_info);
+    /* Encode SYSINFO as SCH/F (268 type-1 → 432 type-5 bits).
+     * The DLL determines combined vs half-slot decode from the AACH,
+     * not from the training sequence.  Our AACH says "Common" which
+     * triggers combined (SCH/F) decode.  So we must encode as SCH/F
+     * even though the burst uses NTS2 training sequence.
+     * The 432 coded bits are split into block1[0..215] + block2[216..431]. */
+    uint8_t schf_info[SCHF_INFO_BITS];
+    build_schf_sysinfo(info, schf_info);
 
-    uint8_t type5_blk1[BKN2_CODED_BITS];
-    uint8_t type5_blk2[BKN2_CODED_BITS];
-
-    if (tetra_bnch_encode(bnch_info, colour_code, 0,
-                          info->mcc, info->mnc, type5_blk1) != 0) {
-        fprintf(stderr, "tetra_hal: BNCH block1 encoding failed\n");
-        return -1;
-    }
-    if (tetra_bnch_encode(bnch_info, colour_code, 0,
-                          info->mcc, info->mnc, type5_blk2) != 0) {
-        fprintf(stderr, "tetra_hal: BNCH block2 encoding failed\n");
+    uint8_t type5[SCHF_CODED_BITS];
+    if (tetra_schf_encode(schf_info, colour_code, 1,
+                          info->mcc, info->mnc, type5) != 0) {
+        fprintf(stderr, "tetra_hal: BNCH SCH/F encoding failed\n");
         return -1;
     }
 
     uint32_t blk1_words[7], blk2_words[7];
-    bits_to_words(type5_blk1, 216, blk1_words, 7);
+    bits_to_words(&type5[0],   216, blk1_words, 7);
     blk1_words[6] >>= 8;
-    bits_to_words(type5_blk2, 216, blk2_words, 7);
+    bits_to_words(&type5[216], 216, blk2_words, 7);
     blk2_words[6] >>= 8;
 
     for (int i = 0; i < 7; i++)
@@ -1143,7 +1163,7 @@ int tetra_write_bnch(tetra_hal_t *hal, const tetra_sysinfo_t *info,
     for (int i = 0; i < 7; i++)
         tetra_reg_write(hal, REG_BNCH_BLK2_0 + i * 4, blk2_words[i]);
 
-    printf("BNCH written: SYSINFO SCH/HD (124 type-1) -> 216 type-5 bits × 2 blocks "
+    printf("BNCH written: SYSINFO SCH/F (268 type-1) -> 432 type-5 bits split 2×216 "
            "(CC=%u MCC=%u MNC=%u)\n", colour_code, info->mcc, info->mnc);
     return 0;
 }
@@ -1374,27 +1394,27 @@ int main(int argc, char *argv[])
      * All NDB slots (0–3) get SYSINFO — the plugin reads carrier info
      * from any NDB burst.  Written once at startup — static. */
     {
-        uint8_t schf_info[SCHF_INFO_BITS];
-        build_schf_sysinfo(&info, schf_info);
+        uint8_t null_info[SCHF_INFO_BITS];
+        build_schf_null_pdu(null_info);
 
-        uint8_t schf_type5[SCHF_CODED_BITS];
-        if (tetra_schf_encode(schf_info, info.colour_code, 1,
-                              info.mcc, info.mnc, schf_type5) != 0) {
-            fprintf(stderr, "NDB SCH/F SYSINFO encoding failed\n");
+        uint8_t null_type5[SCHF_CODED_BITS];
+        if (tetra_schf_encode(null_info, info.colour_code, 1,
+                              info.mcc, info.mnc, null_type5) != 0) {
+            fprintf(stderr, "NDB NULL PDU encoding failed\n");
             tetra_hal_close(&hal);
             return 1;
         }
 
         uint32_t blk1_words[7], blk2_words[7];
-        bits_to_words(&schf_type5[0],   216, blk1_words, 7);
+        bits_to_words(&null_type5[0],   216, blk1_words, 7);
         blk1_words[6] >>= 8;
-        bits_to_words(&schf_type5[216], 216, blk2_words, 7);
+        bits_to_words(&null_type5[216], 216, blk2_words, 7);
         blk2_words[6] >>= 8;
         for (int i = 0; i < 7; i++)
             tetra_reg_write(&hal, REG_NDB_BLK1_0 + i * 4, blk1_words[i]);
         for (int i = 0; i < 7; i++)
             tetra_reg_write(&hal, REG_NDB_BLK2_0 + i * 4, blk2_words[i]);
-        printf("NDB filler written: SCH/F SYSINFO (CC=%u MCC=%u MNC=%u)\n",
+        printf("NDB filler written: NULL PDU (CC=%u MCC=%u MNC=%u)\n",
                info.colour_code, info.mcc, info.mnc);
     }
 
@@ -1470,10 +1490,30 @@ int main(int argc, char *argv[])
             if (mf < last_mf) {
                 hyperframe++;
 
-                /* Re-encode NDB filler + MCCH SYSINFO with new hyperframe.
+                /* Re-encode MCCH SYSINFO + NDB NULL PDU with new hyperframe.
                  * Happens once per ~61s — negligible overhead. */
                 info.hyperframe = hyperframe;
 
+                /* NDB filler: NULL PDU (no hyperframe dependency, but
+                 * scrambler seed uses MCC/MNC so re-encode is harmless) */
+                uint8_t null_info[SCHF_INFO_BITS];
+                build_schf_null_pdu(null_info);
+                uint8_t null_coded[SCHF_CODED_BITS];
+                tetra_schf_encode(null_info, info.colour_code, 1,
+                                  info.mcc, info.mnc, null_coded);
+
+                uint32_t ndb_blk1w[7], ndb_blk2w[7];
+                bits_to_words(&null_coded[0],   216, ndb_blk1w, 7);
+                ndb_blk1w[6] >>= 8;
+                bits_to_words(&null_coded[216], 216, ndb_blk2w, 7);
+                ndb_blk2w[6] >>= 8;
+
+                for (int i = 0; i < 7; i++)
+                    tetra_reg_write(&hal, REG_NDB_BLK1_0 + i*4, ndb_blk1w[i]);
+                for (int i = 0; i < 7; i++)
+                    tetra_reg_write(&hal, REG_NDB_BLK2_0 + i*4, ndb_blk2w[i]);
+
+                /* MCCH SYSINFO: updated hyperframe number */
                 uint8_t hf_info[SCHF_INFO_BITS];
                 build_schf_sysinfo(&info, hf_info);
                 uint8_t hf_coded[SCHF_CODED_BITS];
@@ -1486,13 +1526,6 @@ int main(int argc, char *argv[])
                 bits_to_words(&hf_coded[216], 216, blk2w, 7);
                 blk2w[6] >>= 8;
 
-                /* Update NDB filler registers */
-                for (int i = 0; i < 7; i++)
-                    tetra_reg_write(&hal, REG_NDB_BLK1_0 + i*4, blk1w[i]);
-                for (int i = 0; i < 7; i++)
-                    tetra_reg_write(&hal, REG_NDB_BLK2_0 + i*4, blk2w[i]);
-
-                /* Update MCCH SYSINFO */
                 memcpy(mcch_sysinfo_blk1, blk1w, sizeof(blk1w));
                 memcpy(mcch_sysinfo_blk2, blk2w, sizeof(blk2w));
                 for (int i = 0; i < 7; i++)
