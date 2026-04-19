@@ -674,24 +674,27 @@ wire [215:0] bnch_block1_data_sys;
 wire [215:0] bnch_block2_data_sys;
 // These wires are driven by the AXI-Lite register bank (connected below).
 
-// Burst type per slot: exactly 1 slot = SDB, other 3 = NDB (continuous downlink)
-// 1 bit per slot: 0=NDB, 1=SDB
+// Burst type per slot: SDB only on frame 18 (ETSI §21.4.4.1)
+// Frames 1-17: all 4 slots = NDB (continuous downlink, no SDB)
+// Frame 18: 1 slot = SDB (BSCH), other 3 = NDB
 //
-// ETSI EN 300 392-2 §21.4.4.1 — BSCH/BNCH slot rotation:
-//   BSCH_TN = 4 - ((MN + 1) mod 4)   (1-based TN, 1-based MN)
-//
+// BSCH_TN = 4 - ((MN + 1) mod 4)   (1-based TN, 1-based MN)
 // tx_mf_cnt_sys is 1-based (1..60).  Compute 0-based SDB slot:
 //   mf%4 == 0 → TN=3 → slot 2    mf%4 == 1 → TN=2 → slot 1
 //   mf%4 == 2 → TN=1 → slot 0    mf%4 == 3 → TN=4 → slot 3
 reg [3:0] slot_burst_type_sys;
 always @(*) begin
-    case (tx_mf_cnt_sys[1:0])
-        2'd0: slot_burst_type_sys = 4'b0100; // SDB on slot 2
-        2'd1: slot_burst_type_sys = 4'b0010; // SDB on slot 1
-        2'd2: slot_burst_type_sys = 4'b0001; // SDB on slot 0
-        2'd3: slot_burst_type_sys = 4'b1000; // SDB on slot 3
-        default: slot_burst_type_sys = 4'b0001;
-    endcase
+    if (tx_frame_cnt_sys == 5'd18) begin
+        case (tx_mf_cnt_sys[1:0])
+            2'd0: slot_burst_type_sys = 4'b0100; // SDB on slot 2
+            2'd1: slot_burst_type_sys = 4'b0010; // SDB on slot 1
+            2'd2: slot_burst_type_sys = 4'b0001; // SDB on slot 0
+            2'd3: slot_burst_type_sys = 4'b1000; // SDB on slot 3
+            default: slot_burst_type_sys = 4'b0000;
+        endcase
+    end else begin
+        slot_burst_type_sys = 4'b0000; // No SDB on frames 1-17
+    end
 end
 
 // BNCH slot rotation (ETSI §21.4.4.1):

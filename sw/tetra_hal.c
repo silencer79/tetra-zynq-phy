@@ -772,6 +772,34 @@ static void build_schf_sysinfo(const tetra_sysinfo_t *info, uint8_t *bits)
     /* Advanced link supported (1): 1 */
     pack_bits(bits, &bp, 1, 1);
 
+    /* --- ACCESS-DEFINE follows SYSINFO in SCH/F PDU (§21.4.7.2) ---
+     * On the MCCH, the DLL expects SYSINFO + ACCESS-DEFINE in the same
+     * 268-bit Broadcast PDU.  Without this, 144 trailing zeros are parsed
+     * as ACCESS-DEFINE with garbage values. */
+
+    /* Fill bit indication: 0 = no fill bits */
+    pack_bits(bits, &bp, 0, 1);
+    /* Encryption mode: 00 = clear mode */
+    pack_bits(bits, &bp, 0, 2);
+    /* Random access flag: 1 = access parms follow */
+    pack_bits(bits, &bp, 1, 1);
+    /* Access code: 0000 = AC0 (all subscriber classes) */
+    pack_bits(bits, &bp, 0, 4);
+    /* Immediate: 1 = immediate access allowed */
+    pack_bits(bits, &bp, 1, 1);
+    /* Waiting time: 2 (short) */
+    pack_bits(bits, &bp, 2, 4);
+    /* Number of random access transmissions: 3 */
+    pack_bits(bits, &bp, 3, 4);
+    /* Frame length factor: 0 = 1 frame */
+    pack_bits(bits, &bp, 0, 1);
+    /* Timeslot pointer: 0001 = slot 1 */
+    pack_bits(bits, &bp, 1, 4);
+    /* Minimum PDU priority: 000 = no minimum */
+    pack_bits(bits, &bp, 0, 3);
+    /* Random access flag: 0 = no more access definitions */
+    pack_bits(bits, &bp, 0, 1);
+
     /* Remaining bits (268 - bp) are zero fill */
 }
 
