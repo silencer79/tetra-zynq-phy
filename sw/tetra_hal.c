@@ -337,6 +337,16 @@ static void tetra_scramble_bsch(const uint8_t *bits, int len, uint8_t *out)
 #define BNCH_CODED_BITS   216
 #define AACH_BITS         30   /* RM(30,14) full output for continuous burst */
 #define BKN2_CODED_BITS   216
+#define SCHF_INFO_BITS   268
+#define SCHF_CRC_BITS    (SCHF_INFO_BITS + 16)   /* 284 */
+#define SCHF_TAIL_BITS   (SCHF_CRC_BITS + 4)     /* 288 */
+#define SCHF_CODED_BITS  432
+
+/* Forward declaration — defined after tetra_write_ndb_filler */
+static int tetra_schf_encode(const uint8_t *info_bits,
+                              uint8_t colour_code, uint8_t slot_num,
+                              uint16_t mcc, uint16_t mnc,
+                              uint8_t *out_432);
 
 static void pack_bits(uint8_t *out, int *pos, uint32_t value, int nbits)
 {
@@ -658,6 +668,93 @@ static void build_bnch_sysinfo(const tetra_sysinfo_t *info, uint8_t *bits)
 }
 
 /* ========================================================================
+ * build_schf_sysinfo — Build a 268-bit (SCH/F) MAC-BROADCAST SYSINFO PDU
+ *
+ * Same content as build_bnch_sysinfo (124-bit BNCH version) but packed
+ * into the longer SCH/F format (268 info bits) with fill-bit indication.
+ * Used for NDB block2 so the receiver can decode SYSINFO from NDB bursts
+ * using the SCH/F channel coding path.
+ * ======================================================================== */
+
+static void build_schf_sysinfo(const tetra_sysinfo_t *info, uint8_t *bits)
+{
+    uint8_t band;
+    uint16_t carrier;
+    tetra_freq_to_carrier(info->dl_freq_hz, &band, &carrier);
+
+    int bp = 0;
+    memset(bits, 0, SCHF_INFO_BITS);
+
+    /* Use same bit layout as BNCH (no fill-bit-indication / encryption-mode)
+     * so SDR# plugin can find SYSINFO fields at the same bit offsets after
+     * SCH/F channel decoding.  Padded to 268 bits with trailing zeros. */
+    /* MAC PDU type (2 bits): 10 = Broadcast (Table 21.73) */
+    pack_bits(bits, &bp, 2, 2);
+    /* MAC-BROADCAST sub-type (2 bits): 00 = SYSINFO */
+    pack_bits(bits, &bp, 0, 2);
+
+    /* Main Carrier (12 bits) */
+    pack_bits(bits, &bp, carrier, 12);
+    /* Frequency Band (4 bits) */
+    pack_bits(bits, &bp, band, 4);
+    /* Offset (2 bits): 0 = no offset */
+    pack_bits(bits, &bp, 0, 2);
+    /* Duplex spacing (3 bits) */
+    pack_bits(bits, &bp, info->duplex_spacing, 3);
+    /* Reverse operation (1 bit): 0 = normal */
+    pack_bits(bits, &bp, 0, 1);
+    /* Number of common secondary ctrl channels (2 bits): 00 = none */
+    pack_bits(bits, &bp, 0, 2);
+    /* MS TX power max cell (3 bits) */
+    pack_bits(bits, &bp, info->ms_txpwr_max_cell, 3);
+    /* RX level access minimum (4 bits) */
+    pack_bits(bits, &bp, info->rxlevel_access_min, 4);
+    /* Access parameter (4 bits) */
+    pack_bits(bits, &bp, info->access_parameter, 4);
+    /* Radio downlink timeout (4 bits) */
+    pack_bits(bits, &bp, info->radio_dl_timeout, 4);
+    /* Hyperframe/cipher key flag (1 bit): 0 = hyperframe number follows */
+    pack_bits(bits, &bp, 0, 1);
+    /* Hyperframe number (16 bits) */
+    pack_bits(bits, &bp, info->hyperframe, 16);
+    /* Optional field flag (2 bits): 10 = default freq + ext services */
+    pack_bits(bits, &bp, 2, 2);
+    /* Optional field value (20 bits) */
+    pack_bits(bits, &bp, info->optional_field_value, 20);
+
+    /* Location Area (14 bits) */
+    pack_bits(bits, &bp, info->la, 14);
+    /* Subscriber Class (16 bits): 0xFFFF = all classes allowed */
+    pack_bits(bits, &bp, 0xFFFF, 16);
+    /* Registration required (1): 1 = yes */
+    pack_bits(bits, &bp, 1, 1);
+    /* De-registration required (1): 1 */
+    pack_bits(bits, &bp, 1, 1);
+    /* Priority cell (1) */
+    pack_bits(bits, &bp, info->priority_cell, 1);
+    /* Cell never uses minimum mode (1): 1 */
+    pack_bits(bits, &bp, 1, 1);
+    /* Migration supported (1) */
+    pack_bits(bits, &bp, info->migration_supported, 1);
+    /* System wide services (1): 1 */
+    pack_bits(bits, &bp, 1, 1);
+    /* TETRA voice service (1): 1 = supported */
+    pack_bits(bits, &bp, 1, 1);
+    /* Circuit mode data service (1): 1 */
+    pack_bits(bits, &bp, 1, 1);
+    /* Reserved (1): 0 */
+    pack_bits(bits, &bp, 0, 1);
+    /* SNDCP service (1): 1 */
+    pack_bits(bits, &bp, 1, 1);
+    /* Air interface encryption (1): 0 = not supported */
+    pack_bits(bits, &bp, 0, 1);
+    /* Advanced link supported (1): 1 */
+    pack_bits(bits, &bp, 1, 1);
+
+    /* Remaining bits (268 - bp) are zero fill */
+}
+
+/* ========================================================================
  * Build BNCH ACCESS_DEFINE PDU — 124 type-1 bits (MAC-BROADCAST type 01)
  * ======================================================================== */
 
@@ -815,11 +912,6 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
  * Slots 2-3 use the same data and are therefore scrambled "wrong" but
  * only carry filler — the MS doesn't expect signaling on them.
  * ======================================================================== */
-
-#define SCHF_INFO_BITS   268
-#define SCHF_CRC_BITS    (SCHF_INFO_BITS + 16)   /* 284 */
-#define SCHF_TAIL_BITS   (SCHF_CRC_BITS + 4)     /* 288 */
-#define SCHF_CODED_BITS  432
 
 static int tetra_schf_encode(const uint8_t *info_bits,
                               uint8_t colour_code, uint8_t slot_num,
@@ -1182,13 +1274,33 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Fill NDB block1/block2 with channel-coded SCH/F payload so slots 1-3
-     * (and the NDB half of every even multiframe) carry modulated content
-     * instead of narrow-CW from an all-zero payload. */
-    if (tetra_write_ndb_filler(&hal, info.colour_code,
-                                info.mcc, info.mnc) != 0) {
-        tetra_hal_close(&hal);
-        return 1;
+    /* Write NDB block1+block2 with SCH/F-coded SYSINFO (matched pair).
+     * SYSINFO PDU uses BNCH bit layout (no fill-bit/encryption-mode fields)
+     * padded to 268 bits, so the plugin finds Main_Carrier at the expected
+     * bit offsets after SCH/F channel decode.  Written once — static. */
+    {
+        uint8_t schf_info[SCHF_INFO_BITS];
+        build_schf_sysinfo(&info, schf_info);
+
+        uint8_t schf_type5[SCHF_CODED_BITS];
+        if (tetra_schf_encode(schf_info, info.colour_code, 1,
+                              info.mcc, info.mnc, schf_type5) != 0) {
+            fprintf(stderr, "NDB SCH/F SYSINFO encoding failed\n");
+            tetra_hal_close(&hal);
+            return 1;
+        }
+
+        uint32_t blk1_words[7], blk2_words[7];
+        bits_to_words(&schf_type5[0],   216, blk1_words, 7);
+        blk1_words[6] >>= 8;
+        bits_to_words(&schf_type5[216], 216, blk2_words, 7);
+        blk2_words[6] >>= 8;
+        for (int i = 0; i < 7; i++)
+            tetra_reg_write(&hal, REG_NDB_BLK1_0 + i * 4, blk1_words[i]);
+        for (int i = 0; i < 7; i++)
+            tetra_reg_write(&hal, REG_NDB_BLK2_0 + i * 4, blk2_words[i]);
+        printf("NDB SYSINFO written: SCH/F-coded BNCH-layout (CC=%u MCC=%u MNC=%u)\n",
+               info.colour_code, info.mcc, info.mnc);
     }
 
     /* Also write colour_code to the register for RX scrambler init */

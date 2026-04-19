@@ -56,7 +56,7 @@
 #define REG_SB_SB1_1       0x44  /* sb1 word 1 (bits [87:56])   */
 #define REG_SB_SB1_2       0x48  /* sb1 word 2 (bits [55:24])   */
 #define REG_SB_SB1_3       0x4C  /* sb1 word 3 (bits [23:0])    */
-/* 0x50–0x5C: unused (freed from old 240-bit bkn1) */
+#define REG_SB_COMMIT       0x5C  /* write any value → atomic shadow→live commit */
 #define REG_SB_BKN2_0      0x60  /* bkn2 word 0 (bits [215:184])*/
 #define REG_SB_BKN2_1      0x64  /* bkn2 word 1 (bits [183:152])*/
 #define REG_SB_BKN2_2      0x68  /* bkn2 word 2 (bits [151:120])*/
