@@ -224,6 +224,20 @@ wire [6:0]  rx_gain_axi;
 wire [7:0]  tx_att_axi;
 wire        tx_test_prbs_en_axi;
 
+// Cell-Config Registers (Plan Stufe 3.5) — feed tetra_sb1_encoder (BSCH).
+// Slow-changing; written once at MCU boot.  Per-field 2-FF resynced into
+// clk_sys below (see cell_cfg_*_sys_r1 signals).
+wire [3:0]  cell_cfg_sys_code_axi_w;
+wire [1:0]  cell_cfg_sharing_mode_axi_w;
+wire [2:0]  cell_cfg_ts_reserved_frames_axi_w;
+wire        cell_cfg_uplane_dtx_axi_w;
+wire        cell_cfg_frame18_ext_axi_w;
+wire [1:0]  cell_cfg_neigh_cell_bc_axi_w;
+wire [1:0]  cell_cfg_cell_service_level_axi_w;
+wire        cell_cfg_late_entry_support_axi_w;
+wire [9:0]  cell_cfg_mcc_axi_w;
+wire [13:0] cell_cfg_mnc_axi_w;
+
 // Synchronize static AXI control bits into the consuming clock domains.
 (* ASYNC_REG = "TRUE" *) reg ctrl_loopback_lvds_r0;
 (* ASYNC_REG = "TRUE" *) reg ctrl_loopback_lvds_r1;
@@ -657,12 +671,18 @@ end
 wire tx_slot_pulse_sys_w;
 assign tx_slot_pulse_sys_w = tx_slot_pulse_free_sys;
 
-// SB data for base station operation — driven by AXI-Lite registers
-// PS software writes channel-coded BSCH/BNCH/AACH payload via registers
-// at offsets 0x40–0x7C. Default (all zeros) = idle burst until PS writes data.
-wire [119:0] sb_sb1_data_sys;  // BSCH sb1: 60 symbols = 120 bits (RCPC 2/3)
-wire [215:0] sb_bkn2_data_sys; // BNCH: 108 symbols = 216 bits
-wire [29:0]  sb_bb_data_sys;   // BB/AACH: 15 symbols = 30 bits (shared all slots)
+// SB data (legacy AXI-Lite path, kept for back-compat readback).
+// REG_SB_SB1_* / REG_SB_BKN2_* / REG_SB_BB continue to exist in the AXI
+// register bank, but after Stufe 4 the tx_chain consumes only:
+//   * sb_sb1_data_cm_sys / sb_bb_data_cm_sys from the content-mux
+//     (sourced from the RTL encoders sb1_coded_sys / aach_coded_sys).
+//   * sb_bkn2_data_sys — still routed from the AXI register because the
+//     BNCH/SDB slot-2 payload is SW-computed (no RTL encoder).
+// The legacy sb_sb1_data_axi_sys / sb_bb_data_axi_sys wires are driven
+// but unused on the datapath; readback via AXI still works.
+wire [119:0] sb_sb1_data_axi_sys;  // legacy AXI path — unused in tx_chain
+wire [215:0] sb_bkn2_data_sys;     // BNCH: 108 symbols = 216 bits (still used)
+wire [29:0]  sb_bb_data_axi_sys;   // legacy AXI path — unused in tx_chain
 // NDB block1/block2 — filler for slots 0/2/3 (SYSINFO SCH/F)
 wire [215:0] ndb_block1_data_sys;
 wire [215:0] ndb_block2_data_sys;
@@ -674,70 +694,131 @@ wire [215:0] bnch_block1_data_sys;
 wire [215:0] bnch_block2_data_sys;
 // These wires are driven by the AXI-Lite register bank (connected below).
 
-// Burst type per slot: SDB only on frame 18 (ETSI §21.4.4.1)
-// Frames 1-17: all 4 slots = NDB (continuous downlink, no SDB)
-// Frame 18: 1 slot = SDB (BSCH), other 3 = NDB
+// =============================================================================
+// Slot Content Mux (Plan Stufe 4) — replaces the legacy always-@(*)
+// scheduler and per-slot payload mux.  Consumes the 16-bit schedule
+// entries from tetra_slot_schedule (Port B) and produces per-slot
+// burst_type / enable / ndb2 attributes plus four block1/block2 216-bit
+// payload slots.  Also routes the RTL-encoded SB1 (sb1_encoder) and BB
+// (aach_encoder) outputs into the tx_chain datapath, replacing the
+// SW-driven REG_SB_SB1_* / REG_SB_BB path.
 //
-// BSCH_TN = 4 - ((MN + 1) mod 4)   (1-based TN, 1-based MN)
-// tx_mf_cnt_sys is 1-based (1..60).  Compute 0-based SDB slot:
-//   mf%4 == 0 → TN=3 → slot 2    mf%4 == 1 → TN=2 → slot 1
-//   mf%4 == 2 → TN=1 → slot 0    mf%4 == 3 → TN=4 → slot 3
-reg [3:0] slot_burst_type_sys;
-always @(*) begin
-    if (tx_frame_cnt_sys == 5'd18) begin
-        case (tx_mf_cnt_sys[1:0])
-            2'd0: slot_burst_type_sys = 4'b0100; // SDB on slot 2
-            2'd1: slot_burst_type_sys = 4'b0010; // SDB on slot 1
-            2'd2: slot_burst_type_sys = 4'b0001; // SDB on slot 0
-            2'd3: slot_burst_type_sys = 4'b1000; // SDB on slot 3
-            default: slot_burst_type_sys = 4'b0000;
-        endcase
-    end else begin
-        slot_burst_type_sys = 4'b0000; // No SDB on frames 1-17
-    end
+// Legacy registers removed by this stage:
+//   slot_burst_type_sys, slot_en_sys_reg, slot_ndb2_sys_reg,
+//   tx_blk1_slotN_w, tx_blk2_slotN_w  (now content_mux outputs)
+// =============================================================================
+
+// Forward declarations — these wires are driven by module instances
+// that appear LATER in the source (u_tx_slot_schedule, u_sb1_encoder,
+// u_aach_encoder).  Verilog-2001 allows forward wire references as long
+// as the wire is declared in the same module; explicit declarations here
+// avoid any ambiguity and keep `default_nettype none clean.
+wire [15:0]  schedule_entry_sys_w;   // from u_tx_slot_schedule (Port B)
+wire [119:0] sb1_coded_sys_w;        // from u_sb1_encoder
+wire         sb1_valid_sys_w;
+wire [29:0]  aach_coded_sys_w;       // from u_aach_encoder
+wire         aach_valid_sys_w;
+
+// 2-FF CDC: null_pdu_bits_axi (s_axi_aclk) → null_pdu_bits_sys (clk_sys).
+// This is a slow-changing 216-bit bus (SW writes once at boot), so a
+// simple 2-FF sync per bit is safe.  Transient mixes are possible for
+// ~2 clk_sys cycles immediately after a write, but the MCU is expected
+// to finish all NULL_PDU writes before enabling TX via REG_CTRL.
+wire [215:0] null_pdu_bits_axi_w;
+(* ASYNC_REG = "TRUE" *) reg [215:0] null_pdu_bits_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [215:0] null_pdu_bits_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) null_pdu_bits_sys_r0 <= 216'h0;
+    else            null_pdu_bits_sys_r0 <= null_pdu_bits_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) null_pdu_bits_sys_r1 <= 216'h0;
+    else            null_pdu_bits_sys_r1 <= null_pdu_bits_sys_r0;
 end
 
-// BNCH slot rotation (ETSI §21.4.4.1):
-//   BNCH_TN = 4 - ((MN + 3) mod 4)  (1-based TN, 1-based MN)
-// ETSI says BNCH uses NDB2 (NTS2 → SCH/HD), but the SDR# DLL does not
-// correlate against NTS2 — it only detects NTS1 and STS.  An NDB2 burst
-// shows up as "missing training sequence" (+1.0 MER per burst = 1.4%).
-// Fix: use NDB1 (NTS1) on all slots, encode BNCH as SCH/F (combined).
-// The payload mux still routes BNCH registers to the correct frame-18
-// slot — only the training sequence changes from NTS2 to NTS1.
-//   mf%4 == 0 → BNCH TN=1 → slot 0    mf%4 == 1 → BNCH TN=4 → slot 3
-//   mf%4 == 2 → BNCH TN=3 → slot 2    mf%4 == 3 → BNCH TN=2 → slot 1
-wire [3:0] slot_ndb2_sys = 4'b0000; // NDB1 (NTS1) on all slots always
+// Content-mux outputs — consumed directly by tx_chain below.
+wire [3:0]  cm_slot_burst_type_sys;
+wire [3:0]  cm_slot_en_sys;
+wire [3:0]  cm_slot_ndb2_sys;
+wire [BLOCK_BITS-1:0] cm_tx_blk1_slot0_sys, cm_tx_blk1_slot1_sys,
+                      cm_tx_blk1_slot2_sys, cm_tx_blk1_slot3_sys;
+wire [BLOCK_BITS-1:0] cm_tx_blk2_slot0_sys, cm_tx_blk2_slot1_sys,
+                      cm_tx_blk2_slot2_sys, cm_tx_blk2_slot3_sys;
+wire [119:0] sb_sb1_data_cm_sys;
+wire [29:0]  sb_bb_data_cm_sys;
 
-// Per-slot block1/block2 payload selection:
-//   - Slot 1 always gets MCCH (ACCESS-DEFINE SCH/F)
-//   - On frame 18, the BNCH slot gets BNCH registers (SYSINFO SCH/HD)
-//   - All other NDB slots get NDB filler (SYSINFO SCH/F)
-// Flat bus: {slot3, slot2, slot1, slot0}
-reg [BLOCK_BITS-1:0] tx_blk1_slot0_w, tx_blk1_slot1_w, tx_blk1_slot2_w, tx_blk1_slot3_w;
-reg [BLOCK_BITS-1:0] tx_blk2_slot0_w, tx_blk2_slot1_w, tx_blk2_slot2_w, tx_blk2_slot3_w;
+// Schedule BRAM Port B address — driven by content_mux, consumed by
+// tetra_slot_schedule (see u_tx_slot_schedule below).  Data returned by
+// the BRAM arrives 1 cycle later on schedule_entry_sys_w.
+wire [8:0]  sched_b_addr_sys_w;
 
-always @(*) begin
-    // Default: NDB filler on slots 0/2/3, MCCH on slot 1
-    tx_blk1_slot0_w = ndb_block1_data_sys;
-    tx_blk1_slot1_w = mcch_block1_data_sys;
-    tx_blk1_slot2_w = ndb_block1_data_sys;
-    tx_blk1_slot3_w = ndb_block1_data_sys;
-    tx_blk2_slot0_w = ndb_block2_data_sys;
-    tx_blk2_slot1_w = mcch_block2_data_sys;
-    tx_blk2_slot2_w = ndb_block2_data_sys;
-    tx_blk2_slot3_w = ndb_block2_data_sys;
-    // Frame 18: override BNCH slot with BNCH registers
-    if (tx_frame_cnt_sys == 5'd18) begin
-        case (tx_mf_cnt_sys[1:0])
-            2'd0: begin tx_blk1_slot0_w = bnch_block1_data_sys; tx_blk2_slot0_w = bnch_block2_data_sys; end
-            2'd1: begin tx_blk1_slot3_w = bnch_block1_data_sys; tx_blk2_slot3_w = bnch_block2_data_sys; end
-            2'd2: begin tx_blk1_slot2_w = bnch_block1_data_sys; tx_blk2_slot2_w = bnch_block2_data_sys; end
-            2'd3: begin tx_blk1_slot1_w = bnch_block1_data_sys; tx_blk2_slot1_w = bnch_block2_data_sys; end
-            default: ; // no override
-        endcase
-    end
-end
+// Debug probes from content_mux (latched schedule entries).  Kept
+// unconnected for now — synthesized only if referenced by an ILA.
+wire [15:0] dbg_sched_entry0_sys_w;
+wire [15:0] dbg_sched_entry1_sys_w;
+wire [15:0] dbg_sched_entry2_sys_w;
+wire [15:0] dbg_sched_entry3_sys_w;
+
+tetra_slot_content_mux #(
+    .BLOCK_BITS(BLOCK_BITS),
+    .BB_BITS   (BB_BITS),
+    .SB1_BITS  (120)
+) u_slot_content_mux (
+    .clk_sys              (clk_sys),
+    .rst_n_sys            (rst_n_sys),
+    // Timebase
+    .tn_sys               (tx_tdma_state_tn_sys),
+    .fn_sys               (tx_tdma_state_fn_sys),
+    .mn_sys               (tx_tdma_state_mn_sys),
+    .slot_pulse_sys       (tx_tdma_state_slot_pulse_sys),
+    .tdma_tick_sys        (tx_tdma_state_tdma_tick_sys),
+    // Schedule BRAM read interface (Port B, externally-driven address)
+    .sched_addr_sys       (sched_b_addr_sys_w),
+    .sched_data_sys       (schedule_entry_sys_w),
+    // RTL encoder outputs
+    .sb1_coded_sys        (sb1_coded_sys_w),
+    .sb1_valid_sys        (sb1_valid_sys_w),
+    .aach_coded_sys       (aach_coded_sys_w),
+    .aach_valid_sys       (aach_valid_sys_w),
+    // SW payload banks
+    .ndb_block1_sw_sys    (ndb_block1_data_sys),
+    .ndb_block2_sw_sys    (ndb_block2_data_sys),
+    .mcch_block1_sw_sys   (mcch_block1_data_sys),
+    .mcch_block2_sw_sys   (mcch_block2_data_sys),
+    .bnch_block1_sw_sys   (bnch_block1_data_sys),
+    .bnch_block2_sw_sys   (bnch_block2_data_sys),
+    .sb_bkn2_sw_sys       (sb_bkn2_data_sys),
+    // NULL-PDU bank (216-bit pre-coded SCH/HD payload, 2-FF synced)
+    .null_pdu_bits_sys    (null_pdu_bits_sys_r1),
+    // Outputs to tetra_tx_chain
+    .slot_burst_type_sys  (cm_slot_burst_type_sys),
+    .slot_en_sys          (cm_slot_en_sys),
+    .slot_ndb2_sys        (cm_slot_ndb2_sys),
+    .tx_blk1_slot0_sys    (cm_tx_blk1_slot0_sys),
+    .tx_blk1_slot1_sys    (cm_tx_blk1_slot1_sys),
+    .tx_blk1_slot2_sys    (cm_tx_blk1_slot2_sys),
+    .tx_blk1_slot3_sys    (cm_tx_blk1_slot3_sys),
+    .tx_blk2_slot0_sys    (cm_tx_blk2_slot0_sys),
+    .tx_blk2_slot1_sys    (cm_tx_blk2_slot1_sys),
+    .tx_blk2_slot2_sys    (cm_tx_blk2_slot2_sys),
+    .tx_blk2_slot3_sys    (cm_tx_blk2_slot3_sys),
+    .sb_sb1_data_sys      (sb_sb1_data_cm_sys),
+    .sb_bb_data_sys       (sb_bb_data_cm_sys),
+    // Debug probes
+    .dbg_sched_entry0_sys (dbg_sched_entry0_sys_w),
+    .dbg_sched_entry1_sys (dbg_sched_entry1_sys_w),
+    .dbg_sched_entry2_sys (dbg_sched_entry2_sys_w),
+    .dbg_sched_entry3_sys (dbg_sched_entry3_sys_w)
+);
+
+// Keep synth sinks on legacy AXI-driven SB wires + unused content-mux
+// debug probes so opt_design does not remove the AXI write path.
+(* keep = "true" *) wire _legacy_sb_keep_sys = ^sb_sb1_data_axi_sys ^
+                                                ^sb_bb_data_axi_sys ^
+                                                ^dbg_sched_entry0_sys_w ^
+                                                ^dbg_sched_entry1_sys_w ^
+                                                ^dbg_sched_entry2_sys_w ^
+                                                ^dbg_sched_entry3_sys_w;
 
 tetra_tx_chain #(
         .IQ_WIDTH (IQ_WIDTH),
@@ -747,20 +828,21 @@ tetra_tx_chain #(
     ) u_tx_chain (
         .clk_sys (clk_sys),
         .rst_n_sys (rst_n_sys),
-        // Slot payload buses (NDB) — per-slot mux: MCCH/BNCH/filler
-        .block1_sys ({tx_blk1_slot3_w, tx_blk1_slot2_w,
-                      tx_blk1_slot1_w, tx_blk1_slot0_w}),
-        .block2_sys ({tx_blk2_slot3_w, tx_blk2_slot2_w,
-                      tx_blk2_slot1_w, tx_blk2_slot0_w}),
-        // BB/AACH — shared across all burst types (from SB BB register)
-        .bb_sys (sb_bb_data_sys),
-        // SDB payload — used for slot 0 (base station sync burst)
-        .sb_sb1_data_sys (sb_sb1_data_sys),
+        // Slot payload buses (from content_mux — flat {slot3, slot2, slot1, slot0})
+        .block1_sys ({cm_tx_blk1_slot3_sys, cm_tx_blk1_slot2_sys,
+                      cm_tx_blk1_slot1_sys, cm_tx_blk1_slot0_sys}),
+        .block2_sys ({cm_tx_blk2_slot3_sys, cm_tx_blk2_slot2_sys,
+                      cm_tx_blk2_slot1_sys, cm_tx_blk2_slot0_sys}),
+        // BB/AACH — now from RTL aach_encoder via content_mux
+        .bb_sys (sb_bb_data_cm_sys),
+        // SDB payload — sb1 from RTL sb1_encoder via content_mux;
+        // sb_bkn2 still from AXI (BNCH payload is SW-computed)
+        .sb_sb1_data_sys (sb_sb1_data_cm_sys),
         .sb_bkn2_data_sys (sb_bkn2_data_sys),
-        // Per-slot configuration
-        .slot_en_sys (4'b1111), // All slots enabled
-        .slot_burst_type_sys(slot_burst_type_sys),
-        .slot_ndb2_sys      (slot_ndb2_sys),
+        // Per-slot configuration (from content_mux)
+        .slot_en_sys        (cm_slot_en_sys),
+        .slot_burst_type_sys(cm_slot_burst_type_sys),
+        .slot_ndb2_sys      (cm_slot_ndb2_sys),
         // Diagnostic: replace builder dibit with 15-bit LFSR PRBS
         .tx_test_prbs_en_sys(tx_test_prbs_en_sys),
         // TX timing from free-running timer (BUG-01 fix)
@@ -1001,6 +1083,139 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
 end
 
 // =============================================================================
+// TX TDMA Timebase (Plan Stufe 2) — canonical 0-based TDMA counter
+//
+// Runs in parallel with the legacy tx_{slot,frame,mf}_cnt_sys counters
+// (which remain the active source for the TX chain in Phase-4 until
+// Stufe 3+ retire them).  This module's outputs are exposed to AXI via
+// TX_TDMA_STATE (0x144) and accept a sync-load pulse from AXI via
+// TX_TDMA_LOAD (0x140).  No TX-chain behaviour change in Stufe 2.
+//
+// AXI → clk_sys pulse CDC: clk_axi and clk_sys share the same PS PLL
+// source, but they are declared as independent domains in timing
+// constraints.  A 2-FF synchronizer on the strobe is sufficient to
+// absorb any sub-cycle skew; data fields are held stable by the AXI
+// register bank for the duration of the resync.
+// =============================================================================
+
+// Data bus (clk_axi domain — wires from register bank, stable)
+wire [1:0] tx_tdma_sync_tn_axi_w;
+wire [4:0] tx_tdma_sync_fn_axi_w;
+wire [5:0] tx_tdma_sync_mn_axi_w;
+wire [5:0] tx_tdma_sync_hn_axi_w;
+wire       tx_tdma_sync_strobe_axi_w;
+
+// 2-FF strobe resync: clk_axi → clk_sys, then edge-detect
+(* ASYNC_REG = "TRUE" *) reg tx_tdma_strobe_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg tx_tdma_strobe_sys_r1;
+reg tx_tdma_strobe_sys_r2;
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) tx_tdma_strobe_sys_r0 <= 1'b0;
+    else            tx_tdma_strobe_sys_r0 <= tx_tdma_sync_strobe_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) tx_tdma_strobe_sys_r1 <= 1'b0;
+    else            tx_tdma_strobe_sys_r1 <= tx_tdma_strobe_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) tx_tdma_strobe_sys_r2 <= 1'b0;
+    else            tx_tdma_strobe_sys_r2 <= tx_tdma_strobe_sys_r1;
+end
+
+// Rising-edge detect = 1-cycle sys pulse.  The AXI-side strobe was a
+// single clk_axi cycle; on the sys side we extend a pulse on the
+// rising edge of the resynced signal.  If the AXI cycle and sys cycle
+// are nearly aligned (same PLL) this is effectively a 2-cycle pipeline.
+wire tx_tdma_sync_load_strobe_sys = tx_tdma_strobe_sys_r1 & ~tx_tdma_strobe_sys_r2;
+
+// Timebase instance — free-running counter synchronized to sym_en_sys_w
+// (same 18 kHz tick the legacy counters use).
+wire [7:0] tx_tdma_state_sym_cnt_sys;
+wire [1:0] tx_tdma_state_tn_sys;
+wire [4:0] tx_tdma_state_fn_sys;
+wire [5:0] tx_tdma_state_mn_sys;
+wire [5:0] tx_tdma_state_hn_sys;
+wire       tx_tdma_state_slot_pulse_sys;  // reserved for Stufe 3+
+wire       tx_tdma_state_tdma_tick_sys;   // reserved for Stufe 3+
+
+tetra_tdma_timebase u_tx_tdma_timebase (
+    .clk_sys          (clk_sys),
+    .rst_n_sys        (rst_n_sys),
+    .sym_en           (sym_en_sys_w),
+    .sync_load_strobe (tx_tdma_sync_load_strobe_sys),
+    .sync_tn_in       (tx_tdma_sync_tn_axi_w),
+    .sync_fn_in       (tx_tdma_sync_fn_axi_w),
+    .sync_mn_in       (tx_tdma_sync_mn_axi_w),
+    .sync_hn_in       (tx_tdma_sync_hn_axi_w),
+    .sym_cnt          (tx_tdma_state_sym_cnt_sys),
+    .tn               (tx_tdma_state_tn_sys),
+    .fn               (tx_tdma_state_fn_sys),
+    .mn               (tx_tdma_state_mn_sys),
+    .hn               (tx_tdma_state_hn_sys),
+    .slot_pulse       (tx_tdma_state_slot_pulse_sys),
+    .tdma_tick        (tx_tdma_state_tdma_tick_sys)
+);
+
+// 2-FF resync of the STATE snapshot: clk_sys → clk_axi (per-bit).
+// Plan Stufe 2 explicitly allows transient inconsistencies between
+// fields (AXI reads are best-effort snapshots for debug/IRQ-ACK).
+(* ASYNC_REG = "TRUE" *) reg [1:0] tx_tdma_state_tn_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [1:0] tx_tdma_state_tn_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) tx_tdma_state_tn_axi_r0 <= 2'd0;
+    else            tx_tdma_state_tn_axi_r0 <= tx_tdma_state_tn_sys;
+end
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) tx_tdma_state_tn_axi_r1 <= 2'd0;
+    else            tx_tdma_state_tn_axi_r1 <= tx_tdma_state_tn_axi_r0;
+end
+
+(* ASYNC_REG = "TRUE" *) reg [4:0] tx_tdma_state_fn_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [4:0] tx_tdma_state_fn_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) tx_tdma_state_fn_axi_r0 <= 5'd0;
+    else            tx_tdma_state_fn_axi_r0 <= tx_tdma_state_fn_sys;
+end
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) tx_tdma_state_fn_axi_r1 <= 5'd0;
+    else            tx_tdma_state_fn_axi_r1 <= tx_tdma_state_fn_axi_r0;
+end
+
+(* ASYNC_REG = "TRUE" *) reg [5:0] tx_tdma_state_mn_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [5:0] tx_tdma_state_mn_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) tx_tdma_state_mn_axi_r0 <= 6'd0;
+    else            tx_tdma_state_mn_axi_r0 <= tx_tdma_state_mn_sys;
+end
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) tx_tdma_state_mn_axi_r1 <= 6'd0;
+    else            tx_tdma_state_mn_axi_r1 <= tx_tdma_state_mn_axi_r0;
+end
+
+(* ASYNC_REG = "TRUE" *) reg [5:0] tx_tdma_state_hn_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [5:0] tx_tdma_state_hn_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) tx_tdma_state_hn_axi_r0 <= 6'd0;
+    else            tx_tdma_state_hn_axi_r0 <= tx_tdma_state_hn_sys;
+end
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) tx_tdma_state_hn_axi_r1 <= 6'd0;
+    else            tx_tdma_state_hn_axi_r1 <= tx_tdma_state_hn_axi_r0;
+end
+
+(* ASYNC_REG = "TRUE" *) reg [7:0] tx_tdma_state_sym_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [7:0] tx_tdma_state_sym_cnt_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) tx_tdma_state_sym_cnt_axi_r0 <= 8'd0;
+    else            tx_tdma_state_sym_cnt_axi_r0 <= tx_tdma_state_sym_cnt_sys;
+end
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) tx_tdma_state_sym_cnt_axi_r1 <= 8'd0;
+    else            tx_tdma_state_sym_cnt_axi_r1 <= tx_tdma_state_sym_cnt_axi_r0;
+end
+
+// =============================================================================
 // AXI4-Lite Register Bank
 // =============================================================================
 
@@ -1063,9 +1278,9 @@ tetra_axi_lite_regs u_axi_regs (
     .tx_att_axi              (tx_att_axi),
     .irq_enable_axi          (),
     // SB Payload registers (PS-writable broadcast data → TX chain)
-    .sb_sb1_axi              (sb_sb1_data_sys),
+    .sb_sb1_axi              (sb_sb1_data_axi_sys),
     .sb_bkn2_axi             (sb_bkn2_data_sys),
-    .sb_bb_axi               (sb_bb_data_sys),
+    .sb_bb_axi               (sb_bb_data_axi_sys),
     .tx_test_prbs_en_axi     (tx_test_prbs_en_axi),
     // NDB filler (slots 0/2/3) and MCCH (slot 1)
     .ndb_block1_axi          (ndb_block1_data_sys),
@@ -1074,8 +1289,316 @@ tetra_axi_lite_regs u_axi_regs (
     .mcch_block2_axi         (mcch_block2_data_sys),
     .bnch_block1_axi         (bnch_block1_data_sys),
     .bnch_block2_axi         (bnch_block2_data_sys),
+    // NULL-PDU register bank (Plan Stufe 4) — routed via 2-FF CDC below
+    .null_pdu_bits_axi       (null_pdu_bits_axi_w),
+    // Cell-Config registers (Plan Stufe 3.5) — feed tetra_sb1_encoder
+    .cell_cfg_sys_code_axi           (cell_cfg_sys_code_axi_w),
+    .cell_cfg_sharing_mode_axi       (cell_cfg_sharing_mode_axi_w),
+    .cell_cfg_ts_reserved_frames_axi (cell_cfg_ts_reserved_frames_axi_w),
+    .cell_cfg_uplane_dtx_axi         (cell_cfg_uplane_dtx_axi_w),
+    .cell_cfg_frame18_ext_axi        (cell_cfg_frame18_ext_axi_w),
+    .cell_cfg_neigh_cell_bc_axi      (cell_cfg_neigh_cell_bc_axi_w),
+    .cell_cfg_cell_service_level_axi (cell_cfg_cell_service_level_axi_w),
+    .cell_cfg_late_entry_support_axi (cell_cfg_late_entry_support_axi_w),
+    .cell_cfg_mcc_axi                (cell_cfg_mcc_axi_w),
+    .cell_cfg_mnc_axi                (cell_cfg_mnc_axi_w),
+    // TX TDMA timebase AXI ↔ clk_sys handshake (Plan Stufe 2)
+    .tx_tdma_sync_tn_axi     (tx_tdma_sync_tn_axi_w),
+    .tx_tdma_sync_fn_axi     (tx_tdma_sync_fn_axi_w),
+    .tx_tdma_sync_mn_axi     (tx_tdma_sync_mn_axi_w),
+    .tx_tdma_sync_hn_axi     (tx_tdma_sync_hn_axi_w),
+    .tx_tdma_sync_strobe_axi (tx_tdma_sync_strobe_axi_w),
+    .tx_tdma_state_tn_axi    (tx_tdma_state_tn_axi_r1),
+    .tx_tdma_state_fn_axi    (tx_tdma_state_fn_axi_r1),
+    .tx_tdma_state_mn_axi    (tx_tdma_state_mn_axi_r1),
+    .tx_tdma_state_hn_axi    (tx_tdma_state_hn_axi_r1),
+    .tx_tdma_state_sym_cnt_axi(tx_tdma_state_sym_cnt_axi_r1),
+    // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
+    .schedule_axi_we         (schedule_axi_we_w),
+    .schedule_axi_re         (schedule_axi_re_w),
+    .schedule_axi_addr       (schedule_axi_addr_w),
+    .schedule_axi_wdata      (schedule_axi_wdata_w),
+    .schedule_axi_wstrb      (schedule_axi_wstrb_w),
+    .schedule_axi_rdata      (schedule_axi_rdata_w),
     .irq_out_axi             (o_irq)
 );
+
+// =============================================================================
+// Slot-Schedule BRAM (Plan Stufe 3, Port B rewired in Stufe 4)
+//
+// Dual-port BRAM: Port A = AXI (clk_axi, write + readback); Port B =
+// clk_sys synchronous read.  Stufe 4: Port B's address is driven
+// externally by u_slot_content_mux (sched_b_addr_sys_w), which sequences
+// 4 back-to-back reads once per frame to refresh its local 4-entry
+// schedule cache.  BRAM returns mem[addr] one clk_sys cycle after the
+// address is presented.
+// =============================================================================
+wire        schedule_axi_we_w;
+wire        schedule_axi_re_w;
+wire [7:0]  schedule_axi_addr_w;
+wire [31:0] schedule_axi_wdata_w;
+wire [3:0]  schedule_axi_wstrb_w;
+wire [31:0] schedule_axi_rdata_w;
+// schedule_entry_sys_w declared earlier as a forward reference (Stufe 4)
+
+tetra_slot_schedule u_tx_slot_schedule (
+    // Port A — AXI (clk_axi)
+    .clk_axi              (s_axi_aclk),
+    .rst_n_axi            (rst_n_axi),
+    .axi_we               (schedule_axi_we_w),
+    .axi_addr             (schedule_axi_addr_w),
+    .axi_wdata            (schedule_axi_wdata_w),
+    .axi_wstrb            (schedule_axi_wstrb_w),
+    .axi_re               (schedule_axi_re_w),
+    .axi_rdata            (schedule_axi_rdata_w),
+    // Port B — clk_sys, externally-driven address (Stufe 4 Option b):
+    // content_mux computes dense_idx = mn[1:0]*72 + fn*4 + tn[1:0] and
+    // presents it every cycle; BRAM returns mem[addr] on the next
+    // clk_sys edge.
+    .clk_sys              (clk_sys),
+    .rst_n_sys            (rst_n_sys),
+    .sched_b_addr_sys     (sched_b_addr_sys_w),
+    .schedule_entry_sys   (schedule_entry_sys_w)
+);
+
+// Debug probe on schedule_entry_sys — kept for ILA visibility into the
+// BRAM's Port-B output.  Stufe 4's real consumer is u_slot_content_mux
+// (above), but this register retains the mark_debug net for hardware
+// bring-up debugging.
+(* mark_debug = "true", keep = "true" *) reg [15:0] dbg_schedule_entry_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) dbg_schedule_entry_sys <= 16'h0000;
+    else            dbg_schedule_entry_sys <= schedule_entry_sys_w;
+end
+
+// =============================================================================
+// BSCH (SB1) Encoder Integration (Plan Stufe 3.5 / 4)
+//
+// Instantiates tetra_sb1_encoder.  Stufe 4 now routes the encoder's
+// output sb1_coded_sys_w into the tx_chain via tetra_slot_content_mux
+// (u_slot_content_mux), replacing the legacy SW-driven REG_SB_SB1_*
+// path for the SDB burst payload.  The REG_SB_SB1_* registers remain
+// writable/readable in the AXI register bank but are no longer on the
+// datapath.
+//
+// CDC strategy — clk_axi → clk_sys:
+//   * Cell-Config fields (sys_code, sharing_mode, ts_res_frames,
+//     uplane_dtx, frame18_ext, neigh_cell_bc, cell_service_level,
+//     late_entry_support, mcc, mnc) and ColourCode are slow-changing:
+//     the MCU writes them once at boot and rarely touches them
+//     afterward.  A 2-FF synchronizer per field is sufficient.  There
+//     is NO per-field atomicity: if the MCU writes two fields back to
+//     back, transient mixes are possible for ~2 clk_sys cycles.  The
+//     MCU must wait >2 clk_sys cycles after the last CELL_CFG /
+//     COLOUR_CODE write before triggering the first TX slot (easily
+//     satisfied since TX gating happens via REG_CTRL, written after
+//     the config).
+//   * Encoder trigger is driven off slot_pulse_sys — already a clk_sys
+//     signal from the timebase, no CDC needed.
+//   * Dynamic fields (TN, FN, MN) are taken straight from the timebase
+//     (clk_sys); FN and MN are shifted +1 to match the encoder's
+//     1-based input convention.
+// =============================================================================
+
+// 2-FF resync of each Cell-Config field (clk_axi → clk_sys).
+// R1: one always block per register.
+(* ASYNC_REG = "TRUE" *) reg [3:0]  cell_cfg_sys_code_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0]  cell_cfg_sys_code_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  cell_cfg_sharing_mode_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  cell_cfg_sharing_mode_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [2:0]  cell_cfg_ts_reserved_frames_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [2:0]  cell_cfg_ts_reserved_frames_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg        cell_cfg_uplane_dtx_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg        cell_cfg_uplane_dtx_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg        cell_cfg_frame18_ext_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg        cell_cfg_frame18_ext_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  cell_cfg_neigh_cell_bc_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  cell_cfg_neigh_cell_bc_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  cell_cfg_cell_service_level_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  cell_cfg_cell_service_level_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg        cell_cfg_late_entry_support_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg        cell_cfg_late_entry_support_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [9:0]  cell_cfg_mcc_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [9:0]  cell_cfg_mcc_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [13:0] cell_cfg_mnc_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [13:0] cell_cfg_mnc_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [5:0]  colour_code_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [5:0]  colour_code_sys_r1;
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_sys_code_sys_r0 <= 4'd0;
+    else            cell_cfg_sys_code_sys_r0 <= cell_cfg_sys_code_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_sys_code_sys_r1 <= 4'd0;
+    else            cell_cfg_sys_code_sys_r1 <= cell_cfg_sys_code_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_sharing_mode_sys_r0 <= 2'd0;
+    else            cell_cfg_sharing_mode_sys_r0 <= cell_cfg_sharing_mode_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_sharing_mode_sys_r1 <= 2'd0;
+    else            cell_cfg_sharing_mode_sys_r1 <= cell_cfg_sharing_mode_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_ts_reserved_frames_sys_r0 <= 3'd0;
+    else            cell_cfg_ts_reserved_frames_sys_r0 <= cell_cfg_ts_reserved_frames_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_ts_reserved_frames_sys_r1 <= 3'd0;
+    else            cell_cfg_ts_reserved_frames_sys_r1 <= cell_cfg_ts_reserved_frames_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_uplane_dtx_sys_r0 <= 1'b0;
+    else            cell_cfg_uplane_dtx_sys_r0 <= cell_cfg_uplane_dtx_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_uplane_dtx_sys_r1 <= 1'b0;
+    else            cell_cfg_uplane_dtx_sys_r1 <= cell_cfg_uplane_dtx_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_frame18_ext_sys_r0 <= 1'b0;
+    else            cell_cfg_frame18_ext_sys_r0 <= cell_cfg_frame18_ext_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_frame18_ext_sys_r1 <= 1'b0;
+    else            cell_cfg_frame18_ext_sys_r1 <= cell_cfg_frame18_ext_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_neigh_cell_bc_sys_r0 <= 2'd0;
+    else            cell_cfg_neigh_cell_bc_sys_r0 <= cell_cfg_neigh_cell_bc_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_neigh_cell_bc_sys_r1 <= 2'd0;
+    else            cell_cfg_neigh_cell_bc_sys_r1 <= cell_cfg_neigh_cell_bc_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_cell_service_level_sys_r0 <= 2'd0;
+    else            cell_cfg_cell_service_level_sys_r0 <= cell_cfg_cell_service_level_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_cell_service_level_sys_r1 <= 2'd0;
+    else            cell_cfg_cell_service_level_sys_r1 <= cell_cfg_cell_service_level_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_late_entry_support_sys_r0 <= 1'b0;
+    else            cell_cfg_late_entry_support_sys_r0 <= cell_cfg_late_entry_support_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_late_entry_support_sys_r1 <= 1'b0;
+    else            cell_cfg_late_entry_support_sys_r1 <= cell_cfg_late_entry_support_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_mcc_sys_r0 <= 10'd0;
+    else            cell_cfg_mcc_sys_r0 <= cell_cfg_mcc_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_mcc_sys_r1 <= 10'd0;
+    else            cell_cfg_mcc_sys_r1 <= cell_cfg_mcc_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_mnc_sys_r0 <= 14'd0;
+    else            cell_cfg_mnc_sys_r0 <= cell_cfg_mnc_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_cfg_mnc_sys_r1 <= 14'd0;
+    else            cell_cfg_mnc_sys_r1 <= cell_cfg_mnc_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) colour_code_sys_r0 <= 6'd0;
+    else            colour_code_sys_r0 <= colour_code_axi;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) colour_code_sys_r1 <= 6'd0;
+    else            colour_code_sys_r1 <= colour_code_sys_r0;
+end
+
+// Dynamic field shaping — the sb1_encoder takes 1-based FN/MN (1..18,
+// 1..60), but the timebase emits 0-based (0..17, 0..59).  Simple +1
+// with the natural wrap:
+//   fn_sys = 0..17  →  fn_sys + 1 = 1..18   (fits in 5 bits, no overflow)
+//   mn_sys = 0..59  →  mn_sys + 1 = 1..60   (fits in 6 bits, no overflow)
+wire [4:0] sb1_frame_num_sys      = tx_tdma_state_fn_sys + 5'd1;
+wire [5:0] sb1_multiframe_num_sys = tx_tdma_state_mn_sys + 6'd1;
+
+// Encoder output wires — declared earlier as forward references (Stufe 4)
+
+tetra_sb1_encoder u_sb1_encoder (
+    .clk_sys                      (clk_sys),
+    .rst_n_sys                    (rst_n_sys),
+    // Static config (clk_sys-side resynced from AXI)
+    .cfg_system_code              (cell_cfg_sys_code_sys_r1),
+    .cfg_colour_code              (colour_code_sys_r1),
+    .cfg_sharing_mode             (cell_cfg_sharing_mode_sys_r1),
+    .cfg_ts_reserved_frames       (cell_cfg_ts_reserved_frames_sys_r1),
+    .cfg_u_plane                  (cell_cfg_uplane_dtx_sys_r1),
+    .cfg_frame_18_ext             (cell_cfg_frame18_ext_sys_r1),
+    .cfg_mcc                      (cell_cfg_mcc_sys_r1),
+    .cfg_mnc                      (cell_cfg_mnc_sys_r1),
+    .cfg_neighbour_cell_broadcast (cell_cfg_neigh_cell_bc_sys_r1),
+    .cfg_cell_service_level       (cell_cfg_cell_service_level_sys_r1),
+    .cfg_late_entry_info          (cell_cfg_late_entry_support_sys_r1),
+    // Trigger — start of new slot.  Encoder finishes in 142 clk_sys
+    // cycles; well within the ~5556-cycle slot window.
+    .encode_start_sys             (tx_tdma_state_slot_pulse_sys),
+    // Dynamic fields from timebase
+    .sdb_slot_sys                 (tx_tdma_state_tn_sys),
+    .frame_num_sys                (sb1_frame_num_sys),
+    .multiframe_num_sys           (sb1_multiframe_num_sys),
+    // Outputs
+    .sb1_coded_sys                (sb1_coded_sys_w),
+    .sb1_valid_sys                (sb1_valid_sys_w)
+);
+
+// Debug probe + keep sink so synthesis does not collapse the encoder
+// before Stufe 4 wires it into the TX datapath.  Registered with
+// mark_debug = keep so the output survives opt_design.
+(* mark_debug = "true", keep = "true" *) reg [119:0] dbg_sb1_coded_sys;
+(* mark_debug = "true", keep = "true" *) reg         dbg_sb1_valid_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) dbg_sb1_coded_sys <= 120'h0;
+    else if (sb1_valid_sys_w) dbg_sb1_coded_sys <= sb1_coded_sys_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) dbg_sb1_valid_sys <= 1'b0;
+    else            dbg_sb1_valid_sys <= sb1_valid_sys_w;
+end
+
+// =============================================================================
+// Plan Stufe 3.7: AACH encoder (probe-only, parallel to legacy REG_SB_BB path)
+//
+// Generates 30 type-5 bits per slot from FN + ColourCode + MCC + MNC.
+// Content: F1-17 = CapAlloc (14'h3000), F18 = DL/UL-Assign (14'h040).
+// Verified bit-exact against sw/tetra_hal.c via scripts/gen_aach_reference.py.
+// Stufe 4 (content-mux) now consumes aach_coded_sys_w and feeds it into
+// tetra_tx_chain as the BB payload — the legacy REG_SB_BB path remains
+// writable for back-compat readback but is no longer on the TX datapath.
+// =============================================================================
+// aach_coded_sys_w / aach_valid_sys_w declared earlier as forward refs
+
+tetra_aach_encoder u_aach_encoder (
+    .clk_sys          (clk_sys),
+    .rst_n_sys        (rst_n_sys),
+    .fn_sys           (tx_tdma_state_fn_sys),
+    .colour_code_sys  (colour_code_sys_r1),
+    .mcc_sys          (cell_cfg_mcc_sys_r1),
+    .mnc_sys          (cell_cfg_mnc_sys_r1),
+    .encode_start_sys (tx_tdma_state_slot_pulse_sys),
+    .aach_coded_sys   (aach_coded_sys_w),
+    .aach_valid_sys   (aach_valid_sys_w)
+);
+
+(* mark_debug = "true", keep = "true" *) reg [29:0] dbg_aach_coded_sys;
+(* mark_debug = "true", keep = "true" *) reg        dbg_aach_valid_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) dbg_aach_coded_sys <= 30'h0;
+    else if (aach_valid_sys_w) dbg_aach_coded_sys <= aach_coded_sys_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) dbg_aach_valid_sys <= 1'b0;
+    else            dbg_aach_valid_sys <= aach_valid_sys_w;
+end
 
 // =============================================================================
 // ILA Debug Probes — Hardware first-light verification (Phase 4)

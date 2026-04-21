@@ -14,7 +14,10 @@
 #   tetra_timing_recovery   — Gardner TED
 #   tetra_sync_detect       — Burst synchronization
 #   tetra_burst_demux       — Burst demultiplexer
-#   tetra_frame_counter     — TDMA frame counter
+#   tetra_frame_counter     — TDMA frame counter (RX)
+#   tetra_tdma_timebase     — TDMA timebase (TX, 0-based TN/FN/MN/HN)
+#   tx_slot_schedule        — TDMA slot schedule dual-port BRAM (Stufe 3)
+#   tetra_slot_content_mux  — Schedule→payload mux + encoder routing (Stufe 4)
 #   tetra_scrambler         — LFSR scrambler
 #   tetra_interleaver       — Block interleaver
 #   tetra_viterbi_decoder   — Viterbi soft-decision
@@ -82,6 +85,28 @@ array set MODULE_FILES {
     tetra_frame_counter {
         rtl/rx/tetra_frame_counter.v
         tb/tb_tetra_frame_counter.v
+    }
+    tetra_tdma_timebase {
+        rtl/tx/tetra_tdma_timebase.v
+        tb/tb_tetra_tdma_timebase.v
+    }
+    tx_slot_schedule {
+        rtl/tx/tetra_slot_schedule.v
+        tb/tb_tx_slot_schedule.v
+    }
+    tetra_slot_content_mux {
+        rtl/tx/tetra_slot_schedule.v
+        rtl/tx/tetra_slot_content_mux.v
+        tb/tb_tetra_slot_content_mux.v
+    }
+    tetra_bsch_encoder_integration {
+        rtl/tx/tetra_tdma_timebase.v
+        rtl/tx/tetra_sb1_encoder.v
+        tb/tb_tetra_bsch_encoder_integration.v
+    }
+    tetra_aach_encoder {
+        rtl/tx/tetra_aach_encoder.v
+        tb/tb_tetra_aach_encoder.v
     }
     tetra_scrambler {
         rtl/lmac/tetra_scrambler.v

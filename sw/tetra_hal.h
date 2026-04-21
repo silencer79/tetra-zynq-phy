@@ -21,6 +21,13 @@
 #define TETRA_AXI_BASE      0x43C00000
 #define TETRA_AXI_SIZE      0x1000
 
+/* Schedule-BRAM window: 144 words (2 × 16-bit entries per word) = 288 slots
+ * per hyperframe (MN 0..59 × FN 0..17 × TN 0..3 → 4320 slots across a full
+ * hyperframe; schedule repeats every multiframe, so 72 FN×TN entries).
+ * Dense index = mn*72 + fn*4 + tn, pairs of entries packed low/high. */
+#define REG_SCHEDULE_BASE   0x400
+#define TETRA_SCHEDULE_WORDS 144
+
 /* Control / Status registers */
 #define REG_CTRL            0x00
 #define REG_STATUS          0x04
@@ -117,6 +124,39 @@
 #define REG_BNCH_BLK2_4    0x124
 #define REG_BNCH_BLK2_5    0x128
 #define REG_BNCH_BLK2_6    0x12C  /* bnch block2 word 6 (bits [23:0] used) */
+
+/* Cell-config registers (feed RTL BSCH encoder, Plan Stufe 3.5)
+ * CELL_CFG_0 bit layout:
+ *   [3:0]   system_code
+ *   [5:4]   sharing_mode
+ *   [8:6]   ts_reserved_frames
+ *   [9]     u_plane
+ *   [10]    frame_18_extension
+ *   [12:11] neighbour_cell_broadcast
+ *   [14:13] cell_service_level
+ *   [15]    late_entry_support
+ * CELL_CFG_1 bit layout:
+ *   [9:0]   mcc
+ *   [23:10] mnc */
+#define REG_CELL_CFG_0     0x130
+#define REG_CELL_CFG_1     0x134
+
+/* TX TDMA timebase LOAD/STATE (Plan Stufe 2)
+ * LOAD: [1:0]=TN, [6:2]=FN, [12:7]=MN, [18:13]=HN, [31]=STROBE
+ * STATE (RO): same layout + [26:19]=sym_cnt */
+#define REG_TX_TDMA_LOAD   0x140
+#define REG_TX_TDMA_STATE  0x144
+#define TX_TDMA_LOAD_STROBE (1u << 31)
+
+/* NULL PDU pre-coded 216-bit blob — static filler for idle slots
+ * (class=NULL_PDU in schedule, Plan Stufe 4). */
+#define REG_NULL_PDU_0     0x148
+#define REG_NULL_PDU_1     0x14C
+#define REG_NULL_PDU_2     0x150
+#define REG_NULL_PDU_3     0x154
+#define REG_NULL_PDU_4     0x158
+#define REG_NULL_PDU_5     0x15C
+#define REG_NULL_PDU_6     0x160  /* bits [23:0] used */
 
 /* ========================================================================
  * HAL Context
@@ -237,6 +277,25 @@ int tetra_write_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info);
  * Returns 0 on success. */
 int tetra_write_bnch(tetra_hal_t *hal, const tetra_sysinfo_t *info,
                      uint8_t colour_code);
+
+/* Pack sysinfo cell params into CELL_CFG_0/1 registers (RTL BSCH encoder
+ * reads these directly — Plan Stufe 3.5). */
+void tetra_write_cell_config(tetra_hal_t *hal, const tetra_sysinfo_t *info);
+
+/* Build the 124-bit static NULL-PDU pattern, SCH/HD-encode with slot_num=1
+ * scrambling, and write the 216-bit blob to REG_NULL_PDU_0..6 (Plan Stufe 4).
+ * Returns 0 on success. */
+int tetra_write_null_pdu(tetra_hal_t *hal, uint8_t colour_code,
+                         uint16_t mcc, uint16_t mnc);
+
+/* Copy the Gold-mimic schedule (tetra_gold_schedule[144] from
+ * tetra_gold_schedule.h) into the schedule BRAM at REG_SCHEDULE_BASE. */
+void tetra_write_gold_schedule(tetra_hal_t *hal);
+
+/* Load initial TDMA timebase counters (TN/FN/MN/HN, all 0-based) with strobe.
+ * Typically called once at boot with zeros so RTL starts at a known state. */
+void tetra_tx_tdma_load(tetra_hal_t *hal,
+                        uint8_t tn, uint8_t fn, uint8_t mn, uint8_t hn);
 
 /* Enable TX+RX (CTRL = 0x03), optionally set SYNC_THRESH */
 void tetra_enable(tetra_hal_t *hal, uint8_t sync_thresh);

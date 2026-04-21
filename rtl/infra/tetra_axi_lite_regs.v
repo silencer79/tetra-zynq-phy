@@ -40,6 +40,31 @@
 //   0xDC–0xF4 MCCH_BLK2_0..6 R/W MCCH block2 coded payload, 216 bits (w6 [23:0])
 //   0xF8–0x110 BNCH_BLK1_0..6 R/W BNCH block1 coded payload, 216 bits (w6 [23:0])
 //   0x114–0x12C BNCH_BLK2_0..6 R/W BNCH block2 coded payload, 216 bits (w6 [23:0])
+//   0x130 CELL_CFG_0    R/W  [3:0]sys_code [5:4]sharing_mode [8:6]ts_res_frames
+//                             [9]uplane_dtx [10]frame18_ext [12:11]neigh_cell_bc
+//                             [14:13]cell_service_level [15]late_entry_support
+//                             [31:16] reserved (RAZ)  — Plan Stufe 3.5
+//   0x134 CELL_CFG_1    R/W  [9:0]mcc [23:10]mnc [31:24] reserved (RAZ)
+//                             — Plan Stufe 3.5 (ColourCode stays at 0x10)
+//   0x140 TX_TDMA_LOAD  W    [1:0]TN [6:2]FN [12:7]MN [18:13]HN [31]STROBE
+//   0x144 TX_TDMA_STATE RO   [1:0]TN [6:2]FN [12:7]MN [18:13]HN [26:19]sym_cnt
+//   0x400..0x63F SCHEDULE_BRAM  R/W  144 32-bit words, 2 x 16-bit entries each
+//                                    (Plan Stufe 3 — word-address decode
+//                                     widened from 7-bit to 9-bit for this
+//                                     window.  See tetra_slot_schedule.v for
+//                                     the entry layout and port-B clk_sys
+//                                     read semantics.)
+//
+//   NOTE on TX_TDMA_LOAD/STATE offsets:
+//   Plan `docs/plan_tetra_tdma_rtl_ownership.md` §4 Stufe 2 nominated
+//   0xC0/0xC4 for these registers, but those offsets are already occupied
+//   by MCCH_BLK1_0/MCCH_BLK1_1 in the current register map (and Stufe 3
+//   also contradicts itself by planning a Schedule-BRAM window at
+//   0x100..0x33F over the existing BNCH_BLK1/2 area).  To avoid breaking
+//   the currently functional MCCH/BNCH payload pipeline this stage uses
+//   the first unused word-address after BNCH_BLK2_6 (0x12C): 0x140/0x144.
+//   The plan register-map section will be updated in Stufe 3 when the
+//   broader restructure happens.
 //
 // IRQ_STATUS bits:
 //   [0] IRQ_MAC_BLOCK_RDY   — MAC block available in DMA buffer
@@ -176,6 +201,67 @@ module tetra_axi_lite_regs (
     output wire [215:0] bnch_block1_axi,
     output wire [215:0] bnch_block2_axi,
 
+    // NULL-PDU payload (Plan Stufe 4) — 216-bit SCH/HD-encoded static
+    // PDU used by the content-mux on class=NULL_PDU schedule entries.
+    output wire [215:0] null_pdu_bits_axi,
+
+    // ------------------------------------------------------------------
+    // TX TDMA Timebase (Plan Stufe 2) — AXI ↔ clk_sys TDMA counter
+    // ------------------------------------------------------------------
+    // Outputs (clk_axi → clk_sys): payload held stable by register,
+    // strobe resynchronized to clk_sys in top-level.
+    output wire [1:0]   tx_tdma_sync_tn_axi,
+    output wire [4:0]   tx_tdma_sync_fn_axi,
+    output wire [5:0]   tx_tdma_sync_mn_axi,
+    output wire [5:0]   tx_tdma_sync_hn_axi,
+    output wire         tx_tdma_sync_strobe_axi,  // 1 clk_axi cycle pulse
+    // Inputs (clk_sys → clk_axi): live counter snapshot from timebase.
+    // Caller is expected to 2-FF-resync each bit in the top-level so
+    // these ports arrive already-synchronized to clk_axi.
+    input  wire [1:0]   tx_tdma_state_tn_axi,
+    input  wire [4:0]   tx_tdma_state_fn_axi,
+    input  wire [5:0]   tx_tdma_state_mn_axi,
+    input  wire [5:0]   tx_tdma_state_hn_axi,
+    input  wire [7:0]   tx_tdma_state_sym_cnt_axi,
+
+    // ------------------------------------------------------------------
+    // ------------------------------------------------------------------
+    // Cell-Config Registers (Plan Stufe 3.5) — feed tetra_sb1_encoder
+    // ------------------------------------------------------------------
+    // CELL_CFG_0 @ 0x130, CELL_CFG_1 @ 0x134.  Slow-changing (written once
+    // at MCU boot); no per-field atomicity required.  Caller 2-FF resyncs
+    // each field into clk_sys in the top-level; MCU must wait >2 clk_sys
+    // cycles after the final CELL_CFG write before triggering TX.
+    output wire [3:0]  cell_cfg_sys_code_axi,
+    output wire [1:0]  cell_cfg_sharing_mode_axi,
+    output wire [2:0]  cell_cfg_ts_reserved_frames_axi,
+    output wire        cell_cfg_uplane_dtx_axi,
+    output wire        cell_cfg_frame18_ext_axi,
+    output wire [1:0]  cell_cfg_neigh_cell_bc_axi,
+    output wire [1:0]  cell_cfg_cell_service_level_axi,
+    output wire        cell_cfg_late_entry_support_axi,
+    output wire [9:0]  cell_cfg_mcc_axi,
+    output wire [13:0] cell_cfg_mnc_axi,
+
+    // ------------------------------------------------------------------
+    // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
+    // 144 words, each word packs TWO 16-bit schedule entries.
+    //   schedule_axi_we     : 1-cycle write pulse
+    //   schedule_axi_re     : 1-cycle read pulse (fires the cycle before
+    //                         the rdata mux expects schedule_axi_rdata).
+    //   schedule_axi_addr   : 8-bit word index (0..143) within the window
+    //   schedule_axi_wdata  : {upper_entry[15:0], lower_entry[15:0]}
+    //   schedule_axi_wstrb  : byte strobes (halfword granularity)
+    //   schedule_axi_rdata  : registered readback, valid the cycle after
+    //                         schedule_axi_re, consumed by the rdata mux.
+    // ------------------------------------------------------------------
+    output wire        schedule_axi_we,
+    output wire        schedule_axi_re,
+    output wire [7:0]  schedule_axi_addr,
+    output wire [31:0] schedule_axi_wdata,
+    output wire [3:0]  schedule_axi_wstrb,
+    input  wire [31:0] schedule_axi_rdata,
+
     // IRQ output to PS interrupt controller
     output reg         irq_out_axi
 );
@@ -194,6 +280,12 @@ wire _unused_prot = |s_axi_awprot | |s_axi_arprot;
 
 // ---------------------------------------------------------------------------
 // Register index decode  (bits [8:2] select word; [1:0] always 0)
+//
+// Plan Stufe 3 widens the address bus to 9 word-address bits (byte bits
+// [10:2]) to accommodate the Schedule-BRAM window at 0x400..0x63F.
+// Existing register-bank comparisons stay 7-bit ([8:2] == REG_*) because
+// all REG_* fall inside 0x000..0x1FC; the top two bits [10:9] gate which
+// window (regs vs. schedule) the handshake fires into.
 // ---------------------------------------------------------------------------
 localparam [6:0] REG_CTRL         = 7'h00; // 0x00
 localparam [6:0] REG_STATUS       = 7'h01; // 0x04
@@ -292,6 +384,50 @@ localparam [6:0] REG_BNCH_BLK2_4   = 7'h49; // 0x124
 localparam [6:0] REG_BNCH_BLK2_5   = 7'h4A; // 0x128
 localparam [6:0] REG_BNCH_BLK2_6   = 7'h4B; // 0x12C  (bits [23:0] used)
 
+// TX TDMA timebase AXI interface (Plan §4 Stufe 2 — offsets adjusted to
+// avoid collision with existing MCCH_BLK1_0/1 at 0xC0/0xC4).
+//   TX_TDMA_LOAD:   write-path for sync-load of the RTL TDMA counter.
+//                   Writing bit [31]=1 pulses sync_load_strobe_sys for
+//                   exactly one clk_sys cycle; the counter module then
+//                   latches the (TN, FN, MN, HN) fields at its next
+//                   sym_en tick.
+//   TX_TDMA_STATE:  read-only snapshot of the live air-side counter
+//                   outputs (TN, FN, MN, HN, sym_cnt) from the timebase
+//                   module.  Snapshot is per-bit 2-FF-resynced from
+//                   clk_sys → clk_axi; transient inconsistencies between
+//                   fields are possible but acceptable (debug/IRQ-ACK
+//                   usage — no per-field atomicity required).
+// Cell-Config registers (Plan Stufe 3.5) — feed tetra_sb1_encoder (BSCH).
+// Slow-changing, written once at boot.  Placed in the first free word
+// pair after BNCH_BLK2_6 (0x12C) and before TX_TDMA_LOAD (0x140).
+// Plan originally proposed 0xE0/0xE4, but those collide with
+// MCCH_BLK2_1/2 in the current layout — moved to 0x130/0x134 to avoid
+// breaking the existing MCCH payload path.
+localparam [6:0] REG_CELL_CFG_0     = 7'h4C; // 0x130
+localparam [6:0] REG_CELL_CFG_1     = 7'h4D; // 0x134
+
+localparam [6:0] REG_TX_TDMA_LOAD   = 7'h50; // 0x140
+localparam [6:0] REG_TX_TDMA_STATE  = 7'h51; // 0x144
+
+// ---------------------------------------------------------------------------
+// NULL-PDU Register Bank (Plan Stufe 4)
+// 7 × 32-bit words at 0x148..0x160 — holds the 216-bit SCH/HD-encoded
+// NULL-PDU payload (pre-computed by SW once at boot from the 124-bit
+// static pattern 0x0010_8000_0000_..._0000).  The content-mux routes
+// these 216 bits into NDB2 BKN1 when the schedule selects class=NULL_PDU
+// (1), idx=0.  Word 6 uses bits [23:0] (216 - 6×32 = 24 bits).
+// Deviation from plan §4: stored as already-encoded 216 bits rather than
+// raw 124 bits — keeps SCH/HD encoding in SW (fixed at boot) and avoids
+// adding a hard-coded encoder in RTL for a static pattern.
+// ---------------------------------------------------------------------------
+localparam [6:0] REG_NULL_PDU_0     = 7'h52; // 0x148
+localparam [6:0] REG_NULL_PDU_1     = 7'h53; // 0x14C
+localparam [6:0] REG_NULL_PDU_2     = 7'h54; // 0x150
+localparam [6:0] REG_NULL_PDU_3     = 7'h55; // 0x154
+localparam [6:0] REG_NULL_PDU_4     = 7'h56; // 0x158
+localparam [6:0] REG_NULL_PDU_5     = 7'h57; // 0x15C
+localparam [6:0] REG_NULL_PDU_6     = 7'h58; // 0x160  (bits [23:0] used)
+
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
 // ---------------------------------------------------------------------------
@@ -300,9 +436,27 @@ localparam [6:0] REG_BNCH_BLK2_6   = 7'h4B; // 0x12C  (bits [23:0] used)
 assign s_axi_awready = !aw_latched_axi;
 assign s_axi_wready  = !w_latched_axi;
 
-// wr_en_axi: 1-cycle pulse when both address and data are latched,
-//            not waiting for BREADY from a prior response.
-wire wr_en_axi = aw_latched_axi & w_latched_axi & !s_axi_bvalid;
+// wr_handshake_axi: 1-cycle pulse when both address and data are latched,
+//                   not waiting for BREADY from a prior response.  Drives
+//                   BVALID + latch clears regardless of address — the
+//                   slave always ACKs.
+wire wr_handshake_axi = aw_latched_axi & w_latched_axi & !s_axi_bvalid;
+
+// wr_en_axi: register-bank-gated write enable.  Fires on wr_handshake_axi
+// only when the address falls inside the 0x000..0x1FC register window
+// (word-address bits [10:9] == 2'b00).  All existing register writes
+// below use wr_en_axi, so widening the address bus for the Schedule-BRAM
+// window (0x400..0x63F) does not alias onto the register bank.
+wire wr_en_axi = wr_handshake_axi & (wr_addr_axi[10:9] == 2'b00);
+
+// wr_en_sched_axi: schedule-BRAM-gated write enable.  Fires on
+// wr_handshake_axi when the address falls inside 0x400..0x63F
+// (word-index 0x100..0x18F, 144 words).  Lives here because the
+// Schedule-BRAM sits outside this module but uses the same handshake.
+wire [8:0] wr_word_idx_axi = wr_addr_axi[10:2];
+wire wr_en_sched_axi = wr_handshake_axi &
+                        (wr_word_idx_axi >= 9'h100) &
+                        (wr_word_idx_axi <  9'h190);
 
 // R1: AW latch register
 reg aw_latched_axi;
@@ -311,17 +465,17 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         aw_latched_axi <= 1'b0;
     else if (s_axi_awvalid & s_axi_awready)
         aw_latched_axi <= 1'b1;
-    else if (wr_en_axi)
+    else if (wr_handshake_axi)
         aw_latched_axi <= 1'b0;
 end
 
-// R1: Write address register
-reg [8:0] wr_addr_axi;
+// R1: Write address register (11-bit for 9-bit word-address decode)
+reg [10:0] wr_addr_axi;
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
-        wr_addr_axi <= 9'h000;
+        wr_addr_axi <= 11'h000;
     else if (s_axi_awvalid & s_axi_awready)
-        wr_addr_axi <= s_axi_awaddr[8:0];
+        wr_addr_axi <= s_axi_awaddr[10:0];
 end
 
 // R1: W data latch register
@@ -331,7 +485,7 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         w_latched_axi <= 1'b0;
     else if (s_axi_wvalid & s_axi_wready)
         w_latched_axi <= 1'b1;
-    else if (wr_en_axi)
+    else if (wr_handshake_axi)
         w_latched_axi <= 1'b0;
 end
 
@@ -357,17 +511,18 @@ end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
         s_axi_bvalid <= 1'b0;
-    else if (wr_en_axi)
+    else if (wr_handshake_axi)
         s_axi_bvalid <= 1'b1;
     else if (s_axi_bready)
         s_axi_bvalid <= 1'b0;
 end
 
-// R1: Write response BRESP (always OKAY)
+// R1: Write response BRESP (always OKAY — writes outside any window are
+// silently dropped but still ACK'd, matching typical AXI-Lite slaves.)
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
         s_axi_bresp <= 2'b00;
-    else if (wr_en_axi)
+    else if (wr_handshake_axi)
         s_axi_bresp <= 2'b00; // OKAY
 end
 
@@ -376,8 +531,11 @@ end
 // ---------------------------------------------------------------------------
 assign s_axi_arready = !ar_latched_axi;
 
-// ar_en_axi: 1-cycle pulse when address is latched but response not yet sent
-wire ar_en_axi = ar_latched_axi & !s_axi_rvalid;
+// ar_en_axi: 1-cycle pulse when address is latched but response not yet sent.
+// Suppressed while a schedule read is in its 1-cycle BRAM delay (see
+// ar_pending_sched_axi below) so the ar_en pulse doesn't re-fire the
+// cycle after an in-window read issues.
+wire ar_en_axi = ar_latched_axi & !s_axi_rvalid & !ar_pending_sched_axi;
 
 // R1: AR latch register
 reg ar_latched_axi;
@@ -390,14 +548,34 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         ar_latched_axi <= 1'b0;
 end
 
-// R1: Read address register
-reg [8:0] rd_addr_axi;
+// R1: Read address register (11-bit for 9-bit word-address decode)
+reg [10:0] rd_addr_axi;
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
-        rd_addr_axi <= 9'h000;
+        rd_addr_axi <= 11'h000;
     else if (s_axi_arvalid & s_axi_arready)
-        rd_addr_axi <= s_axi_araddr[8:0];
+        rd_addr_axi <= s_axi_araddr[10:0];
 end
+
+// Schedule-window read-enable pulse: drives the Schedule-BRAM Port A
+// read machinery one clk_axi cycle before the rdata mux latches.
+wire [8:0] rd_word_idx_axi = rd_addr_axi[10:2];
+wire rd_in_sched_window_axi = (rd_word_idx_axi >= 9'h100) &
+                               (rd_word_idx_axi <  9'h190);
+
+// Schedule-BRAM port A exposure (Plan Stufe 3) — the BRAM sits in a
+// separate module (tetra_slot_schedule) instantiated at the top level.
+// Writes: gated wr_en (address in 0x400..0x63F window).
+// Reads : one-cycle pulse on ar_en_axi when the address is in window,
+//         the BRAM registers its rdata on the next clk_axi cycle, and
+//         the rdata mux picks it up the cycle after that when the AR
+//         response pipeline latches.
+assign schedule_axi_we    = wr_en_sched_axi;
+assign schedule_axi_addr  = wr_en_sched_axi ? wr_word_idx_axi[7:0]
+                                             : rd_word_idx_axi[7:0];
+assign schedule_axi_wdata = wr_data_axi;
+assign schedule_axi_wstrb = wr_strb_axi;
+assign schedule_axi_re    = ar_en_axi & rd_in_sched_window_axi;
 
 // ---------------------------------------------------------------------------
 // Read Data Mux  (combinatorial, R10)
@@ -489,25 +667,81 @@ always @(*) begin
         REG_BNCH_BLK2_4:  rdata_mux_axi = bnch_blk2_w4_axi;
         REG_BNCH_BLK2_5:  rdata_mux_axi = bnch_blk2_w5_axi;
         REG_BNCH_BLK2_6:  rdata_mux_axi = {8'b0, bnch_blk2_w6_axi};
+        // Cell-Config registers (Plan Stufe 3.5)
+        REG_CELL_CFG_0:   rdata_mux_axi = {16'b0, cell_cfg_0_axi};
+        REG_CELL_CFG_1:   rdata_mux_axi = {8'b0,  cell_cfg_1_axi};
+        // TX TDMA timebase interface
+        REG_TX_TDMA_LOAD: rdata_mux_axi = {13'b0,
+                                            tx_tdma_load_hn_axi,
+                                            tx_tdma_load_mn_axi,
+                                            tx_tdma_load_fn_axi,
+                                            tx_tdma_load_tn_axi};
+        REG_TX_TDMA_STATE: rdata_mux_axi = {5'b0,
+                                             tx_tdma_state_sym_cnt_axi,
+                                             tx_tdma_state_hn_axi,
+                                             tx_tdma_state_mn_axi,
+                                             tx_tdma_state_fn_axi,
+                                             tx_tdma_state_tn_axi};
+        // NULL-PDU register bank (Plan Stufe 4)
+        REG_NULL_PDU_0:   rdata_mux_axi = null_pdu_w0_axi;
+        REG_NULL_PDU_1:   rdata_mux_axi = null_pdu_w1_axi;
+        REG_NULL_PDU_2:   rdata_mux_axi = null_pdu_w2_axi;
+        REG_NULL_PDU_3:   rdata_mux_axi = null_pdu_w3_axi;
+        REG_NULL_PDU_4:   rdata_mux_axi = null_pdu_w4_axi;
+        REG_NULL_PDU_5:   rdata_mux_axi = null_pdu_w5_axi;
+        REG_NULL_PDU_6:   rdata_mux_axi = {8'b0, null_pdu_w6_axi};
         default:          rdata_mux_axi = 32'b0;
     endcase
 end
+
+// ---------------------------------------------------------------------------
+// Read pipeline with 1-cycle latency for Schedule-BRAM
+//
+// Reads to the register bank are purely combinatorial (rdata_mux_axi),
+// so they resolve the same cycle as ar_en_axi.  Reads to the Schedule-
+// BRAM window require one extra cycle because the BRAM Port A is a
+// synchronous-read memory: on ar_en_axi we pulse schedule_axi_re, and
+// the BRAM drives schedule_axi_rdata on the NEXT cycle.
+//
+// The staging register ar_pending_sched_axi captures "a schedule read
+// was issued last cycle"; when it's high we latch rdata from
+// schedule_axi_rdata instead of rdata_mux_axi, and we raise RVALID one
+// cycle later than a register-bank read.  For register-bank reads the
+// original 1-cycle ar_en -> rvalid path is preserved.
+// ---------------------------------------------------------------------------
+reg ar_pending_sched_axi;
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        ar_pending_sched_axi <= 1'b0;
+    else if (ar_en_axi & rd_in_sched_window_axi)
+        ar_pending_sched_axi <= 1'b1;
+    else
+        ar_pending_sched_axi <= 1'b0;
+end
+
+// Effective "this is the cycle to commit rdata" strobe: for register-bank
+// reads it's ar_en_axi; for schedule reads it's ar_pending_sched_axi.
+wire rdata_commit_axi = (ar_en_axi & ~rd_in_sched_window_axi) |
+                        ar_pending_sched_axi;
 
 // R1: RVALID register
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
         s_axi_rvalid <= 1'b0;
-    else if (ar_en_axi)
+    else if (rdata_commit_axi)
         s_axi_rvalid <= 1'b1;
     else if (s_axi_rready)
         s_axi_rvalid <= 1'b0;
 end
 
-// R1: RDATA register — latched from mux when ar_en fires
+// R1: RDATA register — latched from mux when a read commits.  Schedule
+// reads bypass the register-bank mux entirely and take schedule_axi_rdata.
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
         s_axi_rdata <= 32'b0;
-    else if (ar_en_axi)
+    else if (ar_pending_sched_axi)
+        s_axi_rdata <= schedule_axi_rdata;
+    else if (ar_en_axi & ~rd_in_sched_window_axi)
         s_axi_rdata <= rdata_mux_axi;
 end
 
@@ -515,7 +749,7 @@ end
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
         s_axi_rresp <= 2'b00;
-    else if (ar_en_axi)
+    else if (rdata_commit_axi)
         s_axi_rresp <= 2'b00; // OKAY
 end
 
@@ -978,6 +1212,208 @@ end
 assign bnch_block2_axi = {bnch_blk2_w0_axi, bnch_blk2_w1_axi, bnch_blk2_w2_axi,
                            bnch_blk2_w3_axi, bnch_blk2_w4_axi, bnch_blk2_w5_axi,
                            bnch_blk2_w6_axi};
+
+// ---------------------------------------------------------------------------
+// NULL-PDU Registers (0x148–0x160) — 216 bits in 7 words (Plan Stufe 4)
+//
+// Stores the pre-computed SCH/HD-coded 216-bit NULL-PDU payload.  SW is
+// expected to write this once at boot (after computing SCH/HD of the
+// 124-bit static NULL-PDU pattern 0x0010_8000_0000_..._0000 — see
+// scripts/gold_schedule.py and project_gold_null_pdu_layout.md).
+// Reset default is 0; SW MUST program before enabling NULL_PDU schedule
+// entries to avoid transmitting an invalid SCH/HD codeword.
+// Word 6 uses bits [23:0] (216 - 6×32 = 24 bits), upper byte RAZ.
+// ---------------------------------------------------------------------------
+reg [31:0] null_pdu_w0_axi;
+reg [31:0] null_pdu_w1_axi;
+reg [31:0] null_pdu_w2_axi;
+reg [31:0] null_pdu_w3_axi;
+reg [31:0] null_pdu_w4_axi;
+reg [31:0] null_pdu_w5_axi;
+reg [23:0] null_pdu_w6_axi;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) null_pdu_w0_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NULL_PDU_0)) null_pdu_w0_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) null_pdu_w1_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NULL_PDU_1)) null_pdu_w1_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) null_pdu_w2_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NULL_PDU_2)) null_pdu_w2_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) null_pdu_w3_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NULL_PDU_3)) null_pdu_w3_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) null_pdu_w4_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NULL_PDU_4)) null_pdu_w4_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) null_pdu_w5_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NULL_PDU_5)) null_pdu_w5_axi <= wr_data_axi;
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) null_pdu_w6_axi <= 24'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NULL_PDU_6)) null_pdu_w6_axi <= wr_data_axi[23:0];
+end
+
+assign null_pdu_bits_axi = {null_pdu_w0_axi, null_pdu_w1_axi, null_pdu_w2_axi,
+                            null_pdu_w3_axi, null_pdu_w4_axi, null_pdu_w5_axi,
+                            null_pdu_w6_axi};
+
+// ---------------------------------------------------------------------------
+// Cell-Config Registers (0x130 CELL_CFG_0, 0x134 CELL_CFG_1) — Plan Stufe 3.5
+//
+// CELL_CFG_0 bit layout:
+//   [3:0]   sys_code              (default 3 = V+D, matches sw/tetra_sysinfo)
+//   [5:4]   sharing_mode          (default 0 = continuous carrier)
+//   [8:6]   ts_reserved_frames    (default 0)
+//   [9]     uplane_dtx            (default 0)
+//   [10]    frame18_ext           (default 1 — own cell sends BNCH SYSINFO
+//                                  on F18, matches real cell behaviour)
+//   [12:11] neigh_cell_bc         (default 3 — HamTetra cell value)
+//   [14:13] cell_service_level    (default 0 — HamTetra cell value)
+//   [15]    late_entry_support    (default 1)
+//   [31:16] reserved (RAZ)
+//
+// CELL_CFG_1 bit layout:
+//   [9:0]   mcc                   (default 901 — ITU-T E.212 test network)
+//   [23:10] mnc                   (default 9998)
+//   [31:24] reserved (RAZ)
+//
+// Reset defaults mirror sw/tetra_hal.c's sysinfo defaults so the RTL
+// encoder produces SYNC PDUs consistent with the legacy SW path before
+// MCU overrides anything.  ColourCode stays on REG_COLOUR_CODE (0x10).
+// ---------------------------------------------------------------------------
+reg [15:0] cell_cfg_0_axi;  // only [15:0] used; [31:16] reserved
+reg [23:0] cell_cfg_1_axi;  // only [23:0] used; [31:24] reserved
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        cell_cfg_0_axi <= {1'b1,         // [15]    late_entry_support = 1
+                           2'b00,        // [14:13] cell_service_level = 0
+                           2'b11,        // [12:11] neigh_cell_bc = 3
+                           1'b1,         // [10]    frame18_ext = 1
+                           1'b0,         // [9]     uplane_dtx = 0
+                           3'b000,       // [8:6]   ts_reserved_frames = 0
+                           2'b00,        // [5:4]   sharing_mode = 0
+                           4'd3};        // [3:0]   sys_code = 3 (V+D)
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_CELL_CFG_0))
+        cell_cfg_0_axi <= wr_data_axi[15:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        cell_cfg_1_axi <= {14'd9998,   // [23:10] mnc = 9998
+                           10'd901};   // [9:0]   mcc = 901
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_CELL_CFG_1))
+        cell_cfg_1_axi <= wr_data_axi[23:0];
+end
+
+assign cell_cfg_sys_code_axi           = cell_cfg_0_axi[3:0];
+assign cell_cfg_sharing_mode_axi       = cell_cfg_0_axi[5:4];
+assign cell_cfg_ts_reserved_frames_axi = cell_cfg_0_axi[8:6];
+assign cell_cfg_uplane_dtx_axi         = cell_cfg_0_axi[9];
+assign cell_cfg_frame18_ext_axi        = cell_cfg_0_axi[10];
+assign cell_cfg_neigh_cell_bc_axi      = cell_cfg_0_axi[12:11];
+assign cell_cfg_cell_service_level_axi = cell_cfg_0_axi[14:13];
+assign cell_cfg_late_entry_support_axi = cell_cfg_0_axi[15];
+assign cell_cfg_mcc_axi                = cell_cfg_1_axi[9:0];
+assign cell_cfg_mnc_axi                = cell_cfg_1_axi[23:10];
+
+// ---------------------------------------------------------------------------
+// TX TDMA Timebase AXI interface (0x140 LOAD, 0x144 STATE) — Plan Stufe 2
+//
+// LOAD register layout:
+//   [1:0]   TN           (0..3,  air-side 0-based)
+//   [6:2]   FN           (0..17, air-side 0-based)
+//   [12:7]  MN           (0..59, air-side 0-based)
+//   [18:13] HN           (0..63, 6-bit free-running hyperframe)
+//   [31]    STROBE       write-1 → single-cycle sync_load_strobe pulse
+//                         (data is latched on the SAME AXI write, strobe
+//                         fires one clk_axi cycle on that same write;
+//                         writing TN/FN/MN/HN *without* STROBE=1 updates
+//                         the data registers but does not move the RTL
+//                         counter — next write with STROBE=1 commits the
+//                         most recently written values).
+//   [30:19] reserved, writes ignored, reads as 0
+//
+// STATE register layout:  (read-only mirror of timebase counter outputs
+//                          after 2-FF resync in the top-level)
+//   [1:0]   TN
+//   [6:2]   FN
+//   [12:7]  MN
+//   [18:13] HN
+//   [26:19] sym_cnt       8 bit, 0..254
+//   [31:27] reserved, reads as 0
+//
+// STROBE semantics: sync_load_strobe output is a 1-clk_axi-cycle pulse
+// fired on the cycle wr_en_axi fires against REG_TX_TDMA_LOAD with
+// wr_data_axi[31]=1 (and wstrb[3] set so the strobe byte lane is active).
+// Top-level 2-FF-resyncs the pulse into clk_sys (clk_sys and clk_axi
+// share a PLL source — see tetra_zynq_top.v header — so a 2-stage
+// synchronizer is enough to absorb the one-cycle pulse).
+// ---------------------------------------------------------------------------
+reg [1:0] tx_tdma_load_tn_axi;
+reg [4:0] tx_tdma_load_fn_axi;
+reg [5:0] tx_tdma_load_mn_axi;
+reg [5:0] tx_tdma_load_hn_axi;
+
+// A single AXI write whose data byte 3 has bit 7 (i.e. wdata[31]) set
+// AND whose wstrb[3] is active is treated as a strobe write.  The data
+// fields (TN/FN/MN/HN) are latched on every LOAD write regardless of
+// STROBE — so SW can optionally pre-load the fields on one write and
+// fire STROBE on a second write if it wants to.  The simpler, expected
+// usage is a single write with all fields + STROBE=1 set at once.
+wire tx_tdma_load_wr_axi = wr_en_axi & (wr_addr_axi[8:2] == REG_TX_TDMA_LOAD);
+
+// Data-field latches (independent per field so wstrb byte lanes work
+// sensibly — but since TN/FN/MN/HN straddle byte boundaries the driver
+// is expected to issue full-word writes.  We simply guard by strobe[0]
+// for TN/FN (bits 0..6 → byte 0), strobe[1] for MN + low HN (bits
+// 7..15 → byte 1), strobe[2] for upper HN (bits 16..18 → byte 2).
+// To keep the logic simple and the common case correct, any write whose
+// wstrb != 0 updates all four fields — SW always writes full 32-bit
+// words anyway.)
+// R1: one always block per data field register.
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)                      tx_tdma_load_tn_axi <= 2'd0;
+    else if (tx_tdma_load_wr_axi)        tx_tdma_load_tn_axi <= wr_data_axi[1:0];
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)                      tx_tdma_load_fn_axi <= 5'd0;
+    else if (tx_tdma_load_wr_axi)        tx_tdma_load_fn_axi <= wr_data_axi[6:2];
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)                      tx_tdma_load_mn_axi <= 6'd0;
+    else if (tx_tdma_load_wr_axi)        tx_tdma_load_mn_axi <= wr_data_axi[12:7];
+end
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)                      tx_tdma_load_hn_axi <= 6'd0;
+    else if (tx_tdma_load_wr_axi)        tx_tdma_load_hn_axi <= wr_data_axi[18:13];
+end
+
+// Strobe pulse — 1 clk_axi cycle when LOAD is written with bit 31 set.
+// R1: dedicated register.  Note: the pulse fires the cycle wr_en_axi
+// is high (same cycle the data fields latch above), so the top-level
+// resynchronizer sees a strobe whose captured-data is already stable.
+reg tx_tdma_strobe_pulse_axi;
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        tx_tdma_strobe_pulse_axi <= 1'b0;
+    else
+        tx_tdma_strobe_pulse_axi <= tx_tdma_load_wr_axi & wr_data_axi[31];
+end
+
+assign tx_tdma_sync_tn_axi     = tx_tdma_load_tn_axi;
+assign tx_tdma_sync_fn_axi     = tx_tdma_load_fn_axi;
+assign tx_tdma_sync_mn_axi     = tx_tdma_load_mn_axi;
+assign tx_tdma_sync_hn_axi     = tx_tdma_load_hn_axi;
+assign tx_tdma_sync_strobe_axi = tx_tdma_strobe_pulse_axi;
 
 // ---------------------------------------------------------------------------
 // IRQ output — registered OR-reduce of (status & enable)
