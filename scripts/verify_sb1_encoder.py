@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 """Verify SB1 encoder: compare SW reference vs RTL algorithm for BSCH encoding."""
 
-# Config from running tetra_sysinfo command line
+# Config from running tetra_sysinfo (board defaults, confirmed in
+# /tmp/tetra_sysinfo.log: cfg0=0x9C02 → SC=2 F18ext=1 NCB=3 LE=1)
 CFG = {
-    'system_code': 1,
+    'system_code': 2,
     'colour_code': 49,
     'sharing_mode': 0,
     'ts_reserved_frames': 0,
     'u_plane': 0,
-    'frame_18_ext': 0,
+    'frame_18_ext': 1,
     'mcc': 901,
     'mnc': 9998,
-    'ncb': 0,
+    'ncb': 3,
     'csl': 0,
-    'late_entry': 0,
+    'late_entry': 1,
 }
 
 def parity5(x):
@@ -96,13 +97,14 @@ def interleave_bsch(bits):
     return out
 
 def scramble_bsch(bits):
-    """Fibonacci LFSR scrambler, init=3, 120 bits."""
+    """Fibonacci LFSR scrambler, init=3, 120 bits.
+    ETSI §8.2.5 taps — matches tetra_hal.c next_lfsr_bit() and decode_dl.scrambler_seq()."""
     lfsr = 3
     out = []
     for b in bits:
-        # Feedback: taps at 31,25,22,21,15,11,10,9,7,6,4,3,1,0
+        # Feedback: taps at 0,6,9,10,16,20,21,22,24,25,27,28,30,31
         fb = 0
-        for tap in [31, 25, 22, 21, 15, 11, 10, 9, 7, 6, 4, 3, 1, 0]:
+        for tap in [0, 6, 9, 10, 16, 20, 21, 22, 24, 25, 27, 28, 30, 31]:
             fb ^= (lfsr >> tap) & 1
         out.append(b ^ fb)
         lfsr = ((fb << 31) | (lfsr >> 1)) & 0xFFFFFFFF

@@ -77,9 +77,9 @@ module tetra_sb1_encoder (
 // identity is INSIDE the BSCH and the receiver can't derive it yet.
 // Since init is constant, the 120-bit XOR mask is a compile-time constant.
 //
-// LFSR: Fibonacci, 32-bit, polynomial taps at bits
-//   31, 25, 22, 21, 15, 11, 10, 9, 7, 6, 4, 3, 1, 0
-// Matches tetra_hal.c next_lfsr_bit() / tetra_scramble_bsch().
+// LFSR: Fibonacci, 32-bit, ETSI §8.2.5 polynomial taps at bits
+//   0, 6, 9, 10, 16, 20, 21, 22, 24, 25, 27, 28, 30, 31
+// Matches tetra_hal.c next_lfsr_bit() / tetra_aach_encoder.v.
 // =========================================================================
 
 function [119:0] compute_scramble_mask;
@@ -91,10 +91,10 @@ function [119:0] compute_scramble_mask;
         lfsr = init;
         compute_scramble_mask = 120'b0;
         for (i = 0; i < 120; i = i + 1) begin
-            fb = lfsr[31] ^ lfsr[25] ^ lfsr[22] ^ lfsr[21] ^
-                 lfsr[15] ^ lfsr[11] ^ lfsr[10] ^ lfsr[9]  ^
-                 lfsr[7]  ^ lfsr[6]  ^ lfsr[4]  ^ lfsr[3]  ^
-                 lfsr[1]  ^ lfsr[0];
+            fb = lfsr[ 0] ^ lfsr[ 6] ^ lfsr[ 9] ^ lfsr[10] ^
+                 lfsr[16] ^ lfsr[20] ^ lfsr[21] ^ lfsr[22] ^
+                 lfsr[24] ^ lfsr[25] ^ lfsr[27] ^ lfsr[28] ^
+                 lfsr[30] ^ lfsr[31];
             compute_scramble_mask[119 - i] = fb;
             lfsr = {fb, lfsr[31:1]};
         end
