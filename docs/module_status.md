@@ -1,7 +1,13 @@
 # Module Status Overview
 **Project:** tetra-zynq-phy
-**Last Updated:** 2026-04-17
-**Status:** Phase 4 On-Air TX — RF Loopback stabil, TX NCO entfernt
+**Last Updated:** 2026-04-22
+**Status:** Phase 4 MS Access — DL bit-exakt Gold + Duplex-Fix ✅, UL-RX-Chain (RA-Burst) ausstehend 🔴
+
+> **2026-04-22:** MS (MTP3550) erreicht Random-Access-Phase nach Fix A1+B+Duplex
+> (Commits `1a3a39a` / `0eda25b` / `9718f1c`). MS sendet auf 428.250 MHz (DL−10 MHz,
+> Band 4) 127-Symbol Random-Access-Bursts mit `x`-Training. Board empfängt nichts
+> — `ETS_REF` in `rtl/rx/tetra_sync_detect.v:120` ist 60-bit Placeholder statt
+> 30-bit ETSI-`x_bits`. Details in `.ralph/fix_plan.md`.
 
 ---
 
