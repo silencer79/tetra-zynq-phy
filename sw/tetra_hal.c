@@ -1359,10 +1359,13 @@ int main(int argc, char *argv[])
         .timeslot_assigned = 1,    /* 1 common ctrl timeslot */
         .sharing_mode     = 0,     /* continuous carrier */
         .u_plane          = 0,
-        /* Real cell (MCC=262/MNC=106, WAV-Analyse 2026-04-20) sets F18ext=1
-         * because BKN2 on frame 18 carries BNCH SYSINFO extension.  Our TX
-         * always sends SYSINFO in BKN2 on F18 → must also announce extension. */
-        .frame_18_extension = 1,
+        /* SB1 distribution compare (2026-04-21, /tmp/compare_sb1.py):
+         *   Gold cell: F18ext=0 on 100% of 152 TMO bursts (all frames).
+         *   OURS:      F18ext=1 on 100% of 153 bursts → wrong on every SB1.
+         * The extension bit in SB1 announces a BNCH extension carried in BKN2
+         * on frame 18 slot 1. Gold sends the extension but keeps the bit 0 —
+         * MS decodes BNCH anyway by schedule.  Match Gold. */
+        .frame_18_extension = 0,
         .neighbour_cell_broadcast = 3,  /* HamTetra cell value */
         .cell_service_level = 0,   /* HamTetra cell value */
         .late_entry_info  = 1,     /* late entry supported */
@@ -1371,7 +1374,12 @@ int main(int argc, char *argv[])
         .rxlevel_access_min = 0,
         .access_parameter = 10,
         .radio_dl_timeout = 5,
-        .optional_field_value = 24448,
+        /* Optional_Field=10 → "Default access code A" (20 bit):
+         *   IMM=15  WT=6  NU=15  FLF=0  TSP=0  MinPri=0  →  0xF6F00 = 1011456
+         * IMM=0 (alter Wert 24448=0x05F80) hatte MS daran gehindert,
+         * Random-Access zu versuchen → keine Registrierung. IMM=15 erlaubt
+         * Random Access in allen Frames 4..18 (Gold-Pattern). */
+        .optional_field_value = 1011456,
         .priority_cell    = 0,
         .migration_supported = 0,
         .frame_countdown  = 0,

@@ -623,6 +623,22 @@ end
 
 wire sym_en_sys_w = sym_toggle_sync_sys ^ sym_toggle_prev_sys;
 
+// Forward declarations for timebase outputs.  The tetra_tdma_timebase
+// instance drives these further down in the file; we declare them here
+// so tx_chain (the consumer) can bind to them via the same single source
+// that drives SB1/AACH encoders and content_mux.  Prior to 2026-04-21 the
+// tx_chain used a redundant top-level tx_slot_cnt_sys that diverged from
+// timebase.tn after TX_TDMA_LOAD (only timebase accepts sync), producing
+// a +1 TN mismatch between the schedule-lookup index and the SB1
+// TimeSlot field — visible on-air as SB bursts on the wrong slots.
+wire [1:0] tx_tdma_state_tn_sys;
+wire [4:0] tx_tdma_state_fn_sys;
+wire [5:0] tx_tdma_state_mn_sys;
+wire [5:0] tx_tdma_state_hn_sys;
+wire       tx_tdma_state_slot_pulse_sys;
+wire       tx_tdma_state_tdma_tick_sys;
+wire [7:0] tx_tdma_state_sym_cnt_sys;
+
 // TX Slot Timer — derived from sym_en_sys_w (exact 18,000 Hz from clk_lvds)
 // Counts 255 symbol ticks per slot, then pulses tx_slot_pulse.
 // All TX timing is now locked to AD9361 DATA_CLK — zero drift.
@@ -845,9 +861,13 @@ tetra_tx_chain #(
         .slot_ndb2_sys      (cm_slot_ndb2_sys),
         // Diagnostic: replace builder dibit with 15-bit LFSR PRBS
         .tx_test_prbs_en_sys(tx_test_prbs_en_sys),
-        // TX timing from free-running timer (BUG-01 fix)
-        .tx_slot_num_sys (tx_slot_cnt_sys),
-        .tx_slot_pulse_sys(tx_slot_pulse_sys_w),
+        // TX timing from the timebase — same counter that drives the SB1
+        // encoder's TimeSlot field, SB1 encode_start, AACH encoder and
+        // content_mux refresh.  Using the timebase keeps burst_mux's
+        // schedule lookup in lockstep with SB1.TimeSlot (fixes the post-
+        // TX_TDMA_LOAD slot-offset bug observed 2026-04-21).
+        .tx_slot_num_sys (tx_tdma_state_tn_sys),
+        .tx_slot_pulse_sys(tx_tdma_state_slot_pulse_sys),
         // Symbol enable — exact 18 kHz from clk_lvds ÷ 1024
         .sym_en_ext_sys (sym_en_sys_w),
         // clk_lvds domain
@@ -1130,15 +1150,8 @@ end
 wire tx_tdma_sync_load_strobe_sys = tx_tdma_strobe_sys_r1 & ~tx_tdma_strobe_sys_r2;
 
 // Timebase instance — free-running counter synchronized to sym_en_sys_w
-// (same 18 kHz tick the legacy counters use).
-wire [7:0] tx_tdma_state_sym_cnt_sys;
-wire [1:0] tx_tdma_state_tn_sys;
-wire [4:0] tx_tdma_state_fn_sys;
-wire [5:0] tx_tdma_state_mn_sys;
-wire [5:0] tx_tdma_state_hn_sys;
-wire       tx_tdma_state_slot_pulse_sys;  // reserved for Stufe 3+
-wire       tx_tdma_state_tdma_tick_sys;   // reserved for Stufe 3+
-
+// (same 18 kHz tick the legacy counters use).  Wire declarations moved
+// above tx_chain (search: "Forward declarations for timebase outputs").
 tetra_tdma_timebase u_tx_tdma_timebase (
     .clk_sys          (clk_sys),
     .rst_n_sys        (rst_n_sys),
