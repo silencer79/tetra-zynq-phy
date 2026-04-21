@@ -310,17 +310,15 @@ def gold_entry(mn, fn, tn):
 
     # TN=0 branch
     if fn == 17 and mn == 2:
+        # F18 TN=0 MN%4=2 — Gold-Anchor: SB with SYSINFO sync (sys_time_inject=1)
         return _pack_entry(PCLASS_STATIC_BROADCAST, PIDX_SB, BT_SDB,
                            ndb2=0, enable=1, sys_time_inject=1)
-    if fn == 17:
-        return _pack_entry(PCLASS_STATIC_BROADCAST, PIDX_BNCH, BT_SDB,
-                           ndb2=0, enable=1, sys_time_inject=0)
-    # TN=0 fn<17 — NDB2 (two standalone SCH/HD halves per burst).
-    # Matches Gold cell bit-exact:
-    #   BKN1 = NULL-PDU (124-bit static 0x0010_8000…, SCH/HD slot=1)
-    #   BKN2 = BNCH-SYSINFO (124-bit, SCH/HD slot=0 cell-identity)
-    # Content-mux class=NULL_PDU idx=0 routes blk1 = null_pdu_bits_sys,
-    # blk2 = ndb_block2_sw_sys (set to BNCH-SYSINFO in tetra_hal.c).
+    # F18 TN=0 MN%4 ∈ {0,1,3} AND F1-F17 TN=0 — NDB2 (Gold bit-exact).
+    # BKN1 = NULL-PDU (124-bit static 0x00108000…, SCH/HD blk1).
+    # BKN2 = ndb_block2_sw_sys — SW writes BNCH-SYSINFO (F1-F17) here; on Gold
+    #        F18 TN=0 MN!=2 the BKN2 would be BNCH-DMO content — Step 2 adds a
+    #        separate BNCH-DMO payload bank. Until then BKN2 falls back to
+    #        SYSINFO which still produces valid (CRC-OK) bursts.
     return _pack_entry(PCLASS_NULL_PDU, PIDX_NULL0, BT_NDB,
                        ndb2=1, enable=1, sys_time_inject=0)
 

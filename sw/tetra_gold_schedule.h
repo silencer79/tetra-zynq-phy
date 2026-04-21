@@ -43,7 +43,7 @@ static const uint32_t tetra_gold_schedule[144] = {
     0x00d600d6,  /* word  31: entries  62, 63 */
     0x00d6100c,  /* word  32: entries  64, 65 */
     0x00d600d6,  /* word  33: entries  66, 67 */
-    0x00d60054,  /* word  34: entries  68, 69 */
+    0x00d6100c,  /* word  34: entries  68, 69 */
     0x00d600d6,  /* word  35: entries  70, 71 */
     0x00d6100c,  /* word  36: entries  72, 73 */
     0x00d600d6,  /* word  37: entries  74, 75 */
@@ -79,7 +79,7 @@ static const uint32_t tetra_gold_schedule[144] = {
     0x00d600d6,  /* word  67: entries 134,135 */
     0x00d6100c,  /* word  68: entries 136,137 */
     0x00d600d6,  /* word  69: entries 138,139 */
-    0x00d60054,  /* word  70: entries 140,141 */
+    0x00d6100c,  /* word  70: entries 140,141 */
     0x00d600d6,  /* word  71: entries 142,143 */
     0x00d6100c,  /* word  72: entries 144,145 */
     0x00d600d6,  /* word  73: entries 146,147 */
@@ -151,7 +151,7 @@ static const uint32_t tetra_gold_schedule[144] = {
     0x00d600d6,  /* word 139: entries 278,279 */
     0x00d6100c,  /* word 140: entries 280,281 */
     0x00d600d6,  /* word 141: entries 282,283 */
-    0x00d60054,  /* word 142: entries 284,285 */
+    0x00d6100c,  /* word 142: entries 284,285 */
     0x00d600d6  /* word 143: entries 286,287 */
 };
 
