@@ -315,10 +315,7 @@ def gold_entry(mn, fn, tn):
     if fn == 17:
         return _pack_entry(PCLASS_STATIC_BROADCAST, PIDX_BNCH, BT_SDB,
                            ndb2=0, enable=1, sys_time_inject=0)
-    if mn == 0:
-        return _pack_entry(PCLASS_STATIC_BROADCAST, PIDX_NULL0, BT_NDB,
-                           ndb2=0, enable=1, sys_time_inject=0)
-    return _pack_entry(PCLASS_NULL_PDU, PIDX_NULL0, BT_NDB,
+    return _pack_entry(PCLASS_STATIC_BROADCAST, PIDX_NULL0, BT_NDB,
                        ndb2=0, enable=1, sys_time_inject=0)
 
 

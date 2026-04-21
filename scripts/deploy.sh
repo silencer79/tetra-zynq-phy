@@ -118,8 +118,17 @@ if $DO_BUILD; then
     echo "Building..."
 
     cd "$PROJECT_ROOT"
+    # Delete stale bitstream first — otherwise a synth failure leaves the
+    # previous .bit in place and the existence check below passes silently.
+    rm -f "$BIT_FILE"
+    set +e
     $VIVADO -mode batch -source scripts/vivado_build.tcl 2>&1 | tee "${BUILD_DIR}/vivado_build.log" | \
-        grep -E "^(Phase|INFO.*Timing|ERROR|WARNING.*timing|Build|Bitstream)" || true
+        grep -E "^(Phase|INFO.*Timing|ERROR|WARNING.*timing|Build|Bitstream)"
+    viv_rc=${PIPESTATUS[0]}
+    set -e
+    if [ "$viv_rc" -ne 0 ]; then
+        fail "Vivado build failed (exit $viv_rc) — see ${BUILD_DIR}/vivado_build.log"
+    fi
 
     if [ ! -f "$BIT_FILE" ]; then
         fail "Bitstream not generated: $BIT_FILE"

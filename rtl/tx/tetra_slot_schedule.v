@@ -92,94 +92,69 @@ module tetra_slot_schedule (
 );
 
 // ---------------------------------------------------------------------------
-// Memory: 288 dense 16-bit entries (mn*72 + fn*4 + tn).  Implemented as
-// a 288-deep reg array; Vivado infers a single RAMB18E1 (36 kb) for
-// 288×16 dual-port, leaving most of the block unused but guaranteeing
-// independent read/write clocks.
+// Memory: 288 dense 16-bit entries (mn*72 + fn*4 + tn).
+//
+// The always blocks below use the Xilinx UG901 true-dual-port inference
+// template: synchronous read/write, ONE always block per port (no async
+// reset on the RAM block, no else-zero on the read register).  Vivado
+// infers a single RAMB18E1 (18Kb) — leaves most of the block unused but
+// guarantees independent read/write clocks.
+//
+// `ram_style="block"` attribute forces BRAM; without it Vivado may
+// choose LUTRAM/distributed for 288×16.
 // ---------------------------------------------------------------------------
-reg [15:0] mem [0:287];
+(* ram_style = "block" *) reg [15:0] mem [0:287];
 
 // ---------------------------------------------------------------------------
-// Port A — AXI write (two 16-bit entries per 32-bit word)
+// Port A — AXI side (clk_axi): write two 16-bit halves + readback.
+// 32-bit word index 0..143 packs (even, odd) entries at dense_idx
+// (2*word_idx, 2*word_idx+1).
 // ---------------------------------------------------------------------------
-wire [8:0] axi_entry_addr_lo_axi = {axi_addr, 1'b0};  // 2*word_idx
-wire [8:0] axi_entry_addr_hi_axi = {axi_addr, 1'b1};  // 2*word_idx+1
+wire [8:0] axi_entry_addr_lo_axi = {axi_addr, 1'b0};  // 2*word_idx     (<288)
+wire [8:0] axi_entry_addr_hi_axi = {axi_addr, 1'b1};  // 2*word_idx + 1 (<288)
 
-// Byte-strobe gating at 16-bit granularity: wstrb[1:0] -> lower half,
-// wstrb[3:2] -> upper half.  Treat "any byte within the halfword
-// asserted" as a write to that halfword.
+// Byte-strobe gating at 16-bit granularity (any byte in a halfword set
+// = write that halfword).
 wire axi_we_lo_axi = axi_we & (|axi_wstrb[1:0]);
 wire axi_we_hi_axi = axi_we & (|axi_wstrb[3:2]);
 
-// Guard against word_idx >= 144 (addr_lo would still be in-range but
-// addr_hi == 287 is the max valid entry).  Silently drop out-of-range
-// writes — the parent register bank pre-filters with the 0x400..0x63F
-// window, so this is defensive.
-wire axi_in_range_lo_axi = (axi_entry_addr_lo_axi < 9'd288);
-wire axi_in_range_hi_axi = (axi_entry_addr_hi_axi < 9'd288);
-
-// R1: memory write lower half
-always @(posedge clk_axi) begin
-    if (axi_we_lo_axi & axi_in_range_lo_axi)
-        mem[axi_entry_addr_lo_axi[8:0]] <= axi_wdata[15:0];
-end
-
-// R1: memory write upper half
-always @(posedge clk_axi) begin
-    if (axi_we_hi_axi & axi_in_range_hi_axi)
-        mem[axi_entry_addr_hi_axi[8:0]] <= axi_wdata[31:16];
-end
-
-// ---------------------------------------------------------------------------
-// Port A — AXI read (32-bit word = {upper_entry, lower_entry})
-// Registered one clk_axi cycle after axi_re, matching synchronous-read
-// BRAM timing.
-// ---------------------------------------------------------------------------
+// 8-bit axi_addr covers word_idx 0..255 — parent register bank already
+// decodes 0x400..0x63F (word_idx 0..143), so word_idx >= 144 cannot
+// occur in practice.  No in-range guard — keeps the RAM inference clean.
 reg [15:0] axi_rd_lo_axi;
 reg [15:0] axi_rd_hi_axi;
 
-always @(posedge clk_axi or negedge rst_n_axi) begin
-    if (!rst_n_axi)
-        axi_rd_lo_axi <= 16'h0000;
-    else if (axi_re & axi_in_range_lo_axi)
-        axi_rd_lo_axi <= mem[axi_entry_addr_lo_axi[8:0]];
-    else if (axi_re)
-        axi_rd_lo_axi <= 16'h0000;
+// R1: Port A — single always block (write + registered read), matches
+// Xilinx dual-port BRAM inference template.
+always @(posedge clk_axi) begin
+    if (axi_we_lo_axi)
+        mem[axi_entry_addr_lo_axi] <= axi_wdata[15:0];
+    if (axi_we_hi_axi)
+        mem[axi_entry_addr_hi_axi] <= axi_wdata[31:16];
+    if (axi_re) begin
+        axi_rd_lo_axi <= mem[axi_entry_addr_lo_axi];
+        axi_rd_hi_axi <= mem[axi_entry_addr_hi_axi];
+    end
 end
 
-always @(posedge clk_axi or negedge rst_n_axi) begin
-    if (!rst_n_axi)
-        axi_rd_hi_axi <= 16'h0000;
-    else if (axi_re & axi_in_range_hi_axi)
-        axi_rd_hi_axi <= mem[axi_entry_addr_hi_axi[8:0]];
-    else if (axi_re)
-        axi_rd_hi_axi <= 16'h0000;
-end
-
-// R1: axi_rdata combinatorial alias of the two latched halves
+// axi_rdata combinatorial alias of the two latched halves
 always @(*) begin
     axi_rdata = {axi_rd_hi_axi, axi_rd_lo_axi};
 end
 
 // ---------------------------------------------------------------------------
-// Port B — clk_sys synchronous read with externally-driven address.
-//
-// Every cycle, mem[sched_b_addr_sys] is clocked into schedule_entry_sys.
-// One-cycle BRAM read latency.  Out-of-range addresses return 0 as a
-// defensive measure (should never happen with the content-mux FSM).
+// Port B — clk_sys side: synchronous read with externally-driven address.
+// 9-bit dense idx 0..287.  Caller (content-mux) never drives >=288.
 // ---------------------------------------------------------------------------
-wire rd_in_range_sys = (sched_b_addr_sys < 9'd288);
-
-// R1: schedule_entry_sys output register — unconditional synchronous
-// read of mem[sched_b_addr_sys] each cycle.
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys)
-        schedule_entry_sys <= 16'h0000;
-    else if (rd_in_range_sys)
-        schedule_entry_sys <= mem[sched_b_addr_sys];
-    else
-        schedule_entry_sys <= 16'h0000;
+always @(posedge clk_sys) begin
+    schedule_entry_sys <= mem[sched_b_addr_sys];
 end
+
+// Reset-value note: BRAM power-up is 0 (XPM MEMORY_INIT_FILE default).
+// Unused in this project — no ASYNC reset on the read register is
+// required, and Vivado prohibits it in the inference template.
+wire _unused_rst_ok_sys = rst_n_sys;     // suppress unused-input warning
+wire _unused_rst_ok_axi = rst_n_axi;
 
 endmodule
 

@@ -1439,26 +1439,37 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    /* Also fill SB_BKN2 (legacy SDB continuous-DL path) so SDB class
-     * broadcasts SYSINFO in BKN2 on all 4 TNs. */
+    /* SB_BKN2 — SB burst's second half carries SCH/HD (standalone, 216 coded,
+     * K=216 a=101).  Must be 124 info-bit BNCH SYSINFO, NOT the first half of
+     * a split SCH/F block (which has a 432-bit interleaver). */
     {
+        uint8_t bnch_info[BNCH_INFO_BITS];
+        build_bnch_sysinfo(&info, bnch_info);
+        uint8_t bnch_type5[BNCH_CODED_BITS];
+        /* scramb_init=0 → cell-identity scrambler (MCC|MNC|CC|3). */
+        if (tetra_bnch_encode(bnch_info, info.colour_code, 0,
+                              info.mcc, info.mnc, bnch_type5) != 0) {
+            fprintf(stderr, "SB_BKN2 BNCH SYSINFO encoding failed\n");
+            tetra_hal_close(&hal);
+            return 1;
+        }
+        uint32_t bkn2_words[7];
+        bits_to_words(bnch_type5, BNCH_CODED_BITS, bkn2_words, 7);
+        bkn2_words[6] >>= 8;
+        for (int i = 0; i < 7; i++)
+            tetra_reg_write(&hal, REG_SB_BKN2_0 + i * 4, bkn2_words[i]);
+        printf("SB_BKN2: SCH/HD BNCH SYSINFO written (124→216)\n");
+
+        /* NDB + MCCH — SCH/F split (268→432, 2×216 halves) for NDB bursts. */
         uint8_t si_info[SCHF_INFO_BITS];
         build_schf_sysinfo(&info, si_info);
         uint8_t si_type5[SCHF_CODED_BITS];
         if (tetra_schf_encode(si_info, info.colour_code, 1,
                               info.mcc, info.mnc, si_type5) != 0) {
-            fprintf(stderr, "SB_BKN2 SYSINFO encoding failed\n");
+            fprintf(stderr, "NDB SYSINFO encoding failed\n");
             tetra_hal_close(&hal);
             return 1;
         }
-        uint32_t bkn2_words[7];
-        bits_to_words(&si_type5[0], 216, bkn2_words, 7);
-        bkn2_words[6] >>= 8;
-        for (int i = 0; i < 7; i++)
-            tetra_reg_write(&hal, REG_SB_BKN2_0 + i * 4, bkn2_words[i]);
-        printf("SB_BKN2: SCH/F SYSINFO written\n");
-
-        /* NDB block1/block2 (NDB-SYSINFO filler, broadcast on NDB slots) */
         uint32_t blk1_words[7], blk2_words[7];
         bits_to_words(&si_type5[0],   216, blk1_words, 7);
         blk1_words[6] >>= 8;
@@ -1489,10 +1500,10 @@ int main(int argc, char *argv[])
     /* Gold-mimic schedule BRAM (Plan Stufe 3/4) */
     tetra_write_gold_schedule(&hal);
 
-    /* RX scrambler init constant (cc|mnc|mcc packed for descrambler) */
-    tetra_reg_write(&hal, REG_COLOUR_CODE,
-                    scrambler_init(info.colour_code, 0,
-                                   info.mcc, info.mnc));
+    /* ColourCode (6 bits) — RTL BSCH/AACH/SCH encoders read this as raw CC.
+     * NOTE: scrambler_init() packs cc|mnc|mcc|slot<<2, so the old write put
+     * (cc<<2)&0x3F into the low 6 bits (CC=49 → on-air CC=4). */
+    tetra_reg_write(&hal, REG_COLOUR_CODE, info.colour_code & 0x3F);
 
     /* Reset TDMA timebase to a known state (TN=FN=MN=HN=0).  RTL already
      * starts at 0 on reset, but a strobe here guarantees alignment if

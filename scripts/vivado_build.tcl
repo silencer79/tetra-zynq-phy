@@ -125,6 +125,11 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/tx/tetra_tx_inv_sinc.v \
  $PROJ_DIR/rtl/tx/tetra_burst_builder.v \
  $PROJ_DIR/rtl/tx/tetra_burst_mux.v \
+ $PROJ_DIR/rtl/tx/tetra_tdma_timebase.v \
+ $PROJ_DIR/rtl/tx/tetra_slot_schedule.v \
+ $PROJ_DIR/rtl/tx/tetra_slot_content_mux.v \
+ $PROJ_DIR/rtl/tx/tetra_sb1_encoder.v \
+ $PROJ_DIR/rtl/tx/tetra_aach_encoder.v \
 ]
 
 # LMAC
