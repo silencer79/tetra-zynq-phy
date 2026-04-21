@@ -27,6 +27,9 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <getopt.h>
+#include <signal.h>
+#include <time.h>
+#include <errno.h>
 
 /* ========================================================================
  * HAL Init / Close
@@ -1118,6 +1121,54 @@ int tetra_write_bnch(tetra_hal_t *hal, const tetra_sysinfo_t *info,
 }
 
 /* ========================================================================
+ * tetra_refresh_sysinfo — rebuild+rewrite every SYSINFO-bearing register
+ *
+ * BNCH SCH/F (BNCH_BLK1/2), and the three SCH/HD SYSINFO payloads
+ * (SB_BKN2, NDB_BLK1/2, MCCH_BLK1/2) all carry the 16-bit hyperframe field
+ * inside the SYSINFO PDU.  Call this once at boot, and again after every
+ * hyperframe edge in daemon mode to advance HN on-air.
+ *
+ * Register writes are not atomic across the 7 words of a 216-bit payload
+ * — but each 32-bit AXI write is, and the whole sequence runs in a few
+ * microseconds vs. the 14 ms slot period, so mid-burst tearing is
+ * vanishingly rare (and transient: the MS resyncs the next multiframe).
+ * ======================================================================== */
+
+int tetra_refresh_sysinfo(tetra_hal_t *hal, const tetra_sysinfo_t *info)
+{
+    /* BNCH SCH/F (268 → 432 bits, split into BNCH_BLK1 + BNCH_BLK2). */
+    if (tetra_write_bnch(hal, info, info->colour_code) != 0)
+        return -1;
+
+    /* SCH/HD BNCH SYSINFO (124 → 216 bits, cell-identity scrambler). */
+    uint8_t bnch_info[BNCH_INFO_BITS];
+    build_bnch_sysinfo(info, bnch_info);
+    uint8_t bnch_type5[BNCH_CODED_BITS];
+    if (tetra_bnch_encode(bnch_info, info->colour_code, 0,
+                          info->mcc, info->mnc, bnch_type5) != 0) {
+        fprintf(stderr, "tetra_hal: SCH/HD BNCH SYSINFO encoding failed\n");
+        return -1;
+    }
+
+    uint32_t words[7];
+    bits_to_words(bnch_type5, BNCH_CODED_BITS, words, 7);
+    words[6] >>= 8;
+
+    for (int i = 0; i < 7; i++)
+        tetra_reg_write(hal, REG_SB_BKN2_0 + i * 4, words[i]);
+    for (int i = 0; i < 7; i++)
+        tetra_reg_write(hal, REG_NDB_BLK1_0 + i * 4, words[i]);
+    for (int i = 0; i < 7; i++)
+        tetra_reg_write(hal, REG_NDB_BLK2_0 + i * 4, words[i]);
+    for (int i = 0; i < 7; i++)
+        tetra_reg_write(hal, REG_MCCH_BLK1_0 + i * 4, words[i]);
+    for (int i = 0; i < 7; i++)
+        tetra_reg_write(hal, REG_MCCH_BLK2_0 + i * 4, words[i]);
+
+    return 0;
+}
+
+/* ========================================================================
  * Control Functions
  * ======================================================================== */
 
@@ -1276,11 +1327,24 @@ static void usage(const char *prog)
         "  --migr N      Migration supported (0-1, default 0)\n"
         "  --ncb N       Neighbour Cell Broadcast (0-3, default 3)\n"
         "  --csl N       Cell Service Level (0-3, default 0)\n"
+        "  --hf N        Initial hyperframe number (0-65535, default 1)\n"
+        "  --daemon      Don't exit — refresh SYSINFO every hyperframe (~61.2s)\n"
+        "                to advance HN on-air.  Needed for MS to treat the cell\n"
+        "                as synchronised.\n"
         "  --thresh N    Sync threshold (1-255, default 0=unchanged)\n"
         "  --status      Print status registers and exit\n"
         "  --no-enable   Write SYSINFO but don't enable TX/RX\n"
         "  -h, --help    Show this help\n",
         prog);
+}
+
+/* Signal handler — set by --daemon loop to exit cleanly on SIGINT/SIGTERM. */
+static volatile sig_atomic_t g_daemon_running = 1;
+
+static void daemon_signal_handler(int signum)
+{
+    (void)signum;
+    g_daemon_running = 0;
 }
 
 int main(int argc, char *argv[])
@@ -1313,15 +1377,22 @@ int main(int argc, char *argv[])
         .frame_countdown  = 0,
         .access_code      = 0x0F,  /* All subscriber classes allowed */
         .dl_usage         = 0x3F,  /* All slots available */
+        /* Hyperframe starts at 1 (not 0) because some MS stacks treat
+         * HN=0 in SYSINFO as "uninitialised" and refuse registration. */
+        .hyperframe       = 1,
     };
     int sync_thresh = 0;
     int status_only = 0;
     int no_enable = 0;
+    int daemon_mode = 0;
+
+    /* Make stdout line-buffered so nohup'd log shows each refresh immediately. */
+    setvbuf(stdout, NULL, _IOLBF, 0);
 
     enum {
         OPT_SC = 256, OPT_DUPLEX, OPT_TXPWR, OPT_RXMIN,
         OPT_ACCESS, OPT_DLTIMO, OPT_OPTFIELD, OPT_PRIO,
-        OPT_MIGR, OPT_NCB, OPT_CSL
+        OPT_MIGR, OPT_NCB, OPT_CSL, OPT_HF, OPT_DAEMON
     };
     static struct option long_opts[] = {
         {"freq",      required_argument, NULL, 'f'},
@@ -1340,6 +1411,8 @@ int main(int argc, char *argv[])
         {"migr",      required_argument, NULL, OPT_MIGR},
         {"ncb",       required_argument, NULL, OPT_NCB},
         {"csl",       required_argument, NULL, OPT_CSL},
+        {"hf",        required_argument, NULL, OPT_HF},
+        {"daemon",    no_argument,       NULL, OPT_DAEMON},
         {"thresh",    required_argument, NULL, 't'},
         {"status",    no_argument,       NULL, 's'},
         {"no-enable", no_argument,       NULL, 'x'},
@@ -1366,6 +1439,8 @@ int main(int argc, char *argv[])
         case OPT_MIGR:     info.migration_supported   = atoi(optarg); break;
         case OPT_NCB:      info.neighbour_cell_broadcast = atoi(optarg); break;
         case OPT_CSL:      info.cell_service_level    = atoi(optarg); break;
+        case OPT_HF:       info.hyperframe            = (uint16_t)strtoul(optarg, NULL, 10); break;
+        case OPT_DAEMON:   daemon_mode                = 1;            break;
         case 't': sync_thresh      = atoi(optarg); break;
         case 's': status_only      = 1;            break;
         case 'x': no_enable        = 1;            break;
@@ -1433,55 +1508,14 @@ int main(int argc, char *argv[])
     /* CELL_CFG → RTL BSCH encoder reads system_code/sharing/MCC/MNC etc. */
     tetra_write_cell_config(&hal, &info);
 
-    /* SDB BKN2 (TN=0 F18 M2 BNCH slot, SCH/HD SYSINFO) */
-    if (tetra_write_bnch(&hal, &info, info.colour_code) != 0) {
-        fprintf(stderr, "BNCH SYSINFO encoding failed\n");
+    /* BNCH SCH/F + SB_BKN2 + NDB + MCCH — all SYSINFO-bearing registers.
+     * Encoded HN value = info.hyperframe (see daemon loop below). */
+    if (tetra_refresh_sysinfo(&hal, &info) != 0) {
         tetra_hal_close(&hal);
         return 1;
     }
-
-    /* SB_BKN2 — SB burst's second half carries SCH/HD (standalone, 216 coded,
-     * K=216 a=101).  Must be 124 info-bit BNCH SYSINFO, NOT the first half of
-     * a split SCH/F block (which has a 432-bit interleaver). */
-    {
-        uint8_t bnch_info[BNCH_INFO_BITS];
-        build_bnch_sysinfo(&info, bnch_info);
-        uint8_t bnch_type5[BNCH_CODED_BITS];
-        /* scramb_init=0 → cell-identity scrambler (MCC|MNC|CC|3). */
-        if (tetra_bnch_encode(bnch_info, info.colour_code, 0,
-                              info.mcc, info.mnc, bnch_type5) != 0) {
-            fprintf(stderr, "SB_BKN2 BNCH SYSINFO encoding failed\n");
-            tetra_hal_close(&hal);
-            return 1;
-        }
-        uint32_t bkn2_words[7];
-        bits_to_words(bnch_type5, BNCH_CODED_BITS, bkn2_words, 7);
-        bkn2_words[6] >>= 8;
-        for (int i = 0; i < 7; i++)
-            tetra_reg_write(&hal, REG_SB_BKN2_0 + i * 4, bkn2_words[i]);
-        printf("SB_BKN2: SCH/HD BNCH SYSINFO written (124→216)\n");
-
-        /* NDB blocks — Gold cell uses NDB2 (two standalone SCH/HD halves,
-         * K=216 a=101).  Each half carries the same 124-bit BNCH SYSINFO
-         * (scramb_init=0 → cell-identity scrambler).  MS decodes each
-         * half as a standalone SYSINFO broadcast. */
-        uint32_t ndb_words[7];
-        bits_to_words(bnch_type5, BNCH_CODED_BITS, ndb_words, 7);
-        ndb_words[6] >>= 8;
-        for (int i = 0; i < 7; i++)
-            tetra_reg_write(&hal, REG_NDB_BLK1_0 + i * 4, ndb_words[i]);
-        for (int i = 0; i < 7; i++)
-            tetra_reg_write(&hal, REG_NDB_BLK2_0 + i * 4, ndb_words[i]);
-        printf("NDB filler: SCH/HD BNCH SYSINFO x2 (NDB2 both halves)\n");
-
-        /* MCCH (slot 1) — SDB class, blk2 carries SCH/HD SYSINFO (same as
-         * SB_BKN2); blk1 is ignored for SDB burst type. */
-        for (int i = 0; i < 7; i++)
-            tetra_reg_write(&hal, REG_MCCH_BLK1_0 + i * 4, ndb_words[i]);
-        for (int i = 0; i < 7; i++)
-            tetra_reg_write(&hal, REG_MCCH_BLK2_0 + i * 4, ndb_words[i]);
-        printf("MCCH: SCH/HD BNCH SYSINFO written\n");
-    }
+    printf("SYSINFO written: BNCH SCH/F + SB_BKN2 + NDB + MCCH (HN=%u)\n",
+           info.hyperframe);
 
     /* NULL PDU static pattern (Plan Stufe 4) */
     if (tetra_write_null_pdu(&hal, info.colour_code,
@@ -1509,6 +1543,63 @@ int main(int argc, char *argv[])
     tetra_print_status(&hal);
     printf("Boot-init complete — RTL drives DL carrier autonomously.\n");
 
+    if (!daemon_mode) {
+        tetra_hal_close(&hal);
+        return 0;
+    }
+
+    /* ================================================================
+     * Daemon loop — advance hyperframe on-air.
+     *
+     * One TETRA hyperframe = 60 multiframes × 18 frames × 4 slots ×
+     * (510/36 ms) = 61.2 seconds exactly.  Each wake-up rebuilds every
+     * SYSINFO-bearing register (BNCH SCH/F, SB_BKN2, NDB_BLK1/2,
+     * MCCH_BLK1/2) with info.hyperframe++.
+     *
+     * Uses clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME) so the cadence
+     * is drift-free relative to wall time (though it will slowly drift
+     * vs. the RTL TX TDMA counter, since those run on separate clock
+     * sources — acceptable for HN which is only read at MS attach).
+     * ================================================================ */
+
+    struct sigaction sa = {0};
+    sa.sa_handler = daemon_signal_handler;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGINT,  &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+
+    printf("Entering daemon mode — HN will advance every 61.2 s (PID=%d)\n",
+           (int)getpid());
+
+    struct timespec next;
+    clock_gettime(CLOCK_MONOTONIC, &next);
+
+    while (g_daemon_running) {
+        next.tv_sec  += 61;
+        next.tv_nsec += 200000000L;  /* +200 ms → 61.200 s total */
+        if (next.tv_nsec >= 1000000000L) {
+            next.tv_sec  += 1;
+            next.tv_nsec -= 1000000000L;
+        }
+
+        int rc;
+        do {
+            rc = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &next, NULL);
+        } while (rc == EINTR && g_daemon_running);
+
+        if (!g_daemon_running)
+            break;
+
+        info.hyperframe = (uint16_t)(info.hyperframe + 1);
+        if (tetra_refresh_sysinfo(&hal, &info) != 0) {
+            fprintf(stderr, "daemon: SYSINFO refresh failed — continuing\n");
+            continue;
+        }
+        printf("HN advance: hyperframe = %u (SYSINFO refreshed)\n",
+               info.hyperframe);
+    }
+
+    printf("Daemon exiting on signal — leaving RTL running.\n");
     tetra_hal_close(&hal);
     return 0;
 }
