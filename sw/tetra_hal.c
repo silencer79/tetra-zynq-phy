@@ -1369,7 +1369,7 @@ int main(int argc, char *argv[])
         .neighbour_cell_broadcast = 3,  /* HamTetra cell value */
         .cell_service_level = 0,   /* HamTetra cell value */
         .late_entry_info  = 1,     /* late entry supported */
-        .duplex_spacing   = 1,     /* -7.6 MHz */
+        .duplex_spacing   = 0,     /* 10 MHz (Band 4 / 400 MHz, TS 100 392-15 Table 2) */
         .ms_txpwr_max_cell = 6,
         .rxlevel_access_min = 0,
         .access_parameter = 10,

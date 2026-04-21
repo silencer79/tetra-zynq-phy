@@ -74,14 +74,14 @@ button { padding: 10px 20px; border: none; border-radius: 4px; font-size: 0.9em;
 <div class="grid">
   <label>Duplex Spacing <span>3 bits</span>
     <select name="duplex_spacing">
-      <option value="0">0 = reserved</option>
-      <option value="1" selected>1 = -7.6 MHz</option>
-      <option value="2">2 = reserved</option>
-      <option value="3">3 = -10 MHz</option>
-      <option value="4">4 = +10 MHz</option>
-      <option value="5">5 = reserved</option>
+      <option value="0" selected>0 = 10 MHz</option>
+      <option value="1">1 = 7 MHz</option>
+      <option value="2">2 = simplex (0)</option>
+      <option value="3">3 = 8 MHz</option>
+      <option value="4">4 = 5 MHz</option>
+      <option value="5">5 = 9.5 MHz</option>
       <option value="6">6 = reserved</option>
-      <option value="7">7 = simplex</option>
+      <option value="7">7 = reserved</option>
     </select>
   </label>
   <label>MS TXPwr Max Cell <span>3 bits (0-7)</span>
@@ -97,7 +97,7 @@ button { padding: 10px 20px; border: none; border-radius: 4px; font-size: 0.9em;
     <input name="radio_dl_timeout" type="number" value="5" min="0" max="15">
   </label>
   <label>Optional Field Value <span>20 bits</span>
-    <input name="opt_field" type="number" value="24448" min="0" max="1048575">
+    <input name="opt_field" type="number" value="1011456" min="0" max="1048575">
   </label>
 </div>
 

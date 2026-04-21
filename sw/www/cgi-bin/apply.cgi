@@ -19,12 +19,12 @@ la=${la:-1}
 cc=${cc:-49}
 tx_atten=${tx_atten:--10}
 system_code=${system_code:-2}
-duplex_spacing=${duplex_spacing:-1}
+duplex_spacing=${duplex_spacing:-0}
 ms_txpwr=${ms_txpwr:-6}
 rxlevel_min=${rxlevel_min:-0}
 access_param=${access_param:-10}
 radio_dl_timeout=${radio_dl_timeout:-5}
-opt_field=${opt_field:-24448}
+opt_field=${opt_field:-1011456}
 priority_cell=${priority_cell:-0}
 migration=${migration:-0}
 ncb=${ncb:-3}
@@ -58,12 +58,14 @@ sleep 0.3
 # Set AD9361 TX frequency and attenuation
 echo "$freq" > /sys/bus/iio/devices/iio:device1/out_altvoltage1_TX_LO_frequency 2>/dev/null
 
-# Calculate RX frequency based on duplex spacing
+# Calculate RX frequency based on duplex spacing (TS 100 392-15 Table 2, Band 4)
 case "$duplex_spacing" in
-    1) rx_freq=$(( freq - 7600000 )) ;;
-    3) rx_freq=$(( freq - 10000000 )) ;;
-    4) rx_freq=$(( freq + 10000000 )) ;;
-    7) rx_freq=$freq ;;
+    0) rx_freq=$(( freq - 10000000 )) ;;
+    1) rx_freq=$(( freq - 7000000 )) ;;
+    2) rx_freq=$freq ;;
+    3) rx_freq=$(( freq - 8000000 )) ;;
+    4) rx_freq=$(( freq - 5000000 )) ;;
+    5) rx_freq=$(( freq - 9500000 )) ;;
     *) rx_freq=$(( freq - 10000000 )) ;;
 esac
 echo "$rx_freq" > /sys/bus/iio/devices/iio:device1/out_altvoltage0_RX_LO_frequency 2>/dev/null
@@ -89,6 +91,7 @@ nohup /root/tetra_sysinfo \
     --migr "$migration" \
     --ncb "$ncb" \
     --csl "$csl" \
+    --daemon \
     > /tmp/tetra_sysinfo.log 2>&1 &
 
 sleep 1
