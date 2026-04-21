@@ -1624,6 +1624,7 @@ tetra_aach_encoder u_aach_encoder (
     // burst_mux latches it at slot_pulse N + 2.
     .fn_sys           (tx_fn_next_sys),
     .tn_sys           (tx_tn_next_sys),
+    .mn_low2_sys      (tx_mn_next_sys[1:0]),
     .colour_code_sys  (colour_code_sys_r1),
     .mcc_sys          (cell_cfg_mcc_sys_r1),
     .mnc_sys          (cell_cfg_mnc_sys_r1),

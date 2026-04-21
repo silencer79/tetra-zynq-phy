@@ -45,6 +45,9 @@ module tetra_aach_encoder (
     // the Gold-mimic schedule; it needs AACH=DL/UL-Assign so MS sees
     // "MCCH active, random access permitted" and can register.
     input  wire [1:0]  tn_sys,
+    // Variable: MN%4 (0..3). Used to distinguish F18 TN=0 MN%4=2 (BSCH anchor
+    // slot, AACH=Unalloc/Random) from MN%4∈{0,1,3} (NDB2 slots, AACH=Common/Random).
+    input  wire [1:0]  mn_low2_sys,
 
     // Static config (from AXI registers, already CDC'd to clk_sys)
     input  wire [5:0]  colour_code_sys,
@@ -138,12 +141,17 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         S_IDLE: begin
             if (encode_start_sys) begin
                 // Per-slot AACH info (Gold-mimic, EN 300 392-2 §21.5.2):
+                //   TN=0 FN=18 MN%4=2 → DL=Unalloc(0) UL=Random(1) CC=9
+                //           (info=0x0049) — BSCH anchor slot (Gold delta vs
+                //           other MN%4, per project_aach_three_way_compare.md)
                 //   TN=0  → DL/UL-Assign DL=Common(1) UL=Random(1) CC=9
                 //           (info=0x0249) — NDB2/MCCH slot, MS random access
                 //   FN=18 → DL/UL-Assign DL=Unalloc(0) UL=Random(1) CC=0
                 //           (info=0x040)  — hyperframe sync frame
                 //   else  → CapAlloc f1=0 f2=0 (info=0x3000) — SB slots
-                if (tn_sys == 2'd0)
+                if (tn_sys == 2'd0 && fn_sys == 5'd17 && mn_low2_sys == 2'd2)
+                    info_sys <= 14'h0049;
+                else if (tn_sys == 2'd0)
                     info_sys <= 14'h0249;
                 else if (fn_sys == 5'd17)
                     info_sys <= 14'h040;

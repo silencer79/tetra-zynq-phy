@@ -38,6 +38,7 @@ tetra_aach_encoder u_dut (
     .rst_n_sys        (rst_n_sys),
     .fn_sys           (fn_sys),
     .tn_sys           (tn_sys),
+    .mn_low2_sys      (2'd0),
     .colour_code_sys  (cc_sys),
     .mcc_sys          (mcc_sys),
     .mnc_sys          (mnc_sys),
