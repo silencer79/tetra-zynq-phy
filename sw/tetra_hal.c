@@ -1460,34 +1460,26 @@ int main(int argc, char *argv[])
             tetra_reg_write(&hal, REG_SB_BKN2_0 + i * 4, bkn2_words[i]);
         printf("SB_BKN2: SCH/HD BNCH SYSINFO written (124→216)\n");
 
-        /* NDB + MCCH — SCH/F split (268→432, 2×216 halves) for NDB bursts. */
-        uint8_t si_info[SCHF_INFO_BITS];
-        build_schf_sysinfo(&info, si_info);
-        uint8_t si_type5[SCHF_CODED_BITS];
-        if (tetra_schf_encode(si_info, info.colour_code, 1,
-                              info.mcc, info.mnc, si_type5) != 0) {
-            fprintf(stderr, "NDB SYSINFO encoding failed\n");
-            tetra_hal_close(&hal);
-            return 1;
-        }
-        uint32_t blk1_words[7], blk2_words[7];
-        bits_to_words(&si_type5[0],   216, blk1_words, 7);
-        blk1_words[6] >>= 8;
-        bits_to_words(&si_type5[216], 216, blk2_words, 7);
-        blk2_words[6] >>= 8;
+        /* NDB blocks — Gold cell uses NDB2 (two standalone SCH/HD halves,
+         * K=216 a=101).  Each half carries the same 124-bit BNCH SYSINFO
+         * (scramb_init=0 → cell-identity scrambler).  MS decodes each
+         * half as a standalone SYSINFO broadcast. */
+        uint32_t ndb_words[7];
+        bits_to_words(bnch_type5, BNCH_CODED_BITS, ndb_words, 7);
+        ndb_words[6] >>= 8;
         for (int i = 0; i < 7; i++)
-            tetra_reg_write(&hal, REG_NDB_BLK1_0 + i * 4, blk1_words[i]);
+            tetra_reg_write(&hal, REG_NDB_BLK1_0 + i * 4, ndb_words[i]);
         for (int i = 0; i < 7; i++)
-            tetra_reg_write(&hal, REG_NDB_BLK2_0 + i * 4, blk2_words[i]);
-        printf("NDB filler: SCH/F SYSINFO written (both blocks)\n");
+            tetra_reg_write(&hal, REG_NDB_BLK2_0 + i * 4, ndb_words[i]);
+        printf("NDB filler: SCH/HD BNCH SYSINFO x2 (NDB2 both halves)\n");
 
-        /* MCCH (slot 1) mirrors NDB-SYSINFO — MS expects SYSINFO on MCCH
-         * for cell registration. */
+        /* MCCH (slot 1) — SDB class, blk2 carries SCH/HD SYSINFO (same as
+         * SB_BKN2); blk1 is ignored for SDB burst type. */
         for (int i = 0; i < 7; i++)
-            tetra_reg_write(&hal, REG_MCCH_BLK1_0 + i * 4, blk1_words[i]);
+            tetra_reg_write(&hal, REG_MCCH_BLK1_0 + i * 4, ndb_words[i]);
         for (int i = 0; i < 7; i++)
-            tetra_reg_write(&hal, REG_MCCH_BLK2_0 + i * 4, blk2_words[i]);
-        printf("MCCH: SCH/F SYSINFO written\n");
+            tetra_reg_write(&hal, REG_MCCH_BLK2_0 + i * 4, ndb_words[i]);
+        printf("MCCH: SCH/HD BNCH SYSINFO written\n");
     }
 
     /* NULL PDU static pattern (Plan Stufe 4) */

@@ -315,8 +315,12 @@ def gold_entry(mn, fn, tn):
     if fn == 17:
         return _pack_entry(PCLASS_STATIC_BROADCAST, PIDX_BNCH, BT_SDB,
                            ndb2=0, enable=1, sys_time_inject=0)
+    # TN=0 fn<17 — NDB2 (two standalone SCH/HD halves per burst).
+    # Matches Gold cell behaviour: blk1/blk2 each carry SCH/HD BNCH
+    # SYSINFO (124→216 bit), NTS2 training sequence.  NDB1 (SCH/F full
+    # burst) is not used by real cells on TN=0 traffic slots.
     return _pack_entry(PCLASS_STATIC_BROADCAST, PIDX_NULL0, BT_NDB,
-                       ndb2=0, enable=1, sys_time_inject=0)
+                       ndb2=1, enable=1, sys_time_inject=0)
 
 
 def gen_gold_schedule_blob():
