@@ -316,10 +316,12 @@ def gold_entry(mn, fn, tn):
         return _pack_entry(PCLASS_STATIC_BROADCAST, PIDX_BNCH, BT_SDB,
                            ndb2=0, enable=1, sys_time_inject=0)
     # TN=0 fn<17 — NDB2 (two standalone SCH/HD halves per burst).
-    # Matches Gold cell behaviour: blk1/blk2 each carry SCH/HD BNCH
-    # SYSINFO (124→216 bit), NTS2 training sequence.  NDB1 (SCH/F full
-    # burst) is not used by real cells on TN=0 traffic slots.
-    return _pack_entry(PCLASS_STATIC_BROADCAST, PIDX_NULL0, BT_NDB,
+    # Matches Gold cell bit-exact:
+    #   BKN1 = NULL-PDU (124-bit static 0x0010_8000…, SCH/HD slot=1)
+    #   BKN2 = BNCH-SYSINFO (124-bit, SCH/HD slot=0 cell-identity)
+    # Content-mux class=NULL_PDU idx=0 routes blk1 = null_pdu_bits_sys,
+    # blk2 = ndb_block2_sw_sys (set to BNCH-SYSINFO in tetra_hal.c).
+    return _pack_entry(PCLASS_NULL_PDU, PIDX_NULL0, BT_NDB,
                        ndb2=1, enable=1, sys_time_inject=0)
 
 

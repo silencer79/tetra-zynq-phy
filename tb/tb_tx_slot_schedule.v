@@ -237,11 +237,13 @@ end
 //     fn=17 & mn%4==2   → SDB sys_time_inject=1 (same as TN=1..3)
 //     fn=17 & mn%4!=2   → MCCH: class=BROADCAST idx=1, burst_type=01,
 //                          enable=1, sys_time_inject=0
-//     fn<17             → NDB_SYSINFO: class=BROADCAST idx=0, burst_type=00,
+//     fn<17             → NDB2 NULL-PDU: class=NULL_PDU idx=0, burst_type=00,
 //                          ndb2=1, enable=1, sys_time_inject=0
-//                         (Gold cell uses NDB2 — two standalone SCH/HD
-//                          halves.  Each half carries SCH/HD BNCH SYSINFO
-//                          K=216 a=101.  NTS2 training sequence.)
+//                         (Gold cell bit-exact:
+//                           BKN1 = NULL-PDU 0x0010_8000… SCH/HD slot=1
+//                           BKN2 = BNCH-SYSINFO SCH/HD slot=0
+//                          Content-mux routes blk1=null_pdu_bits_sys,
+//                          blk2=ndb_block2_sw_sys.)
 // ---------------------------------------------------------------------------
 function [15:0] gold_entry;
     input [1:0] mn;   // mn%4 bucket 0..3
@@ -279,7 +281,7 @@ function [15:0] gold_entry;
                 cls  = 4'd0; idx  = 6'd1; bt = 2'b01;
                 ndb2 = 1'b0; en = 1'b1; sti = 1'b0;
             end else begin
-                cls  = 4'd0; idx  = 6'd0; bt = 2'b00;
+                cls  = 4'd1; idx  = 6'd0; bt = 2'b00;
                 ndb2 = 1'b1; en = 1'b1; sti = 1'b0;
             end
         end

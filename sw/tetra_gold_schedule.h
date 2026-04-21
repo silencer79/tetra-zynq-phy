@@ -9,147 +9,147 @@
 #define TETRA_GOLD_SCHEDULE_BYTES 576u
 
 static const uint32_t tetra_gold_schedule[144] = {
-    0x00d6000c,  /* word   0: entries   0,  1 */
+    0x00d6100c,  /* word   0: entries   0,  1 */
     0x00d600d6,  /* word   1: entries   2,  3 */
-    0x00d6000c,  /* word   2: entries   4,  5 */
+    0x00d6100c,  /* word   2: entries   4,  5 */
     0x00d600d6,  /* word   3: entries   6,  7 */
-    0x00d6000c,  /* word   4: entries   8,  9 */
+    0x00d6100c,  /* word   4: entries   8,  9 */
     0x00d600d6,  /* word   5: entries  10, 11 */
-    0x00d6000c,  /* word   6: entries  12, 13 */
+    0x00d6100c,  /* word   6: entries  12, 13 */
     0x00d600d6,  /* word   7: entries  14, 15 */
-    0x00d6000c,  /* word   8: entries  16, 17 */
+    0x00d6100c,  /* word   8: entries  16, 17 */
     0x00d600d6,  /* word   9: entries  18, 19 */
-    0x00d6000c,  /* word  10: entries  20, 21 */
+    0x00d6100c,  /* word  10: entries  20, 21 */
     0x00d600d6,  /* word  11: entries  22, 23 */
-    0x00d6000c,  /* word  12: entries  24, 25 */
+    0x00d6100c,  /* word  12: entries  24, 25 */
     0x00d600d6,  /* word  13: entries  26, 27 */
-    0x00d6000c,  /* word  14: entries  28, 29 */
+    0x00d6100c,  /* word  14: entries  28, 29 */
     0x00d600d6,  /* word  15: entries  30, 31 */
-    0x00d6000c,  /* word  16: entries  32, 33 */
+    0x00d6100c,  /* word  16: entries  32, 33 */
     0x00d600d6,  /* word  17: entries  34, 35 */
-    0x00d6000c,  /* word  18: entries  36, 37 */
+    0x00d6100c,  /* word  18: entries  36, 37 */
     0x00d600d6,  /* word  19: entries  38, 39 */
-    0x00d6000c,  /* word  20: entries  40, 41 */
+    0x00d6100c,  /* word  20: entries  40, 41 */
     0x00d600d6,  /* word  21: entries  42, 43 */
-    0x00d6000c,  /* word  22: entries  44, 45 */
+    0x00d6100c,  /* word  22: entries  44, 45 */
     0x00d600d6,  /* word  23: entries  46, 47 */
-    0x00d6000c,  /* word  24: entries  48, 49 */
+    0x00d6100c,  /* word  24: entries  48, 49 */
     0x00d600d6,  /* word  25: entries  50, 51 */
-    0x00d6000c,  /* word  26: entries  52, 53 */
+    0x00d6100c,  /* word  26: entries  52, 53 */
     0x00d600d6,  /* word  27: entries  54, 55 */
-    0x00d6000c,  /* word  28: entries  56, 57 */
+    0x00d6100c,  /* word  28: entries  56, 57 */
     0x00d600d6,  /* word  29: entries  58, 59 */
-    0x00d6000c,  /* word  30: entries  60, 61 */
+    0x00d6100c,  /* word  30: entries  60, 61 */
     0x00d600d6,  /* word  31: entries  62, 63 */
-    0x00d6000c,  /* word  32: entries  64, 65 */
+    0x00d6100c,  /* word  32: entries  64, 65 */
     0x00d600d6,  /* word  33: entries  66, 67 */
     0x00d60054,  /* word  34: entries  68, 69 */
     0x00d600d6,  /* word  35: entries  70, 71 */
-    0x00d6000c,  /* word  36: entries  72, 73 */
+    0x00d6100c,  /* word  36: entries  72, 73 */
     0x00d600d6,  /* word  37: entries  74, 75 */
-    0x00d6000c,  /* word  38: entries  76, 77 */
+    0x00d6100c,  /* word  38: entries  76, 77 */
     0x00d600d6,  /* word  39: entries  78, 79 */
-    0x00d6000c,  /* word  40: entries  80, 81 */
+    0x00d6100c,  /* word  40: entries  80, 81 */
     0x00d600d6,  /* word  41: entries  82, 83 */
-    0x00d6000c,  /* word  42: entries  84, 85 */
+    0x00d6100c,  /* word  42: entries  84, 85 */
     0x00d600d6,  /* word  43: entries  86, 87 */
-    0x00d6000c,  /* word  44: entries  88, 89 */
+    0x00d6100c,  /* word  44: entries  88, 89 */
     0x00d600d6,  /* word  45: entries  90, 91 */
-    0x00d6000c,  /* word  46: entries  92, 93 */
+    0x00d6100c,  /* word  46: entries  92, 93 */
     0x00d600d6,  /* word  47: entries  94, 95 */
-    0x00d6000c,  /* word  48: entries  96, 97 */
+    0x00d6100c,  /* word  48: entries  96, 97 */
     0x00d600d6,  /* word  49: entries  98, 99 */
-    0x00d6000c,  /* word  50: entries 100,101 */
+    0x00d6100c,  /* word  50: entries 100,101 */
     0x00d600d6,  /* word  51: entries 102,103 */
-    0x00d6000c,  /* word  52: entries 104,105 */
+    0x00d6100c,  /* word  52: entries 104,105 */
     0x00d600d6,  /* word  53: entries 106,107 */
-    0x00d6000c,  /* word  54: entries 108,109 */
+    0x00d6100c,  /* word  54: entries 108,109 */
     0x00d600d6,  /* word  55: entries 110,111 */
-    0x00d6000c,  /* word  56: entries 112,113 */
+    0x00d6100c,  /* word  56: entries 112,113 */
     0x00d600d6,  /* word  57: entries 114,115 */
-    0x00d6000c,  /* word  58: entries 116,117 */
+    0x00d6100c,  /* word  58: entries 116,117 */
     0x00d600d6,  /* word  59: entries 118,119 */
-    0x00d6000c,  /* word  60: entries 120,121 */
+    0x00d6100c,  /* word  60: entries 120,121 */
     0x00d600d6,  /* word  61: entries 122,123 */
-    0x00d6000c,  /* word  62: entries 124,125 */
+    0x00d6100c,  /* word  62: entries 124,125 */
     0x00d600d6,  /* word  63: entries 126,127 */
-    0x00d6000c,  /* word  64: entries 128,129 */
+    0x00d6100c,  /* word  64: entries 128,129 */
     0x00d600d6,  /* word  65: entries 130,131 */
-    0x00d6000c,  /* word  66: entries 132,133 */
+    0x00d6100c,  /* word  66: entries 132,133 */
     0x00d600d6,  /* word  67: entries 134,135 */
-    0x00d6000c,  /* word  68: entries 136,137 */
+    0x00d6100c,  /* word  68: entries 136,137 */
     0x00d600d6,  /* word  69: entries 138,139 */
     0x00d60054,  /* word  70: entries 140,141 */
     0x00d600d6,  /* word  71: entries 142,143 */
-    0x00d6000c,  /* word  72: entries 144,145 */
+    0x00d6100c,  /* word  72: entries 144,145 */
     0x00d600d6,  /* word  73: entries 146,147 */
-    0x00d6000c,  /* word  74: entries 148,149 */
+    0x00d6100c,  /* word  74: entries 148,149 */
     0x00d600d6,  /* word  75: entries 150,151 */
-    0x00d6000c,  /* word  76: entries 152,153 */
+    0x00d6100c,  /* word  76: entries 152,153 */
     0x00d600d6,  /* word  77: entries 154,155 */
-    0x00d6000c,  /* word  78: entries 156,157 */
+    0x00d6100c,  /* word  78: entries 156,157 */
     0x00d600d6,  /* word  79: entries 158,159 */
-    0x00d6000c,  /* word  80: entries 160,161 */
+    0x00d6100c,  /* word  80: entries 160,161 */
     0x00d600d6,  /* word  81: entries 162,163 */
-    0x00d6000c,  /* word  82: entries 164,165 */
+    0x00d6100c,  /* word  82: entries 164,165 */
     0x00d600d6,  /* word  83: entries 166,167 */
-    0x00d6000c,  /* word  84: entries 168,169 */
+    0x00d6100c,  /* word  84: entries 168,169 */
     0x00d600d6,  /* word  85: entries 170,171 */
-    0x00d6000c,  /* word  86: entries 172,173 */
+    0x00d6100c,  /* word  86: entries 172,173 */
     0x00d600d6,  /* word  87: entries 174,175 */
-    0x00d6000c,  /* word  88: entries 176,177 */
+    0x00d6100c,  /* word  88: entries 176,177 */
     0x00d600d6,  /* word  89: entries 178,179 */
-    0x00d6000c,  /* word  90: entries 180,181 */
+    0x00d6100c,  /* word  90: entries 180,181 */
     0x00d600d6,  /* word  91: entries 182,183 */
-    0x00d6000c,  /* word  92: entries 184,185 */
+    0x00d6100c,  /* word  92: entries 184,185 */
     0x00d600d6,  /* word  93: entries 186,187 */
-    0x00d6000c,  /* word  94: entries 188,189 */
+    0x00d6100c,  /* word  94: entries 188,189 */
     0x00d600d6,  /* word  95: entries 190,191 */
-    0x00d6000c,  /* word  96: entries 192,193 */
+    0x00d6100c,  /* word  96: entries 192,193 */
     0x00d600d6,  /* word  97: entries 194,195 */
-    0x00d6000c,  /* word  98: entries 196,197 */
+    0x00d6100c,  /* word  98: entries 196,197 */
     0x00d600d6,  /* word  99: entries 198,199 */
-    0x00d6000c,  /* word 100: entries 200,201 */
+    0x00d6100c,  /* word 100: entries 200,201 */
     0x00d600d6,  /* word 101: entries 202,203 */
-    0x00d6000c,  /* word 102: entries 204,205 */
+    0x00d6100c,  /* word 102: entries 204,205 */
     0x00d600d6,  /* word 103: entries 206,207 */
-    0x00d6000c,  /* word 104: entries 208,209 */
+    0x00d6100c,  /* word 104: entries 208,209 */
     0x00d600d6,  /* word 105: entries 210,211 */
     0x00d600d6,  /* word 106: entries 212,213 */
     0x00d600d6,  /* word 107: entries 214,215 */
-    0x00d6000c,  /* word 108: entries 216,217 */
+    0x00d6100c,  /* word 108: entries 216,217 */
     0x00d600d6,  /* word 109: entries 218,219 */
-    0x00d6000c,  /* word 110: entries 220,221 */
+    0x00d6100c,  /* word 110: entries 220,221 */
     0x00d600d6,  /* word 111: entries 222,223 */
-    0x00d6000c,  /* word 112: entries 224,225 */
+    0x00d6100c,  /* word 112: entries 224,225 */
     0x00d600d6,  /* word 113: entries 226,227 */
-    0x00d6000c,  /* word 114: entries 228,229 */
+    0x00d6100c,  /* word 114: entries 228,229 */
     0x00d600d6,  /* word 115: entries 230,231 */
-    0x00d6000c,  /* word 116: entries 232,233 */
+    0x00d6100c,  /* word 116: entries 232,233 */
     0x00d600d6,  /* word 117: entries 234,235 */
-    0x00d6000c,  /* word 118: entries 236,237 */
+    0x00d6100c,  /* word 118: entries 236,237 */
     0x00d600d6,  /* word 119: entries 238,239 */
-    0x00d6000c,  /* word 120: entries 240,241 */
+    0x00d6100c,  /* word 120: entries 240,241 */
     0x00d600d6,  /* word 121: entries 242,243 */
-    0x00d6000c,  /* word 122: entries 244,245 */
+    0x00d6100c,  /* word 122: entries 244,245 */
     0x00d600d6,  /* word 123: entries 246,247 */
-    0x00d6000c,  /* word 124: entries 248,249 */
+    0x00d6100c,  /* word 124: entries 248,249 */
     0x00d600d6,  /* word 125: entries 250,251 */
-    0x00d6000c,  /* word 126: entries 252,253 */
+    0x00d6100c,  /* word 126: entries 252,253 */
     0x00d600d6,  /* word 127: entries 254,255 */
-    0x00d6000c,  /* word 128: entries 256,257 */
+    0x00d6100c,  /* word 128: entries 256,257 */
     0x00d600d6,  /* word 129: entries 258,259 */
-    0x00d6000c,  /* word 130: entries 260,261 */
+    0x00d6100c,  /* word 130: entries 260,261 */
     0x00d600d6,  /* word 131: entries 262,263 */
-    0x00d6000c,  /* word 132: entries 264,265 */
+    0x00d6100c,  /* word 132: entries 264,265 */
     0x00d600d6,  /* word 133: entries 266,267 */
-    0x00d6000c,  /* word 134: entries 268,269 */
+    0x00d6100c,  /* word 134: entries 268,269 */
     0x00d600d6,  /* word 135: entries 270,271 */
-    0x00d6000c,  /* word 136: entries 272,273 */
+    0x00d6100c,  /* word 136: entries 272,273 */
     0x00d600d6,  /* word 137: entries 274,275 */
-    0x00d6000c,  /* word 138: entries 276,277 */
+    0x00d6100c,  /* word 138: entries 276,277 */
     0x00d600d6,  /* word 139: entries 278,279 */
-    0x00d6000c,  /* word 140: entries 280,281 */
+    0x00d6100c,  /* word 140: entries 280,281 */
     0x00d600d6,  /* word 141: entries 282,283 */
     0x00d60054,  /* word 142: entries 284,285 */
     0x00d600d6  /* word 143: entries 286,287 */

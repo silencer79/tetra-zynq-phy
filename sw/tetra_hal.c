@@ -1168,9 +1168,10 @@ int tetra_write_null_pdu(tetra_hal_t *hal, uint8_t colour_code,
     info[11] = 1;
     info[16] = 1;
 
-    /* SCH/HD encode with slot_num=1 (MCCH scrambler scope — matches Gold). */
+    /* SCH/HD encode with cell-identity scrambler (scramb_init=0 → MCC|MNC|CC|3).
+     * Matches Gold: BKN1 decoded cleanly with the same scrambler as BKN2. */
     uint8_t type5[BKN2_CODED_BITS];
-    if (tetra_bnch_encode(info, colour_code, 1, mcc, mnc, type5) != 0) {
+    if (tetra_bnch_encode(info, colour_code, 0, mcc, mnc, type5) != 0) {
         fprintf(stderr, "tetra_hal: NULL-PDU SCH/HD encoding failed\n");
         return -1;
     }
@@ -1186,7 +1187,7 @@ int tetra_write_null_pdu(tetra_hal_t *hal, uint8_t colour_code,
     tetra_reg_write(hal, REG_NULL_PDU_4, words[4]);
     tetra_reg_write(hal, REG_NULL_PDU_5, words[5]);
     tetra_reg_write(hal, REG_NULL_PDU_6, words[6]);
-    printf("NULL_PDU: 124-bit pattern → 216 type-5 bits (CC=%u MCC=%u MNC=%u, slot=1)\n",
+    printf("NULL_PDU: 124-bit pattern → 216 type-5 bits (CC=%u MCC=%u MNC=%u, cell-identity scrambler)\n",
            colour_code, mcc, mnc);
     return 0;
 }
