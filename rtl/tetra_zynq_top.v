@@ -1581,6 +1581,7 @@ tetra_aach_encoder u_aach_encoder (
     .clk_sys          (clk_sys),
     .rst_n_sys        (rst_n_sys),
     .fn_sys           (tx_tdma_state_fn_sys),
+    .tn_sys           (tx_tdma_state_tn_sys),
     .colour_code_sys  (colour_code_sys_r1),
     .mcc_sys          (cell_cfg_mcc_sys_r1),
     .mnc_sys          (cell_cfg_mnc_sys_r1),

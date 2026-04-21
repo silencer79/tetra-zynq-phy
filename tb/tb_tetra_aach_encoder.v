@@ -25,6 +25,7 @@ module tb_tetra_aach_encoder;
 reg         clk_sys;
 reg         rst_n_sys;
 reg  [4:0]  fn_sys;
+reg  [1:0]  tn_sys;
 reg  [5:0]  cc_sys;
 reg  [9:0]  mcc_sys;
 reg  [13:0] mnc_sys;
@@ -36,6 +37,7 @@ tetra_aach_encoder u_dut (
     .clk_sys          (clk_sys),
     .rst_n_sys        (rst_n_sys),
     .fn_sys           (fn_sys),
+    .tn_sys           (tn_sys),
     .colour_code_sys  (cc_sys),
     .mcc_sys          (mcc_sys),
     .mnc_sys          (mnc_sys),
@@ -68,12 +70,14 @@ endtask
 
 task run_encode;
     input [4:0]  fn_val;
+    input [1:0]  tn_val;
     input [5:0]  cc_val;
     input [9:0]  mcc_val;
     input [13:0] mnc_val;
     begin
         @(posedge clk_sys);
         fn_sys           <= fn_val;
+        tn_sys           <= tn_val;
         cc_sys           <= cc_val;
         mcc_sys          <= mcc_val;
         mnc_sys          <= mnc_val;
@@ -94,6 +98,7 @@ initial begin
     clk_sys          = 1'b0;
     rst_n_sys        = 1'b0;
     fn_sys           = 5'd0;
+    tn_sys           = 2'd0;
     cc_sys           = 6'd0;
     mcc_sys          = 10'd0;
     mnc_sys          = 14'd0;
@@ -106,21 +111,33 @@ initial begin
     rst_n_sys = 1'b1;
     repeat (3) @(posedge clk_sys);
 
-    $display("=== TC1 F1  cc=9  mcc=901  mnc=9998  expect 0x09857ABF ===");
-    run_encode(5'd0, 6'd9, 10'd901, 14'd9998);
+    // TN=2 (SB slot) reproduces the legacy CapAlloc/FN18 info words
+    // that gen_aach_reference.py originally computed.
+    $display("=== TC1 F1  TN=2 cc=9  mcc=901  mnc=9998  expect 0x09857ABF ===");
+    run_encode(5'd0, 2'd2, 6'd9, 10'd901, 14'd9998);
     check("TC1", 30'h09857ABF);
 
-    $display("=== TC2 F18 cc=9  mcc=901  mnc=9998  expect 0x39C533E0 ===");
-    run_encode(5'd17, 6'd9, 10'd901, 14'd9998);
+    $display("=== TC2 F18 TN=2 cc=9  mcc=901  mnc=9998  expect 0x39C533E0 ===");
+    run_encode(5'd17, 2'd2, 6'd9, 10'd901, 14'd9998);
     check("TC2", 30'h39C533E0);
 
-    $display("=== TC3 F1  cc=36 mcc=262  mnc=106   expect 0x3781E09B ===");
-    run_encode(5'd0, 6'd36, 10'd262, 14'd106);
+    $display("=== TC3 F1  TN=2 cc=36 mcc=262  mnc=106   expect 0x3781E09B ===");
+    run_encode(5'd0, 2'd2, 6'd36, 10'd262, 14'd106);
     check("TC3", 30'h3781E09B);
 
-    $display("=== TC4 F18 cc=36 mcc=262  mnc=106   expect 0x07C1A9C4 ===");
-    run_encode(5'd17, 6'd36, 10'd262, 14'd106);
+    $display("=== TC4 F18 TN=2 cc=36 mcc=262  mnc=106   expect 0x07C1A9C4 ===");
+    run_encode(5'd17, 2'd2, 6'd36, 10'd262, 14'd106);
     check("TC4", 30'h07C1A9C4);
+
+    // TN=0: DL/UL-Assign DL=Common(1) UL=Random(1) CC=9 → info=0x0249
+    // (MCCH/NDB2 slot — MS random access permitted)
+    $display("=== TC5 F1  TN=0 cc=9  mcc=901  mnc=9998  expect 0x3BCC8E90 ===");
+    run_encode(5'd0, 2'd0, 6'd9, 10'd901, 14'd9998);
+    check("TC5", 30'h3BCC8E90);
+
+    $display("=== TC6 F1  TN=0 cc=36 mcc=262  mnc=106   expect 0x05C814B4 ===");
+    run_encode(5'd0, 2'd0, 6'd36, 10'd262, 14'd106);
+    check("TC6", 30'h05C814B4);
 
     $display("=============================================");
     if (fail_cnt == 0) begin

@@ -41,6 +41,10 @@ module tetra_aach_encoder (
 
     // Variable: FN (0-based, 0..17). FN_ETSI=18 is fn_sys == 5'd17.
     input  wire [4:0]  fn_sys,
+    // Variable: TN (0-based, 0..3).  TN=0 is the NDB2 NULL-PDU slot in
+    // the Gold-mimic schedule; it needs AACH=DL/UL-Assign so MS sees
+    // "MCCH active, random access permitted" and can register.
+    input  wire [1:0]  tn_sys,
 
     // Static config (from AXI registers, already CDC'd to clk_sys)
     input  wire [5:0]  colour_code_sys,
@@ -133,8 +137,18 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         // -----------------------------------------------------------------
         S_IDLE: begin
             if (encode_start_sys) begin
-                // Snapshot info word based on FN role
-                info_sys <= (fn_sys == 5'd17) ? 14'h040 : 14'h3000;
+                // Per-slot AACH info (Gold-mimic, EN 300 392-2 §21.5.2):
+                //   TN=0  → DL/UL-Assign DL=Common(1) UL=Random(1) CC=9
+                //           (info=0x0249) — NDB2/MCCH slot, MS random access
+                //   FN=18 → DL/UL-Assign DL=Unalloc(0) UL=Random(1) CC=0
+                //           (info=0x040)  — hyperframe sync frame
+                //   else  → CapAlloc f1=0 f2=0 (info=0x3000) — SB slots
+                if (tn_sys == 2'd0)
+                    info_sys <= 14'h0249;
+                else if (fn_sys == 5'd17)
+                    info_sys <= 14'h040;
+                else
+                    info_sys <= 14'h3000;
                 // Init LFSR; handle degenerate lfsr=0 case (never in practice)
                 lfsr_sys     <= (lfsr_init_w == 32'h0) ? 32'hFFFFFFFF
                                                        : lfsr_init_w;
