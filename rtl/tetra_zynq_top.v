@@ -1527,13 +1527,40 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
     else            colour_code_sys_r1 <= colour_code_sys_r0;
 end
 
-// Dynamic field shaping — the sb1_encoder takes 1-based FN/MN (1..18,
-// 1..60), but the timebase emits 0-based (0..17, 0..59).  Simple +1
-// with the natural wrap:
-//   fn_sys = 0..17  →  fn_sys + 1 = 1..18   (fits in 5 bits, no overflow)
-//   mn_sys = 0..59  →  mn_sys + 1 = 1..60   (fits in 6 bits, no overflow)
-wire [4:0] sb1_frame_num_sys      = tx_tdma_state_fn_sys + 5'd1;
-wire [5:0] sb1_multiframe_num_sys = tx_tdma_state_mn_sys + 6'd1;
+// Lookahead tuple (next-slot tn, fn, mn).  The sb1/aach encoders are
+// started on slot_pulse_sys of slot N but their outputs are only fully
+// settled ~142 clk_sys cycles later.  burst_mux latches the payload
+// registers on slot_pulse+2, so a same-slot start would feed burst_mux
+// with stale data from the previous encoding — the on-air SB1.TimeSlot
+// field would lag the actual air slot by one TN (observed 2026-04-21
+// as -1 TN shift vs Gold).
+//
+// Fix: encode the NEXT slot's PDU during the current slot.  At slot
+// pulse N we kick off encoding for slot N+1; by slot pulse N+1 the
+// encoder has been stable for ~5414 cycles and burst_mux picks up the
+// correct TimeSlot=N+1 payload.
+//
+// Wrap rules (0-based counters):
+//   tn = 3              → tn_next = 0, advance fn
+//   fn = 17 & tn = 3    → fn_next = 0, advance mn[5:0] (full 6-bit, not mn[1:0])
+//   mn = 59 & fn = 17 & tn = 3 → mn_next = 0
+wire        tx_tn_wrap_sys  = (tx_tdma_state_tn_sys == 2'd3);
+wire        tx_fn_wrap_sys  = tx_tn_wrap_sys && (tx_tdma_state_fn_sys == 5'd17);
+wire        tx_mn_wrap_sys  = tx_fn_wrap_sys && (tx_tdma_state_mn_sys == 6'd59);
+
+wire [1:0]  tx_tn_next_sys  = tx_tn_wrap_sys ? 2'd0 : (tx_tdma_state_tn_sys + 2'd1);
+wire [4:0]  tx_fn_next_sys  = tx_tn_wrap_sys
+                              ? (tx_fn_wrap_sys ? 5'd0 : (tx_tdma_state_fn_sys + 5'd1))
+                              :  tx_tdma_state_fn_sys;
+wire [5:0]  tx_mn_next_sys  = tx_fn_wrap_sys
+                              ? (tx_mn_wrap_sys ? 6'd0 : (tx_tdma_state_mn_sys + 6'd1))
+                              :  tx_tdma_state_mn_sys;
+
+// sb1_encoder takes 1-based FN/MN (1..18, 1..60) while the timebase is
+// 0-based.  Compute from the lookahead tuple so the encoded PDU names
+// the slot that will actually carry it.
+wire [4:0] sb1_frame_num_sys      = tx_fn_next_sys + 5'd1;
+wire [5:0] sb1_multiframe_num_sys = tx_mn_next_sys + 6'd1;
 
 // Encoder output wires — declared earlier as forward references (Stufe 4)
 
@@ -1552,11 +1579,10 @@ tetra_sb1_encoder u_sb1_encoder (
     .cfg_neighbour_cell_broadcast (cell_cfg_neigh_cell_bc_sys_r1),
     .cfg_cell_service_level       (cell_cfg_cell_service_level_sys_r1),
     .cfg_late_entry_info          (cell_cfg_late_entry_support_sys_r1),
-    // Trigger — start of new slot.  Encoder finishes in 142 clk_sys
-    // cycles; well within the ~5556-cycle slot window.
+    // Trigger — slot_pulse of CURRENT slot starts encoding for NEXT slot
     .encode_start_sys             (tx_tdma_state_slot_pulse_sys),
-    // Dynamic fields from timebase
-    .sdb_slot_sys                 (tx_tdma_state_tn_sys),
+    // Dynamic fields — lookahead to the slot that will transmit this PDU
+    .sdb_slot_sys                 (tx_tn_next_sys),
     .frame_num_sys                (sb1_frame_num_sys),
     .multiframe_num_sys           (sb1_multiframe_num_sys),
     // Outputs
@@ -1593,8 +1619,11 @@ end
 tetra_aach_encoder u_aach_encoder (
     .clk_sys          (clk_sys),
     .rst_n_sys        (rst_n_sys),
-    .fn_sys           (tx_tdma_state_fn_sys),
-    .tn_sys           (tx_tdma_state_tn_sys),
+    // Lookahead FN/TN — same reason as sb1_encoder (see comment above
+    // u_sb1_encoder).  AACH payload for slot N must be ready before
+    // burst_mux latches it at slot_pulse N + 2.
+    .fn_sys           (tx_fn_next_sys),
+    .tn_sys           (tx_tn_next_sys),
     .colour_code_sys  (colour_code_sys_r1),
     .mcc_sys          (cell_cfg_mcc_sys_r1),
     .mnc_sys          (cell_cfg_mnc_sys_r1),
