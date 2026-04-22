@@ -57,6 +57,10 @@ module tetra_ul_viterbi_r14 #(
 
     localparam K    = 5;
     localparam TAIL = K - 1;
+    localparam [SOFT_WIDTH-1:0] SOFT_MAX = {SOFT_WIDTH{1'b1}};   // e.g. 3'd7 / 4'd15
+    localparam integer          BM_BITS  = SOFT_WIDTH + 2;       // 4·SOFT_MAX fits
+    localparam [BM_BITS-1:0]    BM_MAX   = {BM_BITS{1'b0}} | (4 * SOFT_MAX);
+    localparam integer          BM_PAD_HI = 16 - BM_BITS;        // to pad into 17-bit cost
 
     localparam [2:0] S_IDLE      = 3'd0;
     localparam [2:0] S_ACS       = 3'd1;
@@ -133,15 +137,15 @@ module tetra_ul_viterbi_r14 #(
         localparam G3P0 = ((s >> 0) ^ (s >> 1) ^ (s >> 2)) & 1;     // s[0]^s[1]^s[2]
         localparam G4P0 = ((s >> 0) ^ (s >> 1) ^ (s >> 3)) & 1;     // s[0]^s[1]^s[3]
 
-        wire [4:0] bm0_w =
-            ({2'b0, G1P0[0] ? (3'd7 - soft_bit_0) : soft_bit_0}) +
-            ({2'b0, G2P0[0] ? (3'd7 - soft_bit_1) : soft_bit_1}) +
-            ({2'b0, G3P0[0] ? (3'd7 - soft_bit_2) : soft_bit_2}) +
-            ({2'b0, G4P0[0] ? (3'd7 - soft_bit_3) : soft_bit_3});
-        wire [4:0] bm1_w = 5'd28 - bm0_w;
+        wire [BM_BITS-1:0] bm0_w =
+            ({{2{1'b0}}, G1P0[0] ? (SOFT_MAX - soft_bit_0) : soft_bit_0}) +
+            ({{2{1'b0}}, G2P0[0] ? (SOFT_MAX - soft_bit_1) : soft_bit_1}) +
+            ({{2{1'b0}}, G3P0[0] ? (SOFT_MAX - soft_bit_2) : soft_bit_2}) +
+            ({{2{1'b0}}, G4P0[0] ? (SOFT_MAX - soft_bit_3) : soft_bit_3});
+        wire [BM_BITS-1:0] bm1_w = BM_MAX - bm0_w;
 
-        wire [16:0] cost0_w = {1'b0, pm_flat_sys[P0*16 +: 16]} + {12'b0, bm0_w};
-        wire [16:0] cost1_w = {1'b0, pm_flat_sys[P1*16 +: 16]} + {12'b0, bm1_w};
+        wire [16:0] cost0_w = {1'b0, pm_flat_sys[P0*16 +: 16]} + {{BM_PAD_HI{1'b0}}, bm0_w};
+        wire [16:0] cost1_w = {1'b0, pm_flat_sys[P1*16 +: 16]} + {{BM_PAD_HI{1'b0}}, bm1_w};
 
         wire        surv_w  = (cost1_w < cost0_w) ? 1'b1 : 1'b0;
         wire [16:0] raw_w   = surv_w ? cost1_w : cost0_w;
@@ -372,13 +376,19 @@ module tetra_ul_viterbi_r14 #(
     //   forward  : new_state = ((old << 1) | input) & 0xF
     //   backward : prev_state = {surv, new_state[3:1]} = (new >> 1) | (surv << 3)
     //   decoded_bit at stage T = new_state[0] at that stage
+    //
+    // Block is terminated with K-1=4 tail bits of 0, so the final state MUST
+    // be state 0. Using argmin(pm) is only correct on a converged (noise-free)
+    // trellis — real-world noise flips the argmin to a non-zero state and the
+    // traceback then walks a wrong survivor path. Always start at state 0.
     // =========================================================================
     reg [3:0] tb_state_sys;
+    wire [3:0] best_state_unused_w = best_state_w;  // kept for VCD visibility
 
     always @(posedge clk_sys or negedge rst_n_sys) begin
         if (!rst_n_sys) tb_state_sys <= 4'd0;
         else if (state_sys == S_TB_INIT)
-            tb_state_sys <= best_state_w;
+            tb_state_sys <= 4'd0;
         else if (state_sys == S_TRACEBACK)
             tb_state_sys <= {tb_surv_bit_w, tb_state_sys[3:1]};
     end

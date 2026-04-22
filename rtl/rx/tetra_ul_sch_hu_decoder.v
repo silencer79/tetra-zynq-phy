@@ -51,7 +51,7 @@
 
 module tetra_ul_sch_hu_decoder #(
     parameter SOFT_IN_WIDTH  = 8,      // signed soft width from demod
-    parameter VIT_SOFT_WIDTH = 3,      // tetra_viterbi_decoder unsigned soft width
+    parameter VIT_SOFT_WIDTH = 5,      // tetra_viterbi_decoder unsigned soft width
     parameter N_TX           = 168,    // transmitted type-2 bits per CB
     parameter DEINT_A        = 13,     // multiplicative interleave constant
     parameter INFO_BITS      = 92,     // info bits (includes 16 CRC, excl tail)
@@ -167,19 +167,25 @@ wire vit_is_kept_w = (mother_pos_lo_w == 3'd0) ||
                      (mother_pos_lo_w == 3'd4);
 
 // -------------------------------------------------------------------------
-// Signed-soft → unsigned 3-bit soft for Viterbi (0=strong 0, 7=strong 1, 4=erasure)
+// Signed-soft → unsigned soft for Viterbi (0=strong 0, MAX=strong 1, CENTER=erasure).
+// diff = CENTER − s_in, clamp [0, MAX].
+// With VIT_SOFT_WIDTH=4: center=8, max=15, |s_in|≥8 saturates → strong decision.
+// Demod outputs in ±20..±27 range (low-SNR WAV) all map to strong, and small
+// values |s_in| < center give graded confidence. 3-bit quant was lossy on real
+// WAV signals; 4-bit matches Python float Viterbi 5/8 baseline.
 // -------------------------------------------------------------------------
+localparam [VIT_SOFT_WIDTH-1:0] VIT_CENTER = {1'b1, {(VIT_SOFT_WIDTH-1){1'b0}}};
+localparam [VIT_SOFT_WIDTH-1:0] VIT_MAX    = {VIT_SOFT_WIDTH{1'b1}};
+
 function [VIT_SOFT_WIDTH-1:0] to_vit_soft;
     input signed [SOFT_IN_WIDTH-1:0] s_in;
-    reg signed [4:0]  top4_ext;
-    reg signed [5:0]  diff_ext;
+    reg signed [SOFT_IN_WIDTH:0]  diff_ext;     // 9-bit signed: CENTER − s_in
     begin
-        top4_ext = {{(5-4){s_in[SOFT_IN_WIDTH-1]}}, s_in[SOFT_IN_WIDTH-1 -: 4]};
-        diff_ext = 6'sd4 - {top4_ext[4], top4_ext};
+        diff_ext = {1'b0, VIT_CENTER} - {s_in[SOFT_IN_WIDTH-1], s_in};
         if (diff_ext < 0)
             to_vit_soft = {VIT_SOFT_WIDTH{1'b0}};
-        else if (diff_ext > 7)
-            to_vit_soft = {VIT_SOFT_WIDTH{1'b1}};
+        else if (diff_ext > VIT_MAX)
+            to_vit_soft = VIT_MAX;
         else
             to_vit_soft = diff_ext[VIT_SOFT_WIDTH-1:0];
     end
