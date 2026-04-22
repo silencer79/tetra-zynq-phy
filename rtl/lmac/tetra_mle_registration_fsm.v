@@ -156,7 +156,10 @@ module tetra_mle_registration_fsm #(
 
     reg [3:0] state;
 
-    always @(posedge clk or negedge rst_n) begin
+    // Synchronous reset — Xilinx DRC (REQP-1839) flags async resets on
+    // registers feeding BRAM control pins (WEBWE, ADDRBWRADDR) as memory-
+    // corruption hazards.  Keep the AST ports async-reset-free.
+    always @(posedge clk) begin
         if (!rst_n) begin
             state             <= S_IDLE;
             lat_addr_type     <= 3'd0;
