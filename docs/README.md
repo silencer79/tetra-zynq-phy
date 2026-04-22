@@ -1,29 +1,39 @@
 # tetra-zynq-phy Documentation
 
-**Project:** TETRA PHY/LMAC FPGA Baseband Engine
+**Project:** Full TETRA Base Station (PHY/LMAC/MAC/MLE/CMCE) on FPGA
 **Target:** LibreSDR (Zynq-7020 + AD9361)
-**Status:** Phase 3 COMPLETE — All 22 RTL modules pass simulation
+**Status:** Phase 5 COMPLETE (UL RA-decode HW-verified) → Phase 6 starting (MAC/MLE/CMCE as RTL FSMs)
 
 ---
 
 ## Quick Links
 
+- **[BS Stack Plan](./plan_tetra_bs_stack.md)** — M1..M4 roadmap with architectural decisions
 - **[Module Status Overview](./module_status.md)** — All modules with simulation results
 - **[Resource Estimates](./resource_estimate.md)** — FPGA utilization tracking
-- **[Architecture Decisions](./architecture.md)** — Critical design choices
 - **[AXI AD9361 Integration](./axi_ad9361_integration.md)** — IP block integration guide
 - **[Deployment Guide](./deployment_guide.md)** — Hardware testing procedures
 
 ---
 
-## Project Status (2026-04-07)
+## Project Status (2026-04-22)
 
-### Phase 3: ✅ COMPLETE
+### Phase 5: ✅ COMPLETE — UL RA-burst decode hardware-verified
 
-**RTL Development:** 22/22 modules implemented
-**Simulation:** 22/22 testbenches PASS
-**Integration:** AXI AD9361 adapter ready
-**Build:** Production build with timing closure
+**RTL Development:** UL burst-capture + demod + SCH/HU Viterbi + MAC-ACCESS parser
+**Simulation:** tb_ul_wav_chain 5/5 CRC-OK (== Python baseline)
+**Hardware:** Live-decode of MTP3550 RA-bursts on LibreSDR (SSI=523, addr_type=2)
+**Timing:** WNS 0.000 ns on clk_fpga_0 (Viterbi saturation-only fix)
+
+### Phase 6: 🚧 STARTING — MAC/MLE/CMCE as RTL FSMs
+
+Architecture decision 2026-04-22: **FPGA-heavy stack**. MAC/MLE/CMCE run as RTL
+finite-state machines in the PL. ARM holds only the subscriber/group database
+and acts as admin/provisioning plane (no real-time path).
+
+See `plan_tetra_bs_stack.md` for the M1–M4 milestone breakdown and the new RTL
+module catalogue (registration FSM, shadow-BRAM, active-session table, CMCE
+group-call FSM, voice-relay FIFO, paging FSM).
 
 ### Module Summary
 
@@ -134,43 +144,25 @@ vivado -mode batch -source scripts/program_fpga.tcl
 
 ---
 
-## Next Steps
+## Next Steps (Phase 6 — MAC/MLE/CMCE in RTL)
 
-### Immediate (Week 1)
+Order per `plan_tetra_bs_stack.md` and `.ralph/fix_plan.md`:
 
-1. **Hardware Integration**
-   - Integrate axi_ad9361 IP in Vivado Block Design
-   - Update timing constraints
-   - Synthesize + implement
+1. **Subscriber-Shadow-BRAM** (`rtl/lmac/tetra_subscriber_shadow.v`) — 256 × 64 bit,
+   AXI-Lite write port, FSM read port (1-cycle lookup).
+2. **DB manager** (`sw/tetra_db_mgr.c`) — ARM-side subscriber/group table,
+   pushes records into shadow-BRAM via AXI-Lite.
+3. **Active-session table** (`rtl/lmac/tetra_active_session_table.v`) — hot-state
+   BRAM (ISSI → slot allocation + state).
+4. **Registration FSM** (`rtl/lmac/tetra_mle_registration_fsm.v`) — UL MAC-ACCESS
+   → shadow-lookup → ACCEPT/REJECT → build D-LOC-UPDATE-ACCEPT → DL slot.
+5. **D-LOCATION-UPDATE encoder** — PDU builder reusing existing channel-coding pipeline.
+6. **MAC-RESOURCE encoder** — for slot allocation PDUs.
+7. **Slot-content mux** (`rtl/tx/tetra_slot_content_mux.v`) — per-slot selection
+   from allocation table (replaces current static filler).
 
-2. **Hardware Testing**
-   - Program LibreSDR board
-   - ILA capture of sync_locked, burst_valid
-   - AD9361 initialization sequence
-
-### Medium-term (Weeks 2–4)
-
-3. **Full-Duplex Operation**
-   - Enable TX + RX simultaneously
-   - Verify timing closure with both paths active
-   - Measure latency MAC ↔ PL
-
-4. **PS Software**
-   - Basic TETRA stack (SYSINFO broadcast)
-   - DMA driver integration
-   - Register polling/IRQ handling
-
-### Long-term (Months 2–3)
-
-5. **Field Testing**
-   - On-air validation with TETRA MS
-   - BER measurement
-   - Range testing
-
-6. **Optimization**
-   - Resource optimization (if needed)
-   - Performance tuning
-   - Power analysis
+**Goal:** MS completes registration without ARM being in the response path.
+Success criterion = MTP3550 transitions to "registered" on hardware test.
 
 ---
 
@@ -197,6 +189,6 @@ vivado -mode batch -source scripts/program_fpga.tcl
 
 ---
 
-**Last Updated:** 2026-04-07
+**Last Updated:** 2026-04-22
 **Maintained by:** Ralph (autonomous FPGA agent)
 **Contact:** Kevin (via `.ralph/chat.md`)

@@ -8,7 +8,17 @@
 
 ## 1. Projektziel
 
-Implementierung der TETRA Physical Layer und Lower MAC als Verilog-Module im PL (Programmable Logic) des Zynq-7020. Die oberen Protokollschichten (Upper MAC, MLE, MM, CMCE, Talkgroup-Management) verbleiben in Software auf dem PS (ARM Cortex-A9), wo sie z.B. als Rust-Portierung der BlueStation-Crates laufen können.
+Implementierung einer **vollständigen TETRA Base Station** im PL (Programmable Logic) des Zynq-7020. Das FPGA übernimmt die gesamte Echtzeit-Protokoll-Arbeit: Physical Layer, Lower MAC, **Upper MAC, MLE, CMCE und Paging als RTL-FSMs**. Aktive Sessions/Gruppen liegen in BRAM (Hot-State).
+
+Das PS (ARM Cortex-A9) spielt eine reine **Management-Rolle**:
+- Subscriber-DB (ISSI → permit, LA, home-cell)
+- Group-DB (GSSI → Memberlist)
+- Admin-UI, Provisioning, Log-Aggregation
+- DB-Shadow-Write über AXI-Lite in ein FPGA-BRAM-Fenster
+
+**Architekturentscheidung 2026-04-22:** Response-Latenz ist damit deterministisch
+innerhalb eines TDMA-Slots (14.17 ms). ARM ist kein Echtzeit-Pfad mehr. Details siehe
+`docs/plan_tetra_bs_stack.md`.
 
 **Langfristige Vision:** Dual-Protokoll-Baseband-Engine (DMR Tier II + TETRA V+D) mit umschaltbarem Modulations-/Demodulationsmodus über AXI-Lite Register.
 
@@ -519,11 +529,18 @@ Basisadresse: 0x43C0_0000 (tetra_axi_lite_regs.v)
 8. `tetra_tx_nco.v` — TX NCO/Mixer (LO-Offset gegen DC/LO-Leakage)
 9. **Testbench:** Loopback TX→RX, Vergleich mit BlueStation-Referenzsignal
 
-### Phase 4: Integration & Full-Duplex (2–3 Wochen)
+### Phase 4: Integration & Full-Duplex (2–3 Wochen) — ✅ abgeschlossen
 1. Full-Duplex Betrieb (gleichzeitig TX + RX auf getrennten Frequenzen)
-2. PS Software: Minimaler TETRA-Stack (SYSINFO Broadcast, Registration)
-3. Verbindungstest mit TETRA MS (z.B. Motorola MTP3250)
-4. Performance-Optimierung (Ressourcenverbrauch, Timing Closure)
+2. PS Software: Minimal-Stack (SYSINFO Broadcast, Channel Coding) + Diagnose-Tools
+3. UL-RA-Burst-Kette komplett in RTL (hardware-verifiziert mit MTP3550, 2026-04-22)
+4. Performance-Optimierung (Viterbi-Timing-Fix, WNS 0.000 ns auf clk_fpga_0)
+
+### Phase 5: MAC/MLE/CMCE als RTL-FSMs (ab 2026-04-22, 12–15 Wochen)
+1. Subscriber-Shadow-BRAM + ARM `sw/tetra_db_mgr.c` (DB-Pflege + AXI-Writes)
+2. Registration-FSM: RX_UREG → BRAM-Lookup → D-LOC-UPDATE-ACCEPT → DL-TX
+3. Per-Slot Slot-Content-Mux (Alloc-Tabelle statt Static-Filler)
+4. Group-Call-FSM + Voice-Relay-FIFO (bit-transparent UL-TCH → DL-TCH, kein Codec im Pfad)
+5. Individual-Call-FSM + Paging-FSM
 
 ### Phase 5 (optional): Dual-Protokoll DMR+TETRA
 1. Multiplexer-Layer für umschaltbare Modulation (4FSK ↔ π/4-DQPSK)
@@ -583,10 +600,12 @@ source scripts/vivado_build.tcl
 
 ## 12. Offene Fragen / Entscheidungen
 
-- [ ] **Soft vs. Hard Decision Viterbi:** Soft-Decision bringt ~2 dB Gewinn, kostet aber mehr BRAM. Ressourcen-Check nach Phase 1.
-- [ ] **RRC-Filter Taps:** Wieviele Taps für α=0.35 @ 4× Oversampling? Empfehlung: 33 Taps (16 BRAM18k)
-- [ ] **ACELP Codec:** Im FPGA oder auf ARM? Vermutlich ARM (komplexe Berechnung, geringe Rate).
-- [ ] **TEA-Verschlüsselung:** Nicht im initialen Scope. Kann als separates Modul ergänzt werden (TEA2/TEA3 in FPGA für Echtzeit-Entschlüsselung).
-- [ ] **Amateurfunk-Frequenzen:** 430–440 MHz erfordert Abstimmung mit lokaler Bandplanung. HamTETRA-Empfehlungen für DE beachten.
+- [x] **Soft vs. Hard Decision Viterbi:** Soft-Decision implementiert (5-bit UL, BER/MER 0% in HW).
+- [x] **RRC-Filter Taps:** implementiert, validiert on-air gegen MTP3550.
+- [x] **MAC/MLE/CMCE Platzierung:** 2026-04-22 entschieden → **RTL-FSMs im FPGA**, ARM nur DB + Admin. Siehe `docs/plan_tetra_bs_stack.md`.
+- [x] **DB-Transport ARM ↔ FPGA:** Variante A gewählt — ARM pusht Subscriber/Group-Table per AXI-Lite in Shadow-BRAM (256 Einträge × 64 bit = 1 BRAM36).
+- [ ] **ACELP Codec:** Für Voice-Relay *nicht* benötigt (bit-transparentes Pass-Through UL-TCH → DL-TCH). Erst relevant für BS-as-Talker oder Recording-Gateway — dann erneut prüfen.
+- [ ] **TEA-Verschlüsselung:** Nicht im initialen Scope. Als separates RTL-Modul ergänzbar.
+- [ ] **Amateurfunk-Frequenzen:** 430–440 MHz (aktuell 438.250 MHz DL getestet, HamTETRA-Band).
 
 

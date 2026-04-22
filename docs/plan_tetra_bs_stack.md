@@ -7,6 +7,37 @@
 
 ---
 
+## Architektur-Entscheidung 2026-04-22 — FPGA-heavy Stack
+
+MAC/MLE/CMCE-Logik (Registration, ChannelRequest, Call-Setup/TxGrant/Release,
+Paging) läuft als **RTL-FSMs im FPGA**, nicht auf ARM. Response-Latenz ist damit
+deterministisch innerhalb eines TDMA-Slots (14.17 ms).
+
+**Rollenverteilung:**
+- **PS (ARM)** — reine Management-Rolle:
+  - Subscriber-DB (ISSI → permit-mask, LA, home-cell)
+  - Group-DB (GSSI → Memberlist, service-class)
+  - Admin-UI, Provisioning, Log-Aggregation
+  - Schreibt DB-Einträge über AXI-Lite in einen BRAM-Shadow (Variante A)
+- **FPGA (PL)** — Echtzeit-Protokoll:
+  - RTL-FSMs für Registration / ChannelReq / GroupCall / Paging
+  - Hot-State in BRAM: aktive Sessions (ISSI→Slot-Alloc), aktive Gruppen (GSSI→Slot/Speaker)
+  - Subscriber-/Group-Shadow-BRAM für permit-Lookup (1-Cycle)
+  - PDU-Encoder: MAC-RESOURCE, D-LOCATION-UPDATE-ACCEPT/REJECT, D-CONNECT, D-ALERT
+- **Bestehende RTL-Mailbox** (UL MAC-ACCESS → AXI-Register 0x164…0x178) bleibt als
+  Diagnose-/Logging-Pfad erhalten; der Response-Weg geht *nicht* mehr über ARM.
+
+**DB-Transport — Variante A (gewählt):**
+- ARM pusht komplette Subscriber-Table per AXI-Lite in BRAM-Shadow.
+- Dimension z.B. 256 Einträge × 64 bit = 1 BRAM36 = 16 kbit.
+- Lookup-Latenz 1 Cycle, ausreichend für Feldgerät #1.
+- Upgrade auf AXI-HP-Read zu PS-DRAM (Variante B) bleibt offen für > 1000 MS.
+
+Diese Entscheidung ersetzt die frühere Planung (ehemalige
+`sw/tetra_mac.c`, `sw/tetra_mle.c`, `sw/tetra_cmce.c`) in den Abschnitten M2–M4.
+
+---
+
 ## Stand 2026-04-22 (Meilenstein M1 teilweise erreicht)
 
 - **M1.1 SYSINFO PDU:** ✅ bit-exakt gegen Gold-WAV, unabhängig von tetra-kit dekodiert
@@ -44,11 +75,16 @@ Details: `.ralph/fix_plan.md`.
 - Zynq-7020 Auslastung: ~10% LUT, ~12% FF — viel Headroom
 
 **Fehlt:**
-- Uplink-Empfang (NUB/CUB, NTS-Sync, RACH)
-- Dynamisches TX TDMA Scheduling
-- MAC Layer (L2) auf ARM
-- MLE/CMCE (L3) auf ARM
-- TETRA Voice Codec (ACELP 4.8 kbit/s)
+- Dynamisches TX TDMA Scheduling (per-Slot Content-Mux mit Alloc-Tabellen-Lookup)
+- **MAC Layer (L2) in RTL** — Registration-FSM, ChannelReq-FSM, ResourceAlloc-FSM
+- **MLE/CMCE (L3) in RTL** — Location-Update-FSM, GroupCall-FSM, Paging-FSM
+- DB-Shadow-BRAM + AXI-Lite-Window für Subscriber/Group-DB (Variante A)
+- ARM-Subscriber/Group-DB-Service (nur DB + Admin, kein Echtzeit-Pfad)
+- TETRA Voice Codec (ACELP 4.8 kbit/s) — offen, Platzierung PS vs PL noch zu prüfen
+
+**Fertig (2026-04-22):**
+- Uplink-Empfang (RA-Burst, NTS-Sync, SCH/HU-Decoder, MAC-ACCESS-Parser, AXI-Mailbox)
+  — hardware-verifiziert mit MTP3550
 
 ---
 
@@ -133,49 +169,54 @@ M1.7 ── unabhängig (RF-Setup)
 
 **Ziel:** Voller Round-Trip: MS sendet RACH → BS dekodiert → BS antwortet → MS Location Update Complete.
 
-### M2.1 — SCH/HU Channel Decoding für CUB (RTL + SW, hoch)
-- CUB: 84 type-5 Bits (2×42) statt 216 (NDB)
-- Viterbi/Deinterleaver unterstützen nur 216-Bit-Blöcke
-- **Empfehlung:** Zweite LMAC-Instanz für UL (~3000 LUT + 8000 FF, bei 10% Auslastung problemlos)
+### M2.1 — SCH/HU Channel Decoding für UL RA-Burst (RTL) ✅ FERTIG (2026-04-22)
+- UL Viterbi r=1/4 + CRC16 + Descrambler in RTL (`tetra_ul_sch_hu_decoder.v`,
+  `tetra_ul_viterbi_r14.v`)
+- Hardware-verifiziert, 41/42 CRC-OK gegen Python-Baseline, Live-Decode MTP3550
 - **ETSI:** EN 300 392-2 §8.2.3, §9.4.4.2.3
 
-### M2.2 — MAC Layer (L2) auf ARM (SW, hoch)
-- **Neue Dateien:** `sw/tetra_mac.c`, `sw/tetra_mac.h`
-- MAC-ACCESS PDU parsen (RACH-Request)
-- MAC-RESOURCE PDU senden (Slot-Zuweisung)
-- MAC-DATA für L3-Transport
-- Fragmentierung/Reassembly
+### M2.2 — MAC Layer (L2) in RTL (hoch)
+- **Neue Module:**
+  - `rtl/lmac/tetra_mac_resource_encoder.v` — baut MAC-RESOURCE PDU aus Slot-Alloc
+  - `rtl/lmac/tetra_mac_fragment.v` — Fragmentierung/Reassembly für L3-Transport
+  - `rtl/lmac/tetra_active_session_table.v` — BRAM: ISSI → Slot-Alloc + State
+- **Reuse:** `tetra_ul_mac_access_parser.v` (bereits vorhanden) als Trigger
+- MAC-ACCESS empfangen → ActiveSession-Lookup → MAC-RESOURCE auf DL emittieren
 - **ETSI:** EN 300 392-2 §21.1-21.4
 
-### M2.3 — MLE (L3) auf ARM: Registration (SW, hoch)
-- **Neue Dateien:** `sw/tetra_mle.c`, `sw/tetra_mle.h`
-- U-LOCATION UPDATE DEMAND empfangen
-- D-LOCATION UPDATE ACCEPT senden
-- Subscriber-Datenbank (ISSI → registriert, LA)
+### M2.3 — MLE (L3) in RTL: Registration (hoch)
+- **Neue Module:**
+  - `rtl/lmac/tetra_mle_registration_fsm.v` — FSM: RX_UREG → DB_LOOKUP → ACCEPT/REJECT → TX_DACCEPT
+  - `rtl/lmac/tetra_d_location_update_encoder.v` — D-LOCATION UPDATE ACCEPT/REJECT PDU-Builder
+  - `rtl/lmac/tetra_subscriber_shadow.v` — BRAM-Shadow der ARM-Subscriber-DB (permit-Bit, LA)
+- **Neue ARM-SW:** `sw/tetra_db_mgr.c` — Subscriber/Group-DB-Pflege + AXI-Lite-Writes in Shadow-BRAM
+- Registration ohne ARM-Hop: MS sendet U-LOCATION UPDATE DEMAND → FPGA liest permit
+  aus Shadow-BRAM → FPGA encoded D-LOC-UPDATE-ACCEPT → DL-Slot nächste Frame
 - **ETSI:** EN 300 392-2 §16, §14.5
 
-### M2.4 — Per-Slot TX-Inhalt (RTL + SW, mittel)
+### M2.4 — Per-Slot TX-Inhalt (RTL) mittel
 - Aktuell: alle NDB-Slots senden denselben Filler
-- **Ansatz:** AXI-Lite Registerbank um per-Slot NDB-Register erweitern (4×14 Register)
-- `tetra_zynq_top.v`: per-Slot Daten an burst_mux statt Replikation
-- `tetra_hal.c`: per-Slot NDB-Write-Funktionen
+- **Neu:** `rtl/tx/tetra_slot_content_mux.v` — liest Alloc-Tabelle pro Slot und
+  routet NULL-PDU / MAC-RESOURCE / D-LOC-UPDATE / Filler an burst_mux
+- Alloc-Tabelle von Registration-FSM geschrieben (gleicher Clock-Domain)
 - **ETSI:** EN 300 392-2 §21.2
 
-### M2.5 — SYSINFO Frame Counter Update (SW, niedrig)
-- Frame/Multiframe im SYSINFO muss laufend aktualisiert werden
-- ARM pollt `REG_TX_TDMA` und schreibt SYSINFO-Register (~17 Hz)
+### M2.5 — SYSINFO Frame Counter Update (RTL) niedrig
+- Frame/Multiframe im SYSINFO laufend aktualisieren
+- `tetra_zynq_top.v`: frame_counter-Output direkt in SYSINFO-Payload-Byte-Positionen
+  einspeisen (nicht mehr über ARM-Polling)
 - **ETSI:** EN 300 392-2 §18.4.2.1
 
 ### M2 Abhängigkeiten
 ```
-M2.1 ── hängt von M1.5/M1.6 ab
-M2.2 ── hängt von M2.1 ab
-M2.3 ── hängt von M2.2 ab
-M2.4 ── parallel zu M2.2 (RTL + SW)
+M2.1 ✅ fertig
+M2.2 ── braucht M2.3 Shadow-BRAM + ActiveSession-Table
+M2.3 ── braucht Subscriber-Shadow-BRAM + ARM DB-Mgr
+M2.4 ── parallel zu M2.2 (Alloc-Tabelle als gemeinsame Schnittstelle)
 M2.5 ── unabhängig
 ```
 
-**Aufwand:** ~3-4 Wochen
+**Aufwand:** ~4-5 Wochen (RTL-FSMs + Shadow-BRAM + ARM DB-Mgr)
 
 ---
 
@@ -183,36 +224,43 @@ M2.5 ── unabhängig
 
 **Ziel:** BS initiiert/akzeptiert Gruppenruf. Mehrere MS in der Gruppe hören Sprache.
 
-### M3.1 — CMCE Group Call Setup (SW, hoch)
-- **Neue Dateien:** `sw/tetra_cmce.c`, `sw/tetra_cmce.h`
-- D-SETUP → D-CONNECT → U-TX DEMAND → D-TX GRANTED → D-TX CEASED
-- GSSI (Group Short Subscriber Identity) Verwaltung
+### M3.1 — CMCE Group Call Setup (RTL, hoch)
+- **Neue Module:**
+  - `rtl/lmac/tetra_cmce_group_fsm.v` — FSM: D-SETUP → D-CONNECT → U-TX DEMAND → D-TX GRANTED → D-TX CEASED
+  - `rtl/lmac/tetra_active_group_table.v` — BRAM: GSSI → Slot-Alloc + Speaker-ISSI + State
+  - `rtl/lmac/tetra_group_shadow.v` — BRAM-Shadow der ARM-Group-DB (GSSI → Memberlist)
+  - `rtl/lmac/tetra_cmce_pdu_encoder.v` — D-SETUP / D-CONNECT / D-TX GRANTED / D-TX CEASED Builder
+- ARM nur: Group-DB-Pflege (GSSI, Members) via AXI-Lite
 - **ETSI:** EN 300 392-2 §14.7
 
-### M3.2 — TCH Voice Channel (RTL + SW, hoch)
+### M3.2 — TCH Voice Channel (RTL, hoch)
 - TCH/S: 274 type-1 Bits pro Frame (137 class-1 + 137 class-2)
 - Stealing Bits (HA/HB) zeigen TCH vs SCH — `tetra_steal_detect` existiert
-- **DMA MM2S Pfad nötig:** AXI-DMA Bridge um TX-Richtung erweitern (PS → PL)
-- 14 Register pro Slot @ 70 Hz via AXI-Lite ist grenzwertig für Voice
+- **Voice-Relay-Pfad:** UL-TCH-Decode → BRAM-FIFO (ein Frame = 56.67 ms) → DL-TCH-Encode
+  — kein DMA zu ARM nötig, Relay läuft komplett in RTL
 - **ETSI:** EN 300 392-2 §8.2.3, §8.3
 
-### M3.3 — TETRA Voice Codec ACELP (SW, sehr hoch)
+### M3.3 — TETRA Voice Codec ACELP (Platzierung offen)
 - 4.567 kbit/s, 137 Bits pro 30ms Frame
-- ETSI Referenz-Codec (C-Quellcode) portieren auf ARM
-- Cortex-A9 @ 667 MHz: ACELP braucht < 1 MIPS → kein Problem
-- `tetraVoiceDec.dll` im Projekt-Root → Windows-Decoder vorhanden, Linux-Port nötig
+- Für reinen Voice-Relay (Group-Call) ist *kein* Codec nötig — wir reichen
+  die kodierten Bits transparent UL→DL durch (M3.4)
+- Codec wird erst für Test-Injection (BS als Talker) oder Recording-Gateway
+  relevant — dann Entscheidung PS (Cortex-A9 < 1 MIPS, simpel) vs PL
+- `tetraVoiceDec.dll` im Projekt-Root → Referenz-Decoder für Dev-Tools
 - **ETSI:** EN 300 395-2
 
-### M3.4 — Voice Relay (SW, mittel)
+### M3.4 — Voice Relay (RTL, mittel)
 - Gruppenruf: ein MS sendet (PTT), BS empfängt und retransmittiert an alle
-- Kein Mixing nötig — nur Relay der Codec-Frames UL → DL
-- Latenz-Budget: ein TDMA Frame (56.67ms)
+- Kein Mixing nötig, kein Codec nötig — Bit-transparenter Relay UL-TCH → DL-TCH
+- Läuft komplett in RTL (Voice-Relay-FIFO), keine ARM-Latenz
+- Latenz-Budget: ein TDMA Frame (56.67 ms)
 
-### M3.5 — AACH Update während Call (SW, niedrig)
+### M3.5 — AACH Update während Call (RTL, niedrig)
 - AACH muss Slot-Zuweisung (Traffic vs Free) reflektieren
+- AACH-Encoder liest Alloc-Tabelle aus Group-FSM (gleicher Clock-Domain)
 - **ETSI:** EN 300 392-2 §18.5.1
 
-**Aufwand:** ~4-6 Wochen (Voice Codec ist höchstes Risiko)
+**Aufwand:** ~5-7 Wochen (CMCE-FSM + Voice-Relay komplett in RTL)
 
 ---
 
@@ -220,24 +268,26 @@ M2.5 ── unabhängig
 
 **Ziel:** Punkt-zu-Punkt-Ruf zwischen zwei MS über die BS.
 
-### M4.1 — CMCE Individual Call (SW, mittel)
-- D-SETUP nur an gerufenes MS (per ISSI adressiert)
-- D-CONNECT / U-CONNECT Handshake
+### M4.1 — CMCE Individual Call (RTL, mittel)
+- Erweiterung der `tetra_cmce_group_fsm.v` um Individual-Call-Zweig, oder
+  separate `tetra_cmce_indiv_fsm.v` (Entscheidung bei Implementierung)
+- D-SETUP nur an gerufenes MS (per ISSI adressiert, Shadow-BRAM-Lookup)
+- D-CONNECT / U-CONNECT Handshake in FSM
 - D-RELEASE für Rufabbau
 - Simplex (PTT) = wie Gruppenruf; Duplex braucht 2 Slots
 - **ETSI:** EN 300 392-2 §14.7, §14.8
 
-### M4.2 — Duplex Slot Management (SW, mittel)
+### M4.2 — Duplex Slot Management (RTL, mittel)
 - Full-Duplex: 2 Slots (je Richtung einer)
-- burst_mux per-Slot Infrastruktur von M2.4 reicht
+- `tetra_slot_content_mux.v` Alloc-Tabellen aus M2.4 reichen
 
-### M4.3 — Paging (SW, mittel)
-- D-ALERT PDU im BNCH um gerufenes MS aufzuwecken
-- `tetra_bnch_encode()` kann Paging-PDUs kodieren (nur Info-Bits ändern)
-- Paging-Antwort kommt über RACH (bereits in M2)
+### M4.3 — Paging (RTL, mittel)
+- **Neues Modul:** `rtl/lmac/tetra_paging_fsm.v` — FSM: CALL_REQ → PAGE_BUILD → TX_BNCH
+- D-ALERT PDU-Encoder (baut auf bestehendem BNCH-Payload-Pfad auf)
+- Paging-Antwort kommt über RACH (in M2 bereits empfangen) — FSM-Handoff an Registration/Call
 - **ETSI:** EN 300 392-2 §14.6
 
-**Aufwand:** ~2-3 Wochen (inkrementell auf M3)
+**Aufwand:** ~3-4 Wochen (inkrementell auf M3)
 
 ---
 
@@ -257,43 +307,58 @@ M2.5 ── unabhängig
 
 ## Änderungen nach Domain
 
-### FPGA RTL
+### FPGA RTL (bestehende Module, Änderungen)
 | Meilenstein | Module | Änderung |
 |-------------|--------|----------|
-| M1 | `tetra_sync_detect.v` | NTS-Modus (seq_select=0) für UL |
-| M1 | `tetra_burst_demux.v` | NUB/CUB Feldpositionen |
-| M1 | `tetra_zynq_top.v` | seq_select umschaltbar |
-| M2 | `tetra_axi_lite_regs.v` | Per-Slot NDB Register |
-| M2 | `tetra_zynq_top.v` | Per-Slot Verdrahtung zu burst_mux |
-| M2 | Neue LMAC-Instanz | UL Channel Decoding (CUB 84-Bit) |
-| M3 | `tetra_axi_dma_bridge.v` | MM2S Pfad (PS → PL) |
+| M1 ✅ | `tetra_ul_sync_detect_os4.v`, `tetra_ul_burst_capture.v`, `tetra_ul_pi4dqpsk_demod.v` | UL RA-Burst-Kette |
+| M1 ✅ | `tetra_ul_sch_hu_decoder.v`, `tetra_ul_viterbi_r14.v` | SCH/HU r=1/4 Viterbi |
+| M1 ✅ | `tetra_ul_mac_access_parser.v` | MAC-ACCESS Parser + AXI-Mailbox |
+| M2 | `tetra_axi_lite_regs.v` | Shadow-BRAM-Write-Window + Alloc-Regs |
+| M2 | `tetra_zynq_top.v` | Registration-FSM + Slot-Content-Mux verdrahten |
+| M3 | `tetra_zynq_top.v` | Voice-Relay-FIFO (UL-TCH → DL-TCH) |
 
-### ARM Software (neu)
+### FPGA RTL (neue Module)
+| Meilenstein | Modul | Beschreibung |
+|-------------|-------|--------------|
+| M2.2 | `rtl/lmac/tetra_mac_resource_encoder.v` | MAC-RESOURCE PDU Builder |
+| M2.2 | `rtl/lmac/tetra_mac_fragment.v` | Fragmentierung / Reassembly |
+| M2.2 | `rtl/lmac/tetra_active_session_table.v` | Hot-State BRAM (ISSI → Alloc) |
+| M2.3 | `rtl/lmac/tetra_mle_registration_fsm.v` | RX_UREG → DB-Lookup → ACCEPT/REJECT → TX |
+| M2.3 | `rtl/lmac/tetra_d_location_update_encoder.v` | D-LOC-UPDATE-ACCEPT/REJECT |
+| M2.3 | `rtl/lmac/tetra_subscriber_shadow.v` | Subscriber-Shadow-BRAM (permit-Lookup) |
+| M2.4 | `rtl/tx/tetra_slot_content_mux.v` | Per-Slot Content-Auswahl |
+| M3.1 | `rtl/lmac/tetra_cmce_group_fsm.v` | Group-Call FSM (Setup/Grant/Release) |
+| M3.1 | `rtl/lmac/tetra_cmce_pdu_encoder.v` | D-SETUP / D-CONNECT / D-TX GRANTED / D-TX CEASED |
+| M3.1 | `rtl/lmac/tetra_active_group_table.v` | Hot-State BRAM (GSSI → Alloc + Speaker) |
+| M3.1 | `rtl/lmac/tetra_group_shadow.v` | Group-Shadow-BRAM (GSSI → Memberlist) |
+| M4.1 | `rtl/lmac/tetra_cmce_indiv_fsm.v` | Individual-Call FSM (oder Erweiterung M3.1) |
+| M4.3 | `rtl/lmac/tetra_paging_fsm.v` | Paging-FSM + D-ALERT Encoder |
+
+### ARM Software (neu — nur DB + Admin)
 | Datei | Meilenstein | Beschreibung |
 |-------|-------------|--------------|
-| `sw/tetra_mac.c/.h` | M2 | MAC Layer (Slot-Zuweisung, PDU Parsing) |
-| `sw/tetra_mle.c/.h` | M2 | MLE (Location Update, Subscriber DB) |
-| `sw/tetra_cmce.c/.h` | M3 | CMCE (Gruppenruf, Einzelruf) |
-| `sw/tetra_codec.c/.h` | M3 | ACELP Voice Codec Wrapper |
-| `sw/tetra_bs_main.c` | M2 | Haupt-BS-Applikation |
+| `sw/tetra_db_mgr.c/.h` | M2 | Subscriber/Group-DB-Pflege + AXI-Lite Shadow-Write |
+| `sw/tetra_admin.c/.h` | M2 | CLI/Web-UI-Hooks für Provisioning (optional) |
 
 ### ARM Software (bestehend)
 | Datei | Meilenstein | Änderung |
 |-------|-------------|----------|
-| `sw/tetra_hal.c/.h` | M1/M2 | ACCESS_DEFINE, per-Slot NDB, Frame Counter |
+| `sw/tetra_hal.c/.h` | M1/M2 | bleibt für SYSINFO-Setup; Frame-Counter wandert in RTL (M2.5) |
+| `sw/tetra_ul_mon.c` | M1 ✅ | Diagnose-Tool für UL-Mailbox — bleibt (kein Response-Pfad) |
 
 ---
 
 ## Zeitplan (geschätzt)
 
 ```
-Woche 1-3:   M1 — MS sieht BS, RACH sichtbar
-Woche 4-7:   M2 — Einbuchen (Location Update)
-Woche 8-13:  M3 — Gruppenruf mit Sprache
-Woche 14-16: M4 — Einzelrufe
+Woche 1-3:   M1 — MS sieht BS, RACH sichtbar         ✅ fertig (UL-Decode HW-verifiziert)
+Woche 4-8:   M2 — Einbuchen (RTL FSMs + Shadow-BRAM + ARM DB-Mgr)
+Woche 9-15:  M3 — Gruppenruf mit Voice-Relay (komplett in RTL)
+Woche 16-19: M4 — Einzelrufe + Paging
 ```
 
-**Gesamtaufwand: ~12-16 Wochen**
+**Gesamtaufwand: ~15-19 Wochen** (RTL-FSMs sind aufwendiger als ARM-SW gewesen
+wäre, dafür entfällt Voice-Codec-Portierung im Critical-Path)
 
 ---
 
