@@ -158,6 +158,32 @@
 #define REG_NULL_PDU_5     0x15C
 #define REG_NULL_PDU_6     0x160  /* bits [23:0] used */
 
+/* UL MAC-ACCESS PDU mailbox (Task #36/#37) — parsed MS RA-burst fields.
+ *   STATUS   : [0] valid_sticky, [2:1] pdu_type, [3] fill_bit,
+ *              [5:4] enc_mode, [6] access_ack, [9:7] addr_type,
+ *              [31:16] pdu_count
+ *   SSI      : [9:0] short_ssi
+ *   RAW_0..2 : raw_info_bits[31:0]/[63:32]/[91:64]  (RAW_2 upper 4 bits RAZ)
+ *   CTRL     : W1C [0] clears valid_sticky (hw-set-wins)
+ *   SCRAMB_INIT : R/W 32-bit cell extended-scrambling seed
+ *                 ((MCC<<22)|(MNC<<8)|(CC<<2)|3) — MCU writes once at boot */
+#define REG_UL_PDU_STATUS    0x164
+#define REG_UL_PDU_SSI       0x168
+#define REG_UL_PDU_RAW_0     0x16C
+#define REG_UL_PDU_RAW_1     0x170
+#define REG_UL_PDU_RAW_2     0x174
+#define REG_UL_PDU_CTRL      0x178
+#define REG_UL_SCRAMB_INIT   0x17C
+
+/* UL_PDU_STATUS bitfield helpers */
+#define UL_STATUS_VALID(s)     (((s) >> 0)  & 0x1u)
+#define UL_STATUS_PDU_TYPE(s)  (((s) >> 1)  & 0x3u)
+#define UL_STATUS_FILL_BIT(s)  (((s) >> 3)  & 0x1u)
+#define UL_STATUS_ENC_MODE(s)  (((s) >> 4)  & 0x3u)
+#define UL_STATUS_ACCESS_ACK(s)(((s) >> 6)  & 0x1u)
+#define UL_STATUS_ADDR_TYPE(s) (((s) >> 7)  & 0x7u)
+#define UL_STATUS_PDU_COUNT(s) (((s) >> 16) & 0xFFFFu)
+
 /* ========================================================================
  * HAL Context
  * ======================================================================== */

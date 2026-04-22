@@ -152,27 +152,12 @@ module tetra_ul_viterbi_r14 #(
     end
     endgenerate
 
-    // Min of 16 raw path metrics
-    wire [16:0] mn01 = (g_acs[0].raw_w  <= g_acs[1].raw_w)  ? g_acs[0].raw_w  : g_acs[1].raw_w;
-    wire [16:0] mn23 = (g_acs[2].raw_w  <= g_acs[3].raw_w)  ? g_acs[2].raw_w  : g_acs[3].raw_w;
-    wire [16:0] mn45 = (g_acs[4].raw_w  <= g_acs[5].raw_w)  ? g_acs[4].raw_w  : g_acs[5].raw_w;
-    wire [16:0] mn67 = (g_acs[6].raw_w  <= g_acs[7].raw_w)  ? g_acs[6].raw_w  : g_acs[7].raw_w;
-    wire [16:0] mn89 = (g_acs[8].raw_w  <= g_acs[9].raw_w)  ? g_acs[8].raw_w  : g_acs[9].raw_w;
-    wire [16:0] mnAB = (g_acs[10].raw_w <= g_acs[11].raw_w) ? g_acs[10].raw_w : g_acs[11].raw_w;
-    wire [16:0] mnCD = (g_acs[12].raw_w <= g_acs[13].raw_w) ? g_acs[12].raw_w : g_acs[13].raw_w;
-    wire [16:0] mnEF = (g_acs[14].raw_w <= g_acs[15].raw_w) ? g_acs[14].raw_w : g_acs[15].raw_w;
-    wire [16:0] mn0123 = (mn01 <= mn23) ? mn01 : mn23;
-    wire [16:0] mn4567 = (mn45 <= mn67) ? mn45 : mn67;
-    wire [16:0] mn89AB = (mn89 <= mnAB) ? mn89 : mnAB;
-    wire [16:0] mnCDEF = (mnCD <= mnEF) ? mnCD : mnEF;
-    wire [16:0] mn07   = (mn0123 <= mn4567) ? mn0123 : mn4567;
-    wire [16:0] mn8F   = (mn89AB <= mnCDEF) ? mn89AB : mnCDEF;
-    wire [16:0] pm_raw_min_w = (mn07 <= mn8F) ? mn07 : mn8F;
-
     generate
-    for (s = 0; s < 16; s = s + 1) begin : g_norm
-        wire [16:0] diff_w = g_acs[s].raw_w - pm_raw_min_w;
-        wire [15:0] nm_w   = diff_w[16] ? 16'hFFFF : diff_w[15:0];
+    for (s = 0; s < 16; s = s + 1) begin : g_sat
+        // Per-stage normalization is not required here: even MAX_STAGES worst-case
+        // branch accumulation stays well below 16 bits, so we can keep the ACS
+        // feedback local to each state and only saturate invalid/infinite metrics.
+        wire [15:0] raw_sat_w = g_acs[s].raw_w[16] ? 16'hFFFF : g_acs[s].raw_w[15:0];
     end
     endgenerate
 
@@ -182,26 +167,24 @@ module tetra_ul_viterbi_r14 #(
         end else if (state_sys == S_OUTPUT && out_done_sys) begin
             pm_flat_sys <= {{15{16'hFFFF}}, 16'h0000};
         end else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid) begin
-            pm_flat_sys[  15:  0] <= g_norm[0].nm_w;
-            pm_flat_sys[  31: 16] <= g_norm[1].nm_w;
-            pm_flat_sys[  47: 32] <= g_norm[2].nm_w;
-            pm_flat_sys[  63: 48] <= g_norm[3].nm_w;
-            pm_flat_sys[  79: 64] <= g_norm[4].nm_w;
-            pm_flat_sys[  95: 80] <= g_norm[5].nm_w;
-            pm_flat_sys[ 111: 96] <= g_norm[6].nm_w;
-            pm_flat_sys[ 127:112] <= g_norm[7].nm_w;
-            pm_flat_sys[ 143:128] <= g_norm[8].nm_w;
-            pm_flat_sys[ 159:144] <= g_norm[9].nm_w;
-            pm_flat_sys[ 175:160] <= g_norm[10].nm_w;
-            pm_flat_sys[ 191:176] <= g_norm[11].nm_w;
-            pm_flat_sys[ 207:192] <= g_norm[12].nm_w;
-            pm_flat_sys[ 223:208] <= g_norm[13].nm_w;
-            pm_flat_sys[ 239:224] <= g_norm[14].nm_w;
-            pm_flat_sys[ 255:240] <= g_norm[15].nm_w;
+            pm_flat_sys[  15:  0] <= g_sat[0].raw_sat_w;
+            pm_flat_sys[  31: 16] <= g_sat[1].raw_sat_w;
+            pm_flat_sys[  47: 32] <= g_sat[2].raw_sat_w;
+            pm_flat_sys[  63: 48] <= g_sat[3].raw_sat_w;
+            pm_flat_sys[  79: 64] <= g_sat[4].raw_sat_w;
+            pm_flat_sys[  95: 80] <= g_sat[5].raw_sat_w;
+            pm_flat_sys[ 111: 96] <= g_sat[6].raw_sat_w;
+            pm_flat_sys[ 127:112] <= g_sat[7].raw_sat_w;
+            pm_flat_sys[ 143:128] <= g_sat[8].raw_sat_w;
+            pm_flat_sys[ 159:144] <= g_sat[9].raw_sat_w;
+            pm_flat_sys[ 175:160] <= g_sat[10].raw_sat_w;
+            pm_flat_sys[ 191:176] <= g_sat[11].raw_sat_w;
+            pm_flat_sys[ 207:192] <= g_sat[12].raw_sat_w;
+            pm_flat_sys[ 223:208] <= g_sat[13].raw_sat_w;
+            pm_flat_sys[ 239:224] <= g_sat[14].raw_sat_w;
+            pm_flat_sys[ 255:240] <= g_sat[15].raw_sat_w;
         end
     end
-
-    assign path_metric_min = pm_raw_min_w[15:0];
 
     // Path metric slices
     wire [15:0] pm0  = pm_flat_sys[  15:  0];
@@ -369,6 +352,7 @@ module tetra_ul_viterbi_r14 #(
     wire [3:0]  idx8F   = cmp8F ? idx89AB : idxCDEF;
     wire [15:0] val8F   = cmp8F ? val89AB : valCDEF;
 
+    assign path_metric_min = (val07 <= val8F) ? val07 : val8F;
     wire [3:0]  best_state_w = (val07 <= val8F) ? idx07 : idx8F;
 
     // =========================================================================

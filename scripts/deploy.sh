@@ -179,7 +179,7 @@ fi
 # =============================================================================
 
 if $DO_SW; then
-    step "3/4: Cross-Compile tetra_sysinfo"
+    step "3/4: Cross-Compile sw/"
 
     CROSS=arm-linux-gnueabihf-gcc
     if ! command -v $CROSS &>/dev/null; then
@@ -187,13 +187,13 @@ if $DO_SW; then
     fi
 
     SW_DIR="${PROJECT_ROOT}/sw"
-    SW_BIN="${SW_DIR}/tetra_sysinfo"
 
-    echo "Compiling tetra_sysinfo..."
-    $CROSS -O2 -Wall -static -o "$SW_BIN" "${SW_DIR}/tetra_hal.c" -I"${SW_DIR}" -lm
-    echo "Binary: $SW_BIN ($(stat -c %s "$SW_BIN") bytes)"
+    echo "Building tetra_sysinfo + tetra_ul_mon..."
+    make -C "$SW_DIR" all
+    echo "  tetra_sysinfo : $(stat -c %s "${SW_DIR}/tetra_sysinfo") bytes"
+    echo "  tetra_ul_mon  : $(stat -c %s "${SW_DIR}/tetra_ul_mon")  bytes"
 else
-    step "3/4: Cross-Compile tetra_sysinfo [SKIPPED]"
+    step "3/4: Cross-Compile sw/ [SKIPPED]"
 fi
 
 # =============================================================================
@@ -207,8 +207,8 @@ if ! sshpass -p "$BOARD_PASS" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=
     fail "Board not reachable at ${BOARD_IP}"
 fi
 
-# Kill running tetra_sysinfo before upload
-ssh_cmd "killall tetra_sysinfo 2>/dev/null || true"
+# Kill running tetra_sysinfo / tetra_ul_mon before upload
+ssh_cmd "killall tetra_sysinfo 2>/dev/null || true; killall tetra_ul_mon 2>/dev/null || true"
 
 # Upload bitstream
 echo "Uploading bitstream..."
@@ -222,13 +222,16 @@ if [ "$LOCAL_MD5" != "$REMOTE_MD5" ]; then
 fi
 echo "Bitstream verified (MD5: $LOCAL_MD5)"
 
-# Upload tetra_sysinfo
+# Upload tetra_sysinfo + tetra_ul_mon
 if $DO_SW; then
-    SW_BIN="${PROJECT_ROOT}/sw/tetra_sysinfo"
+    SW_DIR="${PROJECT_ROOT}/sw"
     echo "Uploading tetra_sysinfo..."
-    scp_to "$SW_BIN" "${REMOTE_BIN_DIR}/tetra_sysinfo"
+    scp_to "${SW_DIR}/tetra_sysinfo" "${REMOTE_BIN_DIR}/tetra_sysinfo"
     ssh_cmd "chmod +x ${REMOTE_BIN_DIR}/tetra_sysinfo"
-    echo "tetra_sysinfo uploaded"
+    echo "Uploading tetra_ul_mon..."
+    scp_to "${SW_DIR}/tetra_ul_mon" "${REMOTE_BIN_DIR}/tetra_ul_mon"
+    ssh_cmd "chmod +x ${REMOTE_BIN_DIR}/tetra_ul_mon"
+    echo "sw binaries uploaded"
 fi
 
 # =============================================================================

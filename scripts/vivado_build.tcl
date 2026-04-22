@@ -113,6 +113,10 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/rx/tetra_timing_recovery.v \
  $PROJ_DIR/rtl/rx/tetra_sync_detect.v \
  $PROJ_DIR/rtl/rx/tetra_ul_sync_detect_os4.v \
+ $PROJ_DIR/rtl/rx/tetra_ul_burst_capture.v \
+ $PROJ_DIR/rtl/rx/tetra_ul_pi4dqpsk_demod.v \
+ $PROJ_DIR/rtl/rx/tetra_ul_sch_hu_decoder.v \
+ $PROJ_DIR/rtl/rx/tetra_ul_viterbi_r14.v \
  $PROJ_DIR/rtl/rx/tetra_burst_demux.v \
  $PROJ_DIR/rtl/rx/tetra_frame_counter.v \
 ]
@@ -145,6 +149,7 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_reed_muller.v \
  $PROJ_DIR/rtl/lmac/tetra_crc16.v \
  $PROJ_DIR/rtl/lmac/tetra_steal_detect.v \
+ $PROJ_DIR/rtl/lmac/tetra_ul_mac_access_parser.v \
 ]
 
 # Top-Level modules
