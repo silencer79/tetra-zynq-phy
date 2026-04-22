@@ -195,15 +195,15 @@ wire                      vit_decoded_valid_w;
 wire                      vit_block_done_w;
 
 // Select which soft to produce on vit_soft{g}: use g-index
-// We feed 4 soft values per stage, one per cycle in g-sequence
-reg signed [SOFT_IN_WIDTH-1:0] soft_for_g_sys;  // signed before to_vit_soft
+// Combinational fetch — must see current vit_kept_idx_sys, not a 1-cycle lag
+wire signed [SOFT_IN_WIDTH-1:0] soft_for_g_w = buf_deint_sys[vit_kept_idx_sys];
 
 wire [VIT_SOFT_WIDTH-1:0] vit_soft_active_w = vit_is_kept_w
-                                             ? to_vit_soft(soft_for_g_sys)
+                                             ? to_vit_soft(soft_for_g_w)
                                              : {1'b1, {(VIT_SOFT_WIDTH-1){1'b0}}};
                                              //  3'd4 = erasure (unsigned)
 
-tetra_viterbi_decoder #(
+tetra_ul_viterbi_r14 #(
     .SOFT_WIDTH(VIT_SOFT_WIDTH),
     .TRACEBACK(32),
     .MAX_STAGES(TRELLIS_STAGES)
@@ -216,7 +216,6 @@ tetra_viterbi_decoder #(
     .soft_bit_3    (vit_soft3_sys),
     .input_valid   (vit_input_valid_sys),
     .num_stages    (TRELLIS_STAGES[8:0]),
-    .punct_pattern (3'd0),
     .decoded_bit   (vit_decoded_bit_w),
     .decoded_valid (vit_decoded_valid_w),
     .block_done    (vit_block_done_w),
@@ -292,7 +291,6 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         lfsr_cnt_sys          <= 8'd0;
         lfsr_running_sys      <= 1'b0;
         scramb_seq_sys        <= {N_TX{1'b0}};
-        soft_for_g_sys        <= {SOFT_IN_WIDTH{1'b0}};
         for (idx_i = 0; idx_i < N_TX; idx_i = idx_i + 1) begin
             buf_soft_sys[idx_i]  <= {SOFT_IN_WIDTH{1'b0}};
             buf_deint_sys[idx_i] <= {SOFT_IN_WIDTH{1'b0}};
@@ -391,7 +389,6 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         S_FEED_VIT: begin
             // Produce one soft quad per trellis stage, 1 soft per cycle in g=0..3.
             // Mother position = vit_stage*4 + vit_g. Kept iff (mother_pos mod 8) in {0,1,4}.
-            soft_for_g_sys <= buf_deint_sys[vit_kept_idx_sys];
             // We register the 4 channels as we iterate g — on g=3 fire input_valid
             case (vit_g_sys)
                 2'd0: vit_soft0_sys <= vit_soft_active_w;
