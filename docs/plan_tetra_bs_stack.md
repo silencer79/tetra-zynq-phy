@@ -207,6 +207,61 @@ M1.7 ── unabhängig (RF-Setup)
   einspeisen (nicht mehr über ARM-Polling)
 - **ETSI:** EN 300 392-2 §18.4.2.1
 
+### M2.6 — DL-Signalisierungs-Architektur (RTL, hoch) — ERSETZT dl_signal-Latch
+
+**Motivation (2026-04-22):** Der 1-Entry-Pending-Latch in `tetra_slot_content_mux.v`
+verliert Injection wenn `dl_pdu_valid` nach einem TN=1 slot_pulse feuert (Race). Unter
+aktueller MLE-FSM-Latenz passiert das jedes Mal, wenn MS-RA spät im TN=3-Fenster parst.
+Counter `inject_cnt` zählt nur "gute" Events, Rest wird stillschweigend verworfen. WAV
+zeigt 100% NULL-PDU auf TN=1.
+
+Gleichzeitig: spätere SAPs (CMCE/SDS/MM) brauchen eigene DL-Injection-Pfade. Statt
+3× dieselbe Pending-Logik parallel → zentrale, scheduler-integrierte Lösung.
+
+**Architektur:** Producer alloziert konkreten Ziel-Slot beim Scheduler-Allocator,
+schreibt Payload in Per-Slot-Override-RAM (288 Einträge parallel zur Schedule-BRAM).
+Mux liest Override + Schedule simultan pro Slot, bei `ovr_valid=1` → override_bits
+statt schedule-payload + consume. Race-frei per Design (Producer zeigt auf Slot,
+nicht auf "den nächsten TN=1").
+
+**Neue Module:**
+- `rtl/tx/tetra_slot_override_ram.v` — 288 × {valid, len, bkn1[215:0], bkn2[215:0]}
+  Dual-Port (Write von Arbiter, Read+Consume von Mux)
+- `rtl/lmac/tetra_dl_sig_allocator.v` — scannt Schedule ab `(mn,fn,tn)+1` vorwärts,
+  findet ersten freien sig-tauglichen Slot (class, ndb2, enable gegen req_len geprüft),
+  returned dense addr oder `full` pulse
+- `rtl/lmac/tetra_dl_sig_arbiter.v` — 4 Producer-Ports (MLE, CMCE, SDS, reserve),
+  fixe Priorität MLE>CMCE>SDS, serialisiert Requests an Allocator + RAM-Write
+
+**Geänderte Module:**
+- `rtl/tx/tetra_slot_content_mux.v` — Inject-Latch entfernt, Port-B-Read auf Override-RAM
+  ergänzt (gleiche dense addr wie Schedule), Override-Mux in allen 4 TN-Blöcken
+- `rtl/lmac/tetra_mle_registration_fsm.v` — Output raus: `dl_pdu_bits/valid`. Rein:
+  Producer-Port zum Arbiter (`req_valid`, `req_len=0`, `req_bkn1[215:0]`, `busy_in`)
+- `rtl/tetra_zynq_top.v` — Instanzen override_ram/allocator/arbiter + Counter/AXI-Regs
+  0x1A0..0x1AC (per-SAP req_cnt, consume_cnt, alloc_full_cnt, arb_stall_cnt)
+
+**Tests (alle TBs lokal grün vor Deploy):**
+1. `tb/tb_slot_override_ram.v` — write/read/consume/clear
+2. `tb/tb_dl_sig_allocator.v` — legale Slots, Skip BNCH/BSCH/SB/empty/F18-BNCH-DMO,
+   full-detection, cold start
+3. `tb/tb_dl_sig_arbiter.v` — Priorität, parallele Pushes, busy-handling
+4. `tb/tb_slot_content_mux_override.v` — Override auf allen 4 TNs, Consume-Puls,
+   keine Cross-Frame-Leaks
+5. `tb/tb_mle_registration_fsm.v` angepasst — schreibt via Arbiter
+6. `tb/tb_dl_sig_integration.v` — UL-RA → MLE → Arbiter → Allocator → RAM → Mux →
+   tx_blk1/2; Szenarien: single, back-to-back, full, F18-skip, MLE+CMCE concurrent
+
+**Reihenfolge:** override_ram → allocator → arbiter → mux-Umbau → MLE-Umbau →
+top-Integration → integration-TB → deploy.
+
+**Akzeptanz (Board):**
+- `mle_req_cnt == consume_cnt > 0`, `alloc_full_cnt == 0`, `arb_stall_cnt == 0`
+- WAV: non-NULL MAC-PDU auf konkretem TN=1-Slot sichtbar
+- MS-Retransmits stoppen bzw. wechseln zu nächstem Registrierungs-Schritt
+
+**ETSI:** EN 300 392-2 §21 (scheduling), §19 (MAC resource allocation)
+
 ### M2 Abhängigkeiten
 ```
 M2.1 ✅ fertig
@@ -214,9 +269,10 @@ M2.2 ── braucht M2.3 Shadow-BRAM + ActiveSession-Table
 M2.3 ── braucht Subscriber-Shadow-BRAM + ARM DB-Mgr
 M2.4 ── parallel zu M2.2 (Alloc-Tabelle als gemeinsame Schnittstelle)
 M2.5 ── unabhängig
+M2.6 ── ersetzt dl_signal-Latch in M2.3; Voraussetzung für CMCE/SDS in M3/M4
 ```
 
-**Aufwand:** ~4-5 Wochen (RTL-FSMs + Shadow-BRAM + ARM DB-Mgr)
+**Aufwand:** ~4-5 Wochen (RTL-FSMs + Shadow-BRAM + ARM DB-Mgr + M2.6 ~1 Woche)
 
 ---
 
