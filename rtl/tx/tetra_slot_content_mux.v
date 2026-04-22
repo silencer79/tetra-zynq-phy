@@ -161,41 +161,42 @@ module tetra_slot_content_mux #(
 // MLE signalling response — latched one-shot DL payload
 //
 // Snapshot `dl_signal_bits_sys` on any `dl_signal_valid_sys` pulse and hold
-// it until TN=1's slot_pulse consumes it (the injection point).  Clearing
-// the pending flag one cycle after the consumption pulse keeps the override
-// stable throughout TN=1's transmit window.
+// it until TN=0's slot_pulse consumes it (the injection point — RTL tn=0
+// == ETSI Slot 1 == MCCH).  Clearing the pending flag one cycle after the
+// consumption pulse keeps the override stable throughout TN=0's transmit
+// window.
 // =============================================================================
-// Two-stage pending: a TN=1 slot_pulse must pass with pending HIGH (apply)
-// BEFORE the TN=2 slot_pulse can consume it.  Without this, a valid that
-// fires mid-TN=1 window sets pending too late for the burst_mux capture
-// (which latches block1[1] shortly after the TN=1 slot_pulse), and the
-// TN=2 consume then throws the payload away before any TN=1 capture ever
+// Two-stage pending: a TN=0 slot_pulse must pass with pending HIGH (apply)
+// BEFORE the TN=1 slot_pulse can consume it.  Without this, a valid that
+// fires mid-TN=0 window sets pending too late for the burst_mux capture
+// (which latches block1[0] shortly after the TN=0 slot_pulse), and the
+// TN=1 consume then throws the payload away before any TN=0 capture ever
 // saw it — injection silently lost.
 reg [BLOCK_BITS-1:0] dl_signal_latched_sys;
 reg                  dl_signal_pending_r_sys;
-reg                  dl_signal_seen_tn1_sys;
+reg                  dl_signal_seen_tn0_sys;
 assign dl_signal_pending_sys = dl_signal_pending_r_sys;
 
-wire dl_signal_apply_tn1_sys = dl_signal_pending_r_sys && slot_pulse_sys
-                               && (tn_sys == 2'd1);
-wire dl_signal_consume_sys   = dl_signal_pending_r_sys && dl_signal_seen_tn1_sys
-                               && slot_pulse_sys && (tn_sys == 2'd2);
+wire dl_signal_apply_tn0_sys = dl_signal_pending_r_sys && slot_pulse_sys
+                               && (tn_sys == 2'd0);
+wire dl_signal_consume_sys   = dl_signal_pending_r_sys && dl_signal_seen_tn0_sys
+                               && slot_pulse_sys && (tn_sys == 2'd1);
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
         dl_signal_latched_sys   <= {BLOCK_BITS{1'b0}};
         dl_signal_pending_r_sys <= 1'b0;
-        dl_signal_seen_tn1_sys  <= 1'b0;
+        dl_signal_seen_tn0_sys  <= 1'b0;
     end else begin
         if (dl_signal_valid_sys) begin
             dl_signal_latched_sys   <= dl_signal_bits_sys;
             dl_signal_pending_r_sys <= 1'b1;
-            dl_signal_seen_tn1_sys  <= 1'b0;
+            dl_signal_seen_tn0_sys  <= 1'b0;
         end else if (dl_signal_consume_sys) begin
             dl_signal_pending_r_sys <= 1'b0;
-            dl_signal_seen_tn1_sys  <= 1'b0;
-        end else if (dl_signal_apply_tn1_sys) begin
-            dl_signal_seen_tn1_sys  <= 1'b1;
+            dl_signal_seen_tn0_sys  <= 1'b0;
+        end else if (dl_signal_apply_tn0_sys) begin
+            dl_signal_seen_tn0_sys  <= 1'b1;
         end
     end
 end
@@ -422,67 +423,47 @@ reg [BLOCK_BITS-1:0] blk2_mux_tn2_sys;
 reg [BLOCK_BITS-1:0] blk1_mux_tn3_sys;
 reg [BLOCK_BITS-1:0] blk2_mux_tn3_sys;
 
-// TN=0
+// TN=0 — with MLE signalling-response override on BKN1 when pending.
+// RTL tn=0 corresponds to ETSI Slot 1 = MCCH (see scripts/decode_dl.py:291
+// which computes air_tn = rtl_tn + 1).  MLE D-LOC-UPDATE-ACCEPT responses
+// must land on the MCCH so the MS — which is camped on Slot 1 during
+// registration — actually sees them.
+reg [BLOCK_BITS-1:0] blk1_sched_tn0_sys;
+reg [BLOCK_BITS-1:0] blk2_sched_tn0_sys;
 always @(*) begin
     case ({bus_class(sched_entry_reg_sys0), bus_idx(sched_entry_reg_sys0)})
-        {4'd0, 6'd0}: begin // NDB_SYSINFO
-            blk1_mux_tn0_sys = ndb_block1_sw_sys;
-            blk2_mux_tn0_sys = ndb_block2_sw_sys;
-        end
-        {4'd0, 6'd1}: begin // MCCH
-            blk1_mux_tn0_sys = mcch_block1_sw_sys;
-            blk2_mux_tn0_sys = mcch_block2_sw_sys;
-        end
-        {4'd0, 6'd2}: begin // BNCH (SDB blk2 case covered below for idx=3)
-            blk1_mux_tn0_sys = bnch_block1_sw_sys;
-            blk2_mux_tn0_sys = bnch_block2_sw_sys;
-        end
-        {4'd0, 6'd3}: begin // SB (SDB) — blk1 = 0 (tx_chain uses sb_sb1_data_sys)
-            blk1_mux_tn0_sys = {BLOCK_BITS{1'b0}};
-            blk2_mux_tn0_sys = sb_bkn2_sw_sys;
-        end
-        {4'd0, 6'd4}: begin // NDB2_half1_bnch
-            blk1_mux_tn0_sys = ndb_block1_sw_sys;
-            blk2_mux_tn0_sys = bnch_block2_sw_sys;
-        end
-        {4'd0, 6'd7}: begin // empty
-            blk1_mux_tn0_sys = {BLOCK_BITS{1'b0}};
-            blk2_mux_tn0_sys = {BLOCK_BITS{1'b0}};
-        end
-        {4'd1, 6'd0}: begin // NULL_PDU (pre-coded 216-bit blob into BKN1)
-            blk1_mux_tn0_sys = null_pdu_bits_sys;
-            blk2_mux_tn0_sys = ndb_block2_sw_sys;
-        end
-        default: begin
-            blk1_mux_tn0_sys = ndb_block1_sw_sys;
-            blk2_mux_tn0_sys = ndb_block2_sw_sys;
-        end
-    endcase
-end
-
-// TN=1 — with MLE signalling-response override on BKN1 when pending.
-reg [BLOCK_BITS-1:0] blk1_sched_tn1_sys;
-reg [BLOCK_BITS-1:0] blk2_sched_tn1_sys;
-always @(*) begin
-    case ({bus_class(sched_entry_reg_sys1), bus_idx(sched_entry_reg_sys1)})
-        {4'd0, 6'd0}: begin blk1_sched_tn1_sys = ndb_block1_sw_sys;  blk2_sched_tn1_sys = ndb_block2_sw_sys;  end
-        {4'd0, 6'd1}: begin blk1_sched_tn1_sys = mcch_block1_sw_sys; blk2_sched_tn1_sys = mcch_block2_sw_sys; end
-        {4'd0, 6'd2}: begin blk1_sched_tn1_sys = bnch_block1_sw_sys; blk2_sched_tn1_sys = bnch_block2_sw_sys; end
-        {4'd0, 6'd3}: begin blk1_sched_tn1_sys = {BLOCK_BITS{1'b0}}; blk2_sched_tn1_sys = sb_bkn2_sw_sys;     end
-        {4'd0, 6'd4}: begin blk1_sched_tn1_sys = ndb_block1_sw_sys;  blk2_sched_tn1_sys = bnch_block2_sw_sys; end
-        {4'd0, 6'd7}: begin blk1_sched_tn1_sys = {BLOCK_BITS{1'b0}}; blk2_sched_tn1_sys = {BLOCK_BITS{1'b0}}; end
-        {4'd1, 6'd0}: begin blk1_sched_tn1_sys = null_pdu_bits_sys;  blk2_sched_tn1_sys = ndb_block2_sw_sys;  end
-        default:      begin blk1_sched_tn1_sys = ndb_block1_sw_sys;  blk2_sched_tn1_sys = ndb_block2_sw_sys;  end
+        {4'd0, 6'd0}: begin blk1_sched_tn0_sys = ndb_block1_sw_sys;  blk2_sched_tn0_sys = ndb_block2_sw_sys;  end
+        {4'd0, 6'd1}: begin blk1_sched_tn0_sys = mcch_block1_sw_sys; blk2_sched_tn0_sys = mcch_block2_sw_sys; end
+        {4'd0, 6'd2}: begin blk1_sched_tn0_sys = bnch_block1_sw_sys; blk2_sched_tn0_sys = bnch_block2_sw_sys; end
+        {4'd0, 6'd3}: begin blk1_sched_tn0_sys = {BLOCK_BITS{1'b0}}; blk2_sched_tn0_sys = sb_bkn2_sw_sys;     end
+        {4'd0, 6'd4}: begin blk1_sched_tn0_sys = ndb_block1_sw_sys;  blk2_sched_tn0_sys = bnch_block2_sw_sys; end
+        {4'd0, 6'd7}: begin blk1_sched_tn0_sys = {BLOCK_BITS{1'b0}}; blk2_sched_tn0_sys = {BLOCK_BITS{1'b0}}; end
+        {4'd1, 6'd0}: begin blk1_sched_tn0_sys = null_pdu_bits_sys;  blk2_sched_tn0_sys = ndb_block2_sw_sys;  end
+        default:      begin blk1_sched_tn0_sys = ndb_block1_sw_sys;  blk2_sched_tn0_sys = ndb_block2_sw_sys;  end
     endcase
 end
 always @(*) begin
     if (dl_signal_pending_sys) begin
-        blk1_mux_tn1_sys = dl_signal_latched_sys;
-        blk2_mux_tn1_sys = blk2_sched_tn1_sys;
+        blk1_mux_tn0_sys = dl_signal_latched_sys;
+        blk2_mux_tn0_sys = blk2_sched_tn0_sys;
     end else begin
-        blk1_mux_tn1_sys = blk1_sched_tn1_sys;
-        blk2_mux_tn1_sys = blk2_sched_tn1_sys;
+        blk1_mux_tn0_sys = blk1_sched_tn0_sys;
+        blk2_mux_tn0_sys = blk2_sched_tn0_sys;
     end
+end
+
+// TN=1
+always @(*) begin
+    case ({bus_class(sched_entry_reg_sys1), bus_idx(sched_entry_reg_sys1)})
+        {4'd0, 6'd0}: begin blk1_mux_tn1_sys = ndb_block1_sw_sys;  blk2_mux_tn1_sys = ndb_block2_sw_sys;  end
+        {4'd0, 6'd1}: begin blk1_mux_tn1_sys = mcch_block1_sw_sys; blk2_mux_tn1_sys = mcch_block2_sw_sys; end
+        {4'd0, 6'd2}: begin blk1_mux_tn1_sys = bnch_block1_sw_sys; blk2_mux_tn1_sys = bnch_block2_sw_sys; end
+        {4'd0, 6'd3}: begin blk1_mux_tn1_sys = {BLOCK_BITS{1'b0}}; blk2_mux_tn1_sys = sb_bkn2_sw_sys;     end
+        {4'd0, 6'd4}: begin blk1_mux_tn1_sys = ndb_block1_sw_sys;  blk2_mux_tn1_sys = bnch_block2_sw_sys; end
+        {4'd0, 6'd7}: begin blk1_mux_tn1_sys = {BLOCK_BITS{1'b0}}; blk2_mux_tn1_sys = {BLOCK_BITS{1'b0}}; end
+        {4'd1, 6'd0}: begin blk1_mux_tn1_sys = null_pdu_bits_sys;  blk2_mux_tn1_sys = ndb_block2_sw_sys;  end
+        default:      begin blk1_mux_tn1_sys = ndb_block1_sw_sys;  blk2_mux_tn1_sys = ndb_block2_sw_sys;  end
+    endcase
 end
 
 // TN=2

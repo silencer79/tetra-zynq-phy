@@ -45,7 +45,10 @@ module tetra_sch_hd_encoder (
 
     // 216 type-5 coded bits, [215] = first bit on air
     output reg  [215:0] coded_bits,
-    // HIGH once a valid encoding has been produced; cleared at next encode_start
+    // 1-cycle pulse on the S_FINISH→S_IDLE edge (back-to-back encodes see
+    // independent pulses).  A caller polling in a following always block must
+    // sample it on the same cycle it is HIGH — the pulse is unconditionally
+    // cleared in S_IDLE, so a sticky handshake is NOT available by design.
     output reg          coded_valid
 );
 
@@ -130,13 +133,16 @@ module tetra_sch_hd_encoder (
             case (state)
             // -----------------------------------------------------------------
             S_IDLE: begin
+                // Drop coded_valid every cycle we're idle — the S_FINISH→S_IDLE
+                // pulse is therefore exactly 1 cycle wide.  Caller must sample
+                // coded_valid on the cycle it is HIGH (see port comment).
+                coded_valid <= 1'b0;
                 if (encode_start) begin
                     pdu         <= info_bits;
                     crc         <= 16'hFFFF;
                     cnt         <= 8'd0;
                     lfsr        <= scramble_init;
                     mask        <= 216'd0;
-                    coded_valid <= 1'b0;
                     state       <= S_CRC;
                 end
             end

@@ -1,13 +1,20 @@
 // =============================================================================
 // tb_slot_content_mux_signal_inject.v
 //
-// Focused test for the new MLE-signalling injection path added to
-// tetra_slot_content_mux.  Verifies:
-//   1. Before any injection, TN=1 BKN1 follows the normal schedule.
+// Focused test for the MLE-signalling injection path in
+// tetra_slot_content_mux.  The override targets RTL tn=0 (= ETSI Slot 1
+// = MCCH), the slot where the MS actually listens during registration.
+//
+// Verifies:
+//   1. Before any injection, TN=0 BKN1 follows the scheduled NULL_PDU
+//      payload (class=1, idx=0 → null_pdu_bits).
 //   2. After a `dl_signal_valid_sys` pulse, `dl_signal_pending_sys` goes
-//      high and TN=1's `tx_blk1_slot1_sys` registers the injected bits.
-//   3. Pending clears after the slot_pulse for TN=2 (one slot after TN=1
-//      transmits) so the next TN=1 cycle returns to the scheduled value.
+//      HIGH and on the next TN=0 slot_pulse `tx_blk1_slot0_sys` registers
+//      the injected bits.
+//   3. Pending clears on the slot_pulse for TN=1 (one slot after TN=0
+//      transmits) so the next TN=0 cycle returns to the scheduled value.
+//   4. Valid pulses arriving AFTER a TN=0 slot_pulse survive TN=1/2/3
+//      and are consumed only by the NEXT TN=0 capture.
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
@@ -28,9 +35,12 @@ module tb_slot_content_mux_signal_inject;
     reg        slot_pulse = 1'b0;
     reg        tdma_tick  = 1'b0;
 
-    // Schedule BRAM stub — always returns 0x0004 (class=0, idx=0, enable=1)
+    // Schedule BRAM stub — return NULL_PDU (class=1, idx=0, enable=1).
+    // Bit layout (see tetra_slot_content_mux.v bus_class/bus_idx/bus_is_*):
+    //   [15:12]=class, [11:6]=idx, [5:4]=sdb, [3]=ndb2, [2]=enable.
+    //   NULL_PDU enabled = 16'b0001_000000_00_0_1_00 = 0x1004.
     wire [8:0]  sched_addr;
-    wire [15:0] sched_data = 16'h0004;
+    wire [15:0] sched_data = 16'h1004;
 
     // Static SW payloads — distinctive patterns so we can tell them apart
     wire [BLOCK_BITS-1:0] ndb1 = {27{8'hA1}};
@@ -158,9 +168,9 @@ module tb_slot_content_mux_signal_inject;
 
         prime_schedule;
 
-        // ----- T1: no injection — TN=1 BKN1 should be NDB1 (class=0,idx=0) -
-        advance_slot(2'd1);
-        check_bits(tx_blk1_slot1, ndb1, "no_inject");
+        // ----- T1: no injection — TN=0 BKN1 should be NULL_PDU payload -----
+        advance_slot(2'd0);
+        check_bits(tx_blk1_slot0, nullp, "no_inject");
         if (dl_signal_pending !== 1'b0) begin
             $display("[T* no_inject] FAIL pending should be 0, got %0b",
                      dl_signal_pending);
@@ -182,15 +192,15 @@ module tb_slot_content_mux_signal_inject;
             $display("[T%0d pending_set] PASS", test_count);
         end
 
-        // ----- T3: advance to TN=1 slot_pulse → tx_blk1_slot1 == INJECT ----
+        // ----- T3: advance to TN=0 slot_pulse → tx_blk1_slot0 == INJECT ----
+        advance_slot(2'd0);
+        check_bits(tx_blk1_slot0, INJECT_PATTERN, "inject_bkn1");
+
+        // ----- T4: blk2 should still be NDB2 (NULL_PDU schedule → ndb2) ---
+        check_bits(tx_blk2_slot0, ndb2, "blk2_unchanged");
+
+        // ----- T5: advance to TN=1 → pending clears ------------------------
         advance_slot(2'd1);
-        check_bits(tx_blk1_slot1, INJECT_PATTERN, "inject_bkn1");
-
-        // ----- T4: blk2 should still be NDB2 (unchanged) -------------------
-        check_bits(tx_blk2_slot1, ndb2, "blk2_unchanged");
-
-        // ----- T5: advance to TN=2 → pending clears ------------------------
-        advance_slot(2'd2);
         test_count = test_count + 1;
         if (dl_signal_pending !== 1'b0) begin
             $display("[T%0d pending_clr] FAIL pending still 1", test_count);
@@ -199,21 +209,21 @@ module tb_slot_content_mux_signal_inject;
             $display("[T%0d pending_clr] PASS", test_count);
         end
 
-        // ----- T6: next TN=1 should be back to NDB1 ------------------------
+        // ----- T6: next TN=0 should be back to scheduled NULL_PDU ----------
+        advance_slot(2'd2);
         advance_slot(2'd3);
         advance_slot(2'd0);
-        advance_slot(2'd1);
-        check_bits(tx_blk1_slot1, ndb1, "post_clear");
+        check_bits(tx_blk1_slot0, nullp, "post_clear");
 
         // =================================================================
-        // Case 2: valid pulses AFTER the TN=1 slot_pulse (the real-world
+        // Case 2: valid pulses AFTER the TN=0 slot_pulse (the real-world
         // race that was silently dropping injections).  The payload must
-        // survive until the NEXT TN=1 slot_pulse and only be consumed once
-        // a TN=1 capture has actually happened.
+        // survive until the NEXT TN=0 slot_pulse and only be consumed once
+        // a TN=0 capture has actually happened.
         // =================================================================
 
-        // Park at TN=2 (one past TN=1) and fire the valid pulse there.
-        advance_slot(2'd2);
+        // Park at TN=1 (one past TN=0) and fire the valid pulse there.
+        advance_slot(2'd1);
         @(posedge clk);
         dl_signal_bits  <= INJECT_PATTERN;
         dl_signal_valid <= 1'b1;
@@ -224,14 +234,25 @@ module tb_slot_content_mux_signal_inject;
         // ----- T7: pending must be HIGH right after the valid pulse -------
         test_count = test_count + 1;
         if (dl_signal_pending !== 1'b1) begin
-            $display("[T%0d case2_pending_after_tn1] FAIL pending should be 1",
+            $display("[T%0d case2_pending_after_tn0] FAIL pending should be 1",
                      test_count);
             fail_count = fail_count + 1;
         end else begin
-            $display("[T%0d case2_pending_after_tn1] PASS", test_count);
+            $display("[T%0d case2_pending_after_tn0] PASS", test_count);
         end
 
-        // ----- T8: pending must SURVIVE TN=3 (no consume before TN=1 seen)-
+        // ----- T8: pending must SURVIVE TN=2 (no consume before TN=0 seen)-
+        advance_slot(2'd2);
+        test_count = test_count + 1;
+        if (dl_signal_pending !== 1'b1) begin
+            $display("[T%0d case2_survive_tn2] FAIL pending dropped early",
+                     test_count);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T%0d case2_survive_tn2] PASS", test_count);
+        end
+
+        // ----- T9: pending must SURVIVE TN=3 ------------------------------
         advance_slot(2'd3);
         test_count = test_count + 1;
         if (dl_signal_pending !== 1'b1) begin
@@ -242,23 +263,12 @@ module tb_slot_content_mux_signal_inject;
             $display("[T%0d case2_survive_tn3] PASS", test_count);
         end
 
-        // ----- T9: pending must SURVIVE TN=0 ------------------------------
+        // ----- T10: advance to TN=0 → tx_blk1_slot0 gets the INJECT -------
         advance_slot(2'd0);
-        test_count = test_count + 1;
-        if (dl_signal_pending !== 1'b1) begin
-            $display("[T%0d case2_survive_tn0] FAIL pending dropped early",
-                     test_count);
-            fail_count = fail_count + 1;
-        end else begin
-            $display("[T%0d case2_survive_tn0] PASS", test_count);
-        end
+        check_bits(tx_blk1_slot0, INJECT_PATTERN, "case2_capture_tn0");
 
-        // ----- T10: advance to TN=1 → tx_blk1_slot1 gets the INJECT -------
+        // ----- T11: advance to TN=1 → pending finally clears --------------
         advance_slot(2'd1);
-        check_bits(tx_blk1_slot1, INJECT_PATTERN, "case2_capture_tn1");
-
-        // ----- T11: advance to TN=2 → pending finally clears --------------
-        advance_slot(2'd2);
         test_count = test_count + 1;
         if (dl_signal_pending !== 1'b0) begin
             $display("[T%0d case2_pending_clr] FAIL pending still 1",

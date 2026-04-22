@@ -1619,11 +1619,21 @@ tetra_active_session_table #(
 // it wants to register, so acting on any pulse is safe.
 //
 // LA is hard-coded to 14'd36 (matches HAM-cell config) until we add a
-// dedicated cell-LA AXI register.  cfg_scramble_init reuses the cell-
-// specific seed already resynced for the UL descrambler — same formula
-// (MCC<<22)|(MNC<<8)|(CC<<2)|3 is used by DL SCH/HD and UL SCH/HU.
+// dedicated cell-LA AXI register.  cfg_scramble_init is packed directly
+// from the RTL cell-config regs so the DL SCH/HD response scrambling is
+// guaranteed bit-identical to the AACH/BSCH-paired SCH/HD TX chain
+// (see u_aach_encoder which derives the same pack internally).  The
+// packed seed — (MCC<<22)|(MNC<<8)|(CC<<2)|3 — is the cell-specific
+// downlink scrambler init from ETSI §8.2.5.2 and matches the UL seed
+// numerically when SW programs REG_UL_SCRAMB_INIT with the same formula.
 // =============================================================================
 wire [23:0] mle_ul_ssi_w = {14'd0, ul_short_ssi_sys};
+
+// DL scrambler seed pack — identical to tetra_aach_encoder.v line 127.
+wire [31:0] mle_dl_scramb_init_sys = {cell_cfg_mcc_sys_r1,
+                                      cell_cfg_mnc_sys_r1,
+                                      colour_code_sys_r1,
+                                      2'b11};
 
 tetra_mle_registration_fsm #(
     .AST_IDX_WIDTH(6),
@@ -1638,7 +1648,7 @@ tetra_mle_registration_fsm #(
     .ul_la            (14'd1),
     // Cell config — must match BNCH SYSINFO LA (tetra_hal.c default = 1)
     .cfg_la           (14'd1),
-    .cfg_scramble_init(ul_scramb_init_sys),
+    .cfg_scramble_init(mle_dl_scramb_init_sys),
     // AST
     .ast_wr_en        (ast_wr_en_w),
     .ast_wr_idx       (ast_wr_idx_w),
@@ -1670,9 +1680,10 @@ reg [15:0] mle_accept_cnt_sys;
 reg [15:0] mle_drop_cnt_sys;
 reg        mle_busy_sticky_sys;
 
-// Injection-path diagnostics (TN=1 capture window + pending clears).
-// inject_cnt increments each cycle that (pending && slot_pulse && tn==1) —
-// the exact condition for a TN=1 capture of the injected payload.
+// Injection-path diagnostics (TN=0 capture window + pending clears).
+// inject_cnt increments each cycle that (pending && slot_pulse && tn==0) —
+// the exact condition for a TN=0 capture of the injected payload (RTL tn=0
+// == ETSI Slot 1 == MCCH, see tetra_slot_content_mux.v).
 // clear_cnt increments on each pending rising→falling edge (consume events).
 reg [15:0] mle_inject_cnt_sys;
 reg [15:0] mle_clear_cnt_sys;
@@ -1692,12 +1703,12 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         if (mle_accept_pulse_w)  mle_accept_cnt_sys <= mle_accept_cnt_sys + 16'd1;
         if (mle_drop_pulse_w)    mle_drop_cnt_sys   <= mle_drop_cnt_sys   + 16'd1;
         if (mle_busy_w)          mle_busy_sticky_sys <= 1'b1;
-        // TN=1 inject event — captures the exact condition the content_mux
-        // uses to override blk1_mux_tn1 (pending at the TN=1 slot_pulse).
+        // TN=0 inject event — captures the exact condition the content_mux
+        // uses to override blk1_mux_tn0 (pending at the TN=0 slot_pulse).
         if (mle_dl_pending_sys && tx_tdma_state_slot_pulse_sys
-            && (tx_tdma_state_tn_sys == 2'd1))
+            && (tx_tdma_state_tn_sys == 2'd0))
             mle_inject_cnt_sys <= mle_inject_cnt_sys + 16'd1;
-        // Pending falling edge = consume event (TN=2 slot_pulse while pending).
+        // Pending falling edge = consume event (TN=1 slot_pulse while pending).
         mle_pending_prev_sys <= mle_dl_pending_sys;
         if (mle_pending_prev_sys && !mle_dl_pending_sys)
             mle_clear_cnt_sys <= mle_clear_cnt_sys + 16'd1;
