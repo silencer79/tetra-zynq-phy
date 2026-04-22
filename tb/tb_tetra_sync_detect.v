@@ -127,6 +127,16 @@ initial begin
     STS_SEQ[16]=2'b00; STS_SEQ[17]=2'b00; STS_SEQ[18]=2'b11;
 end
 
+// ETS (x-seq): 15 dibits, §9.4.4.3.3, [0]=newest, [14]=oldest.
+// Derived from RTL ETS_REF: ETS_SEQ[i] = ETS_REF[2*i+1:2*i].
+reg [1:0] ETS_SEQ [0:14];
+initial begin
+    ETS_SEQ[ 0]=2'b11; ETS_SEQ[ 1]=2'b00; ETS_SEQ[ 2]=2'b00; ETS_SEQ[ 3]=2'b01;
+    ETS_SEQ[ 4]=2'b11; ETS_SEQ[ 5]=2'b01; ETS_SEQ[ 6]=2'b10; ETS_SEQ[ 7]=2'b10;
+    ETS_SEQ[ 8]=2'b11; ETS_SEQ[ 9]=2'b00; ETS_SEQ[10]=2'b00; ETS_SEQ[11]=2'b01;
+    ETS_SEQ[12]=2'b11; ETS_SEQ[13]=2'b01; ETS_SEQ[14]=2'b10;
+end
+
 // ---------------------------------------------------------------------------
 // Helper: apply a single dibit to DUT
 // ---------------------------------------------------------------------------
@@ -175,6 +185,15 @@ task apply_sts;
     begin
         for (k = 18; k >= 0; k = k - 1)
             apply_dibit(STS_SEQ[k]);
+    end
+endtask
+
+// Helper: apply ETS (x-seq) sequence
+task apply_ets;
+    integer k;
+    begin
+        for (k = 14; k >= 0; k = k - 1)
+            apply_dibit(ETS_SEQ[k]);
     end
 endtask
 
@@ -456,6 +475,38 @@ initial begin
     apply_noise(1);    // guard
 
     if (tc_errors == 0) $display("  PASS TC6");
+    errors = errors + tc_errors;
+
+    do_reset;
+
+    // -----------------------------------------------------------------------
+    // TC7: ETS (x-seq) correlator — RA-burst from UL MS (§9.4.4.3.3)
+    // -----------------------------------------------------------------------
+    $display("TC7: ETS x-seq correlator (threshold=13/15)");
+    tc_errors      = 0;
+    corr_threshold = 6'd13;
+    seq_select     = 2'd1;
+
+    // RA-Burst layout §9.4.4.2.1 (127 syms): rat(2)+RA-blk1(54)+x(15)+RA-blk2(54)+rat(2)
+    apply_noise(30);     // pre-burst noise
+    apply_noise(2);      // rat
+    apply_noise(54);     // RA-blk1
+    apply_ets;           // x-sequence — sync_found fires here
+
+    if (!sync_found) begin
+        @(posedge clk_sample); #1;
+        if (!sync_found) begin
+            $display("  FAIL TC7: sync_found did not assert after ETS x-seq");
+            tc_errors = tc_errors + 1;
+        end
+    end
+
+    // Drain rest of burst
+    apply_noise(54);     // RA-blk2
+    apply_noise(2);      // rat
+    apply_noise(30);
+
+    if (tc_errors == 0) $display("  PASS TC7");
     errors = errors + tc_errors;
 
     // -----------------------------------------------------------------------

@@ -11,8 +11,8 @@
 //   Three training sequences are supported (seq_select):
 //     0 — Normal Training Sequence (continuous NDB, NTS n-seq, 11 symbols,
 //         §9.4.4.3.3)
-//     1 — Extended Training Sequence (legacy discontinuous ETS, 30 symbols,
-//         Table 9.12) — UNUSED in continuous-mode basestation
+//     1 — Extended Training Sequence (x-seq, 15 symbols / 30 bits,
+//         §9.4.4.3.3) — used in Random-Access / Control Uplink bursts
 //     2 — Synchronisation TS (continuous SDB, STS p-seq, 19 symbols,
 //         §9.4.4.3.4)
 //
@@ -35,9 +35,9 @@
 //   to avoid a 1-cycle skew.
 //
 // Training Sequence Reference Values:
-//   IMPORTANT — Dibit values in NTS_REF / ETS_REF / STS_REF must be
-//   verified against ETSI EN 300 392-2 Tables 9.11, 9.12, 9.14.
-//   Current values are design-intent placeholders; correct before hardware use.
+//   NTS / STS verified against continuous DL lab captures.
+//   ETS (x-seq) values from osmo-tetra/src/phy/tetra_burst.c:66 (ETSI §9.4.4.3.3),
+//   confirmed via verify_ul_ra_burst.py on MS RA-burst captures (42/42 match).
 //
 // Clock domain:
 //   clk_sample = 100 MHz system clock (same physical clock as clk_sys).
@@ -72,8 +72,8 @@
 `default_nettype none
 
 module tetra_sync_detect #(
-    parameter CORR_WIDTH   = 6,     // Enough for 0..30 (ETS is longest active path)
-    parameter SEQ_LEN_MAX  = 30,    // Longest TS (legacy ETS); continuous NTS=11, STS=19
+    parameter CORR_WIDTH   = 6,     // Enough for 0..19 (STS longest active path)
+    parameter SEQ_LEN_MAX  = 19,    // Longest TS: STS=19 sym; NTS=11, ETS x-seq=15
     parameter HOLDOFF      = 220,   // Symbols blocked after sync_fire
     parameter LOCK_COUNT   = 4,     // Consecutive hits needed for lock
     parameter SLOT_SYMS    = 255,   // Symbols per TDMA timeslot
@@ -116,14 +116,17 @@ localparam [21:0] NTS_REF = {
     2'b10, 2'b01, 2'b11, 2'b01, 2'b00
 };
 
-// ETS — 30 symbols (60 bits), Table 9.12
-localparam [59:0] ETS_REF = {
-    2'b01, 2'b11,              // symbols 29..28 (oldest)
-    2'b01, 2'b00, 2'b10, 2'b11, 2'b01, 2'b10,
-    2'b00, 2'b11, 2'b01, 2'b00, 2'b01, 2'b11,
-    2'b10, 2'b10, 2'b00, 2'b11, 2'b01, 2'b10,
-    2'b10, 2'b00, 2'b11, 2'b01, 2'b00, 2'b00,
-    2'b10, 2'b01, 2'b11, 2'b01  // symbols 5..0 (newest)
+// ETS — 15 symbols (30 bits), §9.4.4.3.3 x-sequence
+// Source: osmo-tetra/src/phy/tetra_burst.c:66
+//   x_bits = 1,0 0,1 1,1 0,1 0,0 0,0 1,1 1,0 1,0 0,1 1,1 0,1 0,0 0,0 1,1
+// Used in Random-Access Burst (§9.4.4.2.1, 127 symbols):
+//   rat(2) + RA-blk1(54) + x(15) + RA-blk2(54) + rat(2)
+// Layout: MSB = first transmitted (oldest in sreg), LSB = last (newest).
+localparam [29:0] ETS_REF = {
+    2'b10,                               // sym  0 (oldest / first TX)
+    2'b01, 2'b11, 2'b01, 2'b00, 2'b00,   // sym  1..5
+    2'b11, 2'b10, 2'b10, 2'b01, 2'b11,   // sym  6..10
+    2'b01, 2'b00, 2'b00, 2'b11           // sym 11..14 (newest / last TX)
 };
 
 // STS — 19 symbols (38 bits), continuous SDB p-sequence (§9.4.4.3.4)
@@ -178,10 +181,10 @@ assign match_nts_sample[ 8] = ~|xor_nts_sample[17:16];
 assign match_nts_sample[ 9] = ~|xor_nts_sample[19:18];
 assign match_nts_sample[10] = ~|xor_nts_sample[21:20];
 
-// ---- ETS (30 symbols) ----
-wire [59:0] xor_ets_sample = sreg_shifted[59:0] ^ ETS_REF;
+// ---- ETS (15 symbols, x-seq from §9.4.4.3.3) ----
+wire [29:0] xor_ets_sample = sreg_shifted[29:0] ^ ETS_REF;
 
-wire [29:0] match_ets_sample;
+wire [14:0] match_ets_sample;
 assign match_ets_sample[ 0] = ~|xor_ets_sample[ 1: 0];
 assign match_ets_sample[ 1] = ~|xor_ets_sample[ 3: 2];
 assign match_ets_sample[ 2] = ~|xor_ets_sample[ 5: 4];
@@ -197,21 +200,6 @@ assign match_ets_sample[11] = ~|xor_ets_sample[23:22];
 assign match_ets_sample[12] = ~|xor_ets_sample[25:24];
 assign match_ets_sample[13] = ~|xor_ets_sample[27:26];
 assign match_ets_sample[14] = ~|xor_ets_sample[29:28];
-assign match_ets_sample[15] = ~|xor_ets_sample[31:30];
-assign match_ets_sample[16] = ~|xor_ets_sample[33:32];
-assign match_ets_sample[17] = ~|xor_ets_sample[35:34];
-assign match_ets_sample[18] = ~|xor_ets_sample[37:36];
-assign match_ets_sample[19] = ~|xor_ets_sample[39:38];
-assign match_ets_sample[20] = ~|xor_ets_sample[41:40];
-assign match_ets_sample[21] = ~|xor_ets_sample[43:42];
-assign match_ets_sample[22] = ~|xor_ets_sample[45:44];
-assign match_ets_sample[23] = ~|xor_ets_sample[47:46];
-assign match_ets_sample[24] = ~|xor_ets_sample[49:48];
-assign match_ets_sample[25] = ~|xor_ets_sample[51:50];
-assign match_ets_sample[26] = ~|xor_ets_sample[53:52];
-assign match_ets_sample[27] = ~|xor_ets_sample[55:54];
-assign match_ets_sample[28] = ~|xor_ets_sample[57:56];
-assign match_ets_sample[29] = ~|xor_ets_sample[59:58];
 
 // ---- STS (19 symbols, continuous SDB) ----
 wire [37:0] xor_sts_sample = sreg_shifted[37:0] ^ STS_REF;
@@ -259,14 +247,7 @@ assign corr_ets_sample =
      {5'd0,match_ets_sample[8]}+{5'd0,match_ets_sample[9]}+
      {5'd0,match_ets_sample[10]}+{5'd0,match_ets_sample[11]}+
      {5'd0,match_ets_sample[12]}+{5'd0,match_ets_sample[13]}+
-     {5'd0,match_ets_sample[14]}+{5'd0,match_ets_sample[15]}+
-     {5'd0,match_ets_sample[16]}+{5'd0,match_ets_sample[17]}+
-     {5'd0,match_ets_sample[18]}+{5'd0,match_ets_sample[19]}+
-     {5'd0,match_ets_sample[20]}+{5'd0,match_ets_sample[21]}+
-     {5'd0,match_ets_sample[22]}+{5'd0,match_ets_sample[23]}+
-     {5'd0,match_ets_sample[24]}+{5'd0,match_ets_sample[25]}+
-     {5'd0,match_ets_sample[26]}+{5'd0,match_ets_sample[27]}+
-     {5'd0,match_ets_sample[28]}+{5'd0,match_ets_sample[29]});
+     {5'd0,match_ets_sample[14]});
 
 wire [5:0] corr_sts_sample;
 assign corr_sts_sample =
