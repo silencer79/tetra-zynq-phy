@@ -29,43 +29,30 @@ from decode_dl import (
 )
 
 
-def scrambler_seq_etsi(init, length):
-    """ETSI EN 300 392-2 §8.2.5.2 scrambler.
-    c(x) = 1 + X + X² + X⁴ + X⁵ + X⁷ + X⁸ + X¹⁰ + X¹¹ + X¹² + X¹⁶ + X²² + X²³ + X²⁶ + X³²
-    Feedback taps at c_i=1 for i ∈ {1,2,4,5,7,8,10,11,12,16,22,23,26,32}.
-    For a right-shift LFSR (bit 0 = most recent output, new bit enters at bit 31),
-    the lfsr positions for feedback are (i-1): {0,1,3,4,6,7,9,10,11,15,21,22,25,31}.
-    init: 32-bit initial state.
-    Returns length bits of scrambler sequence.
-    """
-    lfsr = init & 0xFFFFFFFF
-    if lfsr == 0:
-        lfsr = 0xFFFFFFFF
-    seq = np.zeros(length, dtype=np.int32)
-    taps = [0, 1, 3, 4, 6, 7, 9, 10, 11, 15, 21, 22, 25, 31]
-    for i in range(length):
-        b = 0
-        for t in taps:
-            b ^= (lfsr >> t) & 1
-        seq[i] = b
-        lfsr = (lfsr >> 1) | (b << 31)
-    return seq
+from decode_dl import scrambler_seq as scrambler_seq_etsi
 
 
 def descramble_soft_etsi(soft_bits, init, length):
+    """Reuse canonical osmo-tetra / decode_dl scrambler.
+    ETSI §8.2.5.2 polynomial — taps per osmo-tetra tetra_scramb.c ST(x,32-y)
+    convention: [0,6,9,10,16,20,21,22,24,25,27,28,30,31]."""
     scr = scrambler_seq_etsi(init, length)
     return soft_bits * (1.0 - 2.0 * scr)
 from verify_ul_ra_burst import X_DIBITS, X_DIFF_REF, find_bursts
 
 
-# ETSI EN 300 392-2 §9.4.4.2.1 Table 9.3 — Control Uplink Burst (CB):
-#   tail(4 bits=2 sym) + cb1(84 bits=42 sym) + x(30 bits=15 sym)
-#   + cb2(84 bits=42 sym) + tail(4 bits=2 sym) = 206 bits = 103 symbols
-# The 168 control bits (cb1+cb2) form one SCH/HU type-5 block.
-RA_CB_BITS = 84       # per half-block
-RA_CB_SYMS = 42       # per half-block
-RA_X_SYMS  = 15
-RA_TAIL_SYMS = 2
+# ETSI §9.4.4.2.1 Table 9.3 — Control Uplink Burst (CB, π/4-DQPSK):
+#   tail(4b=2sym) + cb1(84b=42sym) + x(30b=15sym) + cb2(84b=42sym) + tail(4b=2sym)
+#   = 206 bits = 103 symbols.  cb1+cb2 = 168 bits = SCH/HU type-5.
+#
+# Observed: verify_ul_ra_burst x-offset ~53.3 sym from power-detected start;
+# burst_len 81-116 sym.  If CB (103 sym), x expected at sym 2+42=44 from absolute
+# burst start.  Offset 53.3 = 9 sym into the burst → power-detection likely
+# triggers 9 sym late OR the burst is longer.  Two candidate layouts supported.
+RA_CB_SYMS    = 42       # CB half-block (SCH/HU = 168 type-5 bits)
+RA_NUB_SYMS   = 54       # NUB/RAB half-block (216 type-5 bits)
+RA_X_SYMS     = 15
+RA_TAIL_SYMS  = 2
 
 
 def refine_x_position(iq, sps, coarse_pos, search_syms=5):
@@ -86,85 +73,104 @@ def refine_x_position(iq, sps, coarse_pos, search_syms=5):
 
 
 def demod_pi4dqpsk_soft_etsi(symbols):
-    """ETSI-correct soft demod (matches MS transmitter).
-    Per EN 300 392-2: dibit 00→+π/4, 01→−π/4, 10→+3π/4, 11→−3π/4.
-    b1 (MSB) = 1 when |dphi|>π/2 (cos<0)
-    b0 (LSB) = 1 when dphi<0    (sin<0)
+    """ETSI soft π/4-DQPSK differential demod.
+    Per EN 300 392-2 §5.5.1 Table 5.3 (osmo-tetra pi4map=[1,3,7,5]):
+      dibit 00 → +π/4     (sin>0, cos>0)
+      dibit 01 → +3π/4    (sin>0, cos<0)
+      dibit 10 → −π/4     (sin<0, cos>0)
+      dibit 11 → −3π/4    (sin<0, cos<0)
+    → b1 (MSB) = 1 when sin(dφ)<0  →  soft_b1 = sin(dφ)
+    → b0 (LSB) = 1 when cos(dφ)<0  →  soft_b0 = cos(dφ)
     Returns soft[2N-2]: positive=0, negative=1.
     """
     dphi = np.angle(symbols[1:] * np.conj(symbols[:-1]))
     soft = np.empty(len(dphi) * 2, dtype=np.float64)
-    for i, p in enumerate(dphi):
-        soft[2 * i]     = -np.cos(p)  # b1 (MSB): negate cos, so cos<0 → positive → bit=0 is when |dphi|<π/2
-        soft[2 * i + 1] =  np.sin(p)  # b0 (LSB): sin>0 (dphi>0) → positive → bit=0
-    # Wait: we want positive=0 (bit), negative=1. For b1: bit=1 when |dphi|>π/2 (i.e. cos<0).
-    # If cos<0, -cos>0 → bit=0. That's wrong. Fix: flip sign.
-    # Redo: b1 bit-value = (cos<0 ? 1 : 0). Soft metric positive=0: soft_b1 = cos.
-    for i, p in enumerate(dphi):
-        soft[2 * i]     = np.cos(p)   # b1: cos>0 (|dphi|<π/2) → 0
-        soft[2 * i + 1] = np.sin(p)   # b0: sin>0 (dphi>0) → 0
+    soft[0::2] = np.sin(dphi)  # b1 (MSB)
+    soft[1::2] = np.cos(dphi)  # b0 (LSB)
     return soft
 
 
-def sample_cb_soft_bits(iq, sps, x_start_pos):
-    """Sample soft-demod bits for cb1+cb2 (168 bits = SCH/HU type-5).
+def sample_half_soft_bits(iq, sps, x_start_pos, half_syms):
+    """Sample soft-demod bits for blk1+blk2 surrounding the x-sequence.
     x_start_pos = sample position where x-sequence begins.
-    Burst layout (symbol index relative to cb1 start):
-      sym 0..41  = cb1 (42 sym, 84 bits)
-      sym 42..56 = x (15 sym)
-      sym 57..98 = cb2 (42 sym, 84 bits)
-    x_start_pos ↔ sym index 42.
-    For diff demod we sample one extra reference symbol before each block.
-    Returns (cb1_soft[84], cb2_soft[84]).
+    half_syms   = number of symbols per half-block (42 for CB, 54 for NUB/RAB).
+    Layout (sym index relative to blk1 start):
+      sym 0..half-1                      = blk1 (half_syms sym, 2*half_syms bits)
+      sym half..half+14                  = x (15 sym)
+      sym half+15..2*half+14             = blk2 (half_syms sym, 2*half_syms bits)
+    For differential demod, sample one extra reference symbol before each block.
+    Returns (blk1_soft[2*half_syms], blk2_soft[2*half_syms]).
     """
-    burst_cb1_start = x_start_pos - RA_CB_SYMS * sps  # sample pos of cb1 sym 0
+    blk1_start = x_start_pos - half_syms * sps
+    blk1_idx = np.round(blk1_start - sps + np.arange(half_syms + 1) * sps).astype(int)
+    blk1_idx = np.clip(blk1_idx, 0, len(iq) - 1)
+    blk1_soft = demod_pi4dqpsk_soft_etsi(iq[blk1_idx])
 
-    # cb1: need RA_CB_SYMS+1 = 43 samples (1 ref + 42 diff dibits = 84 bits)
-    # Reference sym = tail-bit sym just before cb1 (= x_start - (RA_CB_SYMS+1)*sps)
-    cb1_idx = np.round(burst_cb1_start - sps + np.arange(RA_CB_SYMS + 1) * sps).astype(int)
-    cb1_idx = np.clip(cb1_idx, 0, len(iq) - 1)
-    cb1_syms = iq[cb1_idx]
-    cb1_soft = demod_pi4dqpsk_soft_etsi(cb1_syms)  # ETSI mapping
+    blk2_start = x_start_pos + RA_X_SYMS * sps
+    blk2_idx = np.round(blk2_start - sps + np.arange(half_syms + 1) * sps).astype(int)
+    blk2_idx = np.clip(blk2_idx, 0, len(iq) - 1)
+    blk2_soft = demod_pi4dqpsk_soft_etsi(iq[blk2_idx])
 
-    # cb2: starts RA_X_SYMS syms after x_start. Use last x-seq sym as reference.
-    cb2_start = x_start_pos + RA_X_SYMS * sps
-    cb2_idx = np.round(cb2_start - sps + np.arange(RA_CB_SYMS + 1) * sps).astype(int)
-    cb2_idx = np.clip(cb2_idx, 0, len(iq) - 1)
-    cb2_syms = iq[cb2_idx]
-    cb2_soft = demod_pi4dqpsk_soft_etsi(cb2_syms)
-
-    return cb1_soft, cb2_soft
+    return blk1_soft, blk2_soft
 
 
-def try_schhu_decode(cb1_soft, cb2_soft, scramb_init):
-    """Decode SCH/HU (168 type-5 → 92 type-1 MAC-ACCESS PDU).
-    Tries multiple hypotheses and returns best result.
+def try_channel_decode(blk1_soft, blk2_soft, scramb_init, channel):
+    """Try decoding the (blk1+blk2) payload under one channel hypothesis.
+    channel: 'schhu' (K=168,a=13,info=92), 'schhd' (K=216,a=101,info=124),
+             'schf'  (K=432,a=103,info=268).
+    Runs order/polarity/scramble hypotheses; returns best result.
     """
-    variants = [
-        ('etsi_cb1cb2', np.concatenate([cb1_soft, cb2_soft]),       descramble_soft_etsi),
-        ('etsi_cb2cb1', np.concatenate([cb2_soft, cb1_soft]),       descramble_soft_etsi),
-    ]
-    # Also try the old decode_dl scrambler (original taps)
-    from decode_dl import scrambler_seq as _scr_old
-    def descramble_old(soft, init, length):
-        scr = _scr_old(init, length)
-        return soft * (1.0 - 2.0 * scr)
-    variants.append(('old_cb1cb2', np.concatenate([cb1_soft, cb2_soft]), descramble_old))
-    variants.append(('old_cb2cb1', np.concatenate([cb2_soft, cb1_soft]), descramble_old))
+    if channel == 'schhu':
+        K, a, info = 168, 13, 92
+    elif channel == 'schhd':
+        K, a, info = 216, 101, 124
+    elif channel == 'schf':
+        K, a, info = 432, 103, 268
+    else:
+        raise ValueError(channel)
+
+    len_half = len(blk1_soft)
+    if 2 * len_half < K:
+        return (False, None, None, None)
+    # Trim to K bits from the concatenation (pad or cut)
+    def cat_trim(a_, b_):
+        s = np.concatenate([a_, b_])
+        if len(s) >= K:
+            return s[:K]
+        out = np.zeros(K, dtype=np.float64)
+        out[:len(s)] = s
+        return out
+
+    hypotheses = []
+    for order_name, s in (('12', cat_trim(blk1_soft, blk2_soft)),
+                          ('21', cat_trim(blk2_soft, blk1_soft))):
+        for pol_name, pol in (('+', 1.0), ('-', -1.0)):
+            for scr_name, use_scr in (('s', True), ('n', False)):
+                soft_desc = pol * (descramble_soft_etsi(s, scramb_init, K) if use_scr else s)
+                hypotheses.append((f'{channel}_{order_name}{pol_name}{scr_name}',
+                                   soft_desc))
 
     best = (False, None, None, None)
-    for name, soft_t5, descr in variants:
-        soft_desc = descr(soft_t5, scramb_init, 168)
+    for name, soft_t5 in hypotheses:
         try:
-            crc_ok, info_bits, _ = decode_channel_soft(soft_desc, K=168, a=13, info_bits_len=92)
+            crc_ok, info_bits, _ = decode_channel_soft(soft_t5, K=K, a=a, info_bits_len=info)
         except Exception:
             continue
-        hard = (soft_desc < 0).astype(np.int32)
+        hard = (soft_t5 < 0).astype(np.int32)
         if crc_ok:
             return True, info_bits, hard, name
         if best[1] is None:
             best = (crc_ok, info_bits, hard, name)
-    return best + (None,) if len(best) == 4 else best
+    return best
+
+
+def try_schhu_decode(cb1_soft, cb2_soft, scramb_init):
+    """Legacy entrypoint — tries SCH/HU first, then SCH/HD, then SCH/F."""
+    for ch in ('schhu', 'schhd', 'schf'):
+        res = try_channel_decode(cb1_soft, cb2_soft, scramb_init, ch)
+        if res[0]:
+            return res
+    return res
 
 
 def bits_to_hex(bits):
@@ -279,15 +285,26 @@ def main():
             print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f}  SKIP (weak x)')
             continue
 
-        cb1_soft, cb2_soft = sample_cb_soft_bits(iq, sps, x_pos)
-        result = try_schhu_decode(cb1_soft, cb2_soft, scramb_init)
+        # Try CB layout first (42-sym half-blocks → SCH/HU 168 bit)
+        blk1_cb, blk2_cb = sample_half_soft_bits(iq, sps, x_pos, RA_CB_SYMS)
+        result = try_channel_decode(blk1_cb, blk2_cb, scramb_init, 'schhu')
+        # Fallback: NUB layout (54-sym half-blocks → SCH/HD 216 or SCH/F 432)
+        if not result[0]:
+            blk1_nub, blk2_nub = sample_half_soft_bits(iq, sps, x_pos, RA_NUB_SYMS)
+            r2 = try_channel_decode(blk1_nub, blk2_nub, scramb_init, 'schhd')
+            if r2[0]:
+                result = r2
+            else:
+                r3 = try_channel_decode(blk1_nub, blk2_nub, scramb_init, 'schf')
+                if r3[0]:
+                    result = r3
         crc_ok, info_bits, type5_hard = result[0], result[1], result[2]
         variant = result[3] if len(result) > 3 and result[3] else ''
-        type5_patterns.append(type5_hard)
+        type5_patterns.append(type5_hard if type5_hard is not None else np.zeros(168, dtype=np.int8))
 
         tag = 'OK' if crc_ok else '-'
         pdu_hex = bits_to_hex(info_bits[:48])[:23] if info_bits is not None else ''
-        print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f}  {tag:>4} {variant:>12}  {pdu_hex}')
+        print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f}  {tag:>4} {variant:>14}  {pdu_hex}')
         if crc_ok:
             crc_hits += 1
             decoded_pdus.append(info_bits)
