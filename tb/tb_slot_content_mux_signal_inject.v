@@ -205,6 +205,69 @@ module tb_slot_content_mux_signal_inject;
         advance_slot(2'd1);
         check_bits(tx_blk1_slot1, ndb1, "post_clear");
 
+        // =================================================================
+        // Case 2: valid pulses AFTER the TN=1 slot_pulse (the real-world
+        // race that was silently dropping injections).  The payload must
+        // survive until the NEXT TN=1 slot_pulse and only be consumed once
+        // a TN=1 capture has actually happened.
+        // =================================================================
+
+        // Park at TN=2 (one past TN=1) and fire the valid pulse there.
+        advance_slot(2'd2);
+        @(posedge clk);
+        dl_signal_bits  <= INJECT_PATTERN;
+        dl_signal_valid <= 1'b1;
+        @(posedge clk);
+        dl_signal_valid <= 1'b0;
+        repeat (4) @(posedge clk);
+
+        // ----- T7: pending must be HIGH right after the valid pulse -------
+        test_count = test_count + 1;
+        if (dl_signal_pending !== 1'b1) begin
+            $display("[T%0d case2_pending_after_tn1] FAIL pending should be 1",
+                     test_count);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T%0d case2_pending_after_tn1] PASS", test_count);
+        end
+
+        // ----- T8: pending must SURVIVE TN=3 (no consume before TN=1 seen)-
+        advance_slot(2'd3);
+        test_count = test_count + 1;
+        if (dl_signal_pending !== 1'b1) begin
+            $display("[T%0d case2_survive_tn3] FAIL pending dropped early",
+                     test_count);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T%0d case2_survive_tn3] PASS", test_count);
+        end
+
+        // ----- T9: pending must SURVIVE TN=0 ------------------------------
+        advance_slot(2'd0);
+        test_count = test_count + 1;
+        if (dl_signal_pending !== 1'b1) begin
+            $display("[T%0d case2_survive_tn0] FAIL pending dropped early",
+                     test_count);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T%0d case2_survive_tn0] PASS", test_count);
+        end
+
+        // ----- T10: advance to TN=1 → tx_blk1_slot1 gets the INJECT -------
+        advance_slot(2'd1);
+        check_bits(tx_blk1_slot1, INJECT_PATTERN, "case2_capture_tn1");
+
+        // ----- T11: advance to TN=2 → pending finally clears --------------
+        advance_slot(2'd2);
+        test_count = test_count + 1;
+        if (dl_signal_pending !== 1'b0) begin
+            $display("[T%0d case2_pending_clr] FAIL pending still 1",
+                     test_count);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T%0d case2_pending_clr] PASS", test_count);
+        end
+
         $display("=============================================");
         if (fail_count == 0)
             $display("tb_slot_content_mux_signal_inject: PASS (%0d/%0d)",

@@ -165,23 +165,37 @@ module tetra_slot_content_mux #(
 // the pending flag one cycle after the consumption pulse keeps the override
 // stable throughout TN=1's transmit window.
 // =============================================================================
+// Two-stage pending: a TN=1 slot_pulse must pass with pending HIGH (apply)
+// BEFORE the TN=2 slot_pulse can consume it.  Without this, a valid that
+// fires mid-TN=1 window sets pending too late for the burst_mux capture
+// (which latches block1[1] shortly after the TN=1 slot_pulse), and the
+// TN=2 consume then throws the payload away before any TN=1 capture ever
+// saw it — injection silently lost.
 reg [BLOCK_BITS-1:0] dl_signal_latched_sys;
 reg                  dl_signal_pending_r_sys;
+reg                  dl_signal_seen_tn1_sys;
 assign dl_signal_pending_sys = dl_signal_pending_r_sys;
 
-wire dl_signal_consume_sys = dl_signal_pending_r_sys && slot_pulse_sys
-                             && (tn_sys == 2'd2);
+wire dl_signal_apply_tn1_sys = dl_signal_pending_r_sys && slot_pulse_sys
+                               && (tn_sys == 2'd1);
+wire dl_signal_consume_sys   = dl_signal_pending_r_sys && dl_signal_seen_tn1_sys
+                               && slot_pulse_sys && (tn_sys == 2'd2);
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
         dl_signal_latched_sys   <= {BLOCK_BITS{1'b0}};
         dl_signal_pending_r_sys <= 1'b0;
+        dl_signal_seen_tn1_sys  <= 1'b0;
     end else begin
         if (dl_signal_valid_sys) begin
             dl_signal_latched_sys   <= dl_signal_bits_sys;
             dl_signal_pending_r_sys <= 1'b1;
+            dl_signal_seen_tn1_sys  <= 1'b0;
         end else if (dl_signal_consume_sys) begin
             dl_signal_pending_r_sys <= 1'b0;
+            dl_signal_seen_tn1_sys  <= 1'b0;
+        end else if (dl_signal_apply_tn1_sys) begin
+            dl_signal_seen_tn1_sys  <= 1'b1;
         end
     end
 end
