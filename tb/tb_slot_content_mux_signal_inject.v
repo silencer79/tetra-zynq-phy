@@ -38,12 +38,15 @@ module tb_slot_content_mux_signal_inject;
     reg        slot_pulse = 1'b0;
     reg        tdma_tick  = 1'b0;
 
-    // Schedule BRAM stub — return NULL_PDU (class=1, idx=0, enable=1).
+    // Schedule BRAM stub — return NULL_PDU (class=1, idx=0, enable=1,
+    // ndb2=1).  ndb2=1 is the real-world case (NULL-PDU slot on MCCH is
+    // NDB_SF / p_bits).  We set it here so the override test actually
+    // exercises the 1→0 transition when dl_signal_pending flips.
     // Bit layout (see tetra_slot_content_mux.v bus_class/bus_idx/bus_is_*):
     //   [15:12]=class, [11:6]=idx, [5:4]=sdb, [3]=ndb2, [2]=enable.
-    //   NULL_PDU enabled = 16'b0001_000000_00_0_1_00 = 0x1004.
+    //   NULL_PDU enabled + ndb2 = 16'b0001_000000_00_1_1_00 = 0x100C.
     wire [8:0]  sched_addr;
-    wire [15:0] sched_data = 16'h1004;
+    wire [15:0] sched_data = 16'h100C;
 
     // Static SW payloads — distinctive patterns so we can tell them apart
     wire [BLOCK_BITS-1:0] ndb1 = {27{8'hA1}};
@@ -186,6 +189,15 @@ module tb_slot_content_mux_signal_inject;
                      dl_signal_pending);
             fail_count = fail_count + 1;
         end
+        // slot_ndb2[0] must reflect schedule (ndb2=1 here, NDB_SF/p_bits)
+        test_count = test_count + 1;
+        if (slot_ndb2[0] !== 1'b1) begin
+            $display("[T%0d no_inject_ndb2] FAIL slot_ndb2[0] should be 1 (schedule), got %0b",
+                     test_count, slot_ndb2[0]);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T%0d no_inject_ndb2] PASS", test_count);
+        end
 
         // ----- T2: fire injection (both halves), verify pending = 1 -------
         @(posedge clk);
@@ -211,6 +223,16 @@ module tb_slot_content_mux_signal_inject;
         // (SCH/F signalling replaces BOTH halves, so blk2 is also overridden.)
         check_bits(tx_blk2_slot0, INJECT_BLK2, "inject_bkn2");
 
+        // ----- T4b: slot_ndb2[0] must be 0 while pending (force NDB1/NTS1)
+        test_count = test_count + 1;
+        if (slot_ndb2[0] !== 1'b0) begin
+            $display("[T%0d inject_ndb2_override] FAIL slot_ndb2[0] should be 0 during pending, got %0b",
+                     test_count, slot_ndb2[0]);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T%0d inject_ndb2_override] PASS", test_count);
+        end
+
         // ----- T5: advance to TN=1 → pending clears ------------------------
         advance_slot(2'd1);
         test_count = test_count + 1;
@@ -226,6 +248,15 @@ module tb_slot_content_mux_signal_inject;
         advance_slot(2'd3);
         advance_slot(2'd0);
         check_bits(tx_blk1_slot0, nullp, "post_clear");
+        // slot_ndb2[0] must revert to scheduled value (1 here)
+        test_count = test_count + 1;
+        if (slot_ndb2[0] !== 1'b1) begin
+            $display("[T%0d post_clear_ndb2] FAIL slot_ndb2[0] should revert to 1, got %0b",
+                     test_count, slot_ndb2[0]);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T%0d post_clear_ndb2] PASS", test_count);
+        end
 
         // =================================================================
         // Case 2: valid pulses AFTER the TN=0 slot_pulse (the real-world

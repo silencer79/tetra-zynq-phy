@@ -529,6 +529,11 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
 end
 
 // R1: slot_ndb2_sys
+// TN=0 gets forced to NDB1 (NTS1 / n_bits training) while an SCH/F signalling
+// override is pending.  The MS demod classifies block format by NTS (ETSI
+// §9.4.4.3) — NTS1→SCH/F(432 bit codeword), NTS2→two SCH/HD halves.  Without
+// this override the 432-bit SCH/F payload is transmitted under NTS2 and the
+// MS splits it into two SCH/HD halves, both of which CRC-fail.
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys)
         slot_ndb2_sys <= 4'b0000;
@@ -536,7 +541,8 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         slot_ndb2_sys <= {bus_is_ndb2(sched_entry_reg_sys3),
                           bus_is_ndb2(sched_entry_reg_sys2),
                           bus_is_ndb2(sched_entry_reg_sys1),
-                          bus_is_ndb2(sched_entry_reg_sys0)};
+                          dl_signal_pending_r_sys ? 1'b0
+                                                  : bus_is_ndb2(sched_entry_reg_sys0)};
 end
 
 // R1: per-slot block payloads (8 registers, one per (slot, block))
