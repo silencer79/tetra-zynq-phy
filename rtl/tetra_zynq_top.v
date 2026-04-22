@@ -399,6 +399,7 @@ wire         mle_dl_pdu_valid_w;
 wire         mle_busy_w;
 wire         mle_accept_pulse_w;
 wire         mle_drop_pulse_w;
+wire         mle_dl_pending_sys;
 
 // RX chain debug signals
 wire dbg_fe_valid_sys;
@@ -878,7 +879,7 @@ tetra_slot_content_mux #(
     // MLE signalling response (Phase 6 M2.3b) — one-shot TN=1 BKN1 override
     .dl_signal_bits_sys   (mle_dl_pdu_bits_w),
     .dl_signal_valid_sys  (mle_dl_pdu_valid_w),
-    .dl_signal_pending_sys(),
+    .dl_signal_pending_sys(mle_dl_pending_sys),
     // Outputs to tetra_tx_chain
     .slot_burst_type_sys  (cm_slot_burst_type_sys),
     .slot_en_sys          (cm_slot_en_sys),
@@ -1533,6 +1534,8 @@ tetra_axi_lite_regs u_axi_regs (
     .mle_accept_cnt_axi      (mle_accept_cnt_axi_r1),
     .mle_drop_cnt_axi        (mle_drop_cnt_axi_r1),
     .mle_busy_sticky_axi     (mle_busy_sticky_axi_r1),
+    .mle_inject_cnt_axi      (mle_inject_cnt_axi_r1),
+    .mle_clear_cnt_axi       (mle_clear_cnt_axi_r1),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -1667,17 +1670,37 @@ reg [15:0] mle_accept_cnt_sys;
 reg [15:0] mle_drop_cnt_sys;
 reg        mle_busy_sticky_sys;
 
+// Injection-path diagnostics (TN=1 capture window + pending clears).
+// inject_cnt increments each cycle that (pending && slot_pulse && tn==1) —
+// the exact condition for a TN=1 capture of the injected payload.
+// clear_cnt increments on each pending rising→falling edge (consume events).
+reg [15:0] mle_inject_cnt_sys;
+reg [15:0] mle_clear_cnt_sys;
+reg        mle_pending_prev_sys;
+
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
         mle_ul_req_cnt_sys  <= 16'd0;
         mle_accept_cnt_sys  <= 16'd0;
         mle_drop_cnt_sys    <= 16'd0;
         mle_busy_sticky_sys <= 1'b0;
+        mle_inject_cnt_sys  <= 16'd0;
+        mle_clear_cnt_sys   <= 16'd0;
+        mle_pending_prev_sys<= 1'b0;
     end else begin
         if (ul_pdu_valid_sys)    mle_ul_req_cnt_sys <= mle_ul_req_cnt_sys + 16'd1;
         if (mle_accept_pulse_w)  mle_accept_cnt_sys <= mle_accept_cnt_sys + 16'd1;
         if (mle_drop_pulse_w)    mle_drop_cnt_sys   <= mle_drop_cnt_sys   + 16'd1;
         if (mle_busy_w)          mle_busy_sticky_sys <= 1'b1;
+        // TN=1 inject event — captures the exact condition the content_mux
+        // uses to override blk1_mux_tn1 (pending at the TN=1 slot_pulse).
+        if (mle_dl_pending_sys && tx_tdma_state_slot_pulse_sys
+            && (tx_tdma_state_tn_sys == 2'd1))
+            mle_inject_cnt_sys <= mle_inject_cnt_sys + 16'd1;
+        // Pending falling edge = consume event (TN=2 slot_pulse while pending).
+        mle_pending_prev_sys <= mle_dl_pending_sys;
+        if (mle_pending_prev_sys && !mle_dl_pending_sys)
+            mle_clear_cnt_sys <= mle_clear_cnt_sys + 16'd1;
     end
 end
 
@@ -1689,6 +1712,10 @@ end
 (* ASYNC_REG = "TRUE" *) reg [15:0] mle_drop_cnt_axi_r1;
 (* ASYNC_REG = "TRUE" *) reg        mle_busy_sticky_axi_r0;
 (* ASYNC_REG = "TRUE" *) reg        mle_busy_sticky_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] mle_inject_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] mle_inject_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] mle_clear_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] mle_clear_cnt_axi_r1;
 
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     if (!rst_n_axi) begin
@@ -1700,6 +1727,10 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         mle_drop_cnt_axi_r1    <= 16'd0;
         mle_busy_sticky_axi_r0 <= 1'b0;
         mle_busy_sticky_axi_r1 <= 1'b0;
+        mle_inject_cnt_axi_r0  <= 16'd0;
+        mle_inject_cnt_axi_r1  <= 16'd0;
+        mle_clear_cnt_axi_r0   <= 16'd0;
+        mle_clear_cnt_axi_r1   <= 16'd0;
     end else begin
         mle_ul_req_cnt_axi_r0  <= mle_ul_req_cnt_sys;
         mle_ul_req_cnt_axi_r1  <= mle_ul_req_cnt_axi_r0;
@@ -1709,6 +1740,10 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         mle_drop_cnt_axi_r1    <= mle_drop_cnt_axi_r0;
         mle_busy_sticky_axi_r0 <= mle_busy_sticky_sys;
         mle_busy_sticky_axi_r1 <= mle_busy_sticky_axi_r0;
+        mle_inject_cnt_axi_r0  <= mle_inject_cnt_sys;
+        mle_inject_cnt_axi_r1  <= mle_inject_cnt_axi_r0;
+        mle_clear_cnt_axi_r0   <= mle_clear_cnt_sys;
+        mle_clear_cnt_axi_r1   <= mle_clear_cnt_axi_r0;
     end
 end
 
