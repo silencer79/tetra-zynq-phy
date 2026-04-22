@@ -346,6 +346,9 @@ wire         sync_found_sys;
 wire [7:0]   slot_position_sys;
 wire signed  [15:0] phase_error_sys;
 wire [CORR_WIDTH-1:0] corr_peak_sys;
+wire                  ul_sync_found_sys;
+wire [CORR_WIDTH-1:0] ul_corr_peak_sys;
+wire [1:0]            ul_best_phase_sys;
 
 // RX chain debug signals
 wire dbg_fe_valid_sys;
@@ -367,7 +370,7 @@ tetra_rx_chain #(
     .rst_n_sys          (rst_n_sys),
     // config from AXI-Lite (clk_axi ≈ clk_sys — no CDC for single-source clock)
     .corr_threshold_sys ({16'd0, sync_thresh_axi}),   // zero-extend 8→24-bit
-    .seq_select_sys     (2'd2),                        // STS — matches SB burst TX in BS mode
+    .seq_select_sys     (2'd2),                        // STS — DL SDB detection; UL uses tetra_ul_sync_detect_os4 (parallel)
     .loopback_en_sys    (ctrl_loopback_en_sys),         // bypass CIC gain in digital loopback
     .block1_out_sys     (rx_block1_sys),
     .block2_out_sys     (rx_block2_sys),
@@ -386,6 +389,11 @@ tetra_rx_chain #(
     .slot_position_sys  (slot_position_sys),
     .phase_error_sys    (phase_error_sys),
     .corr_peak_sys      (corr_peak_sys),
+    // UL oversampled sync detector
+    .ul_reset_peak_sys  (ctrl_reset_counters_sys),
+    .ul_sync_found_sys  (ul_sync_found_sys),
+    .ul_corr_peak_sys   (ul_corr_peak_sys),
+    .ul_best_phase_sys  (ul_best_phase_sys),
   .dbg_fe_valid_sys (dbg_fe_valid_sys),
   .dbg_tr_valid_sys (dbg_tr_valid_sys),
   .dbg_demod_valid_sys (dbg_demod_valid_sys)
@@ -1270,6 +1278,7 @@ tetra_axi_lite_regs u_axi_regs (
     .dbg_fe_cnt_axi          (dbg_fe_cnt_sys),
     .dbg_demod_cnt_axi       (dbg_demod_cnt_sys),
     .dbg_sync_cnt_axi        (dbg_sync_packed_sys),
+    .dbg_sync_ul_axi         (dbg_sync_ul_packed_sys),
     // IRQ inputs (axi domain)
     .irq_mac_block_axi       (irq_mac_block_axi),
     .irq_sync_acquired_axi   (irq_sync_acquired_axi),
@@ -1764,6 +1773,21 @@ end
 // Actually, use the AXI register module — add a new wire to dbg_sync_cnt_axi read path.
 // For now, override: pack corr_peak into bits [31:24] of sync_cnt AXI readback.
 wire [31:0] dbg_sync_packed_sys = {corr_peak_sys[7:0], dbg_sync_cnt_sys[23:0]};
+
+// =========================================================================
+// UL sync_cnt + packing for AXI read at 0x5C
+// Layout: {ul_best_phase[1:0], 6'd0, ul_corr_peak[7:0], ul_sync_cnt[15:0]}
+// =========================================================================
+reg [15:0] dbg_ul_sync_cnt_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys)                   dbg_ul_sync_cnt_sys <= 16'd0;
+    else if (ctrl_reset_counters_sys) dbg_ul_sync_cnt_sys <= 16'd0;
+    else if (ul_sync_found_sys)       dbg_ul_sync_cnt_sys <= dbg_ul_sync_cnt_sys + 16'd1;
+end
+
+wire [31:0] dbg_sync_ul_packed_sys = {ul_best_phase_sys, 6'd0,
+                                       ul_corr_peak_sys[7:0],
+                                       dbg_ul_sync_cnt_sys};
 
 endmodule
 `default_nettype wire

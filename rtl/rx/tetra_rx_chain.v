@@ -85,6 +85,14 @@ module tetra_rx_chain #(
     // Debug: peak STS correlation value
     output wire [CORR_WIDTH-1:0] corr_peak_sys,
 
+    // -------------------------------------------------------------------------
+    // UL oversampled sync detector (parallel path, post-RRC IQ @ 72 kHz)
+    // -------------------------------------------------------------------------
+    input  wire                  ul_reset_peak_sys,
+    output wire                  ul_sync_found_sys,
+    output wire [CORR_WIDTH-1:0] ul_corr_peak_sys,
+    output wire [1:0]            ul_best_phase_sys,
+
   // -------------------------------------------------------------------------
   // Debug outputs (ILA probes)
   // -------------------------------------------------------------------------
@@ -200,6 +208,28 @@ tetra_sync_detect #(
     .slot_position  (slot_position_w),
     .slot_number    (slot_number_w),
     .corr_peak      (corr_peak_w)
+);
+
+// =============================================================================
+// ul_sync_detect_os4 — oversampled ETS x-seq detector for MS UL bursts
+// Taps post-RRC IQ at 72 kHz (4 sps) and runs 4 parallel symbol-phase
+// correlators.  Operates in parallel to the DL sync_detect above.
+// =============================================================================
+tetra_ul_sync_detect_os4 #(
+    .IQ_WIDTH   (IQ_WIDTH),
+    .CORR_WIDTH (CORR_WIDTH),
+    .HOLDOFF    (50)
+) u_ul_sync_detect (
+    .clk_sys            (clk_sys),
+    .rst_n_sys          (rst_n_sys),
+    .reset_peak_sys     (ul_reset_peak_sys),
+    .i_in_sys           (fe_i_sys),
+    .q_in_sys           (fe_q_sys),
+    .valid_in_sys       (fe_valid_sys),
+    .corr_threshold_sys (corr_threshold_sys),
+    .sync_found_sys     (ul_sync_found_sys),
+    .corr_peak_sys      (ul_corr_peak_sys),
+    .best_phase_sys     (ul_best_phase_sys)
 );
 
 // =============================================================================

@@ -112,6 +112,7 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/rx/tetra_pi4dqpsk_demod.v \
  $PROJ_DIR/rtl/rx/tetra_timing_recovery.v \
  $PROJ_DIR/rtl/rx/tetra_sync_detect.v \
+ $PROJ_DIR/rtl/rx/tetra_ul_sync_detect_os4.v \
  $PROJ_DIR/rtl/rx/tetra_burst_demux.v \
  $PROJ_DIR/rtl/rx/tetra_frame_counter.v \
 ]

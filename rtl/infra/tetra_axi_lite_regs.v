@@ -147,7 +147,8 @@ module tetra_axi_lite_regs (
     // RX debug counters (clk_sys domain, reset by CTRL[3])
     input  wire [31:0] dbg_fe_cnt_axi,    // RX frontend out_valid count
     input  wire [31:0] dbg_demod_cnt_axi, // Demod dibit_valid count
-    input  wire [31:0] dbg_sync_cnt_axi,  // Sync found count
+    input  wire [31:0] dbg_sync_cnt_axi,  // Sync found count (DL)
+    input  wire [31:0] dbg_sync_ul_axi,   // UL: {ul_best_phase[1:0], 6'd0, ul_corr_peak[7:0], ul_sync_cnt[15:0]}
 
     // Interrupt inputs (1-cycle pulses, pre-synchronized to axi domain)
     input  wire        irq_mac_block_axi,
@@ -313,7 +314,8 @@ localparam [6:0] REG_SB_SB1_3    = 7'h13; // 0x4C  (bits [23:0] used)
 // RX debug counters (read-only, reset by CTRL[3])
 localparam [6:0] REG_DBG_FE_CNT   = 7'h14; // 0x50  RX frontend valid count
 localparam [6:0] REG_DBG_DEMOD_CNT= 7'h15; // 0x54  Demod dibit valid count
-localparam [6:0] REG_DBG_SYNC_CNT = 7'h16; // 0x58  Sync found count
+localparam [6:0] REG_DBG_SYNC_CNT = 7'h16; // 0x58  Sync found count (DL)
+localparam [6:0] REG_DBG_SYNC_UL  = 7'h17; // 0x5C  UL debug: {phase[1:0], 6'd0, peak[7:0], cnt[15:0]}
 // bkn2: 216 bits in 7 words (word 6 bits [23:0] only)
 localparam [6:0] REG_SB_BKN2_0   = 7'h18; // 0x60
 localparam [6:0] REG_SB_BKN2_1   = 7'h19; // 0x64
@@ -608,6 +610,7 @@ always @(*) begin
         REG_DBG_FE_CNT:   rdata_mux_axi = dbg_fe_cnt_axi;
         REG_DBG_DEMOD_CNT: rdata_mux_axi = dbg_demod_cnt_axi;
         REG_DBG_SYNC_CNT: rdata_mux_axi = dbg_sync_cnt_axi;
+        REG_DBG_SYNC_UL:  rdata_mux_axi = dbg_sync_ul_axi;
         // SB Payload readback
         REG_SB_SB1_0:    rdata_mux_axi = sb_sb1_w0_axi;
         REG_SB_SB1_1:    rdata_mux_axi = sb_sb1_w1_axi;
