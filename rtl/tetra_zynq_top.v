@@ -393,8 +393,10 @@ wire        ast_q_hit_w;
 wire [5:0]  ast_q_slot_w;
 wire [63:0] ast_q_record_w;
 
-// MLE-registration FSM outputs
-wire [215:0] mle_dl_pdu_bits_w;
+// MLE-registration FSM outputs — SCH/F coded response, split into two
+// 216-bit halves (BKN1+BKN2) for the slot_content_mux dual-block override.
+wire [215:0] mle_dl_pdu_blk1_w;
+wire [215:0] mle_dl_pdu_blk2_w;
 wire         mle_dl_pdu_valid_w;
 wire         mle_busy_w;
 wire         mle_accept_pulse_w;
@@ -877,7 +879,8 @@ tetra_slot_content_mux #(
     // NULL-PDU bank (216-bit pre-coded SCH/HD payload, 2-FF synced)
     .null_pdu_bits_sys    (null_pdu_bits_sys_r1),
     // MLE signalling response (Phase 6 M2.3b) — one-shot TN=1 BKN1 override
-    .dl_signal_bits_sys   (mle_dl_pdu_bits_w),
+    .dl_signal_blk1_sys   (mle_dl_pdu_blk1_w),
+    .dl_signal_blk2_sys   (mle_dl_pdu_blk2_w),
     .dl_signal_valid_sys  (mle_dl_pdu_valid_w),
     .dl_signal_pending_sys(mle_dl_pending_sys),
     // Outputs to tetra_tx_chain
@@ -1661,8 +1664,9 @@ tetra_mle_registration_fsm #(
     .ast_q_hit        (ast_q_hit_w),
     .ast_q_slot       (ast_q_slot_w),
     .ast_q_record     (ast_q_record_w),
-    // DL output to slot_content_mux
-    .dl_pdu_bits      (mle_dl_pdu_bits_w),
+    // DL output to slot_content_mux — SCH/F split into BKN1+BKN2 halves
+    .dl_pdu_blk1      (mle_dl_pdu_blk1_w),
+    .dl_pdu_blk2      (mle_dl_pdu_blk2_w),
     .dl_pdu_valid     (mle_dl_pdu_valid_w),
     .busy             (mle_busy_w),
     .accept_pulse     (mle_accept_pulse_w),

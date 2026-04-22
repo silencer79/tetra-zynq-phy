@@ -126,12 +126,14 @@ module tetra_slot_content_mux #(
     input  wire [BLOCK_BITS-1:0]  null_pdu_bits_sys,
 
     // MLE signalling response — one-shot DL PDU produced by the MLE
-    // registration FSM.  When `dl_signal_valid_sys` pulses, the 216-bit
-    // `dl_signal_bits_sys` is latched and overrides TN=1 BKN1 on the next
-    // slot_pulse for TN=1, then pending clears.  The MS sees one D-LOC-
-    // UPDATE-ACCEPT on the advertised signalling carrier and transitions
-    // to registered.
-    input  wire [BLOCK_BITS-1:0]  dl_signal_bits_sys,
+    // registration FSM.  When `dl_signal_valid_sys` pulses, the two 216-bit
+    // halves `dl_signal_blk1_sys` / `dl_signal_blk2_sys` (carrying a 432-bit
+    // SCH/F coded MAC-RESOURCE PDU) are latched and override BOTH BKN1 and
+    // BKN2 on TN=0 of the next eligible slot_pulse, then pending clears.
+    // The MS sees one D-LOC-UPDATE-ACCEPT on the advertised signalling
+    // carrier and transitions to registered.
+    input  wire [BLOCK_BITS-1:0]  dl_signal_blk1_sys,
+    input  wire [BLOCK_BITS-1:0]  dl_signal_blk2_sys,
     input  wire                   dl_signal_valid_sys,
     output wire                   dl_signal_pending_sys,
 
@@ -160,7 +162,7 @@ module tetra_slot_content_mux #(
 // =============================================================================
 // MLE signalling response — latched one-shot DL payload
 //
-// Snapshot `dl_signal_bits_sys` on any `dl_signal_valid_sys` pulse and hold
+// Snapshot `dl_signal_blk1_sys`/`dl_signal_blk2_sys` on any `dl_signal_valid_sys` pulse and hold
 // it until TN=0's slot_pulse consumes it (the injection point — RTL tn=0
 // == ETSI Slot 1 == MCCH).  Clearing the pending flag one cycle after the
 // consumption pulse keeps the override stable throughout TN=0's transmit
@@ -172,7 +174,8 @@ module tetra_slot_content_mux #(
 // (which latches block1[0] shortly after the TN=0 slot_pulse), and the
 // TN=1 consume then throws the payload away before any TN=0 capture ever
 // saw it — injection silently lost.
-reg [BLOCK_BITS-1:0] dl_signal_latched_sys;
+reg [BLOCK_BITS-1:0] dl_signal_latched_blk1_sys;
+reg [BLOCK_BITS-1:0] dl_signal_latched_blk2_sys;
 reg                  dl_signal_pending_r_sys;
 reg                  dl_signal_seen_tn0_sys;
 assign dl_signal_pending_sys = dl_signal_pending_r_sys;
@@ -184,19 +187,21 @@ wire dl_signal_consume_sys   = dl_signal_pending_r_sys && dl_signal_seen_tn0_sys
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
-        dl_signal_latched_sys   <= {BLOCK_BITS{1'b0}};
-        dl_signal_pending_r_sys <= 1'b0;
-        dl_signal_seen_tn0_sys  <= 1'b0;
+        dl_signal_latched_blk1_sys <= {BLOCK_BITS{1'b0}};
+        dl_signal_latched_blk2_sys <= {BLOCK_BITS{1'b0}};
+        dl_signal_pending_r_sys    <= 1'b0;
+        dl_signal_seen_tn0_sys     <= 1'b0;
     end else begin
         if (dl_signal_valid_sys) begin
-            dl_signal_latched_sys   <= dl_signal_bits_sys;
-            dl_signal_pending_r_sys <= 1'b1;
-            dl_signal_seen_tn0_sys  <= 1'b0;
+            dl_signal_latched_blk1_sys <= dl_signal_blk1_sys;
+            dl_signal_latched_blk2_sys <= dl_signal_blk2_sys;
+            dl_signal_pending_r_sys    <= 1'b1;
+            dl_signal_seen_tn0_sys     <= 1'b0;
         end else if (dl_signal_consume_sys) begin
-            dl_signal_pending_r_sys <= 1'b0;
-            dl_signal_seen_tn0_sys  <= 1'b0;
+            dl_signal_pending_r_sys    <= 1'b0;
+            dl_signal_seen_tn0_sys     <= 1'b0;
         end else if (dl_signal_apply_tn0_sys) begin
-            dl_signal_seen_tn0_sys  <= 1'b1;
+            dl_signal_seen_tn0_sys     <= 1'b1;
         end
     end
 end
@@ -444,8 +449,10 @@ always @(*) begin
 end
 always @(*) begin
     if (dl_signal_pending_sys) begin
-        blk1_mux_tn0_sys = dl_signal_latched_sys;
-        blk2_mux_tn0_sys = blk2_sched_tn0_sys;
+        // SCH/F signalling: BOTH halves of TN=0 are replaced by the encoded
+        // 432-bit MAC-RESOURCE PDU (split blk1=[431:216], blk2=[215:0]).
+        blk1_mux_tn0_sys = dl_signal_latched_blk1_sys;
+        blk2_mux_tn0_sys = dl_signal_latched_blk2_sys;
     end else begin
         blk1_mux_tn0_sys = blk1_sched_tn0_sys;
         blk2_mux_tn0_sys = blk2_sched_tn0_sys;

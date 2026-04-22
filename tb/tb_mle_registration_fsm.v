@@ -2,10 +2,15 @@
 // tb_mle_registration_fsm.v — integration test for the MLE registration FSM
 // connected to a real tetra_active_session_table instance.
 //
+// FSM now wraps the D-LOC-UPDATE-ACCEPT MM PDU in a MAC-RESOURCE DL PDU
+// (via tetra_mac_resource_dl_builder, 268 info bits) and runs it through
+// the SCH/F encoder (→ 432 coded bits), splitting the output into
+// dl_pdu_blk1 (MSB half) + dl_pdu_blk2 (LSB half) for the slot mux.
+//
 // Scenarios:
 //   1. Empty table, UL req with ISSI=523/LA=36 → alloc slot 0, ACCEPT, deliver
-//      coded_bits that match the SCH/HD bit-exact vector from the encoder TB
-//      (same input: D-LOC-UPDATE ACCEPT with SSI=523 LA=36 cfg_la=36).
+//      coded bits that match the Python SCH/F reference (full chain:
+//      builder golden EXPECTED_1 → SCH/F encode, init=0xE1670C03).
 //   2. Re-register same ISSI → query hit, reuse slot 0, ACCEPT again.
 //   3. Different ISSI → alloc slot 1.
 //   4. Fill table, next request → drop_pulse (MVP table-full behaviour).
@@ -47,7 +52,8 @@ module tb_mle_registration_fsm;
     wire [AST_REC_WIDTH-1:0]     ast_q_record;
 
     // ---- FSM outputs ----
-    wire [215:0] dl_pdu_bits;
+    wire [215:0] dl_pdu_blk1;
+    wire [215:0] dl_pdu_blk2;
     wire         dl_pdu_valid;
     wire         busy;
     wire         accept_pulse;
@@ -97,7 +103,8 @@ module tb_mle_registration_fsm;
         .ast_q_hit        (ast_q_hit),
         .ast_q_slot       (ast_q_slot),
         .ast_q_record     (ast_q_record),
-        .dl_pdu_bits      (dl_pdu_bits),
+        .dl_pdu_blk1      (dl_pdu_blk1),
+        .dl_pdu_blk2      (dl_pdu_blk2),
         .dl_pdu_valid     (dl_pdu_valid),
         .busy             (busy),
         .accept_pulse     (accept_pulse),
@@ -107,12 +114,18 @@ module tb_mle_registration_fsm;
     integer fail_count = 0;
     integer test_count = 0;
 
-    // Known coded bits for ACCEPT/SSI=523/LA=36/cfg_scramble=E1670C03 from
-    // tb_sch_hd_encoder T4 (D-LOC-UPDATE ACCEPT with subscriber_class=0x0000
-    // instead of 0x1234 — FSM uses 0x0000 MVP placeholder).
-    // Recompute with gen_sch_hd_tv.py if either constant changes.
-    localparam [215:0] EXPECTED_ACCEPT_523_36 =
-        216'h5a2ac591e7291b9234553e4750bf87cbcc5dc8ade299a1338f8cf6;
+    // Known SCH/F coded bits for ACCEPT/SSI=523/subs_class=0/NS=NR=0
+    // wrapped via MAC-RESOURCE builder EXPECTED_1 (see
+    // tb_mac_resource_dl_builder.v) and encoded with scramble_init
+    // 0xE1670C03.  Golden = Python reference scripts/gen_sch_f_tv.py
+    // (encode_sch_f(info=EXPECTED_1, init=0xE1670C03)).  Split:
+    //   blk1 = coded[431:216] (MSB half, first on air)
+    //   blk2 = coded[215:  0] (LSB half)
+    // Recompute if MM PDU layout or scrambler seed changes.
+    localparam [215:0] EXPECTED_ACCEPT_523_BLK1 =
+        216'h1a52ad41e2a96e829c67af8b763d1d4b8979da4db37ba5d1371896;
+    localparam [215:0] EXPECTED_ACCEPT_523_BLK2 =
+        216'hc507df3b7996d7a6eff7946978ac255c918a8aadaf96db8668a282;
 
     task automatic push_request(input [23:0] issi, input [13:0] la);
         begin
@@ -128,19 +141,22 @@ module tb_mle_registration_fsm;
     task automatic wait_for_result(output reg       got_accept,
                                    output reg       got_drop,
                                    output reg [AST_IDX_WIDTH-1:0] got_slot,
-                                   output reg [215:0] got_bits);
+                                   output reg [215:0] got_blk1,
+                                   output reg [215:0] got_blk2);
         integer wait_cycles;
         begin
             got_accept  = 1'b0;
             got_drop    = 1'b0;
             got_slot    = {AST_IDX_WIDTH{1'b0}};
-            got_bits    = 216'd0;
+            got_blk1    = 216'd0;
+            got_blk2    = 216'd0;
             wait_cycles = 0;
-            while (wait_cycles < 2000 && !got_accept && !got_drop) begin
+            while (wait_cycles < 4000 && !got_accept && !got_drop) begin
                 @(posedge clk);
                 if (dl_pdu_valid) begin
                     got_accept = 1'b1;
-                    got_bits   = dl_pdu_bits;
+                    got_blk1   = dl_pdu_blk1;
+                    got_blk2   = dl_pdu_blk2;
                     got_slot   = ast_wr_idx;   // last written slot
                 end
                 if (drop_pulse) got_drop = 1'b1;
@@ -151,17 +167,19 @@ module tb_mle_registration_fsm;
 
     task automatic expect_accept(input [23:0] issi,
                                  input [AST_IDX_WIDTH-1:0] exp_slot,
-                                 input [215:0] exp_bits,
+                                 input [215:0] exp_blk1,
+                                 input [215:0] exp_blk2,
                                  input        check_bits,
                                  input [63:0] tag);
         reg       got_accept;
         reg       got_drop;
         reg [AST_IDX_WIDTH-1:0] got_slot;
-        reg [215:0]             got_bits;
+        reg [215:0]             got_blk1;
+        reg [215:0]             got_blk2;
         begin
             test_count = test_count + 1;
             push_request(issi, 14'd36);
-            wait_for_result(got_accept, got_drop, got_slot, got_bits);
+            wait_for_result(got_accept, got_drop, got_slot, got_blk1, got_blk2);
             if (!got_accept) begin
                 $display("[T%0d %0s] FAIL: expected ACCEPT, got drop=%0d",
                          test_count, tag, got_drop);
@@ -170,14 +188,17 @@ module tb_mle_registration_fsm;
                 $display("[T%0d %0s] FAIL slot: got=%0d exp=%0d",
                          test_count, tag, got_slot, exp_slot);
                 fail_count = fail_count + 1;
-            end else if (check_bits && got_bits !== exp_bits) begin
+            end else if (check_bits && (got_blk1 !== exp_blk1 ||
+                                         got_blk2 !== exp_blk2)) begin
                 $display("[T%0d %0s] FAIL bits:", test_count, tag);
-                $display("  got = %054h", got_bits);
-                $display("  exp = %054h", exp_bits);
+                $display("  got blk1 = %054h", got_blk1);
+                $display("  exp blk1 = %054h", exp_blk1);
+                $display("  got blk2 = %054h", got_blk2);
+                $display("  exp blk2 = %054h", exp_blk2);
                 fail_count = fail_count + 1;
             end else begin
-                $display("[T%0d %0s] PASS slot=%0d coded=%054h",
-                         test_count, tag, got_slot, got_bits);
+                $display("[T%0d %0s] PASS slot=%0d blk1=%054h blk2=%054h",
+                         test_count, tag, got_slot, got_blk1, got_blk2);
             end
         end
     endtask
@@ -186,11 +207,12 @@ module tb_mle_registration_fsm;
         reg       got_accept;
         reg       got_drop;
         reg [AST_IDX_WIDTH-1:0] got_slot;
-        reg [215:0]             got_bits;
+        reg [215:0]             got_blk1;
+        reg [215:0]             got_blk2;
         begin
             test_count = test_count + 1;
             push_request(issi, 14'd36);
-            wait_for_result(got_accept, got_drop, got_slot, got_bits);
+            wait_for_result(got_accept, got_drop, got_slot, got_blk1, got_blk2);
             if (!got_drop) begin
                 $display("[T%0d %0s] FAIL: expected DROP, got accept=%0d",
                          test_count, tag, got_accept);
@@ -217,14 +239,18 @@ module tb_mle_registration_fsm;
         end
         @(posedge clk);
 
-        // T1: first registration — empty table → alloc slot 0, check bits
-        expect_accept(24'd523, 6'd0, EXPECTED_ACCEPT_523_36, 1'b1, "first_reg");
+        // T1: first registration — empty table → alloc slot 0, check both
+        // SCH/F halves against Python-computed golden.
+        expect_accept(24'd523, 6'd0,
+                      EXPECTED_ACCEPT_523_BLK1,
+                      EXPECTED_ACCEPT_523_BLK2,
+                      1'b1, "first_reg");
 
         // T2: same ISSI → query hits slot 0, reused
-        expect_accept(24'd523, 6'd0, 216'd0, 1'b0, "reregister");
+        expect_accept(24'd523, 6'd0, 216'd0, 216'd0, 1'b0, "reregister");
 
         // T3: new ISSI → alloc slot 1
-        expect_accept(24'd1000, 6'd1, 216'd0, 1'b0, "second_ms");
+        expect_accept(24'd1000, 6'd1, 216'd0, 216'd0, 1'b0, "second_ms");
 
         // T4: fill remaining slots (2..63) so table is full
         for (i = 2; i < AST_DEPTH; i = i + 1) begin

@@ -62,19 +62,76 @@ module tetra_d_location_update_encoder (
     // Subscriber class / service profile — FSM fills from shadow record
     input  wire [15:0]  subscriber_class,
 
-    // Output — 124-bit PDU, [123] first bit on air
-    output wire [123:0] pdu_bits
+    // Legacy output — 124-bit PDU, [123] first bit on air.  Retained for the
+    // loopback TB that still drives the raw SCH/HD coding chain directly.
+    output wire [123:0] pdu_bits,
+
+    // Wrapper-oriented output — raw MM PDU, MSB-aligned to [79], with the
+    // explicit length so MAC-RESOURCE wrapping (tetra_mac_resource_dl_builder)
+    // can embed just the meaningful bits (no SCH/HD-sized padding).
+    output wire [79:0]  pdu_bits_mm,
+    output wire [6:0]   pdu_len_bits
 );
 
-    // PDU Type codes — EN 300 392-2 Table 21.72 (PDU type field, MM layer)
-    localparam [3:0] PDU_TYPE_LOC_ACCEPT = 4'b0001;
-    localparam [3:0] PDU_TYPE_LOC_REJECT = 4'b0010;
+    // PDU Type codes — MM PDU type (EN 300 392-2 Table 16.12 / §16.9.2).
+    // D-LOCATION UPDATE ACCEPT = 0b0101, D-LOCATION UPDATE REJECT = 0b0111.
+    // (Historical legacy constants below preserved in wire form for the
+    // SCH/HD-loopback path that the upstream TB still references.)
+    localparam [3:0] PDU_TYPE_LOC_ACCEPT = 4'b0101;
+    localparam [3:0] PDU_TYPE_LOC_REJECT = 4'b0111;
 
     wire [3:0] pdu_type_w = pdu_reject ? PDU_TYPE_LOC_REJECT
                                         : PDU_TYPE_LOC_ACCEPT;
 
+    // -------------------------------------------------------------------------
+    // MM PDU (raw, MSB-aligned).  Layout per EN 300 392-2 §16.9.2.7 Table 16.12
+    // minimum mandatory fields for the ACCEPT path (Type-1 elements only):
+    //   [79:76]  PDU type                      4  (0101 = ACCEPT)
+    //   [75:73]  Location update accept type   3  (000 = roaming accept)
+    //   [72]     O-bit for type 2 elements     1  (1 = type-2 elements follow)
+    //   [71]     p-bit for SSI                 1  (1 = SSI included)
+    //   [70:47]  SSI                           24
+    //   [46]     p-bit for address extension   1  (0 = absent)
+    //   [45]     p-bit for subscriber class    1  (1 = included)
+    //   [44:29]  Subscriber class              16
+    //   [28]     p-bit for energy saving info  1  (0 = absent)
+    //   [27]     p-bit for SCCH info & distrib 1  (0 = absent)
+    //   [26]     m-bit (type 3/4 elements)     1  (0 = none)
+    //   [25: 0]  padding (don't-care, outside pdu_len_bits)
+    //
+    // Total meaningful bits: 4+3+1+1+24+1+1+16+1+1+1 = 54 bits.
+    // Wrapper uses pdu_len_bits to know the boundary; anything beyond is
+    // ignored by the FCS shift and not transmitted.
+    // -------------------------------------------------------------------------
+    localparam [2:0] LOC_ACC_TYPE_ROAMING = 3'b000;
+    localparam [6:0] MM_PDU_LEN           = 7'd54;
+
+    assign pdu_bits_mm = {
+        pdu_type_w,                 // [79:76]  4
+        LOC_ACC_TYPE_ROAMING,       // [75:73]  3
+        1'b1,                       // [72]     O-bit (type 2 follows)
+        1'b1,                       // [71]     p SSI
+        ssi,                        // [70:47] 24
+        1'b0,                       // [46]     p addr-ext = absent
+        1'b1,                       // [45]     p subscriber-class
+        subscriber_class,           // [44:29] 16
+        1'b0,                       // [28]     p energy-saving  = absent
+        1'b0,                       // [27]     p SCCH-info      = absent
+        1'b0,                       // [26]     m type-3/4       = none
+        26'b0                       // [25: 0]  padding
+    };
+    assign pdu_len_bits = MM_PDU_LEN;
+
+    // -------------------------------------------------------------------------
+    // Legacy 124-bit PDU — unchanged layout, SCH/HD-encoded via the
+    // existing tetra_mle_registration_fsm path (not ETSI-conformant MAC-
+    // RESOURCE — retained only for the loopback TB).  Note the legacy path
+    // used 4'b0001 as its "PDU type" constant; we preserve that historical
+    // byte-sequence to keep the encoder-TB vector bit-exact.
+    // -------------------------------------------------------------------------
+    wire [3:0] legacy_pdu_type_w = pdu_reject ? 4'b0010 : 4'b0001;
     assign pdu_bits = {
-        pdu_type_w,          // [123:120]  4
+        legacy_pdu_type_w,   // [123:120]  4
         addr_type,           // [119:117]  3
         ssi,                 // [116: 93] 24
         la,                  // [ 92: 79] 14

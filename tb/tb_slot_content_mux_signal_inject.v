@@ -4,13 +4,16 @@
 // Focused test for the MLE-signalling injection path in
 // tetra_slot_content_mux.  The override targets RTL tn=0 (= ETSI Slot 1
 // = MCCH), the slot where the MS actually listens during registration.
+// SCH/F signalling replaces BOTH halves of the target slot — the 432-bit
+// coded MAC-RESOURCE PDU is split into blk1 (MSB half) and blk2 (LSB half)
+// at the FSM output.
 //
 // Verifies:
 //   1. Before any injection, TN=0 BKN1 follows the scheduled NULL_PDU
 //      payload (class=1, idx=0 → null_pdu_bits).
 //   2. After a `dl_signal_valid_sys` pulse, `dl_signal_pending_sys` goes
-//      HIGH and on the next TN=0 slot_pulse `tx_blk1_slot0_sys` registers
-//      the injected bits.
+//      HIGH and on the next TN=0 slot_pulse BOTH tx_blk1_slot0_sys and
+//      tx_blk2_slot0_sys register the injected bits (blk1 + blk2 halves).
 //   3. Pending clears on the slot_pulse for TN=1 (one slot after TN=0
 //      transmits) so the next TN=0 cycle returns to the scheduled value.
 //   4. Valid pulses arriving AFTER a TN=0 slot_pulse survive TN=1/2/3
@@ -52,8 +55,10 @@ module tb_slot_content_mux_signal_inject;
     wire [BLOCK_BITS-1:0] sbkn2= {27{8'h17}};
     wire [BLOCK_BITS-1:0] nullp= {27{8'h28}};
 
-    // Injection inputs
-    reg  [BLOCK_BITS-1:0] dl_signal_bits  = {BLOCK_BITS{1'b0}};
+    // Injection inputs — distinct blk1/blk2 patterns so we can tell which
+    // half landed where in the TN=0 capture.
+    reg  [BLOCK_BITS-1:0] dl_signal_blk1  = {BLOCK_BITS{1'b0}};
+    reg  [BLOCK_BITS-1:0] dl_signal_blk2  = {BLOCK_BITS{1'b0}};
     reg                   dl_signal_valid = 1'b0;
     wire                  dl_signal_pending;
 
@@ -93,7 +98,8 @@ module tb_slot_content_mux_signal_inject;
         .bnch_block2_sw_sys   (bnch2),
         .sb_bkn2_sw_sys       (sbkn2),
         .null_pdu_bits_sys    (nullp),
-        .dl_signal_bits_sys   (dl_signal_bits),
+        .dl_signal_blk1_sys   (dl_signal_blk1),
+        .dl_signal_blk2_sys   (dl_signal_blk2),
         .dl_signal_valid_sys  (dl_signal_valid),
         .dl_signal_pending_sys(dl_signal_pending),
         .slot_burst_type_sys  (slot_burst_type),
@@ -155,7 +161,11 @@ module tb_slot_content_mux_signal_inject;
         end
     endtask
 
-    localparam [BLOCK_BITS-1:0] INJECT_PATTERN = {27{8'h99}};
+    // Distinct patterns for each half — matches "{108{2'b01}}" and
+    // "{108{2'b10}}" semantically (easy to spot in a VCD hex dump).
+    localparam [BLOCK_BITS-1:0] INJECT_BLK1 = {108{2'b01}};
+    localparam [BLOCK_BITS-1:0] INJECT_BLK2 = {108{2'b10}};
+    localparam [BLOCK_BITS-1:0] INJECT_PATTERN = INJECT_BLK1;  // legacy alias
 
     initial begin
         $dumpfile("sim_out/tb_slot_content_mux_signal_inject.vcd");
@@ -177,9 +187,10 @@ module tb_slot_content_mux_signal_inject;
             fail_count = fail_count + 1;
         end
 
-        // ----- T2: fire injection, verify pending = 1 ----------------------
+        // ----- T2: fire injection (both halves), verify pending = 1 -------
         @(posedge clk);
-        dl_signal_bits  <= INJECT_PATTERN;
+        dl_signal_blk1  <= INJECT_BLK1;
+        dl_signal_blk2  <= INJECT_BLK2;
         dl_signal_valid <= 1'b1;
         @(posedge clk);
         dl_signal_valid <= 1'b0;
@@ -192,12 +203,13 @@ module tb_slot_content_mux_signal_inject;
             $display("[T%0d pending_set] PASS", test_count);
         end
 
-        // ----- T3: advance to TN=0 slot_pulse → tx_blk1_slot0 == INJECT ----
+        // ----- T3: advance to TN=0 slot_pulse → tx_blk1_slot0 == INJECT_BLK1
         advance_slot(2'd0);
-        check_bits(tx_blk1_slot0, INJECT_PATTERN, "inject_bkn1");
+        check_bits(tx_blk1_slot0, INJECT_BLK1, "inject_bkn1");
 
-        // ----- T4: blk2 should still be NDB2 (NULL_PDU schedule → ndb2) ---
-        check_bits(tx_blk2_slot0, ndb2, "blk2_unchanged");
+        // ----- T4: SCH/F override — tx_blk2_slot0 == INJECT_BLK2 -----------
+        // (SCH/F signalling replaces BOTH halves, so blk2 is also overridden.)
+        check_bits(tx_blk2_slot0, INJECT_BLK2, "inject_bkn2");
 
         // ----- T5: advance to TN=1 → pending clears ------------------------
         advance_slot(2'd1);
@@ -225,7 +237,8 @@ module tb_slot_content_mux_signal_inject;
         // Park at TN=1 (one past TN=0) and fire the valid pulse there.
         advance_slot(2'd1);
         @(posedge clk);
-        dl_signal_bits  <= INJECT_PATTERN;
+        dl_signal_blk1  <= INJECT_BLK1;
+        dl_signal_blk2  <= INJECT_BLK2;
         dl_signal_valid <= 1'b1;
         @(posedge clk);
         dl_signal_valid <= 1'b0;
@@ -263,9 +276,10 @@ module tb_slot_content_mux_signal_inject;
             $display("[T%0d case2_survive_tn3] PASS", test_count);
         end
 
-        // ----- T10: advance to TN=0 → tx_blk1_slot0 gets the INJECT -------
+        // ----- T10: advance to TN=0 → tx_blk1_slot0 + tx_blk2_slot0 inject
         advance_slot(2'd0);
-        check_bits(tx_blk1_slot0, INJECT_PATTERN, "case2_capture_tn0");
+        check_bits(tx_blk1_slot0, INJECT_BLK1, "case2_capture_tn0_bkn1");
+        check_bits(tx_blk2_slot0, INJECT_BLK2, "case2_capture_tn0_bkn2");
 
         // ----- T11: advance to TN=1 → pending finally clears --------------
         advance_slot(2'd1);
