@@ -60,6 +60,15 @@
 //                             tetra_ul_sch_hu_decoder (MS bursts use the
 //                             BS extended scrambling sequence — MCU writes
 //                             this once at boot from CC/MCC/MNC)
+//   0x180 SHADOW_INDEX    R/W [7:0] subscriber-shadow slot index (0..255)
+//   0x184 SHADOW_DATA_LO  R/W bits [31:0]  of 64-bit shadow record
+//   0x188 SHADOW_DATA_HI  R/W bits [63:32] of 64-bit shadow record
+//   0x18C SHADOW_CTRL     W1S [0] commit — writes INDEX/DATA_{HI,LO} into
+//                             the shadow BRAM as a single-cycle wr_en pulse
+//                             (self-clearing; reads back 0).  Issued as:
+//                               write INDEX → write DATA_LO → write DATA_HI
+//                               → write CTRL=1  (commit).
+//                             MCU side uses sw/tetra_db_mgr.c.
 //   0x400..0x63F SCHEDULE_BRAM  R/W  144 32-bit words, 2 x 16-bit entries each
 //                                    (Plan Stufe 3 — word-address decode
 //                                     widened from 7-bit to 9-bit for this
@@ -279,6 +288,19 @@ module tetra_axi_lite_regs (
     output wire [31:0] ul_scramb_init_axi,
 
     // ------------------------------------------------------------------
+    // Subscriber-Shadow BRAM indirect write window (Phase 6 M2.3)
+    // 0x180 INDEX, 0x184 DATA_LO, 0x188 DATA_HI, 0x18C CTRL (commit W1S).
+    // Writes INDEX + DATA_LO + DATA_HI into staging registers, then a
+    // write with CTRL[0]=1 fires a single-cycle shadow_wr_en_axi pulse
+    // that commits the staged {INDEX, DATA_HI, DATA_LO} into the shadow
+    // BRAM.  Caller resyncs wr_en to clk_sys in top (same-clock project
+    // for now — direct connect is fine).
+    // ------------------------------------------------------------------
+    output wire [7:0]  shadow_wr_idx_axi,
+    output wire [63:0] shadow_wr_data_axi,
+    output wire        shadow_wr_en_axi,
+
+    // ------------------------------------------------------------------
     // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
     // 144 words, each word packs TWO 16-bit schedule entries.
     //   schedule_axi_we     : 1-cycle write pulse
@@ -477,6 +499,12 @@ localparam [6:0] REG_UL_PDU_RAW_1    = 7'h5C; // 0x170  RO  raw_info_bits[63:32]
 localparam [6:0] REG_UL_PDU_RAW_2    = 7'h5D; // 0x174  RO  raw_info_bits[91:64]
 localparam [6:0] REG_UL_PDU_CTRL     = 7'h5E; // 0x178  W1C clear valid sticky
 localparam [6:0] REG_UL_SCRAMB_INIT  = 7'h5F; // 0x17C  R/W UL scrambler seed
+
+// Subscriber-Shadow BRAM indirect window (Phase 6 M2.3) — 0x180..0x18C
+localparam [6:0] REG_SHADOW_INDEX    = 7'h60; // 0x180  R/W slot index [7:0]
+localparam [6:0] REG_SHADOW_DATA_LO  = 7'h61; // 0x184  R/W record [31:0]
+localparam [6:0] REG_SHADOW_DATA_HI  = 7'h62; // 0x188  R/W record [63:32]
+localparam [6:0] REG_SHADOW_CTRL     = 7'h63; // 0x18C  W1S commit pulse
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -749,6 +777,11 @@ always @(*) begin
         REG_UL_PDU_RAW_2:  rdata_mux_axi = {4'b0, ul_raw_info_bits_lat_axi[91:64]};
         REG_UL_PDU_CTRL:   rdata_mux_axi = {31'b0, ul_pdu_valid_sticky_axi};
         REG_UL_SCRAMB_INIT: rdata_mux_axi = ul_scramb_init_reg_axi;
+        // Subscriber-Shadow indirect window readback (staging regs)
+        REG_SHADOW_INDEX:   rdata_mux_axi = {24'b0, shadow_index_axi};
+        REG_SHADOW_DATA_LO: rdata_mux_axi = shadow_data_lo_axi;
+        REG_SHADOW_DATA_HI: rdata_mux_axi = shadow_data_hi_axi;
+        REG_SHADOW_CTRL:    rdata_mux_axi = 32'b0; // self-clearing
         default:          rdata_mux_axi = 32'b0;
     endcase
 end
@@ -1396,6 +1429,63 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         ul_scramb_init_reg_axi <= wr_data_axi;
 end
 assign ul_scramb_init_axi = ul_scramb_init_reg_axi;
+
+// ---------------------------------------------------------------------------
+// Subscriber-Shadow BRAM indirect write window (Phase 6 M2.3)
+// ---------------------------------------------------------------------------
+// Staging registers for the 64-bit record + 8-bit slot index.  Written
+// from AXI-Lite.  A write to REG_SHADOW_CTRL with wdata[0]=1 fires a
+// single-cycle shadow_wr_en pulse that commits the staged values into
+// the subscriber-shadow BRAM at the top level.
+// ---------------------------------------------------------------------------
+reg [7:0]  shadow_index_axi;
+reg [31:0] shadow_data_lo_axi;
+reg [31:0] shadow_data_hi_axi;
+reg        shadow_commit_pulse_axi;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        shadow_index_axi <= 8'h00;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SHADOW_INDEX) & wr_strb_axi[0])
+        shadow_index_axi <= wr_data_axi[7:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        shadow_data_lo_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SHADOW_DATA_LO)) begin
+        if (wr_strb_axi[0]) shadow_data_lo_axi[7:0]   <= wr_data_axi[7:0];
+        if (wr_strb_axi[1]) shadow_data_lo_axi[15:8]  <= wr_data_axi[15:8];
+        if (wr_strb_axi[2]) shadow_data_lo_axi[23:16] <= wr_data_axi[23:16];
+        if (wr_strb_axi[3]) shadow_data_lo_axi[31:24] <= wr_data_axi[31:24];
+    end
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        shadow_data_hi_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SHADOW_DATA_HI)) begin
+        if (wr_strb_axi[0]) shadow_data_hi_axi[7:0]   <= wr_data_axi[7:0];
+        if (wr_strb_axi[1]) shadow_data_hi_axi[15:8]  <= wr_data_axi[15:8];
+        if (wr_strb_axi[2]) shadow_data_hi_axi[23:16] <= wr_data_axi[23:16];
+        if (wr_strb_axi[3]) shadow_data_hi_axi[31:24] <= wr_data_axi[31:24];
+    end
+end
+
+// 1-cycle commit pulse on CTRL write with wdata[0]=1.
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        shadow_commit_pulse_axi <= 1'b0;
+    else
+        shadow_commit_pulse_axi <= wr_en_axi &
+                                    (wr_addr_axi[8:2] == REG_SHADOW_CTRL) &
+                                    wr_strb_axi[0] &
+                                    wr_data_axi[0];
+end
+
+assign shadow_wr_idx_axi  = shadow_index_axi;
+assign shadow_wr_data_axi = {shadow_data_hi_axi, shadow_data_lo_axi};
+assign shadow_wr_en_axi   = shadow_commit_pulse_axi;
 
 // ---------------------------------------------------------------------------
 // Cell-Config Registers (0x130 CELL_CFG_0, 0x134 CELL_CFG_1) — Plan Stufe 3.5

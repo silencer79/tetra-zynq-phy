@@ -366,6 +366,20 @@ wire [91:0] ul_raw_info_bits_sys;
 wire [31:0] ul_scramb_init_axi_w;
 wire [31:0] ul_scramb_init_sys;
 
+// Subscriber-Shadow BRAM indirect write port (Phase 6 M2.3).
+// clk_axi and clk_sys share the fabric PLL in this design, so the
+// write pulse and data fly through directly.  Lookup port is reserved
+// for the registration FSM (M2.3b); tied off for now so the module
+// synthesises cleanly with no driver on the consumer side.
+wire [7:0]  shadow_wr_idx_w;
+wire [63:0] shadow_wr_data_w;
+wire        shadow_wr_en_w;
+wire        shadow_q_busy_w;
+wire        shadow_q_done_w;
+wire        shadow_q_hit_w;
+wire [7:0]  shadow_q_slot_w;
+wire [63:0] shadow_q_record_w;
+
 // RX chain debug signals
 wire dbg_fe_valid_sys;
 wire dbg_tr_valid_sys;
@@ -1486,6 +1500,10 @@ tetra_axi_lite_regs u_axi_regs (
     .ul_raw_info_bits_axi    (ul_raw_info_bits_axi_r1),
     .ul_pdu_count_axi        (ul_pdu_count_axi_r1),
     .ul_scramb_init_axi      (ul_scramb_init_axi_w),
+    // Subscriber-Shadow indirect write window (Phase 6 M2.3 — 0x180..0x18C)
+    .shadow_wr_idx_axi       (shadow_wr_idx_w),
+    .shadow_wr_data_axi      (shadow_wr_data_w),
+    .shadow_wr_en_axi        (shadow_wr_en_w),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -1494,6 +1512,36 @@ tetra_axi_lite_regs u_axi_regs (
     .schedule_axi_wstrb      (schedule_axi_wstrb_w),
     .schedule_axi_rdata      (schedule_axi_rdata_w),
     .irq_out_axi             (o_irq)
+);
+
+// =============================================================================
+// Subscriber-Shadow BRAM (Phase 6 M2.3)
+//
+// 256 × 64-bit BRAM-backed subscriber record table.  Write port from the
+// ARM via the AXI-Lite indirect window (0x180..0x18C in u_axi_regs).
+// Lookup port reserved for the MLE registration FSM — not yet wired in
+// (M2.3b lands that FSM); q_start tied 0 so the module sits idle and
+// the BRAM still infers.  clk_axi == clk_sys in this design so direct
+// connect is safe.
+// =============================================================================
+tetra_subscriber_shadow #(
+    .DEPTH      (256),
+    .IDX_WIDTH  (8),
+    .REC_WIDTH  (64),
+    .ISSI_WIDTH (24)
+) u_subscriber_shadow (
+    .clk      (clk_sys),
+    .rst_n    (rst_n_sys),
+    .wr_idx   (shadow_wr_idx_w),
+    .wr_data  (shadow_wr_data_w),
+    .wr_en    (shadow_wr_en_w),
+    .q_start  (1'b0),
+    .q_issi   (24'd0),
+    .q_busy   (shadow_q_busy_w),
+    .q_done   (shadow_q_done_w),
+    .q_hit    (shadow_q_hit_w),
+    .q_slot   (shadow_q_slot_w),
+    .q_record (shadow_q_record_w)
 );
 
 // =============================================================================

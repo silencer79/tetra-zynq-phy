@@ -175,6 +175,21 @@
 #define REG_UL_PDU_CTRL      0x178
 #define REG_UL_SCRAMB_INIT   0x17C
 
+/* Subscriber-Shadow BRAM indirect write window (Phase 6 M2.3)
+ *   INDEX    : [7:0] slot index 0..255
+ *   DATA_LO  : bits [31:0]  of 64-bit shadow record
+ *   DATA_HI  : bits [63:32] of 64-bit shadow record
+ *   CTRL     : W1S [0] commit pulse (self-clearing)
+ * 64-bit record layout (see rtl/lmac/tetra_subscriber_shadow.v):
+ *   [63:40] issi, [39:26] la, [25:8] reserved,
+ *   [7] permit_voice, [6] permit_data, [5] permit_reg,
+ *   [4:1] priority, [0] valid */
+#define REG_SHADOW_INDEX     0x180
+#define REG_SHADOW_DATA_LO   0x184
+#define REG_SHADOW_DATA_HI   0x188
+#define REG_SHADOW_CTRL      0x18C
+#define SHADOW_CTRL_COMMIT   (1u << 0)
+
 /* UL_PDU_STATUS bitfield helpers */
 #define UL_STATUS_VALID(s)     (((s) >> 0)  & 0x1u)
 #define UL_STATUS_PDU_TYPE(s)  (((s) >> 1)  & 0x3u)
