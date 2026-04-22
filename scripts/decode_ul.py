@@ -90,26 +90,50 @@ def demod_pi4dqpsk_soft_etsi(symbols):
     return soft
 
 
-def sample_half_soft_bits(iq, sps, x_start_pos, half_syms):
+# Expected differential phases for the 15-dibit x-sequence (ETSI Table 5.1):
+#   00 → +π/4, 01 → +3π/4, 10 → −π/4, 11 → −3π/4
+_DIBIT_PHASE = {0: np.pi/4, 1: 3*np.pi/4, 2: -np.pi/4, 3: -3*np.pi/4}
+X_EXPECTED_DPHI = np.array([_DIBIT_PHASE[d] for d in X_DIBITS])  # 15 values
+
+
+def estimate_burst_cfo(iq, sps, x_start_pos):
+    """Per-burst residual CFO estimate using the known x-sequence as pilot.
+    Returns residual Δφ per symbol (= 2π·f_resid·T_sym). Apply exp(-j·k·Δφ) to
+    sample at symbol index k to cancel the drift.
+    """
+    x_idx = np.round(x_start_pos + np.arange(RA_X_SYMS) * sps).astype(int)
+    if x_idx[0] < 0 or x_idx[-1] >= len(iq):
+        return 0.0
+    x_syms = iq[x_idx]
+    obs_dphi = np.angle(x_syms[1:] * np.conj(x_syms[:-1]))  # 14 transitions
+    # Residual = obs - expected (wrapped to [-π,π])
+    err = np.angle(np.exp(1j * (obs_dphi - X_EXPECTED_DPHI[1:])))
+    # Robust mean (median rejects outlier dibits)
+    return float(np.median(err))
+
+
+def sample_half_soft_bits(iq, sps, x_start_pos, half_syms, dphi_resid=0.0):
     """Sample soft-demod bits for blk1+blk2 surrounding the x-sequence.
     x_start_pos = sample position where x-sequence begins.
     half_syms   = number of symbols per half-block (42 for CB, 54 for NUB/RAB).
-    Layout (sym index relative to blk1 start):
-      sym 0..half-1                      = blk1 (half_syms sym, 2*half_syms bits)
-      sym half..half+14                  = x (15 sym)
-      sym half+15..2*half+14             = blk2 (half_syms sym, 2*half_syms bits)
+    dphi_resid  = residual per-symbol phase drift to cancel (from x-pilot CFO fit).
     For differential demod, sample one extra reference symbol before each block.
     Returns (blk1_soft[2*half_syms], blk2_soft[2*half_syms]).
     """
     blk1_start = x_start_pos - half_syms * sps
-    blk1_idx = np.round(blk1_start - sps + np.arange(half_syms + 1) * sps).astype(int)
+    # Symbol indices relative to x_start: -half_syms-1..-1 for blk1 ref+data
+    blk1_sym_k = np.arange(-half_syms - 1, 0)
+    blk1_idx = np.round(x_start_pos + blk1_sym_k * sps).astype(int)
     blk1_idx = np.clip(blk1_idx, 0, len(iq) - 1)
-    blk1_soft = demod_pi4dqpsk_soft_etsi(iq[blk1_idx])
+    blk1_syms = iq[blk1_idx] * np.exp(-1j * blk1_sym_k * dphi_resid)
+    blk1_soft = demod_pi4dqpsk_soft_etsi(blk1_syms)
 
-    blk2_start = x_start_pos + RA_X_SYMS * sps
-    blk2_idx = np.round(blk2_start - sps + np.arange(half_syms + 1) * sps).astype(int)
+    # blk2 ref = last x sym (sym RA_X_SYMS-1 relative to x_start), then blk2 data
+    blk2_sym_k = np.arange(RA_X_SYMS - 1, RA_X_SYMS + half_syms)
+    blk2_idx = np.round(x_start_pos + blk2_sym_k * sps).astype(int)
     blk2_idx = np.clip(blk2_idx, 0, len(iq) - 1)
-    blk2_soft = demod_pi4dqpsk_soft_etsi(iq[blk2_idx])
+    blk2_syms = iq[blk2_idx] * np.exp(-1j * blk2_sym_k * dphi_resid)
+    blk2_soft = demod_pi4dqpsk_soft_etsi(blk2_syms)
 
     return blk1_soft, blk2_soft
 
@@ -267,7 +291,7 @@ def main():
     decoded_pdus = []
     type5_patterns = []
 
-    print(f'  {"#":>3} {"time_s":>8} {"corrX":>6} {"CRC":>4}  {"PDU bytes[0:6]":>20}')
+    print(f'  {"#":>3} {"time_s":>8} {"corrX":>6} {"dphi_mrad":>9} {"CRC":>4}  {"PDU bytes[0:6]":>20}')
     for i, (s, l) in enumerate(bursts[:args.max_bursts]):
         coarse_search_start = s
         coarse_search_end   = s + l - int(15 * sps)
@@ -285,12 +309,15 @@ def main():
             print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f}  SKIP (weak x)')
             continue
 
+        # Per-burst CFO residual via x-seq pilot
+        dphi_resid = estimate_burst_cfo(iq, sps, x_pos)
+
         # Try CB layout first (42-sym half-blocks → SCH/HU 168 bit)
-        blk1_cb, blk2_cb = sample_half_soft_bits(iq, sps, x_pos, RA_CB_SYMS)
+        blk1_cb, blk2_cb = sample_half_soft_bits(iq, sps, x_pos, RA_CB_SYMS, dphi_resid)
         result = try_channel_decode(blk1_cb, blk2_cb, scramb_init, 'schhu')
         # Fallback: NUB layout (54-sym half-blocks → SCH/HD 216 or SCH/F 432)
         if not result[0]:
-            blk1_nub, blk2_nub = sample_half_soft_bits(iq, sps, x_pos, RA_NUB_SYMS)
+            blk1_nub, blk2_nub = sample_half_soft_bits(iq, sps, x_pos, RA_NUB_SYMS, dphi_resid)
             r2 = try_channel_decode(blk1_nub, blk2_nub, scramb_init, 'schhd')
             if r2[0]:
                 result = r2
@@ -304,7 +331,7 @@ def main():
 
         tag = 'OK' if crc_ok else '-'
         pdu_hex = bits_to_hex(info_bits[:48])[:23] if info_bits is not None else ''
-        print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f}  {tag:>4} {variant:>14}  {pdu_hex}')
+        print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f} {dphi_resid*1000:+9.2f} {tag:>4} {variant:>14}  {pdu_hex}')
         if crc_ok:
             crc_hits += 1
             decoded_pdus.append(info_bits)
