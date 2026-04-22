@@ -1335,6 +1335,19 @@ tetra_axi_lite_regs u_axi_regs (
     .tx_tdma_state_mn_axi    (tx_tdma_state_mn_axi_r1),
     .tx_tdma_state_hn_axi    (tx_tdma_state_hn_axi_r1),
     .tx_tdma_state_sym_cnt_axi(tx_tdma_state_sym_cnt_axi_r1),
+    // UL MAC-ACCESS PDU mailbox (Task #36) — tied off until tetra_rx_chain
+    // wires tetra_ul_mac_access_parser into the top-level.  Ports must be
+    // driven so the module compiles; zeros produce idle RO reads and a
+    // stable sticky=0 status.
+    .ul_pdu_valid_axi        (1'b0),
+    .ul_pdu_type_axi         (2'd0),
+    .ul_fill_bit_axi         (1'b0),
+    .ul_encryption_mode_axi  (2'd0),
+    .ul_access_ack_axi       (1'b0),
+    .ul_address_type_axi     (3'd0),
+    .ul_short_ssi_axi        (10'd0),
+    .ul_raw_info_bits_axi    (92'd0),
+    .ul_pdu_count_axi        (16'd0),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),

@@ -48,6 +48,14 @@
 //                             — Plan Stufe 3.5 (ColourCode stays at 0x10)
 //   0x140 TX_TDMA_LOAD  W    [1:0]TN [6:2]FN [12:7]MN [18:13]HN [31]STROBE
 //   0x144 TX_TDMA_STATE RO   [1:0]TN [6:2]FN [12:7]MN [18:13]HN [26:19]sym_cnt
+//   0x148..0x160 NULL_PDU_0..6 R/W  216-bit SCH/HD-coded static NULL-PDU
+//   0x164 UL_PDU_STATUS RO   [0]valid(sticky) [2:1]pdu_type [3]fill [5:4]enc
+//                             [6]access_ack [9:7]addr_type [31:16]pdu_count
+//   0x168 UL_PDU_SSI    RO   [9:0]short_ssi
+//   0x16C UL_PDU_RAW_0  RO   raw_info_bits[31:0]
+//   0x170 UL_PDU_RAW_1  RO   raw_info_bits[63:32]
+//   0x174 UL_PDU_RAW_2  RO   raw_info_bits[91:64]  (28 bits, upper 4 RAZ)
+//   0x178 UL_PDU_CTRL   W1C  [0] clear valid sticky (hw-set-wins)
 //   0x400..0x63F SCHEDULE_BRAM  R/W  144 32-bit words, 2 x 16-bit entries each
 //                                    (Plan Stufe 3 — word-address decode
 //                                     widened from 7-bit to 9-bit for this
@@ -245,6 +253,24 @@ module tetra_axi_lite_regs (
     output wire [13:0] cell_cfg_mnc_axi,
 
     // ------------------------------------------------------------------
+    // UL MAC-ACCESS PDU Mailbox (Plan Stufe 4 — Task #36)
+    // Inputs from tetra_ul_mac_access_parser (clk_sys domain).  Caller is
+    // expected to 2-FF-resync each bit in the top-level before driving these
+    // ports.  The ul_pdu_valid_axi pulse is also resynced (pulse-stretch or
+    // rising-edge extract in top-level); on that pulse this module latches
+    // a stable snapshot of the field inputs into clk_axi-domain registers.
+    // ------------------------------------------------------------------
+    input  wire        ul_pdu_valid_axi,       // 1-cycle pulse, clk_axi
+    input  wire [1:0]  ul_pdu_type_axi,
+    input  wire        ul_fill_bit_axi,
+    input  wire [1:0]  ul_encryption_mode_axi,
+    input  wire        ul_access_ack_axi,
+    input  wire [2:0]  ul_address_type_axi,
+    input  wire [9:0]  ul_short_ssi_axi,
+    input  wire [91:0] ul_raw_info_bits_axi,
+    input  wire [15:0] ul_pdu_count_axi,
+
+    // ------------------------------------------------------------------
     // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
     // 144 words, each word packs TWO 16-bit schedule entries.
     //   schedule_axi_we     : 1-cycle write pulse
@@ -429,6 +455,19 @@ localparam [6:0] REG_NULL_PDU_3     = 7'h55; // 0x154
 localparam [6:0] REG_NULL_PDU_4     = 7'h56; // 0x158
 localparam [6:0] REG_NULL_PDU_5     = 7'h57; // 0x15C
 localparam [6:0] REG_NULL_PDU_6     = 7'h58; // 0x160  (bits [23:0] used)
+
+// ---------------------------------------------------------------------------
+// UL MAC-ACCESS PDU Mailbox (Task #36) — 0x164..0x178
+// STATUS/SSI/RAW_0..2 are RO snapshots latched on ul_pdu_valid_axi pulse.
+// CTRL is W1C — writing [0]=1 clears the sticky valid flag.  If the pulse
+// fires the same cycle as the clear write, hw set wins (matches IRQ_STATUS).
+// ---------------------------------------------------------------------------
+localparam [6:0] REG_UL_PDU_STATUS   = 7'h59; // 0x164  RO  sticky valid + fields
+localparam [6:0] REG_UL_PDU_SSI      = 7'h5A; // 0x168  RO  short_ssi[9:0]
+localparam [6:0] REG_UL_PDU_RAW_0    = 7'h5B; // 0x16C  RO  raw_info_bits[31:0]
+localparam [6:0] REG_UL_PDU_RAW_1    = 7'h5C; // 0x170  RO  raw_info_bits[63:32]
+localparam [6:0] REG_UL_PDU_RAW_2    = 7'h5D; // 0x174  RO  raw_info_bits[91:64]
+localparam [6:0] REG_UL_PDU_CTRL     = 7'h5E; // 0x178  W1C clear valid sticky
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -693,6 +732,13 @@ always @(*) begin
         REG_NULL_PDU_4:   rdata_mux_axi = null_pdu_w4_axi;
         REG_NULL_PDU_5:   rdata_mux_axi = null_pdu_w5_axi;
         REG_NULL_PDU_6:   rdata_mux_axi = {8'b0, null_pdu_w6_axi};
+        // UL MAC-ACCESS PDU mailbox (Task #36)
+        REG_UL_PDU_STATUS: rdata_mux_axi = ul_pdu_status_axi;
+        REG_UL_PDU_SSI:    rdata_mux_axi = {22'b0, ul_short_ssi_lat_axi};
+        REG_UL_PDU_RAW_0:  rdata_mux_axi = ul_raw_info_bits_lat_axi[31:0];
+        REG_UL_PDU_RAW_1:  rdata_mux_axi = ul_raw_info_bits_lat_axi[63:32];
+        REG_UL_PDU_RAW_2:  rdata_mux_axi = {4'b0, ul_raw_info_bits_lat_axi[91:64]};
+        REG_UL_PDU_CTRL:   rdata_mux_axi = {31'b0, ul_pdu_valid_sticky_axi};
         default:          rdata_mux_axi = 32'b0;
     endcase
 end
@@ -1267,6 +1313,67 @@ end
 assign null_pdu_bits_axi = {null_pdu_w0_axi, null_pdu_w1_axi, null_pdu_w2_axi,
                             null_pdu_w3_axi, null_pdu_w4_axi, null_pdu_w5_axi,
                             null_pdu_w6_axi};
+
+// ---------------------------------------------------------------------------
+// UL MAC-ACCESS PDU Mailbox (Task #36) — 0x164..0x178
+//
+// Snapshot registers latch the parser outputs on ul_pdu_valid_axi pulse.
+// The valid flag is sticky: set on each pulse, cleared by SW writing
+// REG_UL_PDU_CTRL[0]=1.  On simultaneous set+clear the pulse wins so SW
+// never misses a PDU that arrived the same cycle it acked a prior one.
+// ---------------------------------------------------------------------------
+reg        ul_pdu_valid_sticky_axi;
+reg [1:0]  ul_pdu_type_lat_axi;
+reg        ul_fill_bit_lat_axi;
+reg [1:0]  ul_encryption_mode_lat_axi;
+reg        ul_access_ack_lat_axi;
+reg [2:0]  ul_address_type_lat_axi;
+reg [9:0]  ul_short_ssi_lat_axi;
+reg [91:0] ul_raw_info_bits_lat_axi;
+reg [15:0] ul_pdu_count_lat_axi;
+
+wire ul_pdu_ctrl_wr_axi = wr_en_axi & (wr_addr_axi[8:2] == REG_UL_PDU_CTRL);
+wire ul_pdu_sw_clear_axi = ul_pdu_ctrl_wr_axi & wr_strb_axi[0] & wr_data_axi[0];
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        ul_pdu_valid_sticky_axi <= 1'b0;
+    else if (ul_pdu_valid_axi)
+        ul_pdu_valid_sticky_axi <= 1'b1; // hw-set wins
+    else if (ul_pdu_sw_clear_axi)
+        ul_pdu_valid_sticky_axi <= 1'b0;
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        ul_pdu_type_lat_axi        <= 2'd0;
+        ul_fill_bit_lat_axi        <= 1'b0;
+        ul_encryption_mode_lat_axi <= 2'd0;
+        ul_access_ack_lat_axi      <= 1'b0;
+        ul_address_type_lat_axi    <= 3'd0;
+        ul_short_ssi_lat_axi       <= 10'd0;
+        ul_raw_info_bits_lat_axi   <= 92'd0;
+        ul_pdu_count_lat_axi       <= 16'd0;
+    end else if (ul_pdu_valid_axi) begin
+        ul_pdu_type_lat_axi        <= ul_pdu_type_axi;
+        ul_fill_bit_lat_axi        <= ul_fill_bit_axi;
+        ul_encryption_mode_lat_axi <= ul_encryption_mode_axi;
+        ul_access_ack_lat_axi      <= ul_access_ack_axi;
+        ul_address_type_lat_axi    <= ul_address_type_axi;
+        ul_short_ssi_lat_axi       <= ul_short_ssi_axi;
+        ul_raw_info_bits_lat_axi   <= ul_raw_info_bits_axi;
+        ul_pdu_count_lat_axi       <= ul_pdu_count_axi;
+    end
+end
+
+wire [31:0] ul_pdu_status_axi = {ul_pdu_count_lat_axi,           // [31:16]
+                                  6'b0,                           // [15:10]
+                                  ul_address_type_lat_axi,        // [9:7]
+                                  ul_access_ack_lat_axi,          // [6]
+                                  ul_encryption_mode_lat_axi,     // [5:4]
+                                  ul_fill_bit_lat_axi,            // [3]
+                                  ul_pdu_type_lat_axi,            // [2:1]
+                                  ul_pdu_valid_sticky_axi};       // [0]
 
 // ---------------------------------------------------------------------------
 // Cell-Config Registers (0x130 CELL_CFG_0, 0x134 CELL_CFG_1) — Plan Stufe 3.5
