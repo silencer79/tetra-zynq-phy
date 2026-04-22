@@ -380,6 +380,26 @@ wire        shadow_q_hit_w;
 wire [7:0]  shadow_q_slot_w;
 wire [63:0] shadow_q_record_w;
 
+// Active-Session Table (Phase 6 M2.3b) — 64×64-bit BRAM, FSM-owned.
+wire        ast_wr_en_w;
+wire [5:0]  ast_wr_idx_w;
+wire [63:0] ast_wr_data_w;
+wire        ast_q_start_w;
+wire        ast_q_mode_w;
+wire [23:0] ast_q_issi_w;
+wire        ast_q_busy_w;
+wire        ast_q_done_w;
+wire        ast_q_hit_w;
+wire [5:0]  ast_q_slot_w;
+wire [63:0] ast_q_record_w;
+
+// MLE-registration FSM outputs
+wire [215:0] mle_dl_pdu_bits_w;
+wire         mle_dl_pdu_valid_w;
+wire         mle_busy_w;
+wire         mle_accept_pulse_w;
+wire         mle_drop_pulse_w;
+
 // RX chain debug signals
 wire dbg_fe_valid_sys;
 wire dbg_tr_valid_sys;
@@ -855,6 +875,10 @@ tetra_slot_content_mux #(
     .sb_bkn2_sw_sys       (sb_bkn2_data_sys),
     // NULL-PDU bank (216-bit pre-coded SCH/HD payload, 2-FF synced)
     .null_pdu_bits_sys    (null_pdu_bits_sys_r1),
+    // MLE signalling response (Phase 6 M2.3b) — one-shot TN=1 BKN1 override
+    .dl_signal_bits_sys   (mle_dl_pdu_bits_w),
+    .dl_signal_valid_sys  (mle_dl_pdu_valid_w),
+    .dl_signal_pending_sys(),
     // Outputs to tetra_tx_chain
     .slot_burst_type_sys  (cm_slot_burst_type_sys),
     .slot_en_sys          (cm_slot_en_sys),
@@ -1542,6 +1566,89 @@ tetra_subscriber_shadow #(
     .q_hit    (shadow_q_hit_w),
     .q_slot   (shadow_q_slot_w),
     .q_record (shadow_q_record_w)
+);
+
+// =============================================================================
+// Active-Session Table (Phase 6 M2.3b)
+//
+// 64 × 64-bit BRAM-backed hot-state table for currently registered /
+// active MS.  Written directly by the MLE registration FSM (not by the
+// ARM).  Record layout is owned by the FSM — the table only interprets
+// [63:40]=ISSI (query match) and [0]=valid (alloc match).
+// =============================================================================
+tetra_active_session_table #(
+    .DEPTH      (64),
+    .IDX_WIDTH  (6),
+    .REC_WIDTH  (64),
+    .ISSI_WIDTH (24)
+) u_active_session_table (
+    .clk      (clk_sys),
+    .rst_n    (rst_n_sys),
+    .wr_idx   (ast_wr_idx_w),
+    .wr_data  (ast_wr_data_w),
+    .wr_en    (ast_wr_en_w),
+    .q_start  (ast_q_start_w),
+    .q_mode   (ast_q_mode_w),
+    .q_issi   (ast_q_issi_w),
+    .q_busy   (ast_q_busy_w),
+    .q_done   (ast_q_done_w),
+    .q_hit    (ast_q_hit_w),
+    .q_slot   (ast_q_slot_w),
+    .q_record (ast_q_record_w)
+);
+
+// =============================================================================
+// MLE Registration FSM (Phase 6 M2.3b)
+//
+// Consumes UL MAC-ACCESS PDUs from the RX chain, allocates/reuses a slot
+// in the active-session-table, builds a D-LOCATION-UPDATE-ACCEPT PDU
+// (124 bit) + SCH/HD-encodes it (216 bit), and hands the result to the
+// slot_content_mux for one-shot injection on TN=1.
+//
+// The MVP path accepts every UL MAC-ACCESS pulse.  Filtering by PDU type
+// (MM Location-Update only) can be layered in later via a gate on
+// ul_req_valid; for initial bring-up an MS only transmits RA bursts when
+// it wants to register, so acting on any pulse is safe.
+//
+// LA is hard-coded to 14'd36 (matches HAM-cell config) until we add a
+// dedicated cell-LA AXI register.  cfg_scramble_init reuses the cell-
+// specific seed already resynced for the UL descrambler — same formula
+// (MCC<<22)|(MNC<<8)|(CC<<2)|3 is used by DL SCH/HD and UL SCH/HU.
+// =============================================================================
+wire [23:0] mle_ul_ssi_w = {14'd0, ul_short_ssi_sys};
+
+tetra_mle_registration_fsm #(
+    .AST_IDX_WIDTH(6),
+    .AST_REC_WIDTH(64)
+) u_mle_registration_fsm (
+    .clk              (clk_sys),
+    .rst_n            (rst_n_sys),
+    // UL request
+    .ul_req_valid     (ul_pdu_valid_sys),
+    .ul_addr_type     (ul_address_type_sys),
+    .ul_ssi           (mle_ul_ssi_w),
+    .ul_la            (14'd36),
+    // Cell config
+    .cfg_la           (14'd36),
+    .cfg_scramble_init(ul_scramb_init_sys),
+    // AST
+    .ast_wr_en        (ast_wr_en_w),
+    .ast_wr_idx       (ast_wr_idx_w),
+    .ast_wr_data      (ast_wr_data_w),
+    .ast_q_start      (ast_q_start_w),
+    .ast_q_mode       (ast_q_mode_w),
+    .ast_q_issi       (ast_q_issi_w),
+    .ast_q_busy       (ast_q_busy_w),
+    .ast_q_done       (ast_q_done_w),
+    .ast_q_hit        (ast_q_hit_w),
+    .ast_q_slot       (ast_q_slot_w),
+    .ast_q_record     (ast_q_record_w),
+    // DL output to slot_content_mux
+    .dl_pdu_bits      (mle_dl_pdu_bits_w),
+    .dl_pdu_valid     (mle_dl_pdu_valid_w),
+    .busy             (mle_busy_w),
+    .accept_pulse     (mle_accept_pulse_w),
+    .drop_pulse       (mle_drop_pulse_w)
 );
 
 // =============================================================================

@@ -125,6 +125,16 @@ module tetra_slot_content_mux #(
     // NULL-PDU register bank — 216-bit already-SCH/HD-coded payload
     input  wire [BLOCK_BITS-1:0]  null_pdu_bits_sys,
 
+    // MLE signalling response — one-shot DL PDU produced by the MLE
+    // registration FSM.  When `dl_signal_valid_sys` pulses, the 216-bit
+    // `dl_signal_bits_sys` is latched and overrides TN=1 BKN1 on the next
+    // slot_pulse for TN=1, then pending clears.  The MS sees one D-LOC-
+    // UPDATE-ACCEPT on the advertised signalling carrier and transitions
+    // to registered.
+    input  wire [BLOCK_BITS-1:0]  dl_signal_bits_sys,
+    input  wire                   dl_signal_valid_sys,
+    output wire                   dl_signal_pending_sys,
+
     // Outputs to tetra_tx_chain
     output reg  [3:0]             slot_burst_type_sys,
     output reg  [3:0]             slot_en_sys,
@@ -146,6 +156,35 @@ module tetra_slot_content_mux #(
     output wire [15:0]            dbg_sched_entry2_sys,
     output wire [15:0]            dbg_sched_entry3_sys
 );
+
+// =============================================================================
+// MLE signalling response — latched one-shot DL payload
+//
+// Snapshot `dl_signal_bits_sys` on any `dl_signal_valid_sys` pulse and hold
+// it until TN=1's slot_pulse consumes it (the injection point).  Clearing
+// the pending flag one cycle after the consumption pulse keeps the override
+// stable throughout TN=1's transmit window.
+// =============================================================================
+reg [BLOCK_BITS-1:0] dl_signal_latched_sys;
+reg                  dl_signal_pending_r_sys;
+assign dl_signal_pending_sys = dl_signal_pending_r_sys;
+
+wire dl_signal_consume_sys = dl_signal_pending_r_sys && slot_pulse_sys
+                             && (tn_sys == 2'd2);
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        dl_signal_latched_sys   <= {BLOCK_BITS{1'b0}};
+        dl_signal_pending_r_sys <= 1'b0;
+    end else begin
+        if (dl_signal_valid_sys) begin
+            dl_signal_latched_sys   <= dl_signal_bits_sys;
+            dl_signal_pending_r_sys <= 1'b1;
+        end else if (dl_signal_consume_sys) begin
+            dl_signal_pending_r_sys <= 1'b0;
+        end
+    end
+end
 
 // =============================================================================
 // Schedule entry latches — one 16-bit entry per TN
@@ -407,18 +446,29 @@ always @(*) begin
     endcase
 end
 
-// TN=1
+// TN=1 — with MLE signalling-response override on BKN1 when pending.
+reg [BLOCK_BITS-1:0] blk1_sched_tn1_sys;
+reg [BLOCK_BITS-1:0] blk2_sched_tn1_sys;
 always @(*) begin
     case ({bus_class(sched_entry_reg_sys1), bus_idx(sched_entry_reg_sys1)})
-        {4'd0, 6'd0}: begin blk1_mux_tn1_sys = ndb_block1_sw_sys;  blk2_mux_tn1_sys = ndb_block2_sw_sys;  end
-        {4'd0, 6'd1}: begin blk1_mux_tn1_sys = mcch_block1_sw_sys; blk2_mux_tn1_sys = mcch_block2_sw_sys; end
-        {4'd0, 6'd2}: begin blk1_mux_tn1_sys = bnch_block1_sw_sys; blk2_mux_tn1_sys = bnch_block2_sw_sys; end
-        {4'd0, 6'd3}: begin blk1_mux_tn1_sys = {BLOCK_BITS{1'b0}}; blk2_mux_tn1_sys = sb_bkn2_sw_sys;     end
-        {4'd0, 6'd4}: begin blk1_mux_tn1_sys = ndb_block1_sw_sys;  blk2_mux_tn1_sys = bnch_block2_sw_sys; end
-        {4'd0, 6'd7}: begin blk1_mux_tn1_sys = {BLOCK_BITS{1'b0}}; blk2_mux_tn1_sys = {BLOCK_BITS{1'b0}}; end
-        {4'd1, 6'd0}: begin blk1_mux_tn1_sys = null_pdu_bits_sys;  blk2_mux_tn1_sys = ndb_block2_sw_sys;  end
-        default:      begin blk1_mux_tn1_sys = ndb_block1_sw_sys;  blk2_mux_tn1_sys = ndb_block2_sw_sys;  end
+        {4'd0, 6'd0}: begin blk1_sched_tn1_sys = ndb_block1_sw_sys;  blk2_sched_tn1_sys = ndb_block2_sw_sys;  end
+        {4'd0, 6'd1}: begin blk1_sched_tn1_sys = mcch_block1_sw_sys; blk2_sched_tn1_sys = mcch_block2_sw_sys; end
+        {4'd0, 6'd2}: begin blk1_sched_tn1_sys = bnch_block1_sw_sys; blk2_sched_tn1_sys = bnch_block2_sw_sys; end
+        {4'd0, 6'd3}: begin blk1_sched_tn1_sys = {BLOCK_BITS{1'b0}}; blk2_sched_tn1_sys = sb_bkn2_sw_sys;     end
+        {4'd0, 6'd4}: begin blk1_sched_tn1_sys = ndb_block1_sw_sys;  blk2_sched_tn1_sys = bnch_block2_sw_sys; end
+        {4'd0, 6'd7}: begin blk1_sched_tn1_sys = {BLOCK_BITS{1'b0}}; blk2_sched_tn1_sys = {BLOCK_BITS{1'b0}}; end
+        {4'd1, 6'd0}: begin blk1_sched_tn1_sys = null_pdu_bits_sys;  blk2_sched_tn1_sys = ndb_block2_sw_sys;  end
+        default:      begin blk1_sched_tn1_sys = ndb_block1_sw_sys;  blk2_sched_tn1_sys = ndb_block2_sw_sys;  end
     endcase
+end
+always @(*) begin
+    if (dl_signal_pending_sys) begin
+        blk1_mux_tn1_sys = dl_signal_latched_sys;
+        blk2_mux_tn1_sys = blk2_sched_tn1_sys;
+    end else begin
+        blk1_mux_tn1_sys = blk1_sched_tn1_sys;
+        blk2_mux_tn1_sys = blk2_sched_tn1_sys;
+    end
 end
 
 // TN=2
