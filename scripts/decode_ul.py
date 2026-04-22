@@ -96,43 +96,58 @@ _DIBIT_PHASE = {0: np.pi/4, 1: 3*np.pi/4, 2: -np.pi/4, 3: -3*np.pi/4}
 X_EXPECTED_DPHI = np.array([_DIBIT_PHASE[d] for d in X_DIBITS])  # 15 values
 
 
-def estimate_burst_cfo(iq, sps, x_start_pos):
+def estimate_burst_cfo(iq, sps, x_start_pos, linear=True):
     """Per-burst residual CFO estimate using the known x-sequence as pilot.
-    Returns residual Δφ per symbol (= 2π·f_resid·T_sym). Apply exp(-j·k·Δφ) to
-    sample at symbol index k to cancel the drift.
+    linear=False: fit constant Δφ/sym  → returns (A, 0.0)
+    linear=True : fit linear chirp     → returns (A, B) where err(k)=A+B·k
+                  (catches intra-burst frequency drift from osc pulling / Doppler).
+    Apply derotation exp(-j·(A·n + 0.5·B·n²)) to sample at symbol index n.
     """
     x_idx = np.round(x_start_pos + np.arange(RA_X_SYMS) * sps).astype(int)
     if x_idx[0] < 0 or x_idx[-1] >= len(iq):
-        return 0.0
+        return 0.0, 0.0
     x_syms = iq[x_idx]
     obs_dphi = np.angle(x_syms[1:] * np.conj(x_syms[:-1]))  # 14 transitions
     # Residual = obs - expected (wrapped to [-π,π])
     err = np.angle(np.exp(1j * (obs_dphi - X_EXPECTED_DPHI[1:])))
-    # Robust mean (median rejects outlier dibits)
-    return float(np.median(err))
+    if not linear:
+        return float(np.median(err)), 0.0
+    # Linear fit err(k) = A + B·k (least-squares on 14 points k=0..13)
+    k = np.arange(len(err), dtype=np.float64)
+    # Use linalg to be robust against outliers with huber-like reweighting:
+    #   first pass polyfit, then mask residuals > π/3, refit.
+    B, A = np.polyfit(k, err, 1)          # polyfit returns highest-order first
+    resid = err - (A + B * k)
+    mask = np.abs(resid) < (np.pi / 3)
+    if mask.sum() >= 4:
+        B, A = np.polyfit(k[mask], err[mask], 1)
+    return float(A), float(B)
 
 
-def sample_half_soft_bits(iq, sps, x_start_pos, half_syms, dphi_resid=0.0):
+def sample_half_soft_bits(iq, sps, x_start_pos, half_syms, cfo_A=0.0, cfo_B=0.0):
     """Sample soft-demod bits for blk1+blk2 surrounding the x-sequence.
     x_start_pos = sample position where x-sequence begins.
     half_syms   = number of symbols per half-block (42 for CB, 54 for NUB/RAB).
-    dphi_resid  = residual per-symbol phase drift to cancel (from x-pilot CFO fit).
+    cfo_A, cfo_B = per-symbol residual  err(k) = A + B·k  (from x-pilot fit).
+                  Derotation at sym index n: exp(-j·(A·n + 0.5·B·n²)).
     For differential demod, sample one extra reference symbol before each block.
-    Returns (blk1_soft[2*half_syms], blk2_soft[2*half_syms]).
+    Returns (blk1_soft[2·half_syms], blk2_soft[2·half_syms]).
     """
-    blk1_start = x_start_pos - half_syms * sps
+    def derotate(syms, k_vec):
+        return syms * np.exp(-1j * (cfo_A * k_vec + 0.5 * cfo_B * k_vec * k_vec))
+
     # Symbol indices relative to x_start: -half_syms-1..-1 for blk1 ref+data
-    blk1_sym_k = np.arange(-half_syms - 1, 0)
+    blk1_sym_k = np.arange(-half_syms - 1, 0, dtype=np.float64)
     blk1_idx = np.round(x_start_pos + blk1_sym_k * sps).astype(int)
     blk1_idx = np.clip(blk1_idx, 0, len(iq) - 1)
-    blk1_syms = iq[blk1_idx] * np.exp(-1j * blk1_sym_k * dphi_resid)
+    blk1_syms = derotate(iq[blk1_idx], blk1_sym_k)
     blk1_soft = demod_pi4dqpsk_soft_etsi(blk1_syms)
 
     # blk2 ref = last x sym (sym RA_X_SYMS-1 relative to x_start), then blk2 data
-    blk2_sym_k = np.arange(RA_X_SYMS - 1, RA_X_SYMS + half_syms)
+    blk2_sym_k = np.arange(RA_X_SYMS - 1, RA_X_SYMS + half_syms, dtype=np.float64)
     blk2_idx = np.round(x_start_pos + blk2_sym_k * sps).astype(int)
     blk2_idx = np.clip(blk2_idx, 0, len(iq) - 1)
-    blk2_syms = iq[blk2_idx] * np.exp(-1j * blk2_sym_k * dphi_resid)
+    blk2_syms = derotate(iq[blk2_idx], blk2_sym_k)
     blk2_soft = demod_pi4dqpsk_soft_etsi(blk2_syms)
 
     return blk1_soft, blk2_soft
@@ -291,7 +306,7 @@ def main():
     decoded_pdus = []
     type5_patterns = []
 
-    print(f'  {"#":>3} {"time_s":>8} {"corrX":>6} {"dphi_mrad":>9} {"CRC":>4}  {"PDU bytes[0:6]":>20}')
+    print(f'  {"#":>3} {"time_s":>8} {"corrX":>6} {"A_mrad":>9} {"B_mrad":>9} {"CRC":>4}  {"PDU bytes[0:6]":>20}')
     for i, (s, l) in enumerate(bursts[:args.max_bursts]):
         coarse_search_start = s
         coarse_search_end   = s + l - int(15 * sps)
@@ -309,15 +324,42 @@ def main():
             print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f}  SKIP (weak x)')
             continue
 
-        # Per-burst CFO residual via x-seq pilot
-        dphi_resid = estimate_burst_cfo(iq, sps, x_pos)
+        # Per-burst CFO via x-seq pilot (constant fit). Linear-chirp fit was
+        # tried but B variance on 14 points extrapolates catastrophically at
+        # n=-43..56. Instead: joint grid search over (CFO, fine_timing) around
+        # x-seq estimate.
+        cfo_A0, _ = estimate_burst_cfo(iq, sps, x_pos, linear=False)
 
-        # Try CB layout first (42-sym half-blocks → SCH/HU 168 bit)
-        blk1_cb, blk2_cb = sample_half_soft_bits(iq, sps, x_pos, RA_CB_SYMS, dphi_resid)
-        result = try_channel_decode(blk1_cb, blk2_cb, scramb_init, 'schhu')
+        # CFO grid: ±400 mrad/sym, step 10 mrad (center-out)
+        cfo_offsets = [0.0]
+        for d in range(1, 41):
+            cfo_offsets.append(-0.01 * d)
+            cfo_offsets.append(+0.01 * d)
+        # Timing grid: ±0.5 sample, step 0.1 sample (center-out)
+        tim_offsets = [0.0]
+        for d in range(1, 6):
+            tim_offsets.append(-0.1 * d)
+            tim_offsets.append(+0.1 * d)
+
+        result = (False, None, None, None)
+        cfo_A = cfo_A0
+        for tim_off in tim_offsets:
+            x_pos_try = x_pos + tim_off
+            cfo_A0t, _ = estimate_burst_cfo(iq, sps, x_pos_try, linear=False)
+            for cfo_off in cfo_offsets:
+                cfo_try = cfo_A0t + cfo_off
+                blk1_cb, blk2_cb = sample_half_soft_bits(iq, sps, x_pos_try, RA_CB_SYMS, cfo_try, 0.0)
+                r = try_channel_decode(blk1_cb, blk2_cb, scramb_init, 'schhu')
+                if r[0]:
+                    result = r; cfo_A = cfo_try; break
+                if result[1] is None:
+                    result = r; cfo_A = cfo_try
+            if result[0]:
+                break
+        cfo_B = 0.0
         # Fallback: NUB layout (54-sym half-blocks → SCH/HD 216 or SCH/F 432)
         if not result[0]:
-            blk1_nub, blk2_nub = sample_half_soft_bits(iq, sps, x_pos, RA_NUB_SYMS, dphi_resid)
+            blk1_nub, blk2_nub = sample_half_soft_bits(iq, sps, x_pos, RA_NUB_SYMS, cfo_A0, 0.0)
             r2 = try_channel_decode(blk1_nub, blk2_nub, scramb_init, 'schhd')
             if r2[0]:
                 result = r2
@@ -331,7 +373,7 @@ def main():
 
         tag = 'OK' if crc_ok else '-'
         pdu_hex = bits_to_hex(info_bits[:48])[:23] if info_bits is not None else ''
-        print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f} {dphi_resid*1000:+9.2f} {tag:>4} {variant:>14}  {pdu_hex}')
+        print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f} {cfo_A*1000:+9.2f} {cfo_B*1000:+9.2f} {tag:>4} {variant:>14}  {pdu_hex}')
         if crc_ok:
             crc_hits += 1
             decoded_pdus.append(info_bits)
