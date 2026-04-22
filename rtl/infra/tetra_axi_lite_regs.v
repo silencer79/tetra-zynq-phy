@@ -56,6 +56,10 @@
 //   0x170 UL_PDU_RAW_1  RO   raw_info_bits[63:32]
 //   0x174 UL_PDU_RAW_2  RO   raw_info_bits[91:64]  (28 bits, upper 4 RAZ)
 //   0x178 UL_PDU_CTRL   W1C  [0] clear valid sticky (hw-set-wins)
+//   0x17C UL_SCRAMB_INIT R/W 32-bit cell scrambler seed feeding
+//                             tetra_ul_sch_hu_decoder (MS bursts use the
+//                             BS extended scrambling sequence — MCU writes
+//                             this once at boot from CC/MCC/MNC)
 //   0x400..0x63F SCHEDULE_BRAM  R/W  144 32-bit words, 2 x 16-bit entries each
 //                                    (Plan Stufe 3 — word-address decode
 //                                     widened from 7-bit to 9-bit for this
@@ -270,6 +274,10 @@ module tetra_axi_lite_regs (
     input  wire [91:0] ul_raw_info_bits_axi,
     input  wire [15:0] ul_pdu_count_axi,
 
+    // UL scrambler seed — MCU programs once at boot.  Caller 2-FF-resyncs
+    // axi→sys in top-level before feeding tetra_ul_sch_hu_decoder.
+    output wire [31:0] ul_scramb_init_axi,
+
     // ------------------------------------------------------------------
     // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
     // 144 words, each word packs TWO 16-bit schedule entries.
@@ -468,6 +476,7 @@ localparam [6:0] REG_UL_PDU_RAW_0    = 7'h5B; // 0x16C  RO  raw_info_bits[31:0]
 localparam [6:0] REG_UL_PDU_RAW_1    = 7'h5C; // 0x170  RO  raw_info_bits[63:32]
 localparam [6:0] REG_UL_PDU_RAW_2    = 7'h5D; // 0x174  RO  raw_info_bits[91:64]
 localparam [6:0] REG_UL_PDU_CTRL     = 7'h5E; // 0x178  W1C clear valid sticky
+localparam [6:0] REG_UL_SCRAMB_INIT  = 7'h5F; // 0x17C  R/W UL scrambler seed
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -739,6 +748,7 @@ always @(*) begin
         REG_UL_PDU_RAW_1:  rdata_mux_axi = ul_raw_info_bits_lat_axi[63:32];
         REG_UL_PDU_RAW_2:  rdata_mux_axi = {4'b0, ul_raw_info_bits_lat_axi[91:64]};
         REG_UL_PDU_CTRL:   rdata_mux_axi = {31'b0, ul_pdu_valid_sticky_axi};
+        REG_UL_SCRAMB_INIT: rdata_mux_axi = ul_scramb_init_reg_axi;
         default:          rdata_mux_axi = 32'b0;
     endcase
 end
@@ -1374,6 +1384,18 @@ wire [31:0] ul_pdu_status_axi = {ul_pdu_count_lat_axi,           // [31:16]
                                   ul_fill_bit_lat_axi,            // [3]
                                   ul_pdu_type_lat_axi,            // [2:1]
                                   ul_pdu_valid_sticky_axi};       // [0]
+
+// UL scrambler seed — R/W, full 32-bit, reset = 0.  MCU writes after it
+// has computed the cell extended-scrambling init from CC/MCC/MNC (same
+// value the DL sb1_encoder implicitly uses for type-2 descrambling on RX).
+reg [31:0] ul_scramb_init_reg_axi;
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        ul_scramb_init_reg_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_UL_SCRAMB_INIT))
+        ul_scramb_init_reg_axi <= wr_data_axi;
+end
+assign ul_scramb_init_axi = ul_scramb_init_reg_axi;
 
 // ---------------------------------------------------------------------------
 // Cell-Config Registers (0x130 CELL_CFG_0, 0x134 CELL_CFG_1) — Plan Stufe 3.5

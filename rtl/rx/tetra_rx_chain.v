@@ -93,6 +93,25 @@ module tetra_rx_chain #(
     output wire [CORR_WIDTH-1:0] ul_corr_peak_sys,
     output wire [1:0]            ul_best_phase_sys,
 
+    // -------------------------------------------------------------------------
+    // UL RX Chain — MS RA-burst decoder (Task #37)
+    // sync_detect_os4 → burst_capture → pi4dqpsk_demod → sch_hu_decoder
+    // → mac_access_parser.  scramb_init is the cell extended-scrambling
+    // seed (caller 2-FF-resyncs axi→sys).
+    // -------------------------------------------------------------------------
+    input  wire [31:0]           ul_scramb_init_sys,
+
+    // Parsed MAC-ACCESS PDU fields (clk_sys; top 2-FF-resyncs sys→axi)
+    output wire                  ul_pdu_valid_sys,      // 1-cycle pulse per CRC-OK PDU
+    output wire [15:0]           ul_pdu_count_sys,
+    output wire [1:0]            ul_pdu_type_sys,
+    output wire                  ul_fill_bit_sys,
+    output wire [1:0]            ul_encryption_mode_sys,
+    output wire                  ul_access_ack_sys,
+    output wire [2:0]            ul_address_type_sys,
+    output wire [9:0]            ul_short_ssi_sys,
+    output wire [91:0]           ul_raw_info_bits_sys,
+
   // -------------------------------------------------------------------------
   // Debug outputs (ILA probes)
   // -------------------------------------------------------------------------
@@ -230,6 +249,99 @@ tetra_ul_sync_detect_os4 #(
     .sync_found_sys     (ul_sync_found_sys),
     .corr_peak_sys      (ul_corr_peak_sys),
     .best_phase_sys     (ul_best_phase_sys)
+);
+
+// =============================================================================
+// UL RA-burst decoder pipeline (Task #37)
+// Mirrors tb_ul_wav_chain wiring verified bit-exact to Python decode_ul.py.
+// =============================================================================
+localparam integer UL_SOFT_WIDTH = 8;
+
+wire signed [IQ_WIDTH-1:0]     ul_cap_i_sys, ul_cap_q_sys;
+wire                           ul_cap_valid_sys, ul_cap_first_sys;
+wire                           ul_cap_last_sys,  ul_cap_half_sys;
+
+wire signed [UL_SOFT_WIDTH-1:0] ul_soft0_sys, ul_soft1_sys;
+wire                            ul_soft_valid_sys, ul_soft_first_sys;
+wire                            ul_soft_last_sys,  ul_soft_half_sys;
+
+wire [91:0] ul_info_bits_sys;
+wire        ul_info_valid_sys, ul_crc_ok_sys;
+
+tetra_ul_burst_capture #(
+    .IQ_WIDTH(IQ_WIDTH)
+) u_ul_burst_capture (
+    .clk_sys            (clk_sys),
+    .rst_n_sys          (rst_n_sys),
+    .i_in_sys           (fe_i_sys),
+    .q_in_sys           (fe_q_sys),
+    .valid_in_sys       (fe_valid_sys),
+    .sync_found_sys     (ul_sync_found_sys),
+    .best_phase_sys     (ul_best_phase_sys),
+    .i_out_sys          (ul_cap_i_sys),
+    .q_out_sys          (ul_cap_q_sys),
+    .iq_valid_sys       (ul_cap_valid_sys),
+    .iq_first_sys       (ul_cap_first_sys),
+    .iq_last_sys        (ul_cap_last_sys),
+    .iq_half_sys        (ul_cap_half_sys),
+    .capture_busy_sys   (),
+    .bursts_captured_sys()
+);
+
+tetra_ul_pi4dqpsk_demod #(
+    .IQ_WIDTH  (IQ_WIDTH),
+    .SOFT_WIDTH(UL_SOFT_WIDTH)
+) u_ul_demod (
+    .clk_sys       (clk_sys),
+    .rst_n_sys     (rst_n_sys),
+    .i_in_sys      (ul_cap_i_sys),
+    .q_in_sys      (ul_cap_q_sys),
+    .iq_valid_sys  (ul_cap_valid_sys),
+    .iq_first_sys  (ul_cap_first_sys),
+    .iq_last_sys   (ul_cap_last_sys),
+    .iq_half_sys   (ul_cap_half_sys),
+    .soft_bit0_sys (ul_soft0_sys),
+    .soft_bit1_sys (ul_soft1_sys),
+    .soft_valid_sys(ul_soft_valid_sys),
+    .soft_first_sys(ul_soft_first_sys),
+    .soft_last_sys (ul_soft_last_sys),
+    .soft_half_sys (ul_soft_half_sys)
+);
+
+tetra_ul_sch_hu_decoder #(
+    .SOFT_IN_WIDTH(UL_SOFT_WIDTH)
+) u_ul_sch_hu (
+    .clk_sys              (clk_sys),
+    .rst_n_sys            (rst_n_sys),
+    .scramb_init_sys      (ul_scramb_init_sys),
+    .soft_bit0_sys        (ul_soft0_sys),
+    .soft_bit1_sys        (ul_soft1_sys),
+    .soft_valid_sys       (ul_soft_valid_sys),
+    .soft_first_sys       (ul_soft_first_sys),
+    .soft_last_sys        (ul_soft_last_sys),
+    .soft_half_sys        (ul_soft_half_sys),
+    .info_bits_sys        (ul_info_bits_sys),
+    .info_valid_sys       (ul_info_valid_sys),
+    .crc_ok_sys           (ul_crc_ok_sys),
+    .decodes_attempted_sys(),
+    .decodes_ok_sys       ()
+);
+
+tetra_ul_mac_access_parser u_ul_mac_parser (
+    .clk_sys             (clk_sys),
+    .rst_n_sys           (rst_n_sys),
+    .info_bits_sys       (ul_info_bits_sys),
+    .info_valid_sys      (ul_info_valid_sys),
+    .crc_ok_sys          (ul_crc_ok_sys),
+    .pdu_type_sys        (ul_pdu_type_sys),
+    .fill_bit_sys        (ul_fill_bit_sys),
+    .encryption_mode_sys (ul_encryption_mode_sys),
+    .access_ack_sys      (ul_access_ack_sys),
+    .address_type_sys    (ul_address_type_sys),
+    .short_ssi_sys       (ul_short_ssi_sys),
+    .raw_info_bits_sys   (ul_raw_info_bits_sys),
+    .pdu_valid_sys       (ul_pdu_valid_sys),
+    .pdu_count_sys       (ul_pdu_count_sys)
 );
 
 // =============================================================================

@@ -350,6 +350,22 @@ wire                  ul_sync_found_sys;
 wire [CORR_WIDTH-1:0] ul_corr_peak_sys;
 wire [1:0]            ul_best_phase_sys;
 
+// UL MAC-ACCESS PDU parser outputs (clk_sys) — resynced to clk_axi below
+wire        ul_pdu_valid_sys;
+wire [15:0] ul_pdu_count_sys;
+wire [1:0]  ul_pdu_type_sys;
+wire        ul_fill_bit_sys;
+wire [1:0]  ul_encryption_mode_sys;
+wire        ul_access_ack_sys;
+wire [2:0]  ul_address_type_sys;
+wire [9:0]  ul_short_ssi_sys;
+wire [91:0] ul_raw_info_bits_sys;
+
+// Cell scrambler seed for UL SCH/HU decoder — comes from AXI reg,
+// resynced clk_axi → clk_sys (see CDC block further down).
+wire [31:0] ul_scramb_init_axi_w;
+wire [31:0] ul_scramb_init_sys;
+
 // RX chain debug signals
 wire dbg_fe_valid_sys;
 wire dbg_tr_valid_sys;
@@ -394,6 +410,17 @@ tetra_rx_chain #(
     .ul_sync_found_sys  (ul_sync_found_sys),
     .ul_corr_peak_sys   (ul_corr_peak_sys),
     .ul_best_phase_sys  (ul_best_phase_sys),
+    // UL RA-burst decoder pipeline (Task #37)
+    .ul_scramb_init_sys     (ul_scramb_init_sys),
+    .ul_pdu_valid_sys       (ul_pdu_valid_sys),
+    .ul_pdu_count_sys       (ul_pdu_count_sys),
+    .ul_pdu_type_sys        (ul_pdu_type_sys),
+    .ul_fill_bit_sys        (ul_fill_bit_sys),
+    .ul_encryption_mode_sys (ul_encryption_mode_sys),
+    .ul_access_ack_sys      (ul_access_ack_sys),
+    .ul_address_type_sys    (ul_address_type_sys),
+    .ul_short_ssi_sys       (ul_short_ssi_sys),
+    .ul_raw_info_bits_sys   (ul_raw_info_bits_sys),
   .dbg_fe_valid_sys (dbg_fe_valid_sys),
   .dbg_tr_valid_sys (dbg_tr_valid_sys),
   .dbg_demod_valid_sys (dbg_demod_valid_sys)
@@ -1082,6 +1109,118 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     else             sync_lost_cnt_axi_r1 <= sync_lost_cnt_axi_r0;
 end
 
+// =============================================================================
+// UL MAC-ACCESS PDU mailbox CDC (Task #37) — clk_sys ↔ clk_axi
+//
+// Pulse: toggle-CDC on ul_pdu_valid_sys.  A toggle register in clk_sys flips
+// on every pdu-valid pulse; 2-FF resync into clk_axi + edge detect produces
+// the 1-cycle pulse ul_pdu_valid_axi_pulse.  This matches the existing
+// irq_mac_tgl_* pattern above.
+//
+// Data: per-bit 2-FF resync of the parsed fields.  The parser only mutates
+// these signals on the clk_sys pulse (tetra_ul_mac_access_parser latches all
+// outputs together), so by the time the toggle-resynced pulse arrives in
+// clk_axi (≥2 s_axi_aclk cycles later), every data bit has had time to
+// settle — the AXI reg latch is driven by the resynced pulse, not the raw
+// data, so the snapshot is consistent.
+// =============================================================================
+
+// Toggle register in clk_sys
+reg ul_pdu_tgl_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys)             ul_pdu_tgl_sys <= 1'b0;
+    else if (ul_pdu_valid_sys)  ul_pdu_tgl_sys <= ~ul_pdu_tgl_sys;
+end
+
+// 2-FF resync + edge detect in clk_axi → 1-cycle pulse
+(* ASYNC_REG = "TRUE" *) reg ul_pdu_tgl_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg ul_pdu_tgl_axi_r1;
+reg                         ul_pdu_tgl_axi_r2;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        ul_pdu_tgl_axi_r0 <= 1'b0;
+        ul_pdu_tgl_axi_r1 <= 1'b0;
+        ul_pdu_tgl_axi_r2 <= 1'b0;
+    end else begin
+        ul_pdu_tgl_axi_r0 <= ul_pdu_tgl_sys;
+        ul_pdu_tgl_axi_r1 <= ul_pdu_tgl_axi_r0;
+        ul_pdu_tgl_axi_r2 <= ul_pdu_tgl_axi_r1;
+    end
+end
+wire ul_pdu_valid_axi_pulse = ul_pdu_tgl_axi_r1 ^ ul_pdu_tgl_axi_r2;
+
+// Per-bit 2-FF resync of the parsed fields (data stable when pulse fires)
+(* ASYNC_REG = "TRUE" *) reg [1:0]  ul_pdu_type_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  ul_pdu_type_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg        ul_fill_bit_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg        ul_fill_bit_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  ul_encryption_mode_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  ul_encryption_mode_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg        ul_access_ack_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg        ul_access_ack_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [2:0]  ul_address_type_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [2:0]  ul_address_type_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [9:0]  ul_short_ssi_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [9:0]  ul_short_ssi_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [91:0] ul_raw_info_bits_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [91:0] ul_raw_info_bits_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] ul_pdu_count_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] ul_pdu_count_axi_r1;
+
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        ul_pdu_type_axi_r0        <= 2'd0;
+        ul_pdu_type_axi_r1        <= 2'd0;
+        ul_fill_bit_axi_r0        <= 1'b0;
+        ul_fill_bit_axi_r1        <= 1'b0;
+        ul_encryption_mode_axi_r0 <= 2'd0;
+        ul_encryption_mode_axi_r1 <= 2'd0;
+        ul_access_ack_axi_r0      <= 1'b0;
+        ul_access_ack_axi_r1      <= 1'b0;
+        ul_address_type_axi_r0    <= 3'd0;
+        ul_address_type_axi_r1    <= 3'd0;
+        ul_short_ssi_axi_r0       <= 10'd0;
+        ul_short_ssi_axi_r1       <= 10'd0;
+        ul_raw_info_bits_axi_r0   <= 92'd0;
+        ul_raw_info_bits_axi_r1   <= 92'd0;
+        ul_pdu_count_axi_r0       <= 16'd0;
+        ul_pdu_count_axi_r1       <= 16'd0;
+    end else begin
+        ul_pdu_type_axi_r0        <= ul_pdu_type_sys;
+        ul_pdu_type_axi_r1        <= ul_pdu_type_axi_r0;
+        ul_fill_bit_axi_r0        <= ul_fill_bit_sys;
+        ul_fill_bit_axi_r1        <= ul_fill_bit_axi_r0;
+        ul_encryption_mode_axi_r0 <= ul_encryption_mode_sys;
+        ul_encryption_mode_axi_r1 <= ul_encryption_mode_axi_r0;
+        ul_access_ack_axi_r0      <= ul_access_ack_sys;
+        ul_access_ack_axi_r1      <= ul_access_ack_axi_r0;
+        ul_address_type_axi_r0    <= ul_address_type_sys;
+        ul_address_type_axi_r1    <= ul_address_type_axi_r0;
+        ul_short_ssi_axi_r0       <= ul_short_ssi_sys;
+        ul_short_ssi_axi_r1       <= ul_short_ssi_axi_r0;
+        ul_raw_info_bits_axi_r0   <= ul_raw_info_bits_sys;
+        ul_raw_info_bits_axi_r1   <= ul_raw_info_bits_axi_r0;
+        ul_pdu_count_axi_r0       <= ul_pdu_count_sys;
+        ul_pdu_count_axi_r1       <= ul_pdu_count_axi_r0;
+    end
+end
+
+// ul_scramb_init: clk_axi → clk_sys.  Slow-changing (MCU writes once at
+// boot), so per-bit 2-FF is safe — after SW writes the register every bit
+// is stable indefinitely.
+(* ASYNC_REG = "TRUE" *) reg [31:0] ul_scramb_init_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] ul_scramb_init_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        ul_scramb_init_sys_r0 <= 32'h0;
+        ul_scramb_init_sys_r1 <= 32'h0;
+    end else begin
+        ul_scramb_init_sys_r0 <= ul_scramb_init_axi_w;
+        ul_scramb_init_sys_r1 <= ul_scramb_init_sys_r0;
+    end
+end
+assign ul_scramb_init_sys = ul_scramb_init_sys_r1;
+
 always @(posedge clk_lvds or negedge rst_n_lvds) begin
     if (!rst_n_lvds) begin
         ctrl_loopback_lvds_r0 <= 1'b0;
@@ -1335,19 +1474,18 @@ tetra_axi_lite_regs u_axi_regs (
     .tx_tdma_state_mn_axi    (tx_tdma_state_mn_axi_r1),
     .tx_tdma_state_hn_axi    (tx_tdma_state_hn_axi_r1),
     .tx_tdma_state_sym_cnt_axi(tx_tdma_state_sym_cnt_axi_r1),
-    // UL MAC-ACCESS PDU mailbox (Task #36) — tied off until tetra_rx_chain
-    // wires tetra_ul_mac_access_parser into the top-level.  Ports must be
-    // driven so the module compiles; zeros produce idle RO reads and a
-    // stable sticky=0 status.
-    .ul_pdu_valid_axi        (1'b0),
-    .ul_pdu_type_axi         (2'd0),
-    .ul_fill_bit_axi         (1'b0),
-    .ul_encryption_mode_axi  (2'd0),
-    .ul_access_ack_axi       (1'b0),
-    .ul_address_type_axi     (3'd0),
-    .ul_short_ssi_axi        (10'd0),
-    .ul_raw_info_bits_axi    (92'd0),
-    .ul_pdu_count_axi        (16'd0),
+    // UL MAC-ACCESS PDU mailbox (Task #36/#37) — MAC parser outputs
+    // resynced clk_sys → clk_axi in the CDC block below.
+    .ul_pdu_valid_axi        (ul_pdu_valid_axi_pulse),
+    .ul_pdu_type_axi         (ul_pdu_type_axi_r1),
+    .ul_fill_bit_axi         (ul_fill_bit_axi_r1),
+    .ul_encryption_mode_axi  (ul_encryption_mode_axi_r1),
+    .ul_access_ack_axi       (ul_access_ack_axi_r1),
+    .ul_address_type_axi     (ul_address_type_axi_r1),
+    .ul_short_ssi_axi        (ul_short_ssi_axi_r1),
+    .ul_raw_info_bits_axi    (ul_raw_info_bits_axi_r1),
+    .ul_pdu_count_axi        (ul_pdu_count_axi_r1),
+    .ul_scramb_init_axi      (ul_scramb_init_axi_w),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
