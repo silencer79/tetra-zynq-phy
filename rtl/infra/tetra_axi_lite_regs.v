@@ -301,6 +301,16 @@ module tetra_axi_lite_regs (
     output wire        shadow_wr_en_axi,
 
     // ------------------------------------------------------------------
+    // MLE registration FSM debug counters (clk_axi domain, 2-FF resynced
+    // in top-level).  Read-only. 0x190 = {accept[15:0], ul_req[15:0]},
+    // 0x194 = {15'b0, busy_sticky, drop[15:0]}.
+    // ------------------------------------------------------------------
+    input  wire [15:0] mle_ul_req_cnt_axi,
+    input  wire [15:0] mle_accept_cnt_axi,
+    input  wire [15:0] mle_drop_cnt_axi,
+    input  wire        mle_busy_sticky_axi,
+
+    // ------------------------------------------------------------------
     // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
     // 144 words, each word packs TWO 16-bit schedule entries.
     //   schedule_axi_we     : 1-cycle write pulse
@@ -505,6 +515,10 @@ localparam [6:0] REG_SHADOW_INDEX    = 7'h60; // 0x180  R/W slot index [7:0]
 localparam [6:0] REG_SHADOW_DATA_LO  = 7'h61; // 0x184  R/W record [31:0]
 localparam [6:0] REG_SHADOW_DATA_HI  = 7'h62; // 0x188  R/W record [63:32]
 localparam [6:0] REG_SHADOW_CTRL     = 7'h63; // 0x18C  W1S commit pulse
+
+// MLE registration FSM debug counters (Phase 6 M2.3b)
+localparam [6:0] REG_MLE_STATS_A     = 7'h64; // 0x190  RO {accept_cnt[15:0], ul_req_cnt[15:0]}
+localparam [6:0] REG_MLE_STATS_B     = 7'h65; // 0x194  RO {15'b0, busy_sticky, drop_cnt[15:0]}
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -782,6 +796,9 @@ always @(*) begin
         REG_SHADOW_DATA_LO: rdata_mux_axi = shadow_data_lo_axi;
         REG_SHADOW_DATA_HI: rdata_mux_axi = shadow_data_hi_axi;
         REG_SHADOW_CTRL:    rdata_mux_axi = 32'b0; // self-clearing
+        // MLE registration FSM debug
+        REG_MLE_STATS_A:    rdata_mux_axi = {mle_accept_cnt_axi, mle_ul_req_cnt_axi};
+        REG_MLE_STATS_B:    rdata_mux_axi = {15'b0, mle_busy_sticky_axi, mle_drop_cnt_axi};
         default:          rdata_mux_axi = 32'b0;
     endcase
 end

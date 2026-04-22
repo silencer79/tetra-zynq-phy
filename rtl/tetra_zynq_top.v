@@ -1528,6 +1528,11 @@ tetra_axi_lite_regs u_axi_regs (
     .shadow_wr_idx_axi       (shadow_wr_idx_w),
     .shadow_wr_data_axi      (shadow_wr_data_w),
     .shadow_wr_en_axi        (shadow_wr_en_w),
+    // MLE registration FSM debug counters (resynced below)
+    .mle_ul_req_cnt_axi      (mle_ul_req_cnt_axi_r1),
+    .mle_accept_cnt_axi      (mle_accept_cnt_axi_r1),
+    .mle_drop_cnt_axi        (mle_drop_cnt_axi_r1),
+    .mle_busy_sticky_axi     (mle_busy_sticky_axi_r1),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -1650,6 +1655,62 @@ tetra_mle_registration_fsm #(
     .accept_pulse     (mle_accept_pulse_w),
     .drop_pulse       (mle_drop_pulse_w)
 );
+
+// =============================================================================
+// MLE FSM debug counters (Phase 6 M2.3b) — clk_sys free-running 16-bit
+// counters on ul_req / accept / drop, plus a sticky busy flag (set when
+// FSM ever left S_IDLE).  Per-bit 2-FF resynced into clk_axi; counters
+// are slow-changing so byte-tearing is tolerable for diagnostic use.
+// =============================================================================
+reg [15:0] mle_ul_req_cnt_sys;
+reg [15:0] mle_accept_cnt_sys;
+reg [15:0] mle_drop_cnt_sys;
+reg        mle_busy_sticky_sys;
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        mle_ul_req_cnt_sys  <= 16'd0;
+        mle_accept_cnt_sys  <= 16'd0;
+        mle_drop_cnt_sys    <= 16'd0;
+        mle_busy_sticky_sys <= 1'b0;
+    end else begin
+        if (ul_pdu_valid_sys)    mle_ul_req_cnt_sys <= mle_ul_req_cnt_sys + 16'd1;
+        if (mle_accept_pulse_w)  mle_accept_cnt_sys <= mle_accept_cnt_sys + 16'd1;
+        if (mle_drop_pulse_w)    mle_drop_cnt_sys   <= mle_drop_cnt_sys   + 16'd1;
+        if (mle_busy_w)          mle_busy_sticky_sys <= 1'b1;
+    end
+end
+
+(* ASYNC_REG = "TRUE" *) reg [15:0] mle_ul_req_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] mle_ul_req_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] mle_accept_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] mle_accept_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] mle_drop_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] mle_drop_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg        mle_busy_sticky_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg        mle_busy_sticky_axi_r1;
+
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        mle_ul_req_cnt_axi_r0  <= 16'd0;
+        mle_ul_req_cnt_axi_r1  <= 16'd0;
+        mle_accept_cnt_axi_r0  <= 16'd0;
+        mle_accept_cnt_axi_r1  <= 16'd0;
+        mle_drop_cnt_axi_r0    <= 16'd0;
+        mle_drop_cnt_axi_r1    <= 16'd0;
+        mle_busy_sticky_axi_r0 <= 1'b0;
+        mle_busy_sticky_axi_r1 <= 1'b0;
+    end else begin
+        mle_ul_req_cnt_axi_r0  <= mle_ul_req_cnt_sys;
+        mle_ul_req_cnt_axi_r1  <= mle_ul_req_cnt_axi_r0;
+        mle_accept_cnt_axi_r0  <= mle_accept_cnt_sys;
+        mle_accept_cnt_axi_r1  <= mle_accept_cnt_axi_r0;
+        mle_drop_cnt_axi_r0    <= mle_drop_cnt_sys;
+        mle_drop_cnt_axi_r1    <= mle_drop_cnt_axi_r0;
+        mle_busy_sticky_axi_r0 <= mle_busy_sticky_sys;
+        mle_busy_sticky_axi_r1 <= mle_busy_sticky_axi_r0;
+    end
+end
 
 // =============================================================================
 // Slot-Schedule BRAM (Plan Stufe 3, Port B rewired in Stufe 4)
