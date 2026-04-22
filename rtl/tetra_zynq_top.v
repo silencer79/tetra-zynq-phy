@@ -1632,9 +1632,9 @@ tetra_mle_registration_fsm #(
     .ul_req_valid     (ul_pdu_valid_sys),
     .ul_addr_type     (ul_address_type_sys),
     .ul_ssi           (mle_ul_ssi_w),
-    .ul_la            (14'd36),
-    // Cell config
-    .cfg_la           (14'd36),
+    .ul_la            (14'd1),
+    // Cell config — must match BNCH SYSINFO LA (tetra_hal.c default = 1)
+    .cfg_la           (14'd1),
     .cfg_scramble_init(ul_scramb_init_sys),
     // AST
     .ast_wr_en        (ast_wr_en_w),
