@@ -84,41 +84,45 @@ module tetra_d_location_update_encoder (
                                         : PDU_TYPE_LOC_ACCEPT;
 
     // -------------------------------------------------------------------------
-    // MM PDU (raw, MSB-aligned).  Layout per EN 300 392-2 §16.9.2.7 Table 16.12
-    // minimum mandatory fields for the ACCEPT path (Type-1 elements only):
-    //   [79:76]  PDU type                      4  (0101 = ACCEPT)
-    //   [75:73]  Location update accept type   3  (000 = roaming accept)
-    //   [72]     O-bit for type 2 elements     1  (1 = type-2 elements follow)
-    //   [71]     p-bit for SSI                 1  (1 = SSI included)
-    //   [70:47]  SSI                           24
-    //   [46]     p-bit for address extension   1  (0 = absent)
-    //   [45]     p-bit for subscriber class    1  (1 = included)
-    //   [44:29]  Subscriber class              16
-    //   [28]     p-bit for energy saving info  1  (0 = absent)
-    //   [27]     p-bit for SCCH info & distrib 1  (0 = absent)
-    //   [26]     m-bit (type 3/4 elements)     1  (0 = none)
-    //   [25: 0]  padding (don't-care, outside pdu_len_bits)
+    // MM PDU (raw, MSB-aligned).  Layout per EN 300 392-2 §16.10.28 / §16.9.2
+    // Table 16.12 — minimum mandatory ACCEPT with ALL type-2 p-bits = 0
+    // (no optional elements present) and no type-3/4 lists.  The MS reads
+    // its address from the MAC-RESOURCE header (§21.4.3.1), NOT from the
+    // MM body — that is why SSI/subscriber-class are NOT embedded here.
     //
-    // Total meaningful bits: 4+3+1+1+24+1+1+16+1+1+1 = 54 bits.
+    //   [79:76]  PDU type                   4  (0101 = ACCEPT)
+    //   [75:73]  Location update accept     3  (000 = roaming)
+    //   [72]     p-bit Address extension    1  (0 = absent)
+    //   [71]     p-bit Subscriber class     1  (0 = absent)
+    //   [70]     p-bit Energy saving info   1  (0 = absent)
+    //   [69]     p-bit SCCH info & distrib  1  (0 = absent)
+    //   [68]     p-bit Distrib-18th-frame   1  (0 = absent)
+    //   [67]     p-bit New registered area  1  (0 = absent)
+    //   [66]     p-bit Group identity       1  (0 = absent)
+    //   [65]     M-bit type-3 elements      1  (0 = none)
+    //   [64]     M-bit type-4 elements      1  (0 = none)
+    //   [63: 0]  padding (don't-care, outside pdu_len_bits)
+    //
+    // Total meaningful bits: 4 + 3 + 9 = 16 bits.
     // Wrapper uses pdu_len_bits to know the boundary; anything beyond is
     // ignored by the FCS shift and not transmitted.
     // -------------------------------------------------------------------------
     localparam [2:0] LOC_ACC_TYPE_ROAMING = 3'b000;
-    localparam [6:0] MM_PDU_LEN           = 7'd54;
+    localparam [6:0] MM_PDU_LEN           = 7'd16;
 
     assign pdu_bits_mm = {
-        pdu_type_w,                 // [79:76]  4
-        LOC_ACC_TYPE_ROAMING,       // [75:73]  3
-        1'b1,                       // [72]     O-bit (type 2 follows)
-        1'b1,                       // [71]     p SSI
-        ssi,                        // [70:47] 24
-        1'b0,                       // [46]     p addr-ext = absent
-        1'b1,                       // [45]     p subscriber-class
-        subscriber_class,           // [44:29] 16
-        1'b0,                       // [28]     p energy-saving  = absent
-        1'b0,                       // [27]     p SCCH-info      = absent
-        1'b0,                       // [26]     m type-3/4       = none
-        26'b0                       // [25: 0]  padding
+        pdu_type_w,                 // [79:76]  4   PDU type
+        LOC_ACC_TYPE_ROAMING,       // [75:73]  3   accept type
+        1'b0,                       // [72]     p Address extension
+        1'b0,                       // [71]     p Subscriber class
+        1'b0,                       // [70]     p Energy saving
+        1'b0,                       // [69]     p SCCH info & distrib
+        1'b0,                       // [68]     p Distrib 18th frame
+        1'b0,                       // [67]     p New registered area
+        1'b0,                       // [66]     p Group identity
+        1'b0,                       // [65]     M type-3 elements
+        1'b0,                       // [64]     M type-4 elements
+        64'b0                       // [63: 0]  padding
     };
     assign pdu_len_bits = MM_PDU_LEN;
 

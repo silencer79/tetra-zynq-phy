@@ -120,18 +120,19 @@ module tb_mle_registration_fsm;
     integer fail_count = 0;
     integer test_count = 0;
 
-    // Known SCH/F coded bits for ACCEPT/SSI=523/subs_class=0/NS=NR=0
-    // wrapped via MAC-RESOURCE builder EXPECTED_1 (see
-    // tb_mac_resource_dl_builder.v) and encoded with scramble_init
-    // 0xE1670C03.  Golden = Python reference scripts/gen_sch_f_tv.py
-    // (encode_sch_f(info=EXPECTED_1, init=0xE1670C03)).  Split:
+    // Known SCH/F coded bits for ACCEPT/SSI=523/NS=NR=0 with the ETSI-
+    // conformant minimal MM D-LOC-UPDATE-ACCEPT body (16 bits: PDU-type +
+    // loc-accept-type + 9 x p/M bits all 0).  SSI is addressed via the
+    // MAC-RESOURCE header (AddrType=1, 24-bit SSI), NOT embedded in the
+    // MM body.  Wrapped via tetra_mac_resource_dl_builder and encoded
+    // with scramble_init 0xE1670C03.  Split:
     //   blk1 = coded[431:216] (MSB half, first on air)
     //   blk2 = coded[215:  0] (LSB half)
     // Recompute if MM PDU layout or scrambler seed changes.
     localparam [215:0] EXPECTED_ACCEPT_523_BLK1 =
-        216'h1a52ad41e2a96e829c67af8b763d1d4b8979da4db37ba5d1371896;
+        216'hda7285d1e4394f8a1c77ac8b7a9f5fdb8d71680fe25ba0433541f6;
     localparam [215:0] EXPECTED_ACCEPT_523_BLK2 =
-        216'hc507df3b7996d7a6eff7946978ac255c918a8aadaf96db8668a282;
+        216'hc1b1df28799655eee4d794f9f8a705dca1ca8be93f06da8e2da292;
 
     task automatic push_request(input [23:0] issi, input [13:0] la);
         begin
