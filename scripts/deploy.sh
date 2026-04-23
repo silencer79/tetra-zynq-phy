@@ -239,12 +239,15 @@ fi
 # =============================================================================
 
 if $DO_INIT; then
-    step "Running full_init + tetra_sysinfo"
+    step "Running full_init + tetra_sysinfo + tetra_ul_mon"
 
     bash "${SCRIPT_DIR}/tetra_ctrl.sh" full_init
 
     ssh_cmd "nohup /root/tetra_sysinfo > /tmp/tetra_sysinfo.log 2>&1 &"
-    echo "tetra_sysinfo started in background"
+    echo "tetra_sysinfo started in background → /tmp/tetra_sysinfo.log"
+
+    ssh_cmd "nohup /root/tetra_ul_mon  > /tmp/tetra_ul_mon.log  2>&1 &"
+    echo "tetra_ul_mon  started in background → /tmp/tetra_ul_mon.log"
 fi
 
 # =============================================================================
@@ -264,6 +267,7 @@ if ! $DO_INIT; then
 echo " Next steps:"
 echo "   ./scripts/tetra_ctrl.sh full_init"
 echo "   ssh root@${BOARD_IP} 'nohup /root/tetra_sysinfo > /tmp/tetra_sysinfo.log 2>&1 &'"
+echo "   ssh root@${BOARD_IP} 'nohup /root/tetra_ul_mon  > /tmp/tetra_ul_mon.log  2>&1 &'"
 echo "   ./scripts/tetra_ctrl.sh rf_loopback"
 echo "   ./scripts/tetra_ctrl.sh monitor"
 fi
