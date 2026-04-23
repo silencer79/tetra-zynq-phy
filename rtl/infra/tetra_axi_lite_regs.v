@@ -322,6 +322,16 @@ module tetra_axi_lite_regs (
     output reg  [1:0]  cfg_signal_target_tn_axi,
 
     // ------------------------------------------------------------------
+    // Cell Location Area — cell_la_axi
+    // 14-bit R/W register (REG_CELL_LA @ 0x1A0).  Must match the LA value
+    // the SW stack packs into BNCH SYSINFO (tetra_hal.c info.la).  The
+    // MLE registration FSM uses this as .cfg_la to validate incoming
+    // U-REGISTER/U-LOCATION-UPDATE LA fields and to stamp outgoing
+    // D-LOC-UPDATE-ACCEPT.  Consumed on clk_sys after 2-FF resync in top.
+    // ------------------------------------------------------------------
+    output reg  [13:0] cell_la_axi,
+
+    // ------------------------------------------------------------------
     // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
     // 144 words, each word packs TWO 16-bit schedule entries.
     //   schedule_axi_we     : 1-cycle write pulse
@@ -538,6 +548,11 @@ localparam [6:0] REG_MLE_STATS_C     = 7'h66; // 0x198  RO {clear_cnt[15:0], inj
 // fills with SCH/F (MLE Accept etc.).  R/W, 2-bit.  Default 1 matches historical
 // Gold-cell MCCH placement on TN=1 (RTL tn=1 == ETSI slot 2).
 localparam [6:0] REG_SIGNAL_TARGET_TN = 7'h67; // 0x19C R/W {30'd0, cfg_signal_target_tn[1:0]}
+
+// Cell Location Area — Part of the cell identity packed into BNCH SYSINFO and
+// echoed in D-LOC-UPDATE-ACCEPT.  Default 14'd1 matches the tetra_hal.c
+// info.la default (the legacy hard-coded value in rtl/tetra_zynq_top.v).
+localparam [6:0] REG_CELL_LA          = 7'h68; // 0x1A0 R/W {18'd0, cell_la[13:0]}
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -820,6 +835,7 @@ always @(*) begin
         REG_MLE_STATS_B:    rdata_mux_axi = {15'b0, mle_busy_sticky_axi, mle_drop_cnt_axi};
         REG_MLE_STATS_C:    rdata_mux_axi = {mle_clear_cnt_axi, mle_inject_cnt_axi};
         REG_SIGNAL_TARGET_TN: rdata_mux_axi = {30'b0, cfg_signal_target_tn_axi};
+        REG_CELL_LA:      rdata_mux_axi = {18'b0, cell_la_axi};
         default:          rdata_mux_axi = 32'b0;
     endcase
 end
@@ -930,6 +946,20 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         cfg_signal_target_tn_axi <= 2'd0;
     else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SIGNAL_TARGET_TN) & wr_strb_axi[0])
         cfg_signal_target_tn_axi <= wr_data_axi[1:0];
+end
+
+// ---- CELL_LA register (0x1A0) ----
+// R/W 14-bit.  Default 14'd1 mirrors the tetra_hal.c info.la default and the
+// previous hard-coded value in rtl/tetra_zynq_top.v; tetra_sysinfo writes
+// the actual cell LA at boot.  wr_strb_axi[0] covers bits [7:0],
+// wr_strb_axi[1] bits [13:8].
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        cell_la_axi <= 14'd1;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_CELL_LA)) begin
+        if (wr_strb_axi[0]) cell_la_axi[7:0]  <= wr_data_axi[7:0];
+        if (wr_strb_axi[1]) cell_la_axi[13:8] <= wr_data_axi[13:8];
+    end
 end
 
 // ---- RX_GAIN register (0x1C) ----

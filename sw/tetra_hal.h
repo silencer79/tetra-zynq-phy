@@ -46,6 +46,7 @@
 #define REG_TX_TDMA         0x38  /* RO: [12:7] tx_mf, [6:2] tx_frame, [1:0] tx_slot */
 #define REG_SCRATCH         0x3C
 #define REG_SIGNAL_TARGET_TN 0x19C /* R/W [1:0]: on-air TN where DL signalling PDUs (MLE/CMCE/SDS) land */
+#define REG_CELL_LA          0x1A0 /* R/W [13:0]: cell Location Area — must match BNCH SYSINFO info.la */
 
 /* CTRL register bits */
 #define CTRL_RX_EN          (1 << 0)

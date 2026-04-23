@@ -242,6 +242,12 @@ wire [13:0] cell_cfg_mnc_axi_w;
 // @ 0x19C).  Per-bit 2-FF resynced into clk_sys below as cfg_mcch_tn_sys_r1.
 wire [1:0]  cfg_signal_target_tn_axi_w;
 
+// Cell Location Area — 14-bit R/W (REG_CELL_LA @ 0x1A0).  SW writes the cell
+// LA at boot (tetra_sysinfo info.la), RTL feeds it into the MLE FSM as
+// .cfg_la so D-LOC-UPDATE-ACCEPT echoes the same LA that BNCH SYSINFO
+// broadcasts.  Per-bit 2-FF resynced into clk_sys below as cell_la_sys_r1.
+wire [13:0] cell_la_axi_w;
+
 // Synchronize static AXI control bits into the consuming clock domains.
 (* ASYNC_REG = "TRUE" *) reg ctrl_loopback_lvds_r0;
 (* ASYNC_REG = "TRUE" *) reg ctrl_loopback_lvds_r1;
@@ -1578,6 +1584,8 @@ tetra_axi_lite_regs u_axi_regs (
     .mle_clear_cnt_axi       (mle_clear_cnt_axi_r1),
     // DL-signalling scheduler config (R/W @ 0x19C) — resynced into clk_sys below
     .cfg_signal_target_tn_axi(cfg_signal_target_tn_axi_w),
+    // Cell Location Area (R/W @ 0x1A0) — resynced into clk_sys below
+    .cell_la_axi             (cell_la_axi_w),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -1660,8 +1668,15 @@ tetra_active_session_table #(
 // ul_req_valid; for initial bring-up an MS only transmits RA bursts when
 // it wants to register, so acting on any pulse is safe.
 //
-// LA is hard-coded to 14'd36 (matches HAM-cell config) until we add a
-// dedicated cell-LA AXI register.  cfg_scramble_init is packed directly
+// cfg_la comes from REG_CELL_LA (0x1A0) via cell_la_sys_r1 so BNCH SYSINFO
+// (packed in SW from info.la) and D-LOC-UPDATE-ACCEPT (stamped by the MLE
+// FSM) share the same LA value — mismatching these two used to cause the
+// MS to silently reject the registration response.  ul_la currently ties
+// to 14'd0 because the MAC-ACCESS parser does not yet extract the LA field
+// from the U-REGISTER/U-LOCATION-UPDATE payload (TODO Bug #3: add LA
+// extraction in rtl/rx/tetra_mac_access_parser.v and wire through
+// tetra_rx_chain as ul_location_area_sys).
+// cfg_scramble_init is packed directly
 // from the RTL cell-config regs so the DL SCH/HD response scrambling is
 // guaranteed bit-identical to the AACH/BSCH-paired SCH/HD TX chain
 // (see u_aach_encoder which derives the same pack internally).  The
@@ -1687,9 +1702,15 @@ tetra_mle_registration_fsm #(
     .ul_req_valid     (ul_pdu_valid_sys),
     .ul_addr_type     (ul_address_type_sys),
     .ul_ssi           (mle_ul_ssi_w),
-    .ul_la            (14'd1),
-    // Cell config — must match BNCH SYSINFO LA (tetra_hal.c default = 1)
-    .cfg_la           (14'd1),
+    // TODO Bug #3: wire ul_location_area_sys from the MAC-ACCESS parser
+    // once the LA field is extracted from U-REGISTER/U-LOCATION-UPDATE.
+    // Until then we feed 14'd0 so the MLE FSM treats every request as a
+    // bare registration attempt (no LA-match fast-path).
+    .ul_la            (14'd0),
+    // Cell config — REG_CELL_LA (0x1A0), 2-FF resynced from clk_axi.
+    // MUST match the LA value BNCH SYSINFO broadcasts (SW writes
+    // tetra_hal.c info.la into this register at boot).
+    .cfg_la           (cell_la_sys_r1),
     .cfg_scramble_init(mle_dl_scramb_init_sys),
     .cfg_mcch_tn      (cfg_mcch_tn_sys_r1),
     // AST
@@ -1970,6 +1991,8 @@ end
 (* ASYNC_REG = "TRUE" *) reg [5:0]  colour_code_sys_r1;
 (* ASYNC_REG = "TRUE" *) reg [1:0]  cfg_mcch_tn_sys_r0;
 (* ASYNC_REG = "TRUE" *) reg [1:0]  cfg_mcch_tn_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [13:0] cell_la_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [13:0] cell_la_sys_r1;
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) cell_cfg_sys_code_sys_r0 <= 4'd0;
@@ -2066,6 +2089,14 @@ end
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) cfg_mcch_tn_sys_r1 <= 2'd0;
     else            cfg_mcch_tn_sys_r1 <= cfg_mcch_tn_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_la_sys_r0 <= 14'd1;
+    else            cell_la_sys_r0 <= cell_la_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cell_la_sys_r1 <= 14'd1;
+    else            cell_la_sys_r1 <= cell_la_sys_r0;
 end
 
 // Lookahead tuple (next-slot tn, fn, mn).  The sb1/aach encoders are

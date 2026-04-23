@@ -1550,6 +1550,11 @@ int main(int argc, char *argv[])
      * default (defense-in-depth if a future RTL change drifts the default). */
     tetra_reg_write(&hal, REG_SIGNAL_TARGET_TN, 0);
 
+    /* REG_CELL_LA (0x1A0): must match info.la packed into BNCH SYSINFO.
+     * The MLE FSM uses this for D-LOC-UPDATE-ACCEPT so the MS sees a
+     * matching LA in the response.  14-bit field; higher bits ignored. */
+    tetra_reg_write(&hal, REG_CELL_LA, info.la & 0x3FFF);
+
     if (!no_enable)
         tetra_enable(&hal, sync_thresh);
 
