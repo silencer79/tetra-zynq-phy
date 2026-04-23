@@ -7,7 +7,7 @@
 //
 //   MAC-RESOURCE DL header (§21.4.3.1 Table 21.55)
 //     PDUtype(2)=00  FillBit(1)  PosOfGrant(1)=0  Encr(2)=00
-//     RandAccFlag(1)=0  LengthInd(6)  AddrType(3)=001  SSI(24)
+//     RandAccFlag(1)=random_access_flag  LengthInd(6)  AddrType(3)=001  SSI(24)
 //     NOTE: PowerCtrl/SlotGrant/ChanAlloc presence flags (3 bits) are
 //     ONLY emitted when PosOfGrant=1 AND addr!=NULL AND LI!=0 per
 //     §21.4.3.1.  Since this builder hard-codes PosOfGrant=0 for a pure
@@ -77,6 +77,17 @@ module tetra_mac_resource_dl_builder #(
     input  wire                  ns,
     input  wire                  nr,
 
+    // MAC-RESOURCE header RandAccFlag (ETSI §21.4.3.1).  Caller decides:
+    //   1 = this PDU is a response to a successful UL Random Access and
+    //       implicitly acknowledges the MS's RA (RA-ack piggyback).  The
+    //       MS stops retrying RA requests upon seeing this bit.
+    //   0 = unsolicited DL signalling (e.g. CMCE broadcast, SDS), or
+    //       GSSI-addressed group signalling.
+    // The builder does NOT infer this — the semantic belongs at the
+    // callsite (e.g. MLE-Registration FSM sets 1 because D-LOC-UPDATE-
+    // ACCEPT is always a RA response).
+    input  wire                  random_access_flag,
+
     // Raw MM PDU (MSB=[79], actual length in mm_pdu_len_bits)
     input  wire [79:0]           mm_pdu_bits,
     input  wire [6:0]            mm_pdu_len_bits,
@@ -132,6 +143,7 @@ module tetra_mac_resource_dl_builder #(
     reg [23:0]       lat_ssi;
     reg [2:0]        lat_addr_type;
     reg              lat_ns, lat_nr;
+    reg              lat_random_access_flag;
     reg [79:0]       lat_mm_bits;
     reg [6:0]        lat_mm_len;
 
@@ -231,6 +243,7 @@ module tetra_mac_resource_dl_builder #(
             lat_addr_type      <= 3'd0;
             lat_ns             <= 1'b0;
             lat_nr             <= 1'b0;
+            lat_random_access_flag <= 1'b0;
             lat_mm_bits        <= 80'd0;
             lat_mm_len         <= 7'd0;
             tl_sdu_len         <= 9'd0;
@@ -256,13 +269,14 @@ module tetra_mac_resource_dl_builder #(
             // -----------------------------------------------------------------
             S_IDLE: begin
                 if (start) begin
-                    lat_ssi        <= ssi;
-                    lat_addr_type  <= addr_type;
-                    lat_ns         <= ns;
-                    lat_nr         <= nr;
-                    lat_mm_bits    <= mm_pdu_bits;
-                    lat_mm_len     <= mm_pdu_len_bits;
-                    state          <= S_ASSEMBLE_INNER;
+                    lat_ssi               <= ssi;
+                    lat_addr_type         <= addr_type;
+                    lat_ns                <= ns;
+                    lat_nr                <= nr;
+                    lat_random_access_flag<= random_access_flag;
+                    lat_mm_bits           <= mm_pdu_bits;
+                    lat_mm_len            <= mm_pdu_len_bits;
+                    state                 <= S_ASSEMBLE_INNER;
                 end
             end
 
@@ -351,7 +365,7 @@ module tetra_mac_resource_dl_builder #(
             //   [1]  FillBit         = fill_bit_ind
             //   [1]  PosOfGrant      = 0
             //   [2]  EncryptionMode  = 00
-            //   [1]  RandAccFlag     = 0
+            //   [1]  RandAccFlag     = lat_random_access_flag (caller-driven)
             //   [6]  LengthInd
             //   [3]  AddrType        (usually 001 = SSI)
             //   [24] SSI
@@ -386,7 +400,7 @@ module tetra_mac_resource_dl_builder #(
                       fill_bit_ind,                      // [265]     FillBit
                       1'b0,                              // [264]     PosOfGrant
                       2'b00,                             // [263:262] Encryption
-                      1'b0,                              // [261]     RandAccFlag
+                      lat_random_access_flag,            // [261]     RandAccFlag
                       length_ind,                        // [260:255] LengthInd
                       lat_addr_type,                     // [254:252] AddrType
                       lat_ssi,                           // [251:228] SSI

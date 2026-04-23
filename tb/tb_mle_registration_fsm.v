@@ -133,15 +133,17 @@ module tb_mle_registration_fsm;
     //   FCS = 0x557387CF (osmo-style: init=0xFFFFE000 for len<32, CRC over
     //                     TL-SDU only, not LLC header.  Bug #9 fix.)
     //   MAC_HDR_BITS = 40 (Bug #7).
+    //   RandAccFlag = 1 (MLE-FSM wires random_access_flag=1 because
+    //                   D-LOC-UPDATE-ACCEPT is always a RA response).
     // Split:
     //   blk1 = coded[431:216] (MSB half, first on air)
     //   blk2 = coded[215:  0] (LSB half)
-    // Recompute via /tmp/regen_bug9_goldens.py if MM layout or header
+    // Recompute via /tmp/regen_randacc_goldens.py if MM layout or header
     // layout changes again.
     localparam [215:0] EXPECTED_ACCEPT_523_BLK1 =
-        216'hda33a9d1763947ae1c752c8a5e1fdd8b8d55e80fba5ba5d33749f6;
+        216'hda33a8d1723947ae1c752c8a561fdd8b8d5cc80fb85ba4d33759f6;
     localparam [215:0] EXPECTED_ACCEPT_523_BLK2 =
-        216'hc031df7b799675eee4f79459f8e705d893cac3893b06dacf69a686;
+        216'hc131df69799651eee4f79459f8e505d8b34ac3813b06dacf29a682;
 
     task automatic push_request(input [23:0] issi, input [13:0] la);
         begin

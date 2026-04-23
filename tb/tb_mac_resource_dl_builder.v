@@ -23,6 +23,7 @@ module tb_mac_resource_dl_builder;
     reg [2:0]        addr_type= 3'b001;     // SSI
     reg              ns       = 1'b0;
     reg              nr       = 1'b0;
+    reg              random_access_flag = 1'b0;  // default off for legacy goldens
     reg [79:0]       mm_bits  = 80'd0;
     reg [6:0]        mm_len   = 7'd0;
 
@@ -33,17 +34,18 @@ module tb_mac_resource_dl_builder;
     tetra_mac_resource_dl_builder #(
         .PDU_BITS(PDU_BITS)
     ) dut (
-        .clk             (clk),
-        .rst_n           (rst_n),
-        .start           (start),
-        .ssi             (ssi),
-        .addr_type       (addr_type),
-        .ns              (ns),
-        .nr              (nr),
-        .mm_pdu_bits     (mm_bits),
-        .mm_pdu_len_bits (mm_len),
-        .pdu_bits        (pdu_bits),
-        .valid           (valid)
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .start              (start),
+        .ssi                (ssi),
+        .addr_type          (addr_type),
+        .ns                 (ns),
+        .nr                 (nr),
+        .random_access_flag (random_access_flag),
+        .mm_pdu_bits        (mm_bits),
+        .mm_pdu_len_bits    (mm_len),
+        .pdu_bits           (pdu_bits),
+        .valid              (valid)
     );
 
     // -------------------------------------------------------------------------
@@ -240,8 +242,59 @@ module tb_mac_resource_dl_builder;
             end else begin
                 $display("[T%0d ssi1000_fillflag] PASS", test_count);
             end
+            // RandAccFlag at bit [261] — should still be 0 (default, no RA-ack)
+            test_count = test_count + 1;
+            if (got[261] !== 1'b0) begin
+                $display("[T%0d ssi1000_raflag_off] FAIL got=%b expected 0",
+                         test_count, got[261]);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d ssi1000_raflag_off] PASS", test_count);
+            end
         end
 
+        repeat (4) @(posedge clk);
+
+        // T7+ — RandAccFlag=1 path: RA-Ack piggyback scenario
+        //   Same SSI/MM fixture as T1 golden, but caller now signals this PDU
+        //   is a response to a UL Random Access.  Verify bit [261] flips to 1
+        //   and the rest of the PDU matches the RandAcc=0 golden with that
+        //   one bit XOR'd.
+        @(posedge clk);
+        random_access_flag <= 1'b1;
+        ssi                <= 24'd523;
+        nr                 <= 1'b0;
+        ns                 <= 1'b0;
+        mm_bits            <= build_mm_accept(24'd523, 16'h0000);
+        mm_len             <= 7'd54;
+        start              <= 1'b1;
+        @(posedge clk);
+        start              <= 1'b0;
+        begin : ra_ack_checks
+            reg [PDU_BITS-1:0] got_ra;
+            reg [PDU_BITS-1:0] exp_ra;
+            wait_valid(got_ra);
+            // Expected = EXPECTED_1 with bit [261] flipped
+            exp_ra = EXPECTED_1 ^ ({{(PDU_BITS-262){1'b0}}, 1'b1, 261'd0});
+            test_count = test_count + 1;
+            if (got_ra[261] !== 1'b1) begin
+                $display("[T%0d ssi523_raflag_on] FAIL bit[261]=%b", test_count, got_ra[261]);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d ssi523_raflag_on] PASS", test_count);
+            end
+            // Full vector compare
+            test_count = test_count + 1;
+            if (got_ra !== exp_ra) begin
+                $display("[T%0d ssi523_raflag_goldenmatch] FAIL", test_count);
+                $display("  got = 268'h%067x", got_ra);
+                $display("  exp = 268'h%067x", exp_ra);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d ssi523_raflag_goldenmatch] PASS", test_count);
+            end
+        end
+        random_access_flag <= 1'b0;   // restore default
         repeat (4) @(posedge clk);
 
         $display("=============================================");

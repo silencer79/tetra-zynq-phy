@@ -142,17 +142,24 @@ module tetra_mle_registration_fsm #(
     tetra_mac_resource_dl_builder #(
         .PDU_BITS(268)
     ) u_builder (
-        .clk            (clk),
-        .rst_n          (rst_n),
-        .start          (builder_start),
-        .ssi            (lat_ssi),
-        .addr_type      (lat_addr_type),
-        .ns             (1'b0),                 // TODO: from AST record
-        .nr             (1'b0),                 // TODO: from AST record
-        .mm_pdu_bits    (dloc_mm_bits_w),
-        .mm_pdu_len_bits(dloc_mm_len_w),
-        .pdu_bits       (builder_pdu_bits_w),
-        .valid          (builder_valid_w)
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .start             (builder_start),
+        .ssi               (lat_ssi),
+        .addr_type         (lat_addr_type),
+        .ns                (1'b0),                 // TODO: from AST record
+        .nr                (1'b0),                 // TODO: from AST record
+        // D-LOC-UPDATE-ACCEPT is the canonical response to a successful
+        // UL Random Access (MAC-ACCESS → MLE → MM demand).  Setting the
+        // MAC-RESOURCE RandAccFlag acknowledges the MS's RA and stops
+        // it from retrying (ETSI §21.4.3.1, bluestation umac_bs.rs:1176
+        // analogous path).  This FSM is exclusively triggered from the
+        // UL MAC-ACCESS parser, so hard-1 is correct here.
+        .random_access_flag(1'b1),
+        .mm_pdu_bits       (dloc_mm_bits_w),
+        .mm_pdu_len_bits   (dloc_mm_len_w),
+        .pdu_bits          (builder_pdu_bits_w),
+        .valid             (builder_valid_w)
     );
 
     // -------------------------------------------------------------------------
