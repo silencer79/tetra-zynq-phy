@@ -156,13 +156,34 @@ module tetra_mac_resource_dl_builder #(
 
     // -------------------------------------------------------------------------
     // FCS computation — MSB-first serial CRC-32, poly 0x04C11DB7 (ETSI
-    // §22.2.2.5).  Matches osmo-tetra `tetra_llc_compute_fcs`.
+    // §22.2.2.5).  Matches osmo-tetra `tetra_llc_compute_fcs` semantics:
+    //   1. FCS covers the TL-SDU ONLY (MLE-PD + MM PDU bits), NOT the LLC
+    //      header (pdu_type + NR + NS).  osmo parses the LLC header first
+    //      then calls check_fcs(cur, tl_sdu_len) — confirmed in
+    //      osmo-debug-rx/vendor/osmo-tetra/src/tetra_llc_pdu.c:160.
+    //   2. For payloads shorter than 32 bits, the CRC init value is
+    //      pre-shifted left by (32 - len) — this aligns the all-ones seed
+    //      so that the short input produces the ETSI-specified residual.
+    //      Without this pre-shift, on-air FCS is internally consistent
+    //      (magic residual 0xC704DD7B works) but the MS's LLC layer
+    //      rejects it.  Bug #9 root cause of MTP3550 never registering.
+    // The CRC loop reads starting at llc_buf[89] (skipping 6-bit LLC hdr)
+    // and runs exactly tl_sdu_len bits.
     // -------------------------------------------------------------------------
     reg  [31:0] crc;
     reg  [8:0]  fcs_cnt;
-    wire        fcs_din_w    = llc_buf[LLC_BUF_BITS - 1 - fcs_cnt];
+    // Bit pulled from TL-SDU region of llc_buf: llc_buf[95] is first LLC hdr
+    // bit on air, LLC hdr is 6 bits so TL-SDU starts at llc_buf[89].
+    wire        fcs_din_w    = llc_buf[LLC_BUF_BITS - 1 - LLC_HDR_BITS - fcs_cnt];
     wire        fcs_fb_w     = fcs_din_w ^ crc[31];
     wire [31:0] fcs_next_w   = {crc[30:0], 1'b0} ^ ({32{fcs_fb_w}} & 32'h04C11DB7);
+    // Pre-shift amount for the init seed — only applies when tl_sdu_len < 32.
+    // For tl_sdu_len=19 (minimal D-LOC-UPDATE-ACCEPT) → preshift=13 →
+    // init = 0xFFFFFFFF << 13 = 0xFFFFE000.  For tl_sdu_len>=32, no shift.
+    // (6'd32 avoids the 5-bit truncation warning; shift amount fits in 5 bits.)
+    wire [5:0]  fcs_preshift_w =
+        (tl_sdu_len < 9'd32) ? (6'd32 - {1'b0, tl_sdu_len[4:0]}) : 6'd0;
+    wire [31:0] crc_init_w    = 32'hFFFFFFFF << fcs_preshift_w;
 
     // -------------------------------------------------------------------------
     // FSM
@@ -300,20 +321,22 @@ module tetra_mac_resource_dl_builder #(
                             MLE_PD_MM,                // 3
                             lat_mm_bits,              // 80
                             7'b0000000};              // pad to 96
-                // Seed CRC and prepare for FCS shift
-                crc      <= 32'hFFFFFFFF;
+                // Seed CRC with pre-shifted init — aligns ETSI behaviour
+                // for short TL-SDUs (< 32 bit).  osmo-tetra reference.
+                crc      <= crc_init_w;
                 fcs_cnt  <= 9'd0;
                 state    <= S_FCS;
             end
 
             // -----------------------------------------------------------------
-            // Bit-serial CRC-32 over llc_cov_len bits starting at llc_buf[95].
-            // Per §22.2.2.5: crc seeded 0xFFFFFFFF, MSB-first, poly
-            // 0x04C11DB7, final residue complemented.
+            // Bit-serial CRC-32 over tl_sdu_len bits starting at llc_buf[89]
+            // (TL-SDU only, excluding LLC header — Bug #9 / §22.2.2.5).
+            // crc seeded (0xFFFFFFFF<<(32-tl_sdu_len)) for len<32, MSB-first,
+            // poly 0x04C11DB7, final residue complemented.
             // -----------------------------------------------------------------
             S_FCS: begin
                 crc <= fcs_next_w;
-                if (fcs_cnt + 9'd1 == llc_cov_len) begin
+                if (fcs_cnt + 9'd1 == tl_sdu_len) begin
                     fcs_final <= ~fcs_next_w;
                     state     <= S_MAC_HEAD;
                 end else begin

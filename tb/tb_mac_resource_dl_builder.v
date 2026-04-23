@@ -91,16 +91,15 @@ module tb_mac_resource_dl_builder;
     //
     //   mm_len = 54           (legacy pre-Bug-#6 fixture kept in this TB;
     //                          wrapper is MM-content-agnostic so it stays)
-    //   LLC cov_len = 63 bits
-    //   FCS = 0xAB4988EE
-    //   length_ind = 17 (octets)   ← was 18 pre-Bug-#7
-    //   mac_total_bits = 135, fill_bit_ind = 1   ← was 137 pre-Bug-#7
-    //   MAC_HDR_BITS = 40          ← was 43 pre-Bug-#7
-    //     (Bug #7: PowerCtrl/SlotGrant/ChanAlloc presence flags omitted
-    //      when PosOfGrant=0 per ETSI §21.4.3.1 Table 21.55)
+    //   tl_sdu_len = 57 bits  (MLE-PD + MM only; Bug #9 FCS coverage)
+    //   llc_cov_len = 63 bits (LLC header + TL-SDU — layout only)
+    //   FCS = 0x44138683       (osmo-style: TL-SDU-only, no preshift at len≥32)
+    //   length_ind = 17 (octets)
+    //   mac_total_bits = 135, fill_bit_ind = 1
+    //   MAC_HDR_BITS = 40      (Bug #7)
     // -------------------------------------------------------------------------
     localparam [PDU_BITS-1:0] EXPECTED_1 =
-        268'h208900020b40a8c00082d00001569311dd000000000000000000000000000000000;
+        268'h208900020b40a8c00082d0000088270d07000000000000000000000000000000000;
 
     integer fail_count = 0;
     integer test_count = 0;

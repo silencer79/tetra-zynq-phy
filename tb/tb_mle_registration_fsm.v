@@ -129,19 +129,19 @@ module tb_mle_registration_fsm;
     // MM body.  Wrapped via tetra_mac_resource_dl_builder and encoded
     // with scramble_init 0xE1670C03.
     //   mac_total_bits = 97, length_ind = 13, fill_bit = 1
-    //   FCS = 0x296F0010 (unchanged from Bug #6; Bug #7 only shifts
-    //         bit positions in the on-air PDU, not the FCS input).
-    //   MAC_HDR_BITS = 40 (Bug #7: PowerCtrl/SlotGrant/ChanAlloc
-    //                      presence flags omitted when PosOfGrant=0).
+    //   tl_sdu_len = 19  (MLE-PD + MM only — Bug #9 FCS coverage)
+    //   FCS = 0x557387CF (osmo-style: init=0xFFFFE000 for len<32, CRC over
+    //                     TL-SDU only, not LLC header.  Bug #9 fix.)
+    //   MAC_HDR_BITS = 40 (Bug #7).
     // Split:
     //   blk1 = coded[431:216] (MSB half, first on air)
     //   blk2 = coded[215:  0] (LSB half)
-    // Recompute via /tmp/regen_bug7_goldens.py if MM layout or header
+    // Recompute via /tmp/regen_bug9_goldens.py if MM layout or header
     // layout changes again.
     localparam [215:0] EXPECTED_ACCEPT_523_BLK1 =
-        216'h9a33a9d160f947ae1c752c8a7a9fdf038d5ce80fba5ba0533709f6;
+        216'hda33a9d1763947ae1c752c8a5e1fdd8b8d55e80fba5ba5d33749f6;
     localparam [215:0] EXPECTED_ACCEPT_523_BLK2 =
-        216'hc081df7a7996c5eeecf794f9f8e665d887cacae93b02dace69a690;
+        216'hc031df7b799675eee4f79459f8e705d893cac3893b06dacf69a686;
 
     task automatic push_request(input [23:0] issi, input [13:0] la);
         begin
