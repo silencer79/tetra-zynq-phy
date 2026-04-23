@@ -545,8 +545,9 @@ localparam [6:0] REG_MLE_STATS_B     = 7'h65; // 0x194  RO {15'b0, busy_sticky, 
 localparam [6:0] REG_MLE_STATS_C     = 7'h66; // 0x198  RO {clear_cnt[15:0], inject_cnt[15:0]}
 
 // DL-signalling scheduler config — target TN of the MCCH-slot that the scheduler
-// fills with SCH/F (MLE Accept etc.).  R/W, 2-bit.  Default 1 matches historical
-// Gold-cell MCCH placement on TN=1 (RTL tn=1 == ETSI slot 2).
+// fills with SCH/F (MLE Accept etc.).  R/W, 2-bit.  Default 0 matches the
+// gold_schedule.py topology (class=1 SIGNALLING entries live on TN=0); any
+// other default causes the slot_content_mux to drop MLE-accept bursts silently.
 localparam [6:0] REG_SIGNAL_TARGET_TN = 7'h67; // 0x19C R/W {30'd0, cfg_signal_target_tn[1:0]}
 
 // Cell Location Area — Part of the cell identity packed into BNCH SYSINFO and
