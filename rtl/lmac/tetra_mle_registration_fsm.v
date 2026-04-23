@@ -245,7 +245,15 @@ module tetra_mle_registration_fsm #(
             S_IDLE: begin
                 busy <= 1'b0;
                 if (ul_req_valid) begin
-                    lat_addr_type <= ul_addr_type;
+                    // D-LOCATION UPDATE ACCEPT is always addressed per SSI
+                    // (ETSI EN 300 392-2 §16.10.28).  ul_addr_type on the UL
+                    // request carries the MS-picked MAC addressing (often
+                    // Event Label = 2 for MAC-ACCESS), which is UL-only
+                    // (MS→BS, transient).  Latching it here and reusing it
+                    // in the DL ACCEPT wraps the PDU in the wrong address
+                    // type — the MS won't recognise its own reply.  Force
+                    // SSI (3'd1) for every registration accept.
+                    lat_addr_type <= 3'd1;
                     lat_ssi       <= ul_ssi;
                     lat_la        <= ul_la;
                     busy          <= 1'b1;
