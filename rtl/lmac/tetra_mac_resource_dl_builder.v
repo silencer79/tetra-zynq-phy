@@ -8,7 +8,11 @@
 //   MAC-RESOURCE DL header (§21.4.3.1 Table 21.55)
 //     PDUtype(2)=00  FillBit(1)  PosOfGrant(1)=0  Encr(2)=00
 //     RandAccFlag(1)=0  LengthInd(6)  AddrType(3)=001  SSI(24)
-//     PowerCtrl_pres(1)=0  SlotGrant_pres(1)=0  ChanAlloc_pres(1)=0
+//     NOTE: PowerCtrl/SlotGrant/ChanAlloc presence flags (3 bits) are
+//     ONLY emitted when PosOfGrant=1 AND addr!=NULL AND LI!=0 per
+//     §21.4.3.1.  Since this builder hard-codes PosOfGrant=0 for a pure
+//     registration ACCEPT, the 3 flag bits are OMITTED — TM-SDU starts
+//     immediately after the 24-bit SSI at bit 40.
 //     TM-SDU:
 //       LLC BL-ADATA-FCS (§22.2.2, pdu_type=0100)
 //         PDUtype(4)=0100  N(R)(1)  N(S)(1)
@@ -86,10 +90,13 @@ module tetra_mac_resource_dl_builder #(
     // Local parameters — field widths
     //
     // MAC_HDR_BITS reflects the *packed* MAC-RESOURCE header as we emit it
-    // today: 2+1+1+2+1+6+3+24+1+1+1 = 43 bits.  The 24-bit address slot
-    // assumes AddrType ∈ {1 (SSI), 3 (USSI)}; other addr_types have
-    // different slot widths per ETSI §21.4.3.1 Table 21.55 and are gated
-    // below (see the lat_addr_type assertion in S_ASSEMBLE_INNER).
+    // today: 2+1+1+2+1+6+3+24 = 40 bits.  The 3 presence flags (PowerCtrl/
+    // SlotGrant/ChanAlloc) are OMITTED because ETSI §21.4.3.1 Table 21.55
+    // only requires them when PosOfGrant=1; this builder hard-codes
+    // PosOfGrant=0.  The 24-bit address slot assumes AddrType ∈ {1 (SSI),
+    // 3 (USSI)}; other addr_types have different slot widths per Table
+    // 21.55 and are gated below (see lat_addr_type assertion in
+    // S_ASSEMBLE_INNER).
     //
     // TODO (Group-Call phase): make MAC_HDR_BITS + the S_MAC_HEAD concat +
     // the LengthInd math addr_type-dependent so the following widths are
@@ -101,8 +108,10 @@ module tetra_mac_resource_dl_builder #(
     //   addr_type 5 (SSI+Event)   → 34 bit
     //   addr_type 6 (SSI+Usage)   → 30 bit
     //   addr_type 7 (SMI+Event)   → 58 bit
+    // Same TODO: emit the 3 presence flags when PosOfGrant becomes 1 for
+    // a caller that actually attaches a grant (CMCE call-setup, etc.).
     // -------------------------------------------------------------------------
-    localparam integer MAC_HDR_BITS  = 2 + 1 + 1 + 2 + 1 + 6 + 3 + 24 + 1 + 1 + 1; // =43
+    localparam integer MAC_HDR_BITS  = 2 + 1 + 1 + 2 + 1 + 6 + 3 + 24; // =40
     localparam integer LLC_HDR_BITS  = 4 + 1 + 1;                                 // = 6
     localparam integer FCS_BITS      = 32;
     localparam integer MLE_PD_BITS   = 3;
@@ -323,9 +332,8 @@ module tetra_mac_resource_dl_builder #(
             //   [6]  LengthInd
             //   [3]  AddrType        (usually 001 = SSI)
             //   [24] SSI
-            //   [1]  PowerCtrl_pres  = 0
-            //   [1]  SlotGrant_pres  = 0
-            //   [1]  ChanAlloc_pres  = 0
+            //   (PowerCtrl/SlotGrant/ChanAlloc presence flags omitted:
+            //    §21.4.3.1 requires them only when PosOfGrant=1.)
             //   → TM-SDU: LLC PDU (header + TL-SDU) + FCS (32) → padding
             //
             // The complete 268-bit output goes MSB-first: bit [PDU_BITS-1]
@@ -334,7 +342,7 @@ module tetra_mac_resource_dl_builder #(
             S_MAC_HEAD: begin
                 // Build the full 268-bit MAC-RESOURCE PDU left-aligned.
                 //
-                // Step 1 — MAC header (42 bit) — parked at the MSB end.
+                // Step 1 — MAC header (40 bit) — parked at the MSB end.
                 // Step 2 — LLC info field (llc_cov_len bit) starts
                 //          immediately after and is embedded by shifting
                 //          llc_buf right by (LLC_BUF_BITS - llc_cov_len) to
@@ -359,8 +367,7 @@ module tetra_mac_resource_dl_builder #(
                       length_ind,                        // [260:255] LengthInd
                       lat_addr_type,                     // [254:252] AddrType
                       lat_ssi,                           // [251:228] SSI
-                      3'b000,                            // [227:225] flags
-                      {(PDU_BITS - MAC_HDR_BITS){1'b0}} } // [224:  0] TM-SDU placeholder
+                      {(PDU_BITS - MAC_HDR_BITS){1'b0}} } // [227:  0] TM-SDU placeholder
                     |
                     // LLC info field — shift llc_buf's top llc_cov_len bits
                     // into the TM-SDU region at the correct offset.

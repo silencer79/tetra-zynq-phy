@@ -85,18 +85,22 @@ module tb_mac_resource_dl_builder;
     endfunction
 
     // -------------------------------------------------------------------------
-    // Golden reference — from scripts/analyze_empty_bits.py-style hand-run
-    // (SSI=523, subs_class=0x0000, NS=0, NR=0). Regenerate with the inline
-    // Python below if any input field changes.
+    // Golden reference — from /tmp/regen_bug7_goldens.py
+    // (SSI=523, subs_class=0x0000, NS=0, NR=0). Regenerate if any input or
+    // the MAC-RESOURCE builder's header layout changes.
     //
-    //   mm_len = 54
+    //   mm_len = 54           (legacy pre-Bug-#6 fixture kept in this TB;
+    //                          wrapper is MM-content-agnostic so it stays)
     //   LLC cov_len = 63 bits
     //   FCS = 0xAB4988EE
-    //   length_ind = 18 (octets)
-    //   mac_total_bits = 137, fill_bit_ind = 1
+    //   length_ind = 17 (octets)   ← was 18 pre-Bug-#7
+    //   mac_total_bits = 135, fill_bit_ind = 1   ← was 137 pre-Bug-#7
+    //   MAC_HDR_BITS = 40          ← was 43 pre-Bug-#7
+    //     (Bug #7: PowerCtrl/SlotGrant/ChanAlloc presence flags omitted
+    //      when PosOfGrant=0 per ETSI §21.4.3.1 Table 21.55)
     // -------------------------------------------------------------------------
     localparam [PDU_BITS-1:0] EXPECTED_1 =
-        268'h209100020b08151800105a00002ad2623ba00000000000000000000000000000000;
+        268'h208900020b40a8c00082d00001569311dd000000000000000000000000000000000;
 
     integer fail_count = 0;
     integer test_count = 0;
@@ -224,8 +228,9 @@ module tb_mac_resource_dl_builder;
             end else begin
                 $display("[T%0d ssi1000_pdut] PASS", test_count);
             end
-            // Length indication = 18 (same MM/LLC lengths -> same total)
-            check_length_ind(got, 6'd18, "ssi1000_len");
+            // Length indication = 17 (same MM/LLC lengths -> same total;
+            // 17 octets after Bug #7 header-size fix, was 18 pre-Bug-#7)
+            check_length_ind(got, 6'd17, "ssi1000_len");
             // Address type + SSI
             check_addr_ssi(got, 3'b001, 24'd1000, "ssi1000_addr");
             // Fill-bit flag

@@ -125,14 +125,21 @@ module tb_mle_registration_fsm;
     // loc-accept-type + 9 x p/M bits all 0).  SSI is addressed via the
     // MAC-RESOURCE header (AddrType=1, 24-bit SSI), NOT embedded in the
     // MM body.  Wrapped via tetra_mac_resource_dl_builder and encoded
-    // with scramble_init 0xE1670C03.  Split:
+    // with scramble_init 0xE1670C03.
+    //   mac_total_bits = 97, length_ind = 13, fill_bit = 1
+    //   FCS = 0x296F0010 (unchanged from Bug #6; Bug #7 only shifts
+    //         bit positions in the on-air PDU, not the FCS input).
+    //   MAC_HDR_BITS = 40 (Bug #7: PowerCtrl/SlotGrant/ChanAlloc
+    //                      presence flags omitted when PosOfGrant=0).
+    // Split:
     //   blk1 = coded[431:216] (MSB half, first on air)
     //   blk2 = coded[215:  0] (LSB half)
-    // Recompute if MM PDU layout or scrambler seed changes.
+    // Recompute via /tmp/regen_bug7_goldens.py if MM layout or header
+    // layout changes again.
     localparam [215:0] EXPECTED_ACCEPT_523_BLK1 =
-        216'hda7285d1e4394f8a1c77ac8b7a9f5fdb8d71680fe25ba0433541f6;
+        216'h9a33a9d160f947ae1c752c8a7a9fdf038d5ce80fba5ba0533709f6;
     localparam [215:0] EXPECTED_ACCEPT_523_BLK2 =
-        216'hc1b1df28799655eee4d794f9f8a705dca1ca8be93f06da8e2da292;
+        216'hc081df7a7996c5eeecf794f9f8e665d887cacae93b02dace69a690;
 
     task automatic push_request(input [23:0] issi, input [13:0] la);
         begin
