@@ -55,6 +55,7 @@ module tetra_mle_registration_fsm #(
     // -----------------------------------------------------------------
     input  wire [13:0]                 cfg_la,
     input  wire [31:0]                 cfg_scramble_init,
+    input  wire [1:0]                  cfg_mcch_tn,       // target_tn for the queue req
 
     // -----------------------------------------------------------------
     // Active-session table port — this FSM owns it for MVP
@@ -72,13 +73,14 @@ module tetra_mle_registration_fsm #(
     input  wire [AST_REC_WIDTH-1:0]    ast_q_record,
 
     // -----------------------------------------------------------------
-    // DL output — 432 coded SCH/F bits split into two 216-bit halves
-    // (BKN1 = [431:216], BKN2 = [215:0]), ready for slot_content_mux to
-    // inject into both halves of the target MCCH slot.
+    // DL signalling-queue request — 1-cycle pulse carrying the full 432-bit
+    // SCH/F coded PDU plus type/target metadata.  The queue assembles it
+    // into an entry; a downstream scheduler decides when it goes on air.
     // -----------------------------------------------------------------
-    output reg  [215:0]                dl_pdu_blk1,
-    output reg  [215:0]                dl_pdu_blk2,
-    output reg                         dl_pdu_valid,
+    output reg                         req_valid,
+    output reg  [431:0]                req_coded_bits,
+    output reg  [1:0]                  req_pdu_type,    // 00=SCH_F
+    output reg  [1:0]                  req_target_tn,   // mirrors cfg_mcch_tn
 
     // -----------------------------------------------------------------
     // Debug / status
@@ -221,9 +223,10 @@ module tetra_mle_registration_fsm #(
             ast_q_issi        <= 24'd0;
             builder_start     <= 1'b0;
             sch_encode_start  <= 1'b0;
-            dl_pdu_blk1       <= 216'd0;
-            dl_pdu_blk2       <= 216'd0;
-            dl_pdu_valid      <= 1'b0;
+            req_valid         <= 1'b0;
+            req_coded_bits    <= 432'd0;
+            req_pdu_type      <= 2'd0;
+            req_target_tn     <= 2'd0;
             busy              <= 1'b0;
             accept_pulse      <= 1'b0;
             drop_pulse        <= 1'b0;
@@ -233,7 +236,7 @@ module tetra_mle_registration_fsm #(
             ast_q_start      <= 1'b0;
             builder_start    <= 1'b0;
             sch_encode_start <= 1'b0;
-            dl_pdu_valid     <= 1'b0;
+            req_valid        <= 1'b0;
             accept_pulse     <= 1'b0;
             drop_pulse       <= 1'b0;
 
@@ -325,17 +328,20 @@ module tetra_mle_registration_fsm #(
             // -----------------------------------------------------------------
             S_ENCODE_WAIT: begin
                 if (sch_coded_valid_w) begin
-                    // SCH/F output [431] = first bit on air.  BKN1 carries the
-                    // MSB half (first on air), BKN2 the LSB half.
-                    dl_pdu_blk1 <= sch_coded_bits_w[431:216];
-                    dl_pdu_blk2 <= sch_coded_bits_w[215:  0];
-                    state       <= S_DELIVER;
+                    // SCH/F output [431] = first bit on air.  The full 432-bit
+                    // coded block is handed to the DL-signalling queue as one
+                    // request; the scheduler will split it into BKN1/BKN2 when
+                    // it pops the entry.
+                    req_coded_bits <= sch_coded_bits_w;
+                    req_pdu_type   <= 2'd0;                // SCH_F
+                    req_target_tn  <= cfg_mcch_tn;
+                    state          <= S_DELIVER;
                 end
             end
 
             // -----------------------------------------------------------------
             S_DELIVER: begin
-                dl_pdu_valid <= 1'b1;
+                req_valid    <= 1'b1;
                 accept_pulse <= 1'b1;
                 state        <= S_IDLE;
             end

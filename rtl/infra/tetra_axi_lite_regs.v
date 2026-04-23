@@ -314,6 +314,14 @@ module tetra_axi_lite_regs (
     input  wire [15:0] mle_clear_cnt_axi,
 
     // ------------------------------------------------------------------
+    // DL-signalling scheduler config — cfg_signal_target_tn_axi
+    // 2-bit R/W register (REG_SIGNAL_TARGET_TN @ 0x19C).  Drives which
+    // TN of the next frame the scheduler injects the popped SCH/F into.
+    // Consumed on clk_sys side after 2-FF ASYNC_REG resync in top-level.
+    // ------------------------------------------------------------------
+    output reg  [1:0]  cfg_signal_target_tn_axi,
+
+    // ------------------------------------------------------------------
     // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
     // 144 words, each word packs TWO 16-bit schedule entries.
     //   schedule_axi_we     : 1-cycle write pulse
@@ -522,7 +530,14 @@ localparam [6:0] REG_SHADOW_CTRL     = 7'h63; // 0x18C  W1S commit pulse
 // MLE registration FSM debug counters (Phase 6 M2.3b)
 localparam [6:0] REG_MLE_STATS_A     = 7'h64; // 0x190  RO {accept_cnt[15:0], ul_req_cnt[15:0]}
 localparam [6:0] REG_MLE_STATS_B     = 7'h65; // 0x194  RO {15'b0, busy_sticky, drop_cnt[15:0]}
+// REG_MLE_STATS_C repurposed post-refactor: inject_cnt = sig_override_cnt (scheduler
+// pops → override_active edges); clear_cnt = queue_drop_cnt (overflow/arb loss).
 localparam [6:0] REG_MLE_STATS_C     = 7'h66; // 0x198  RO {clear_cnt[15:0], inject_cnt[15:0]}
+
+// DL-signalling scheduler config — target TN of the MCCH-slot that the scheduler
+// fills with SCH/F (MLE Accept etc.).  R/W, 2-bit.  Default 1 matches historical
+// Gold-cell MCCH placement on TN=1 (RTL tn=1 == ETSI slot 2).
+localparam [6:0] REG_SIGNAL_TARGET_TN = 7'h67; // 0x19C R/W {30'd0, cfg_signal_target_tn[1:0]}
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -804,6 +819,7 @@ always @(*) begin
         REG_MLE_STATS_A:    rdata_mux_axi = {mle_accept_cnt_axi, mle_ul_req_cnt_axi};
         REG_MLE_STATS_B:    rdata_mux_axi = {15'b0, mle_busy_sticky_axi, mle_drop_cnt_axi};
         REG_MLE_STATS_C:    rdata_mux_axi = {mle_clear_cnt_axi, mle_inject_cnt_axi};
+        REG_SIGNAL_TARGET_TN: rdata_mux_axi = {30'b0, cfg_signal_target_tn_axi};
         default:          rdata_mux_axi = 32'b0;
     endcase
 end
@@ -901,6 +917,15 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         colour_code_axi <= 6'd1; // default 1
     else if (wr_en_axi & (wr_addr_axi[8:2] == REG_COLOUR_CODE) & wr_strb_axi[0])
         colour_code_axi <= wr_data_axi[5:0];
+end
+
+// ---- SIGNAL_TARGET_TN register (0x19C) ----
+// R/W 2-bit.  Default 1 matches Gold-cell MCCH placement on TN=1.
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        cfg_signal_target_tn_axi <= 2'd1;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SIGNAL_TARGET_TN) & wr_strb_axi[0])
+        cfg_signal_target_tn_axi <= wr_data_axi[1:0];
 end
 
 // ---- RX_GAIN register (0x1C) ----

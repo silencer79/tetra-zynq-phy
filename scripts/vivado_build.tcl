@@ -157,6 +157,8 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_sch_f_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_mac_resource_dl_builder.v \
  $PROJ_DIR/rtl/lmac/tetra_mle_registration_fsm.v \
+ $PROJ_DIR/rtl/lmac/tetra_dl_signal_queue.v \
+ $PROJ_DIR/rtl/lmac/tetra_dl_signal_scheduler.v \
 ]
 
 # Top-Level modules

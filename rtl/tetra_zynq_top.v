@@ -238,6 +238,10 @@ wire        cell_cfg_late_entry_support_axi_w;
 wire [9:0]  cell_cfg_mcc_axi_w;
 wire [13:0] cell_cfg_mnc_axi_w;
 
+// DL-signalling scheduler config — cfg_signal_target_tn (REG_SIGNAL_TARGET_TN
+// @ 0x19C).  Per-bit 2-FF resynced into clk_sys below as cfg_mcch_tn_sys_r1.
+wire [1:0]  cfg_signal_target_tn_axi_w;
+
 // Synchronize static AXI control bits into the consuming clock domains.
 (* ASYNC_REG = "TRUE" *) reg ctrl_loopback_lvds_r0;
 (* ASYNC_REG = "TRUE" *) reg ctrl_loopback_lvds_r1;
@@ -393,15 +397,39 @@ wire        ast_q_hit_w;
 wire [5:0]  ast_q_slot_w;
 wire [63:0] ast_q_record_w;
 
-// MLE-registration FSM outputs — SCH/F coded response, split into two
-// 216-bit halves (BKN1+BKN2) for the slot_content_mux dual-block override.
-wire [215:0] mle_dl_pdu_blk1_w;
-wire [215:0] mle_dl_pdu_blk2_w;
-wire         mle_dl_pdu_valid_w;
+// MLE-registration FSM → DL-signalling-queue request port.  The MLE emits
+// the full 432-bit SCH/F codeword as a queue-request; the scheduler
+// pops one per frame and drives the slot_content_mux override bundle.
+// See tetra_dl_signal_queue.v / tetra_dl_signal_scheduler.v.
+wire         mle_req_valid_w;
+wire [431:0] mle_req_coded_bits_w;
+wire [1:0]   mle_req_pdu_type_w;
+wire [1:0]   mle_req_target_tn_w;
 wire         mle_busy_w;
 wire         mle_accept_pulse_w;
 wire         mle_drop_pulse_w;
-wire         mle_dl_pending_sys;
+
+// Queue ↔ scheduler wiring
+wire         queue_head_valid_w;
+wire [431:0] queue_head_coded_w;
+wire [1:0]   queue_head_pdu_type_w;
+wire [1:0]   queue_head_target_tn_w;
+wire [1:0]   queue_head_prio_w;
+wire         sched_pop_w;
+wire [3:0]   queue_depth_mask_w;
+wire [2:0]   queue_depth_count_w;
+wire [15:0]  queue_drop_cnt_w;
+
+// Scheduler → slot_content_mux override bundle
+wire         sig_override_active_sys;
+wire [1:0]   sig_override_target_tn_sys;
+wire         sig_override_use_blk1_sys;
+wire         sig_override_use_blk2_sys;
+wire         sig_override_ndb2_sys;
+wire [215:0] sig_override_blk1_sys;
+wire [215:0] sig_override_blk2_sys;
+wire [15:0]  sig_pop_cnt_w;
+wire [15:0]  sig_override_cnt_w;
 
 // RX chain debug signals
 wire dbg_fe_valid_sys;
@@ -828,14 +856,10 @@ end
 wire [3:0]  cm_slot_burst_type_sys;
 wire [3:0]  cm_slot_en_sys;
 wire [3:0]  cm_slot_ndb2_sys;
-// Combinational NDB1/NDB2 override for TN=0 while an SCH/F signalling
-// injection is pending.  The content_mux already applies the same override
-// internally, but via an R1 register — which loses a race against burst_mux
-// (both sample on the same slot_pulse edge).  Forcing it combinationally here
-// guarantees burst_mux sees NDB1 (NTS1) on the injection cycle itself.
-wire [3:0]  cm_slot_ndb2_effective_sys = {cm_slot_ndb2_sys[3:1],
-                                          mle_dl_pending_sys ? 1'b0
-                                                             : cm_slot_ndb2_sys[0]};
+// The legacy combinational NDB1 override on TN=0 is gone — the scheduler
+// delivers override_ndb2 registered one frame ahead, and the mux applies
+// it in the slot_ndb2_sys register.  tx_chain now reads cm_slot_ndb2_sys
+// directly.
 wire [BLOCK_BITS-1:0] cm_tx_blk1_slot0_sys, cm_tx_blk1_slot1_sys,
                       cm_tx_blk1_slot2_sys, cm_tx_blk1_slot3_sys;
 wire [BLOCK_BITS-1:0] cm_tx_blk2_slot0_sys, cm_tx_blk2_slot1_sys,
@@ -886,11 +910,14 @@ tetra_slot_content_mux #(
     .sb_bkn2_sw_sys       (sb_bkn2_data_sys),
     // NULL-PDU bank (216-bit pre-coded SCH/HD payload, 2-FF synced)
     .null_pdu_bits_sys    (null_pdu_bits_sys_r1),
-    // MLE signalling response (Phase 6 M2.3b) — one-shot TN=1 BKN1 override
-    .dl_signal_blk1_sys   (mle_dl_pdu_blk1_w),
-    .dl_signal_blk2_sys   (mle_dl_pdu_blk2_w),
-    .dl_signal_valid_sys  (mle_dl_pdu_valid_w),
-    .dl_signal_pending_sys(mle_dl_pending_sys),
+    // DL-signalling-scheduler override bundle (registered 1 frame ahead @ tn==3)
+    .override_active_sys     (sig_override_active_sys),
+    .override_target_tn_sys  (sig_override_target_tn_sys),
+    .override_use_blk1_sys   (sig_override_use_blk1_sys),
+    .override_use_blk2_sys   (sig_override_use_blk2_sys),
+    .override_ndb2_sys       (sig_override_ndb2_sys),
+    .override_blk1_sys       (sig_override_blk1_sys),
+    .override_blk2_sys       (sig_override_blk2_sys),
     // Outputs to tetra_tx_chain
     .slot_burst_type_sys  (cm_slot_burst_type_sys),
     .slot_en_sys          (cm_slot_en_sys),
@@ -943,7 +970,7 @@ tetra_tx_chain #(
         // Per-slot configuration (from content_mux)
         .slot_en_sys        (cm_slot_en_sys),
         .slot_burst_type_sys(cm_slot_burst_type_sys),
-        .slot_ndb2_sys      (cm_slot_ndb2_effective_sys),
+        .slot_ndb2_sys      (cm_slot_ndb2_sys),
         // Diagnostic: replace builder dibit with 15-bit LFSR PRBS
         .tx_test_prbs_en_sys(tx_test_prbs_en_sys),
         // TX timing from the timebase — same counter that drives the SB1
@@ -1547,6 +1574,8 @@ tetra_axi_lite_regs u_axi_regs (
     .mle_busy_sticky_axi     (mle_busy_sticky_axi_r1),
     .mle_inject_cnt_axi      (mle_inject_cnt_axi_r1),
     .mle_clear_cnt_axi       (mle_clear_cnt_axi_r1),
+    // DL-signalling scheduler config (R/W @ 0x19C) — resynced into clk_sys below
+    .cfg_signal_target_tn_axi(cfg_signal_target_tn_axi_w),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -1660,6 +1689,7 @@ tetra_mle_registration_fsm #(
     // Cell config — must match BNCH SYSINFO LA (tetra_hal.c default = 1)
     .cfg_la           (14'd1),
     .cfg_scramble_init(mle_dl_scramb_init_sys),
+    .cfg_mcch_tn      (cfg_mcch_tn_sys_r1),
     // AST
     .ast_wr_en        (ast_wr_en_w),
     .ast_wr_idx       (ast_wr_idx_w),
@@ -1672,13 +1702,84 @@ tetra_mle_registration_fsm #(
     .ast_q_hit        (ast_q_hit_w),
     .ast_q_slot       (ast_q_slot_w),
     .ast_q_record     (ast_q_record_w),
-    // DL output to slot_content_mux — SCH/F split into BKN1+BKN2 halves
-    .dl_pdu_blk1      (mle_dl_pdu_blk1_w),
-    .dl_pdu_blk2      (mle_dl_pdu_blk2_w),
-    .dl_pdu_valid     (mle_dl_pdu_valid_w),
+    // DL queue-request port — emits full 432-bit SCH/F codeword, scheduler pops
+    .req_valid        (mle_req_valid_w),
+    .req_coded_bits   (mle_req_coded_bits_w),
+    .req_pdu_type     (mle_req_pdu_type_w),
+    .req_target_tn    (mle_req_target_tn_w),
     .busy             (mle_busy_w),
     .accept_pulse     (mle_accept_pulse_w),
     .drop_pulse       (mle_drop_pulse_w)
+);
+
+// =============================================================================
+// DL-signalling queue (Phase 6 M2.3b) — 4-entry strict-priority queue.
+// MLE writes full 432-bit SCH/F codewords; CMCE/SDS ports tied off in MVP.
+// Drop-newest on overflow; losers on same-cycle producer collisions count
+// toward drop_cnt.  Consumer is tetra_dl_signal_scheduler (one pop per frame).
+// =============================================================================
+tetra_dl_signal_queue #(
+    .DEPTH(4)
+) u_dl_signal_queue (
+    .clk              (clk_sys),
+    .rst_n            (rst_n_sys),
+    // MLE producer
+    .wr_mle_valid     (mle_req_valid_w),
+    .wr_mle_coded     (mle_req_coded_bits_w),
+    .wr_mle_pdu_type  (mle_req_pdu_type_w),
+    .wr_mle_target_tn (mle_req_target_tn_w),
+    // CMCE producer — tied off
+    .wr_cmce_valid    (1'b0),
+    .wr_cmce_coded    (432'd0),
+    .wr_cmce_pdu_type (2'd0),
+    .wr_cmce_target_tn(2'd0),
+    // SDS producer — tied off
+    .wr_sds_valid     (1'b0),
+    .wr_sds_coded     (432'd0),
+    .wr_sds_pdu_type  (2'd0),
+    .wr_sds_target_tn (2'd0),
+    // Scheduler consumer
+    .pop              (sched_pop_w),
+    .head_valid       (queue_head_valid_w),
+    .head_coded       (queue_head_coded_w),
+    .head_pdu_type    (queue_head_pdu_type_w),
+    .head_target_tn   (queue_head_target_tn_w),
+    .head_prio        (queue_head_prio_w),
+    // Status
+    .depth_valid_mask (queue_depth_mask_w),
+    .depth_count      (queue_depth_count_w),
+    .drop_cnt         (queue_drop_cnt_w)
+);
+
+// =============================================================================
+// DL-signalling scheduler (Phase 6 M2.3b) — triggers at slot_pulse && tn==3
+// (identical edge to the schedule-BRAM refresh).  Pops at most one PDU per
+// frame and presents a registered override bundle that is stable for all
+// four slots of the NEXT frame.  Zero race with burst_mux capture.
+// =============================================================================
+tetra_dl_signal_scheduler u_dl_signal_scheduler (
+    .clk_sys                (clk_sys),
+    .rst_n_sys              (rst_n_sys),
+    .tn_sys                 (tx_tdma_state_tn_sys),
+    .slot_pulse_sys         (tx_tdma_state_slot_pulse_sys),
+    // Queue head + pop
+    .pop_sys                (sched_pop_w),
+    .head_valid_sys         (queue_head_valid_w),
+    .head_coded_sys         (queue_head_coded_w),
+    .head_pdu_type_sys      (queue_head_pdu_type_w),
+    .head_target_tn_sys     (queue_head_target_tn_w),
+    .head_prio_sys          (queue_head_prio_w),
+    // Override bundle → slot_content_mux
+    .override_active_sys    (sig_override_active_sys),
+    .override_target_tn_sys (sig_override_target_tn_sys),
+    .override_use_blk1_sys  (sig_override_use_blk1_sys),
+    .override_use_blk2_sys  (sig_override_use_blk2_sys),
+    .override_ndb2_sys      (sig_override_ndb2_sys),
+    .override_blk1_sys      (sig_override_blk1_sys),
+    .override_blk2_sys      (sig_override_blk2_sys),
+    // Stats
+    .override_cnt_sys       (sig_override_cnt_w),
+    .pop_cnt_sys            (sig_pop_cnt_w)
 );
 
 // =============================================================================
@@ -1692,14 +1793,12 @@ reg [15:0] mle_accept_cnt_sys;
 reg [15:0] mle_drop_cnt_sys;
 reg        mle_busy_sticky_sys;
 
-// Injection-path diagnostics (TN=0 capture window + pending clears).
-// inject_cnt increments each cycle that (pending && slot_pulse && tn==0) —
-// the exact condition for a TN=0 capture of the injected payload (RTL tn=0
-// == ETSI Slot 1 == MCCH, see tetra_slot_content_mux.v).
-// clear_cnt increments on each pending rising→falling edge (consume events).
-reg [15:0] mle_inject_cnt_sys;
-reg [15:0] mle_clear_cnt_sys;
-reg        mle_pending_prev_sys;
+// Post-refactor STATS_C repurpose:
+//   inject_cnt → scheduler override_cnt (= queue pops delivered to the mux)
+//   clear_cnt  → queue drop_cnt (overflow / producer-arbitration losses)
+// Both are produced inside their respective modules (saturating 16-bit).
+wire [15:0] mle_inject_cnt_sys = sig_override_cnt_w;
+wire [15:0] mle_clear_cnt_sys  = queue_drop_cnt_w;
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
@@ -1707,23 +1806,11 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         mle_accept_cnt_sys  <= 16'd0;
         mle_drop_cnt_sys    <= 16'd0;
         mle_busy_sticky_sys <= 1'b0;
-        mle_inject_cnt_sys  <= 16'd0;
-        mle_clear_cnt_sys   <= 16'd0;
-        mle_pending_prev_sys<= 1'b0;
     end else begin
         if (ul_pdu_valid_sys)    mle_ul_req_cnt_sys <= mle_ul_req_cnt_sys + 16'd1;
         if (mle_accept_pulse_w)  mle_accept_cnt_sys <= mle_accept_cnt_sys + 16'd1;
         if (mle_drop_pulse_w)    mle_drop_cnt_sys   <= mle_drop_cnt_sys   + 16'd1;
         if (mle_busy_w)          mle_busy_sticky_sys <= 1'b1;
-        // TN=0 inject event — captures the exact condition the content_mux
-        // uses to override blk1_mux_tn0 (pending at the TN=0 slot_pulse).
-        if (mle_dl_pending_sys && tx_tdma_state_slot_pulse_sys
-            && (tx_tdma_state_tn_sys == 2'd0))
-            mle_inject_cnt_sys <= mle_inject_cnt_sys + 16'd1;
-        // Pending falling edge = consume event (TN=1 slot_pulse while pending).
-        mle_pending_prev_sys <= mle_dl_pending_sys;
-        if (mle_pending_prev_sys && !mle_dl_pending_sys)
-            mle_clear_cnt_sys <= mle_clear_cnt_sys + 16'd1;
     end
 end
 
@@ -1871,6 +1958,8 @@ end
 (* ASYNC_REG = "TRUE" *) reg [13:0] cell_cfg_mnc_sys_r1;
 (* ASYNC_REG = "TRUE" *) reg [5:0]  colour_code_sys_r0;
 (* ASYNC_REG = "TRUE" *) reg [5:0]  colour_code_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  cfg_mcch_tn_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  cfg_mcch_tn_sys_r1;
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) cell_cfg_sys_code_sys_r0 <= 4'd0;
@@ -1959,6 +2048,14 @@ end
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) colour_code_sys_r1 <= 6'd0;
     else            colour_code_sys_r1 <= colour_code_sys_r0;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cfg_mcch_tn_sys_r0 <= 2'd1;
+    else            cfg_mcch_tn_sys_r0 <= cfg_signal_target_tn_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) cfg_mcch_tn_sys_r1 <= 2'd1;
+    else            cfg_mcch_tn_sys_r1 <= cfg_mcch_tn_sys_r0;
 end
 
 // Lookahead tuple (next-slot tn, fn, mn).  The sb1/aach encoders are

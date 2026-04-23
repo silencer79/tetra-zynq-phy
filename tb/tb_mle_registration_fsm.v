@@ -4,8 +4,10 @@
 //
 // FSM now wraps the D-LOC-UPDATE-ACCEPT MM PDU in a MAC-RESOURCE DL PDU
 // (via tetra_mac_resource_dl_builder, 268 info bits) and runs it through
-// the SCH/F encoder (→ 432 coded bits), splitting the output into
-// dl_pdu_blk1 (MSB half) + dl_pdu_blk2 (LSB half) for the slot mux.
+// the SCH/F encoder (→ 432 coded bits), emitting the full 432-bit codeword
+// as a queue-request (req_valid + req_coded_bits + req_pdu_type +
+// req_target_tn) for tetra_dl_signal_queue.  Post-refactor the FSM no
+// longer exposes the blk1/blk2 split; the scheduler/mux do the split.
 //
 // Scenarios:
 //   1. Empty table, UL req with ISSI=523/LA=36 → alloc slot 0, ACCEPT, deliver
@@ -37,6 +39,7 @@ module tb_mle_registration_fsm;
     // ---- Cell config ----
     reg [13:0]  cfg_la            = 14'd36;
     reg [31:0]  cfg_scramble_init = 32'hE1670C03;
+    reg [1:0]   cfg_mcch_tn       = 2'd1;
 
     // ---- FSM <-> AST wiring ----
     wire                         ast_wr_en;
@@ -52,9 +55,10 @@ module tb_mle_registration_fsm;
     wire [AST_REC_WIDTH-1:0]     ast_q_record;
 
     // ---- FSM outputs ----
-    wire [215:0] dl_pdu_blk1;
-    wire [215:0] dl_pdu_blk2;
-    wire         dl_pdu_valid;
+    wire         req_valid;
+    wire [431:0] req_coded_bits;
+    wire [1:0]   req_pdu_type;
+    wire [1:0]   req_target_tn;
     wire         busy;
     wire         accept_pulse;
     wire         drop_pulse;
@@ -92,6 +96,7 @@ module tb_mle_registration_fsm;
         .ul_la            (ul_la),
         .cfg_la           (cfg_la),
         .cfg_scramble_init(cfg_scramble_init),
+        .cfg_mcch_tn      (cfg_mcch_tn),
         .ast_wr_en        (ast_wr_en),
         .ast_wr_idx       (ast_wr_idx),
         .ast_wr_data      (ast_wr_data),
@@ -103,9 +108,10 @@ module tb_mle_registration_fsm;
         .ast_q_hit        (ast_q_hit),
         .ast_q_slot       (ast_q_slot),
         .ast_q_record     (ast_q_record),
-        .dl_pdu_blk1      (dl_pdu_blk1),
-        .dl_pdu_blk2      (dl_pdu_blk2),
-        .dl_pdu_valid     (dl_pdu_valid),
+        .req_valid        (req_valid),
+        .req_coded_bits   (req_coded_bits),
+        .req_pdu_type     (req_pdu_type),
+        .req_target_tn    (req_target_tn),
         .busy             (busy),
         .accept_pulse     (accept_pulse),
         .drop_pulse       (drop_pulse)
@@ -138,26 +144,29 @@ module tb_mle_registration_fsm;
         end
     endtask
 
-    task automatic wait_for_result(output reg       got_accept,
-                                   output reg       got_drop,
+    task automatic wait_for_result(output reg         got_accept,
+                                   output reg         got_drop,
                                    output reg [AST_IDX_WIDTH-1:0] got_slot,
-                                   output reg [215:0] got_blk1,
-                                   output reg [215:0] got_blk2);
+                                   output reg [431:0] got_coded,
+                                   output reg [1:0]   got_target_tn,
+                                   output reg [1:0]   got_pdu_type);
         integer wait_cycles;
         begin
-            got_accept  = 1'b0;
-            got_drop    = 1'b0;
-            got_slot    = {AST_IDX_WIDTH{1'b0}};
-            got_blk1    = 216'd0;
-            got_blk2    = 216'd0;
-            wait_cycles = 0;
+            got_accept    = 1'b0;
+            got_drop      = 1'b0;
+            got_slot      = {AST_IDX_WIDTH{1'b0}};
+            got_coded     = 432'd0;
+            got_target_tn = 2'd0;
+            got_pdu_type  = 2'd0;
+            wait_cycles   = 0;
             while (wait_cycles < 4000 && !got_accept && !got_drop) begin
                 @(posedge clk);
-                if (dl_pdu_valid) begin
-                    got_accept = 1'b1;
-                    got_blk1   = dl_pdu_blk1;
-                    got_blk2   = dl_pdu_blk2;
-                    got_slot   = ast_wr_idx;   // last written slot
+                if (req_valid) begin
+                    got_accept    = 1'b1;
+                    got_coded     = req_coded_bits;
+                    got_target_tn = req_target_tn;
+                    got_pdu_type  = req_pdu_type;
+                    got_slot      = ast_wr_idx;
                 end
                 if (drop_pulse) got_drop = 1'b1;
                 wait_cycles = wait_cycles + 1;
@@ -174,12 +183,18 @@ module tb_mle_registration_fsm;
         reg       got_accept;
         reg       got_drop;
         reg [AST_IDX_WIDTH-1:0] got_slot;
+        reg [431:0]             got_coded;
+        reg [1:0]               got_target_tn;
+        reg [1:0]               got_pdu_type;
         reg [215:0]             got_blk1;
         reg [215:0]             got_blk2;
         begin
             test_count = test_count + 1;
             push_request(issi, 14'd36);
-            wait_for_result(got_accept, got_drop, got_slot, got_blk1, got_blk2);
+            wait_for_result(got_accept, got_drop, got_slot,
+                            got_coded, got_target_tn, got_pdu_type);
+            got_blk1 = got_coded[431:216];
+            got_blk2 = got_coded[215:  0];
             if (!got_accept) begin
                 $display("[T%0d %0s] FAIL: expected ACCEPT, got drop=%0d",
                          test_count, tag, got_drop);
@@ -187,6 +202,14 @@ module tb_mle_registration_fsm;
             end else if (got_slot !== exp_slot) begin
                 $display("[T%0d %0s] FAIL slot: got=%0d exp=%0d",
                          test_count, tag, got_slot, exp_slot);
+                fail_count = fail_count + 1;
+            end else if (got_target_tn !== cfg_mcch_tn) begin
+                $display("[T%0d %0s] FAIL target_tn: got=%0d exp=%0d",
+                         test_count, tag, got_target_tn, cfg_mcch_tn);
+                fail_count = fail_count + 1;
+            end else if (got_pdu_type !== 2'd0) begin
+                $display("[T%0d %0s] FAIL pdu_type: got=%0d exp=0 (SCH_F)",
+                         test_count, tag, got_pdu_type);
                 fail_count = fail_count + 1;
             end else if (check_bits && (got_blk1 !== exp_blk1 ||
                                          got_blk2 !== exp_blk2)) begin
@@ -197,8 +220,8 @@ module tb_mle_registration_fsm;
                 $display("  exp blk2 = %054h", exp_blk2);
                 fail_count = fail_count + 1;
             end else begin
-                $display("[T%0d %0s] PASS slot=%0d blk1=%054h blk2=%054h",
-                         test_count, tag, got_slot, got_blk1, got_blk2);
+                $display("[T%0d %0s] PASS slot=%0d tn=%0d type=%0d",
+                         test_count, tag, got_slot, got_target_tn, got_pdu_type);
             end
         end
     endtask
@@ -207,12 +230,14 @@ module tb_mle_registration_fsm;
         reg       got_accept;
         reg       got_drop;
         reg [AST_IDX_WIDTH-1:0] got_slot;
-        reg [215:0]             got_blk1;
-        reg [215:0]             got_blk2;
+        reg [431:0]             got_coded;
+        reg [1:0]               got_target_tn;
+        reg [1:0]               got_pdu_type;
         begin
             test_count = test_count + 1;
             push_request(issi, 14'd36);
-            wait_for_result(got_accept, got_drop, got_slot, got_blk1, got_blk2);
+            wait_for_result(got_accept, got_drop, got_slot,
+                            got_coded, got_target_tn, got_pdu_type);
             if (!got_drop) begin
                 $display("[T%0d %0s] FAIL: expected DROP, got accept=%0d",
                          test_count, tag, got_accept);

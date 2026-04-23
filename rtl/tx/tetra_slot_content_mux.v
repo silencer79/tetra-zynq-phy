@@ -125,17 +125,25 @@ module tetra_slot_content_mux #(
     // NULL-PDU register bank — 216-bit already-SCH/HD-coded payload
     input  wire [BLOCK_BITS-1:0]  null_pdu_bits_sys,
 
-    // MLE signalling response — one-shot DL PDU produced by the MLE
-    // registration FSM.  When `dl_signal_valid_sys` pulses, the two 216-bit
-    // halves `dl_signal_blk1_sys` / `dl_signal_blk2_sys` (carrying a 432-bit
-    // SCH/F coded MAC-RESOURCE PDU) are latched and override BOTH BKN1 and
-    // BKN2 on TN=0 of the next eligible slot_pulse, then pending clears.
-    // The MS sees one D-LOC-UPDATE-ACCEPT on the advertised signalling
-    // carrier and transitions to registered.
-    input  wire [BLOCK_BITS-1:0]  dl_signal_blk1_sys,
-    input  wire [BLOCK_BITS-1:0]  dl_signal_blk2_sys,
-    input  wire                   dl_signal_valid_sys,
-    output wire                   dl_signal_pending_sys,
+    // DL signalling override — driven by tetra_dl_signal_scheduler.  One
+    // PDU per frame, fully registered upstream, stable for all 4 slots of
+    // the next frame by the time any slot_pulse fires.  No race with
+    // burst_mux, no per-mux pending latch.
+    //
+    //   override_active_sys       this frame has an override
+    //   override_target_tn_sys    which TN (0..3) it applies to
+    //   override_use_blk1/2_sys   which 216-bit half(s) to inject
+    //                             (SCH/F uses both, SCH/HD only blk1)
+    //   override_ndb2_sys         NTS bit for the target TN: 0=NTS1
+    //                             (SCH/F), 1=NTS2 (SCH/HD)
+    //   override_blk1/2_sys       coded payload halves
+    input  wire                   override_active_sys,
+    input  wire [1:0]             override_target_tn_sys,
+    input  wire                   override_use_blk1_sys,
+    input  wire                   override_use_blk2_sys,
+    input  wire                   override_ndb2_sys,
+    input  wire [BLOCK_BITS-1:0]  override_blk1_sys,
+    input  wire [BLOCK_BITS-1:0]  override_blk2_sys,
 
     // Outputs to tetra_tx_chain
     output reg  [3:0]             slot_burst_type_sys,
@@ -160,51 +168,19 @@ module tetra_slot_content_mux #(
 );
 
 // =============================================================================
-// MLE signalling response — latched one-shot DL payload
+// DL signalling override — per-TN decode of the upstream bundle.
 //
-// Snapshot `dl_signal_blk1_sys`/`dl_signal_blk2_sys` on any `dl_signal_valid_sys` pulse and hold
-// it until TN=0's slot_pulse consumes it (the injection point — RTL tn=0
-// == ETSI Slot 1 == MCCH).  Clearing the pending flag one cycle after the
-// consumption pulse keeps the override stable throughout TN=0's transmit
-// window.
+// The scheduler delivers one override per frame, fully registered and
+// already split into blk1/blk2.  Here we just fan it out to the 4 TNs:
+// the target TN sees `override_active`, all others see 0.  Mutually
+// exclusive by construction → single writer per (TN, slot), no race.
 // =============================================================================
-// Two-stage pending: a TN=0 slot_pulse must pass with pending HIGH (apply)
-// BEFORE the TN=1 slot_pulse can consume it.  Without this, a valid that
-// fires mid-TN=0 window sets pending too late for the burst_mux capture
-// (which latches block1[0] shortly after the TN=0 slot_pulse), and the
-// TN=1 consume then throws the payload away before any TN=0 capture ever
-// saw it — injection silently lost.
-reg [BLOCK_BITS-1:0] dl_signal_latched_blk1_sys;
-reg [BLOCK_BITS-1:0] dl_signal_latched_blk2_sys;
-reg                  dl_signal_pending_r_sys;
-reg                  dl_signal_seen_tn0_sys;
-assign dl_signal_pending_sys = dl_signal_pending_r_sys;
-
-wire dl_signal_apply_tn0_sys = dl_signal_pending_r_sys && slot_pulse_sys
-                               && (tn_sys == 2'd0);
-wire dl_signal_consume_sys   = dl_signal_pending_r_sys && dl_signal_seen_tn0_sys
-                               && slot_pulse_sys && (tn_sys == 2'd1);
-
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) begin
-        dl_signal_latched_blk1_sys <= {BLOCK_BITS{1'b0}};
-        dl_signal_latched_blk2_sys <= {BLOCK_BITS{1'b0}};
-        dl_signal_pending_r_sys    <= 1'b0;
-        dl_signal_seen_tn0_sys     <= 1'b0;
-    end else begin
-        if (dl_signal_valid_sys) begin
-            dl_signal_latched_blk1_sys <= dl_signal_blk1_sys;
-            dl_signal_latched_blk2_sys <= dl_signal_blk2_sys;
-            dl_signal_pending_r_sys    <= 1'b1;
-            dl_signal_seen_tn0_sys     <= 1'b0;
-        end else if (dl_signal_consume_sys) begin
-            dl_signal_pending_r_sys    <= 1'b0;
-            dl_signal_seen_tn0_sys     <= 1'b0;
-        end else if (dl_signal_apply_tn0_sys) begin
-            dl_signal_seen_tn0_sys     <= 1'b1;
-        end
-    end
-end
+wire [3:0] tn_override_w = {
+    override_active_sys && (override_target_tn_sys == 2'd3),
+    override_active_sys && (override_target_tn_sys == 2'd2),
+    override_active_sys && (override_target_tn_sys == 2'd1),
+    override_active_sys && (override_target_tn_sys == 2'd0)
+};
 
 // =============================================================================
 // Schedule entry latches — one 16-bit entry per TN
@@ -428,11 +404,12 @@ reg [BLOCK_BITS-1:0] blk2_mux_tn2_sys;
 reg [BLOCK_BITS-1:0] blk1_mux_tn3_sys;
 reg [BLOCK_BITS-1:0] blk2_mux_tn3_sys;
 
-// TN=0 — with MLE signalling-response override on BKN1 when pending.
-// RTL tn=0 corresponds to ETSI Slot 1 = MCCH (see scripts/decode_dl.py:291
-// which computes air_tn = rtl_tn + 1).  MLE D-LOC-UPDATE-ACCEPT responses
-// must land on the MCCH so the MS — which is camped on Slot 1 during
-// registration — actually sees them.
+// TN=0 schedule decode + override application.
+//
+// The override mask `tn_override_w[0]` is the single gate: target-TN ==
+// this-TN gives exclusive control to the signalling path.  `override_use_blk1/2`
+// further select which halves get overridden (SCH/F → both, SCH/HD → blk1
+// only; blk2 falls back to the schedule entry — SYSINFO/BNCH filler).
 reg [BLOCK_BITS-1:0] blk1_sched_tn0_sys;
 reg [BLOCK_BITS-1:0] blk2_sched_tn0_sys;
 always @(*) begin
@@ -448,57 +425,76 @@ always @(*) begin
     endcase
 end
 always @(*) begin
-    if (dl_signal_pending_sys) begin
-        // SCH/F signalling: BOTH halves of TN=0 are replaced by the encoded
-        // 432-bit MAC-RESOURCE PDU (split blk1=[431:216], blk2=[215:0]).
-        blk1_mux_tn0_sys = dl_signal_latched_blk1_sys;
-        blk2_mux_tn0_sys = dl_signal_latched_blk2_sys;
-    end else begin
-        blk1_mux_tn0_sys = blk1_sched_tn0_sys;
-        blk2_mux_tn0_sys = blk2_sched_tn0_sys;
-    end
+    blk1_mux_tn0_sys = (tn_override_w[0] && override_use_blk1_sys)
+                        ? override_blk1_sys : blk1_sched_tn0_sys;
+    blk2_mux_tn0_sys = (tn_override_w[0] && override_use_blk2_sys)
+                        ? override_blk2_sys : blk2_sched_tn0_sys;
 end
 
-// TN=1
+// TN=1 — same pattern as TN=0: schedule decode + override application.
+reg [BLOCK_BITS-1:0] blk1_sched_tn1_sys;
+reg [BLOCK_BITS-1:0] blk2_sched_tn1_sys;
 always @(*) begin
     case ({bus_class(sched_entry_reg_sys1), bus_idx(sched_entry_reg_sys1)})
-        {4'd0, 6'd0}: begin blk1_mux_tn1_sys = ndb_block1_sw_sys;  blk2_mux_tn1_sys = ndb_block2_sw_sys;  end
-        {4'd0, 6'd1}: begin blk1_mux_tn1_sys = mcch_block1_sw_sys; blk2_mux_tn1_sys = mcch_block2_sw_sys; end
-        {4'd0, 6'd2}: begin blk1_mux_tn1_sys = bnch_block1_sw_sys; blk2_mux_tn1_sys = bnch_block2_sw_sys; end
-        {4'd0, 6'd3}: begin blk1_mux_tn1_sys = {BLOCK_BITS{1'b0}}; blk2_mux_tn1_sys = sb_bkn2_sw_sys;     end
-        {4'd0, 6'd4}: begin blk1_mux_tn1_sys = ndb_block1_sw_sys;  blk2_mux_tn1_sys = bnch_block2_sw_sys; end
-        {4'd0, 6'd7}: begin blk1_mux_tn1_sys = {BLOCK_BITS{1'b0}}; blk2_mux_tn1_sys = {BLOCK_BITS{1'b0}}; end
-        {4'd1, 6'd0}: begin blk1_mux_tn1_sys = null_pdu_bits_sys;  blk2_mux_tn1_sys = ndb_block2_sw_sys;  end
-        default:      begin blk1_mux_tn1_sys = ndb_block1_sw_sys;  blk2_mux_tn1_sys = ndb_block2_sw_sys;  end
+        {4'd0, 6'd0}: begin blk1_sched_tn1_sys = ndb_block1_sw_sys;  blk2_sched_tn1_sys = ndb_block2_sw_sys;  end
+        {4'd0, 6'd1}: begin blk1_sched_tn1_sys = mcch_block1_sw_sys; blk2_sched_tn1_sys = mcch_block2_sw_sys; end
+        {4'd0, 6'd2}: begin blk1_sched_tn1_sys = bnch_block1_sw_sys; blk2_sched_tn1_sys = bnch_block2_sw_sys; end
+        {4'd0, 6'd3}: begin blk1_sched_tn1_sys = {BLOCK_BITS{1'b0}}; blk2_sched_tn1_sys = sb_bkn2_sw_sys;     end
+        {4'd0, 6'd4}: begin blk1_sched_tn1_sys = ndb_block1_sw_sys;  blk2_sched_tn1_sys = bnch_block2_sw_sys; end
+        {4'd0, 6'd7}: begin blk1_sched_tn1_sys = {BLOCK_BITS{1'b0}}; blk2_sched_tn1_sys = {BLOCK_BITS{1'b0}}; end
+        {4'd1, 6'd0}: begin blk1_sched_tn1_sys = null_pdu_bits_sys;  blk2_sched_tn1_sys = ndb_block2_sw_sys;  end
+        default:      begin blk1_sched_tn1_sys = ndb_block1_sw_sys;  blk2_sched_tn1_sys = ndb_block2_sw_sys;  end
     endcase
 end
+always @(*) begin
+    blk1_mux_tn1_sys = (tn_override_w[1] && override_use_blk1_sys)
+                        ? override_blk1_sys : blk1_sched_tn1_sys;
+    blk2_mux_tn1_sys = (tn_override_w[1] && override_use_blk2_sys)
+                        ? override_blk2_sys : blk2_sched_tn1_sys;
+end
 
-// TN=2
+// TN=2 — same pattern.
+reg [BLOCK_BITS-1:0] blk1_sched_tn2_sys;
+reg [BLOCK_BITS-1:0] blk2_sched_tn2_sys;
 always @(*) begin
     case ({bus_class(sched_entry_reg_sys2), bus_idx(sched_entry_reg_sys2)})
-        {4'd0, 6'd0}: begin blk1_mux_tn2_sys = ndb_block1_sw_sys;  blk2_mux_tn2_sys = ndb_block2_sw_sys;  end
-        {4'd0, 6'd1}: begin blk1_mux_tn2_sys = mcch_block1_sw_sys; blk2_mux_tn2_sys = mcch_block2_sw_sys; end
-        {4'd0, 6'd2}: begin blk1_mux_tn2_sys = bnch_block1_sw_sys; blk2_mux_tn2_sys = bnch_block2_sw_sys; end
-        {4'd0, 6'd3}: begin blk1_mux_tn2_sys = {BLOCK_BITS{1'b0}}; blk2_mux_tn2_sys = sb_bkn2_sw_sys;     end
-        {4'd0, 6'd4}: begin blk1_mux_tn2_sys = ndb_block1_sw_sys;  blk2_mux_tn2_sys = bnch_block2_sw_sys; end
-        {4'd0, 6'd7}: begin blk1_mux_tn2_sys = {BLOCK_BITS{1'b0}}; blk2_mux_tn2_sys = {BLOCK_BITS{1'b0}}; end
-        {4'd1, 6'd0}: begin blk1_mux_tn2_sys = null_pdu_bits_sys;  blk2_mux_tn2_sys = ndb_block2_sw_sys;  end
-        default:      begin blk1_mux_tn2_sys = ndb_block1_sw_sys;  blk2_mux_tn2_sys = ndb_block2_sw_sys;  end
+        {4'd0, 6'd0}: begin blk1_sched_tn2_sys = ndb_block1_sw_sys;  blk2_sched_tn2_sys = ndb_block2_sw_sys;  end
+        {4'd0, 6'd1}: begin blk1_sched_tn2_sys = mcch_block1_sw_sys; blk2_sched_tn2_sys = mcch_block2_sw_sys; end
+        {4'd0, 6'd2}: begin blk1_sched_tn2_sys = bnch_block1_sw_sys; blk2_sched_tn2_sys = bnch_block2_sw_sys; end
+        {4'd0, 6'd3}: begin blk1_sched_tn2_sys = {BLOCK_BITS{1'b0}}; blk2_sched_tn2_sys = sb_bkn2_sw_sys;     end
+        {4'd0, 6'd4}: begin blk1_sched_tn2_sys = ndb_block1_sw_sys;  blk2_sched_tn2_sys = bnch_block2_sw_sys; end
+        {4'd0, 6'd7}: begin blk1_sched_tn2_sys = {BLOCK_BITS{1'b0}}; blk2_sched_tn2_sys = {BLOCK_BITS{1'b0}}; end
+        {4'd1, 6'd0}: begin blk1_sched_tn2_sys = null_pdu_bits_sys;  blk2_sched_tn2_sys = ndb_block2_sw_sys;  end
+        default:      begin blk1_sched_tn2_sys = ndb_block1_sw_sys;  blk2_sched_tn2_sys = ndb_block2_sw_sys;  end
     endcase
 end
+always @(*) begin
+    blk1_mux_tn2_sys = (tn_override_w[2] && override_use_blk1_sys)
+                        ? override_blk1_sys : blk1_sched_tn2_sys;
+    blk2_mux_tn2_sys = (tn_override_w[2] && override_use_blk2_sys)
+                        ? override_blk2_sys : blk2_sched_tn2_sys;
+end
 
-// TN=3
+// TN=3 — same pattern.
+reg [BLOCK_BITS-1:0] blk1_sched_tn3_sys;
+reg [BLOCK_BITS-1:0] blk2_sched_tn3_sys;
 always @(*) begin
     case ({bus_class(sched_entry_reg_sys3), bus_idx(sched_entry_reg_sys3)})
-        {4'd0, 6'd0}: begin blk1_mux_tn3_sys = ndb_block1_sw_sys;  blk2_mux_tn3_sys = ndb_block2_sw_sys;  end
-        {4'd0, 6'd1}: begin blk1_mux_tn3_sys = mcch_block1_sw_sys; blk2_mux_tn3_sys = mcch_block2_sw_sys; end
-        {4'd0, 6'd2}: begin blk1_mux_tn3_sys = bnch_block1_sw_sys; blk2_mux_tn3_sys = bnch_block2_sw_sys; end
-        {4'd0, 6'd3}: begin blk1_mux_tn3_sys = {BLOCK_BITS{1'b0}}; blk2_mux_tn3_sys = sb_bkn2_sw_sys;     end
-        {4'd0, 6'd4}: begin blk1_mux_tn3_sys = ndb_block1_sw_sys;  blk2_mux_tn3_sys = bnch_block2_sw_sys; end
-        {4'd0, 6'd7}: begin blk1_mux_tn3_sys = {BLOCK_BITS{1'b0}}; blk2_mux_tn3_sys = {BLOCK_BITS{1'b0}}; end
-        {4'd1, 6'd0}: begin blk1_mux_tn3_sys = null_pdu_bits_sys;  blk2_mux_tn3_sys = ndb_block2_sw_sys;  end
-        default:      begin blk1_mux_tn3_sys = ndb_block1_sw_sys;  blk2_mux_tn3_sys = ndb_block2_sw_sys;  end
+        {4'd0, 6'd0}: begin blk1_sched_tn3_sys = ndb_block1_sw_sys;  blk2_sched_tn3_sys = ndb_block2_sw_sys;  end
+        {4'd0, 6'd1}: begin blk1_sched_tn3_sys = mcch_block1_sw_sys; blk2_sched_tn3_sys = mcch_block2_sw_sys; end
+        {4'd0, 6'd2}: begin blk1_sched_tn3_sys = bnch_block1_sw_sys; blk2_sched_tn3_sys = bnch_block2_sw_sys; end
+        {4'd0, 6'd3}: begin blk1_sched_tn3_sys = {BLOCK_BITS{1'b0}}; blk2_sched_tn3_sys = sb_bkn2_sw_sys;     end
+        {4'd0, 6'd4}: begin blk1_sched_tn3_sys = ndb_block1_sw_sys;  blk2_sched_tn3_sys = bnch_block2_sw_sys; end
+        {4'd0, 6'd7}: begin blk1_sched_tn3_sys = {BLOCK_BITS{1'b0}}; blk2_sched_tn3_sys = {BLOCK_BITS{1'b0}}; end
+        {4'd1, 6'd0}: begin blk1_sched_tn3_sys = null_pdu_bits_sys;  blk2_sched_tn3_sys = ndb_block2_sw_sys;  end
+        default:      begin blk1_sched_tn3_sys = ndb_block1_sw_sys;  blk2_sched_tn3_sys = ndb_block2_sw_sys;  end
     endcase
+end
+always @(*) begin
+    blk1_mux_tn3_sys = (tn_override_w[3] && override_use_blk1_sys)
+                        ? override_blk1_sys : blk1_sched_tn3_sys;
+    blk2_mux_tn3_sys = (tn_override_w[3] && override_use_blk2_sys)
+                        ? override_blk2_sys : blk2_sched_tn3_sys;
 end
 
 // =============================================================================
@@ -528,21 +524,21 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
                         bus_is_enable(sched_entry_reg_sys0)};
 end
 
-// R1: slot_ndb2_sys
-// TN=0 gets forced to NDB1 (NTS1 / n_bits training) while an SCH/F signalling
-// override is pending.  The MS demod classifies block format by NTS (ETSI
-// §9.4.4.3) — NTS1→SCH/F(432 bit codeword), NTS2→two SCH/HD halves.  Without
-// this override the 432-bit SCH/F payload is transmitted under NTS2 and the
-// MS splits it into two SCH/HD halves, both of which CRC-fail.
+// R1: slot_ndb2_sys — per TN, override bit wins when that TN is the target.
+// NTS bit classifies block format (ETSI §9.4.4.3): 0=NTS1 → SCH/F single
+// 432-bit codeword, 1=NTS2 → two SCH/HD halves.  The scheduler sets
+// override_ndb2 to match its pdu_type so MS demod interprets the right
+// way.
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys)
         slot_ndb2_sys <= 4'b0000;
     else
-        slot_ndb2_sys <= {bus_is_ndb2(sched_entry_reg_sys3),
-                          bus_is_ndb2(sched_entry_reg_sys2),
-                          bus_is_ndb2(sched_entry_reg_sys1),
-                          dl_signal_pending_r_sys ? 1'b0
-                                                  : bus_is_ndb2(sched_entry_reg_sys0)};
+        slot_ndb2_sys <= {
+            tn_override_w[3] ? override_ndb2_sys : bus_is_ndb2(sched_entry_reg_sys3),
+            tn_override_w[2] ? override_ndb2_sys : bus_is_ndb2(sched_entry_reg_sys2),
+            tn_override_w[1] ? override_ndb2_sys : bus_is_ndb2(sched_entry_reg_sys1),
+            tn_override_w[0] ? override_ndb2_sys : bus_is_ndb2(sched_entry_reg_sys0)
+        };
 end
 
 // R1: per-slot block payloads (8 registers, one per (slot, block))
