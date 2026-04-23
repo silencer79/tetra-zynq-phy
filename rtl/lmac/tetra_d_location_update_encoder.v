@@ -62,6 +62,15 @@ module tetra_d_location_update_encoder (
     // Subscriber class / service profile — FSM fills from shadow record
     input  wire [15:0]  subscriber_class,
 
+    // Location update accept type (ETSI §16.10.35a) — must match the
+    // Location-update-type the MS sent in U-LOC-UPDATE-DEMAND (§16.10.37).
+    //   3'b000 Roaming       3'b001 Temporary
+    //   3'b010 Periodic      3'b011 ITSI attach
+    //   3'b100 Call restore  3'b101 Migrating
+    //   3'b110 Demand        3'b111 Disabled MS
+    // MLE registration FSM drives this from the UL MAC-ACCESS parser.
+    input  wire [2:0]   loc_acc_type,
+
     // Legacy output — 124-bit PDU, [123] first bit on air.  Retained for the
     // loopback TB that still drives the raw SCH/HD coding chain directly.
     output wire [123:0] pdu_bits,
@@ -91,7 +100,9 @@ module tetra_d_location_update_encoder (
     // MM body — that is why SSI/subscriber-class are NOT embedded here.
     //
     //   [79:76]  PDU type                   4  (0101 = ACCEPT)
-    //   [75:73]  Location update accept     3  (000 = roaming)
+    //   [75:73]  Location update accept     3  (from loc_acc_type input;
+    //                                           mirrors MS's demand type
+    //                                           per ETSI §16.10.35a)
     //   [72]     p-bit Address extension    1  (0 = absent)
     //   [71]     p-bit Subscriber class     1  (0 = absent)
     //   [70]     p-bit Energy saving info   1  (0 = absent)
@@ -107,12 +118,11 @@ module tetra_d_location_update_encoder (
     // Wrapper uses pdu_len_bits to know the boundary; anything beyond is
     // ignored by the FCS shift and not transmitted.
     // -------------------------------------------------------------------------
-    localparam [2:0] LOC_ACC_TYPE_ROAMING = 3'b000;
     localparam [6:0] MM_PDU_LEN           = 7'd16;
 
     assign pdu_bits_mm = {
         pdu_type_w,                 // [79:76]  4   PDU type
-        LOC_ACC_TYPE_ROAMING,       // [75:73]  3   accept type
+        loc_acc_type,               // [75:73]  3   accept type (dynamic)
         1'b0,                       // [72]     p Address extension
         1'b0,                       // [71]     p Subscriber class
         1'b0,                       // [70]     p Energy saving

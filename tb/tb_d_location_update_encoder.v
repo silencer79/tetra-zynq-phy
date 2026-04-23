@@ -13,6 +13,7 @@ module tb_d_location_update_encoder;
     reg  [1:0]  encryption = 2'd0;
     reg  [1:0]  auth_result= 2'd0;
     reg  [15:0] subscriber_class = 16'h0000;
+    reg  [2:0]  loc_acc_type = 3'd0;  // Bug #8 — dynamic accept type
     wire [123:0] pdu_bits;
 
     tetra_d_location_update_encoder dut (
@@ -24,6 +25,7 @@ module tb_d_location_update_encoder;
         .encryption      (encryption),
         .auth_result     (auth_result),
         .subscriber_class(subscriber_class),
+        .loc_acc_type    (loc_acc_type),
         .pdu_bits        (pdu_bits)
     );
 

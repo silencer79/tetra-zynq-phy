@@ -49,6 +49,10 @@ module tetra_mle_registration_fsm #(
     input  wire [2:0]                  ul_addr_type,
     input  wire [23:0]                 ul_ssi,
     input  wire [13:0]                 ul_la,
+    // Location update type from MS's U-LOC-UPDATE-DEMAND (ETSI §16.10.37);
+    // echoed back as the D-LOC-UPDATE-ACCEPT's Location-update-accept-type
+    // field so the MS's state machine recognises the response.
+    input  wire [2:0]                  ul_loc_upd_type,
 
     // -----------------------------------------------------------------
     // Cell configuration (static, from AXI regs)
@@ -96,6 +100,7 @@ module tetra_mle_registration_fsm #(
     reg [2:0]                   lat_addr_type;
     reg [23:0]                  lat_ssi;
     reg [13:0]                  lat_la;
+    reg [2:0]                   lat_loc_upd_type;
     reg [AST_IDX_WIDTH-1:0]     lat_slot;
     reg                         lat_existing;
     reg [267:0]                 lat_info_bits;       // builder→encoder handoff
@@ -118,6 +123,7 @@ module tetra_mle_registration_fsm #(
         .encryption      (2'b00),                // clear
         .auth_result     (2'b01),                // success
         .subscriber_class(16'h0000),             // MVP: placeholder
+        .loc_acc_type    (lat_loc_upd_type),     // echo MS demand type
         .pdu_bits        (dloc_legacy_pdu_w),
         .pdu_bits_mm     (dloc_mm_bits_w),
         .pdu_len_bits    (dloc_mm_len_w)
@@ -212,6 +218,7 @@ module tetra_mle_registration_fsm #(
             lat_addr_type     <= 3'd0;
             lat_ssi           <= 24'd0;
             lat_la            <= 14'd0;
+            lat_loc_upd_type  <= 3'd0;
             lat_slot          <= {AST_IDX_WIDTH{1'b0}};
             lat_existing      <= 1'b0;
             lat_info_bits     <= 268'd0;
@@ -253,11 +260,12 @@ module tetra_mle_registration_fsm #(
                     // in the DL ACCEPT wraps the PDU in the wrong address
                     // type — the MS won't recognise its own reply.  Force
                     // SSI (3'd1) for every registration accept.
-                    lat_addr_type <= 3'd1;
-                    lat_ssi       <= ul_ssi;
-                    lat_la        <= ul_la;
-                    busy          <= 1'b1;
-                    state         <= S_CHECK_START;
+                    lat_addr_type    <= 3'd1;
+                    lat_ssi          <= ul_ssi;
+                    lat_la           <= ul_la;
+                    lat_loc_upd_type <= ul_loc_upd_type;
+                    busy             <= 1'b1;
+                    state            <= S_CHECK_START;
                 end
             end
 

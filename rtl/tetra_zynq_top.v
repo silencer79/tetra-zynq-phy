@@ -369,6 +369,8 @@ wire [1:0]  ul_encryption_mode_sys;
 wire        ul_access_ack_sys;
 wire [2:0]  ul_address_type_sys;
 wire [9:0]  ul_short_ssi_sys;
+wire [3:0]  ul_mm_pdu_type_sys;
+wire [2:0]  ul_loc_upd_type_sys;
 wire [91:0] ul_raw_info_bits_sys;
 
 // Cell scrambler seed for UL SCH/HU decoder — comes from AXI reg,
@@ -495,6 +497,8 @@ tetra_rx_chain #(
     .ul_access_ack_sys      (ul_access_ack_sys),
     .ul_address_type_sys    (ul_address_type_sys),
     .ul_short_ssi_sys       (ul_short_ssi_sys),
+    .ul_mm_pdu_type_sys     (ul_mm_pdu_type_sys),
+    .ul_loc_upd_type_sys    (ul_loc_upd_type_sys),
     .ul_raw_info_bits_sys   (ul_raw_info_bits_sys),
   .dbg_fe_valid_sys (dbg_fe_valid_sys),
   .dbg_tr_valid_sys (dbg_tr_valid_sys),
@@ -1707,6 +1711,11 @@ tetra_mle_registration_fsm #(
     // Until then we feed 14'd0 so the MLE FSM treats every request as a
     // bare registration attempt (no LA-match fast-path).
     .ul_la            (14'd0),
+    // Location update type from MS's U-LOC-UPDATE-DEMAND (ETSI §16.10.37).
+    // Parser extracts bits [27:30) of the 92-bit MAC-ACCESS payload; MLE
+    // FSM echoes this into the Location-update-accept-type field of the
+    // D-LOC-UPDATE-ACCEPT so the MS recognises the reply (Bug #8).
+    .ul_loc_upd_type  (ul_loc_upd_type_sys),
     // Cell config — REG_CELL_LA (0x1A0), 2-FF resynced from clk_axi.
     // MUST match the LA value BNCH SYSINFO broadcasts (SW writes
     // tetra_hal.c info.la into this register at boot).

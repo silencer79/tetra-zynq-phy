@@ -110,6 +110,8 @@ module tetra_rx_chain #(
     output wire                  ul_access_ack_sys,
     output wire [2:0]            ul_address_type_sys,
     output wire [9:0]            ul_short_ssi_sys,
+    output wire [3:0]            ul_mm_pdu_type_sys,
+    output wire [2:0]            ul_loc_upd_type_sys,
     output wire [91:0]           ul_raw_info_bits_sys,
 
   // -------------------------------------------------------------------------
@@ -339,6 +341,8 @@ tetra_ul_mac_access_parser u_ul_mac_parser (
     .access_ack_sys      (ul_access_ack_sys),
     .address_type_sys    (ul_address_type_sys),
     .short_ssi_sys       (ul_short_ssi_sys),
+    .mm_pdu_type_sys     (ul_mm_pdu_type_sys),
+    .loc_upd_type_sys    (ul_loc_upd_type_sys),
     .raw_info_bits_sys   (ul_raw_info_bits_sys),
     .pdu_valid_sys       (ul_pdu_valid_sys),
     .pdu_count_sys       (ul_pdu_count_sys)

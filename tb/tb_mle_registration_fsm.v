@@ -31,10 +31,11 @@ module tb_mle_registration_fsm;
     always #5 clk = ~clk;
 
     // ---- UL req stimulus ----
-    reg         ul_req_valid = 1'b0;
-    reg  [2:0]  ul_addr_type = 3'd1;
-    reg  [23:0] ul_ssi       = 24'd0;
-    reg  [13:0] ul_la        = 14'd0;
+    reg         ul_req_valid     = 1'b0;
+    reg  [2:0]  ul_addr_type     = 3'd1;
+    reg  [23:0] ul_ssi           = 24'd0;
+    reg  [13:0] ul_la            = 14'd0;
+    reg  [2:0]  ul_loc_upd_type  = 3'd0;  // default Roaming; T1 gold uses 000
 
     // ---- Cell config ----
     reg [13:0]  cfg_la            = 14'd36;
@@ -94,6 +95,7 @@ module tb_mle_registration_fsm;
         .ul_addr_type     (ul_addr_type),
         .ul_ssi           (ul_ssi),
         .ul_la            (ul_la),
+        .ul_loc_upd_type  (ul_loc_upd_type),
         .cfg_la           (cfg_la),
         .cfg_scramble_init(cfg_scramble_init),
         .cfg_mcch_tn      (cfg_mcch_tn),
