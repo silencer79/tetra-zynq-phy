@@ -2060,11 +2060,11 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
     else            colour_code_sys_r1 <= colour_code_sys_r0;
 end
 always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) cfg_mcch_tn_sys_r0 <= 2'd1;
+    if (!rst_n_sys) cfg_mcch_tn_sys_r0 <= 2'd0;
     else            cfg_mcch_tn_sys_r0 <= cfg_signal_target_tn_axi_w;
 end
 always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) cfg_mcch_tn_sys_r1 <= 2'd1;
+    if (!rst_n_sys) cfg_mcch_tn_sys_r1 <= 2'd0;
     else            cfg_mcch_tn_sys_r1 <= cfg_mcch_tn_sys_r0;
 end
 

@@ -45,6 +45,7 @@
 #define REG_SYNC_LST_CNT    0x34
 #define REG_TX_TDMA         0x38  /* RO: [12:7] tx_mf, [6:2] tx_frame, [1:0] tx_slot */
 #define REG_SCRATCH         0x3C
+#define REG_SIGNAL_TARGET_TN 0x19C /* R/W [1:0]: on-air TN where DL signalling PDUs (MLE/CMCE/SDS) land */
 
 /* CTRL register bits */
 #define CTRL_RX_EN          (1 << 0)

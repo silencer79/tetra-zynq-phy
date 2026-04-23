@@ -920,10 +920,14 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
 end
 
 // ---- SIGNAL_TARGET_TN register (0x19C) ----
-// R/W 2-bit.  Default 1 matches Gold-cell MCCH placement on TN=1.
+// R/W 2-bit.  Default 0 — signalling slots live on on-air TN=0 per
+// gold_schedule.py.  Schedule carries class=1 SIGNALLING only on TN=0;
+// every MLE-accept scheduled on any other TN is discarded by the
+// slot_content_mux (class=0 STATIC_BROADCAST path) and never reaches the
+// air, so the reset default MUST match the schedule.
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
-        cfg_signal_target_tn_axi <= 2'd1;
+        cfg_signal_target_tn_axi <= 2'd0;
     else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SIGNAL_TARGET_TN) & wr_strb_axi[0])
         cfg_signal_target_tn_axi <= wr_data_axi[1:0];
 end

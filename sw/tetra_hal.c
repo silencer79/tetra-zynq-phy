@@ -1545,6 +1545,11 @@ int main(int argc, char *argv[])
      * this tool is re-run without a full FPGA reset. */
     tetra_tx_tdma_load(&hal, 0, 0, 0, 0);
 
+    /* REG_SIGNAL_TARGET_TN (0x19C): signalling dispatch lives on on-air TN=0
+     * per gold_schedule.py.  Write explicitly — do not rely on RTL reset
+     * default (defense-in-depth if a future RTL change drifts the default). */
+    tetra_reg_write(&hal, REG_SIGNAL_TARGET_TN, 0);
+
     if (!no_enable)
         tetra_enable(&hal, sync_thresh);
 
