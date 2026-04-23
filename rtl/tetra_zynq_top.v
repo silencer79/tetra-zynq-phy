@@ -828,6 +828,14 @@ end
 wire [3:0]  cm_slot_burst_type_sys;
 wire [3:0]  cm_slot_en_sys;
 wire [3:0]  cm_slot_ndb2_sys;
+// Combinational NDB1/NDB2 override for TN=0 while an SCH/F signalling
+// injection is pending.  The content_mux already applies the same override
+// internally, but via an R1 register — which loses a race against burst_mux
+// (both sample on the same slot_pulse edge).  Forcing it combinationally here
+// guarantees burst_mux sees NDB1 (NTS1) on the injection cycle itself.
+wire [3:0]  cm_slot_ndb2_effective_sys = {cm_slot_ndb2_sys[3:1],
+                                          mle_dl_pending_sys ? 1'b0
+                                                             : cm_slot_ndb2_sys[0]};
 wire [BLOCK_BITS-1:0] cm_tx_blk1_slot0_sys, cm_tx_blk1_slot1_sys,
                       cm_tx_blk1_slot2_sys, cm_tx_blk1_slot3_sys;
 wire [BLOCK_BITS-1:0] cm_tx_blk2_slot0_sys, cm_tx_blk2_slot1_sys,
@@ -935,7 +943,7 @@ tetra_tx_chain #(
         // Per-slot configuration (from content_mux)
         .slot_en_sys        (cm_slot_en_sys),
         .slot_burst_type_sys(cm_slot_burst_type_sys),
-        .slot_ndb2_sys      (cm_slot_ndb2_sys),
+        .slot_ndb2_sys      (cm_slot_ndb2_effective_sys),
         // Diagnostic: replace builder dibit with 15-bit LFSR PRBS
         .tx_test_prbs_en_sys(tx_test_prbs_en_sys),
         // TX timing from the timebase — same counter that drives the SB1
