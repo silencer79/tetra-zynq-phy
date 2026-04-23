@@ -84,8 +84,25 @@ module tetra_mac_resource_dl_builder #(
 
     // -------------------------------------------------------------------------
     // Local parameters — field widths
+    //
+    // MAC_HDR_BITS reflects the *packed* MAC-RESOURCE header as we emit it
+    // today: 2+1+1+2+1+6+3+24+1+1+1 = 43 bits.  The 24-bit address slot
+    // assumes AddrType ∈ {1 (SSI), 3 (USSI)}; other addr_types have
+    // different slot widths per ETSI §21.4.3.1 Table 21.55 and are gated
+    // below (see the lat_addr_type assertion in S_ASSEMBLE_INNER).
+    //
+    // TODO (Group-Call phase): make MAC_HDR_BITS + the S_MAC_HEAD concat +
+    // the LengthInd math addr_type-dependent so the following widths are
+    // supported cleanly:
+    //   addr_type 1 (SSI)         → 24 bit  (current default)
+    //   addr_type 3 (USSI)        → 24 bit  (identical packing)
+    //   addr_type 2 (Event Label) → 10 bit
+    //   addr_type 4 (SMI)         → 48 bit
+    //   addr_type 5 (SSI+Event)   → 34 bit
+    //   addr_type 6 (SSI+Usage)   → 30 bit
+    //   addr_type 7 (SMI+Event)   → 58 bit
     // -------------------------------------------------------------------------
-    localparam integer MAC_HDR_BITS  = 2 + 1 + 1 + 2 + 1 + 6 + 3 + 24 + 1 + 1 + 1; // =42
+    localparam integer MAC_HDR_BITS  = 2 + 1 + 1 + 2 + 1 + 6 + 3 + 24 + 1 + 1 + 1; // =43
     localparam integer LLC_HDR_BITS  = 4 + 1 + 1;                                 // = 6
     localparam integer FCS_BITS      = 32;
     localparam integer MLE_PD_BITS   = 3;
@@ -243,6 +260,20 @@ module tetra_mac_resource_dl_builder #(
                 // Fill bits required iff the MAC total is not already 268.
                 fill_bit_ind     <= (mac_total_bits_c != PDU_BITS[8:0]);
                 state            <= S_LLC_HEAD;
+                // -------------------------------------------------------------
+                // MVP guard: the packed 24-bit address slot below is only
+                // valid for AddrType ∈ {1 (SSI), 3 (USSI)}.  MLE
+                // registration FSM forces 3'd1 today; other MAC-RESOURCE
+                // callers (CMCE, SDS, group call) will need variable-width
+                // address packing before they go on air.  Flag mis-use in
+                // simulation so we notice before HW-deploy.
+                // synthesis translate_off
+                if (lat_addr_type != 3'b001 && lat_addr_type != 3'b011) begin
+                    $display("[%0t tetra_mac_resource_dl_builder] FATAL: addr_type=%0d not supported (MVP accepts only 1=SSI / 3=USSI). Variable-width packing is TODO.",
+                             $time, lat_addr_type);
+                    $fatal;
+                end
+                // synthesis translate_on
             end
 
             // -----------------------------------------------------------------
