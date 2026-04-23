@@ -399,7 +399,8 @@ wire [63:0] ast_q_record_w;
 
 // MLE-registration FSM → DL-signalling-queue request port.  The MLE emits
 // the full 432-bit SCH/F codeword as a queue-request; the scheduler
-// pops one per frame and drives the slot_content_mux override bundle.
+// pops one per frame and drives the per-TN signalling block bundle that
+// tetra_slot_content_mux consumes for every class=SIGNALLING slot.
 // See tetra_dl_signal_queue.v / tetra_dl_signal_scheduler.v.
 wire         mle_req_valid_w;
 wire [431:0] mle_req_coded_bits_w;
@@ -420,14 +421,17 @@ wire [3:0]   queue_depth_mask_w;
 wire [2:0]   queue_depth_count_w;
 wire [15:0]  queue_drop_cnt_w;
 
-// Scheduler → slot_content_mux override bundle
-wire         sig_override_active_sys;
-wire [1:0]   sig_override_target_tn_sys;
-wire         sig_override_use_blk1_sys;
-wire         sig_override_use_blk2_sys;
-wire         sig_override_ndb2_sys;
-wire [215:0] sig_override_blk1_sys;
-wire [215:0] sig_override_blk2_sys;
+// Scheduler → slot_content_mux per-TN bundle (NULL-PDU idle default
+// when queue empty; target-TN gets coded PDU content when a PDU is queued).
+wire [215:0] sched_blk1_tn0_sys_w;
+wire [215:0] sched_blk2_tn0_sys_w;
+wire [215:0] sched_blk1_tn1_sys_w;
+wire [215:0] sched_blk2_tn1_sys_w;
+wire [215:0] sched_blk1_tn2_sys_w;
+wire [215:0] sched_blk2_tn2_sys_w;
+wire [215:0] sched_blk1_tn3_sys_w;
+wire [215:0] sched_blk2_tn3_sys_w;
+wire [3:0]   sched_ndb2_sys_w;
 wire [15:0]  sig_pop_cnt_w;
 wire [15:0]  sig_override_cnt_w;
 
@@ -856,10 +860,6 @@ end
 wire [3:0]  cm_slot_burst_type_sys;
 wire [3:0]  cm_slot_en_sys;
 wire [3:0]  cm_slot_ndb2_sys;
-// The legacy combinational NDB1 override on TN=0 is gone — the scheduler
-// delivers override_ndb2 registered one frame ahead, and the mux applies
-// it in the slot_ndb2_sys register.  tx_chain now reads cm_slot_ndb2_sys
-// directly.
 wire [BLOCK_BITS-1:0] cm_tx_blk1_slot0_sys, cm_tx_blk1_slot1_sys,
                       cm_tx_blk1_slot2_sys, cm_tx_blk1_slot3_sys;
 wire [BLOCK_BITS-1:0] cm_tx_blk2_slot0_sys, cm_tx_blk2_slot1_sys,
@@ -908,16 +908,18 @@ tetra_slot_content_mux #(
     .bnch_block1_sw_sys   (bnch_block1_data_sys),
     .bnch_block2_sw_sys   (bnch_block2_data_sys),
     .sb_bkn2_sw_sys       (sb_bkn2_data_sys),
-    // NULL-PDU bank (216-bit pre-coded SCH/HD payload, 2-FF synced)
-    .null_pdu_bits_sys    (null_pdu_bits_sys_r1),
-    // DL-signalling-scheduler override bundle (registered 1 frame ahead @ tn==3)
-    .override_active_sys     (sig_override_active_sys),
-    .override_target_tn_sys  (sig_override_target_tn_sys),
-    .override_use_blk1_sys   (sig_override_use_blk1_sys),
-    .override_use_blk2_sys   (sig_override_use_blk2_sys),
-    .override_ndb2_sys       (sig_override_ndb2_sys),
-    .override_blk1_sys       (sig_override_blk1_sys),
-    .override_blk2_sys       (sig_override_blk2_sys),
+    // Per-TN signalling bundle from tetra_dl_signal_scheduler (registered
+    // 1 frame ahead @ tn==3).  Selected by schedule entry's class field
+    // — class=SIGNALLING slots route these directly; no override mux.
+    .sched_blk1_tn0_sys   (sched_blk1_tn0_sys_w),
+    .sched_blk2_tn0_sys   (sched_blk2_tn0_sys_w),
+    .sched_blk1_tn1_sys   (sched_blk1_tn1_sys_w),
+    .sched_blk2_tn1_sys   (sched_blk2_tn1_sys_w),
+    .sched_blk1_tn2_sys   (sched_blk1_tn2_sys_w),
+    .sched_blk2_tn2_sys   (sched_blk2_tn2_sys_w),
+    .sched_blk1_tn3_sys   (sched_blk1_tn3_sys_w),
+    .sched_blk2_tn3_sys   (sched_blk2_tn3_sys_w),
+    .sched_ndb2_sys       (sched_ndb2_sys_w),
     // Outputs to tetra_tx_chain
     .slot_burst_type_sys  (cm_slot_burst_type_sys),
     .slot_en_sys          (cm_slot_en_sys),
@@ -1769,14 +1771,22 @@ tetra_dl_signal_scheduler u_dl_signal_scheduler (
     .head_pdu_type_sys      (queue_head_pdu_type_w),
     .head_target_tn_sys     (queue_head_target_tn_w),
     .head_prio_sys          (queue_head_prio_w),
-    // Override bundle → slot_content_mux
-    .override_active_sys    (sig_override_active_sys),
-    .override_target_tn_sys (sig_override_target_tn_sys),
-    .override_use_blk1_sys  (sig_override_use_blk1_sys),
-    .override_use_blk2_sys  (sig_override_use_blk2_sys),
-    .override_ndb2_sys      (sig_override_ndb2_sys),
-    .override_blk1_sys      (sig_override_blk1_sys),
-    .override_blk2_sys      (sig_override_blk2_sys),
+    // Idle default sources (SW-driven banks, CDC-synced)
+    //   null_pdu_bits  216-bit SCH/HD-coded NULL-PDU (signalling filler)
+    //   sig_companion  216-bit companion half for BKN2 of SCH/HD slots
+    //                  — same SYSINFO/BNCH content used for NDB2 broadcast.
+    .null_pdu_bits_sys      (null_pdu_bits_sys_r1),
+    .sig_companion_sys      (ndb_block2_data_sys),
+    // Per-TN signalling bundle → slot_content_mux
+    .sched_blk1_tn0_sys     (sched_blk1_tn0_sys_w),
+    .sched_blk2_tn0_sys     (sched_blk2_tn0_sys_w),
+    .sched_blk1_tn1_sys     (sched_blk1_tn1_sys_w),
+    .sched_blk2_tn1_sys     (sched_blk2_tn1_sys_w),
+    .sched_blk1_tn2_sys     (sched_blk1_tn2_sys_w),
+    .sched_blk2_tn2_sys     (sched_blk2_tn2_sys_w),
+    .sched_blk1_tn3_sys     (sched_blk1_tn3_sys_w),
+    .sched_blk2_tn3_sys     (sched_blk2_tn3_sys_w),
+    .sched_ndb2_sys         (sched_ndb2_sys_w),
     // Stats
     .override_cnt_sys       (sig_override_cnt_w),
     .pop_cnt_sys            (sig_pop_cnt_w)

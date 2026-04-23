@@ -1,21 +1,24 @@
 // =============================================================================
 // tb_dl_signal_integration.v — end-to-end queue + scheduler + slot_content_mux
 //
-// Stimulus emits queue-writes on the MLE producer port (since that is the
-// only real producer in MVP; CMCE/SDS are tied off in top-level).  The
-// scheduler pops at tn==3 slot_pulse and drives the override bundle into
-// the mux.  We verify that the target TN's BKN1/BKN2 outputs register the
-// pushed 432-bit SCH/F pattern for the whole NEXT frame.
+// Stimulus emits queue-writes on the MLE producer port (MVP has only the MLE
+// producer active).  The scheduler pops at tn==3 slot_pulse and drives the
+// per-TN signalling block bundle; slot_content_mux routes that bundle for
+// every class=SIGNALLING schedule entry (no override mux — the schedule
+// entry's class field is the dispatch).
+//
+// Schedule stub drives class=SIGNALLING (16'h100C) for every slot so that
+// mux outputs tx_blk*_slot* equal the scheduler's per-TN outputs.
 //
 // Coverage:
-//   T1 No queue traffic → target TN shows schedule payload (NULL_PDU)
-//   T2 Push SCH/F @ target_tn=1, target=1, target_tn=2, and verify:
-//        - override_active=1 from tn==3 trigger through next frame
-//        - tx_blk1_slot2 and tx_blk2_slot2 contain the pushed half
-//        - other slots unaffected
-//        - slot_ndb2[2]=0 (SCH/F = NTS1)
-//   T3 Push SCH/HD → only blk1 of target TN replaced, slot_ndb2[tgt]=1
-//   T4 Drain to empty → next tn==3 trigger clears override
+//   T1 No queue traffic → every TN carries NULL-PDU idle default
+//        (tx_blk1 = null_pdu_bits, tx_blk2 = sig_companion, slot_ndb2 = 1111)
+//   T2 Push SCH/F @ target_tn=2 → after tn==3 trigger, next-frame TN=2
+//        carries coded[431:216]/coded[215:0]; other TNs stay on NULL-PDU
+//        idle; slot_ndb2[2]=0 (NTS1), others=1
+//   T3 Push SCH/HD @ target_tn=1 → TN=1 blk1=coded[431:216],
+//        blk2=sig_companion, slot_ndb2[1]=1 (NTS2), others idle
+//   T4 Queue drained → override_cnt stays, next tn==3 re-latches idle
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
@@ -25,31 +28,24 @@ module tb_dl_signal_integration;
     localparam integer BB_BITS    = 30;
     localparam integer SB1_BITS   = 120;
 
-    // -------------------------------------------------------------------------
-    // Clock + reset
-    // -------------------------------------------------------------------------
     reg clk   = 1'b0;
     reg rst_n = 1'b0;
     always #5 clk = ~clk;
 
-    // -------------------------------------------------------------------------
-    // Timebase
-    // -------------------------------------------------------------------------
     reg [1:0] tn = 2'd0;
     reg [4:0] fn = 5'd0;
     reg [5:0] mn = 6'd0;
     reg       slot_pulse = 1'b0;
     reg       tdma_tick  = 1'b0;
 
-    // Schedule stub — NULL_PDU everywhere so BKN1 is deterministic.
-    // Encoding (see tetra_slot_content_mux.v bus layout):
-    //   [15:12]=class, [11:6]=idx, [5:4]=sdb, [3]=ndb2, [2]=enable.
-    //   NULL_PDU (class=1, idx=0) enabled, ndb2=1 → 16'h100C.
+    // Schedule stub — class=SIGNALLING (class=1, idx=0, sdb=00, ndb2=1,
+    // enable=1) → 16'h100C for every slot so that all TN outputs reflect
+    // the scheduler's per-TN bundle directly.
     wire [8:0]  sched_addr;
     wire [15:0] sched_data = 16'h100C;
 
-    // Static SW payloads — distinctive so we can verify the override replaced
-    // schedule content.  NULL_PDU takes its bits from null_pdu_bits_sys.
+    // Static SW payloads — distinctive.  For class=SIGNALLING slots these
+    // are ignored (the scheduler drives blk1/blk2).  Kept for bank wiring.
     wire [BLOCK_BITS-1:0] ndb1 = {27{8'hA1}};
     wire [BLOCK_BITS-1:0] ndb2 = {27{8'hB2}};
     wire [BLOCK_BITS-1:0] mcch1= {27{8'hC3}};
@@ -57,11 +53,12 @@ module tb_dl_signal_integration;
     wire [BLOCK_BITS-1:0] bnch1= {27{8'hE5}};
     wire [BLOCK_BITS-1:0] bnch2= {27{8'hF6}};
     wire [BLOCK_BITS-1:0] sbkn2= {27{8'h17}};
-    wire [BLOCK_BITS-1:0] nullp= {27{8'h28}};
 
-    // -------------------------------------------------------------------------
+    // Scheduler idle-default sources
+    wire [BLOCK_BITS-1:0] nullp   = {27{8'h28}};
+    wire [BLOCK_BITS-1:0] sigcomp = {27{8'h39}};
+
     // Queue producer stimulus (MLE port)
-    // -------------------------------------------------------------------------
     reg          q_wr_valid     = 1'b0;
     reg  [431:0] q_wr_coded     = 432'd0;
     reg  [1:0]   q_wr_pdu_type  = 2'd0;
@@ -78,14 +75,12 @@ module tb_dl_signal_integration;
     wire [2:0]   queue_depth_count;
     wire [15:0]  queue_drop_cnt;
 
-    // Scheduler → mux
-    wire         ov_active;
-    wire [1:0]   ov_target_tn;
-    wire         ov_use_blk1;
-    wire         ov_use_blk2;
-    wire         ov_ndb2;
-    wire [215:0] ov_blk1;
-    wire [215:0] ov_blk2;
+    // Scheduler → mux (per-TN bundle)
+    wire [215:0] s_blk1_tn0, s_blk2_tn0;
+    wire [215:0] s_blk1_tn1, s_blk2_tn1;
+    wire [215:0] s_blk1_tn2, s_blk2_tn2;
+    wire [215:0] s_blk1_tn3, s_blk2_tn3;
+    wire [3:0]   s_ndb2;
     wire [15:0]  ov_pop_cnt;
     wire [15:0]  ov_override_cnt;
 
@@ -139,13 +134,17 @@ module tb_dl_signal_integration;
         .head_pdu_type_sys     (queue_head_pdu_type),
         .head_target_tn_sys    (queue_head_target_tn),
         .head_prio_sys         (queue_head_prio),
-        .override_active_sys   (ov_active),
-        .override_target_tn_sys(ov_target_tn),
-        .override_use_blk1_sys (ov_use_blk1),
-        .override_use_blk2_sys (ov_use_blk2),
-        .override_ndb2_sys     (ov_ndb2),
-        .override_blk1_sys     (ov_blk1),
-        .override_blk2_sys     (ov_blk2),
+        .null_pdu_bits_sys     (nullp),
+        .sig_companion_sys     (sigcomp),
+        .sched_blk1_tn0_sys    (s_blk1_tn0),
+        .sched_blk2_tn0_sys    (s_blk2_tn0),
+        .sched_blk1_tn1_sys    (s_blk1_tn1),
+        .sched_blk2_tn1_sys    (s_blk2_tn1),
+        .sched_blk1_tn2_sys    (s_blk1_tn2),
+        .sched_blk2_tn2_sys    (s_blk2_tn2),
+        .sched_blk1_tn3_sys    (s_blk1_tn3),
+        .sched_blk2_tn3_sys    (s_blk2_tn3),
+        .sched_ndb2_sys        (s_ndb2),
         .override_cnt_sys      (ov_override_cnt),
         .pop_cnt_sys           (ov_pop_cnt)
     );
@@ -175,14 +174,15 @@ module tb_dl_signal_integration;
         .bnch_block1_sw_sys   (bnch1),
         .bnch_block2_sw_sys   (bnch2),
         .sb_bkn2_sw_sys       (sbkn2),
-        .null_pdu_bits_sys    (nullp),
-        .override_active_sys    (ov_active),
-        .override_target_tn_sys (ov_target_tn),
-        .override_use_blk1_sys  (ov_use_blk1),
-        .override_use_blk2_sys  (ov_use_blk2),
-        .override_ndb2_sys      (ov_ndb2),
-        .override_blk1_sys      (ov_blk1),
-        .override_blk2_sys      (ov_blk2),
+        .sched_blk1_tn0_sys   (s_blk1_tn0),
+        .sched_blk2_tn0_sys   (s_blk2_tn0),
+        .sched_blk1_tn1_sys   (s_blk1_tn1),
+        .sched_blk2_tn1_sys   (s_blk2_tn1),
+        .sched_blk1_tn2_sys   (s_blk1_tn2),
+        .sched_blk2_tn2_sys   (s_blk2_tn2),
+        .sched_blk1_tn3_sys   (s_blk1_tn3),
+        .sched_blk2_tn3_sys   (s_blk2_tn3),
+        .sched_ndb2_sys       (s_ndb2),
         .slot_burst_type_sys  (slot_burst_type),
         .slot_en_sys          (slot_en),
         .slot_ndb2_sys        (slot_ndb2),
@@ -221,8 +221,6 @@ module tb_dl_signal_integration;
         end
     endtask
 
-    // Advance one slot — fire slot_pulse for 1 cycle at negedge→posedge,
-    // then run 20 more cycles to let schedule refresh+capture ripple.
     task automatic advance_slot(input [1:0] new_tn);
         begin
             @(negedge clk);
@@ -235,7 +233,6 @@ module tb_dl_signal_integration;
         end
     endtask
 
-    // Run a full frame starting at tn=0 — this triggers the pop at tn==3.
     task automatic full_frame;
         begin
             advance_slot(2'd0);
@@ -276,83 +273,77 @@ module tb_dl_signal_integration;
     initial begin
         $display("[tb_dl_signal_integration] start");
 
-        // Distinctive SCH/F pattern — MSB half 0xDEAD..., LSB half 0xBEEF...
         coded_schf  = {216'hDEAD_0001_0002_0003_0004_0005_0006_0007_0008_0009_000A_000B_000C,
                        216'hBEEF_A001_A002_A003_A004_A005_A006_A007_A008_A009_A00A_A00B_A00C};
         coded_schhd = {216'hCAFE_0101_0202_0303_0404_0505_0606_0707_0808_0909_0A0A_0B0B_0C0C,
-                       216'h0};  // LSB unused for SCH_HD
+                       216'h0};
 
         repeat (4) @(posedge clk);
         @(negedge clk);
         rst_n = 1'b1;
 
-        // Prime: drive a couple of full frames with schedule refresh so that
-        // internal sched_entry registers for all 4 TNs latch.
+        // Prime: let schedule BRAM refresh latch all 4 TNs.
         full_frame();
         full_frame();
 
         // -----------------------------------------------------------------
-        // T1 — no queue traffic, override inactive, target TN shows NULL_PDU
+        // T1 — no queue traffic.  All 4 TNs carry NULL-PDU idle defaults.
         // -----------------------------------------------------------------
-        check_eq_int({31'd0, ov_active}, 1'b0, "T1.ov_inactive");
+        check_eq_blk(tx_blk1_slot0, nullp,   "T1.tn0_blk1_idle");
+        check_eq_blk(tx_blk2_slot0, sigcomp, "T1.tn0_blk2_idle");
+        check_eq_blk(tx_blk1_slot1, nullp,   "T1.tn1_blk1_idle");
+        check_eq_blk(tx_blk2_slot1, sigcomp, "T1.tn1_blk2_idle");
+        check_eq_blk(tx_blk1_slot2, nullp,   "T1.tn2_blk1_idle");
+        check_eq_blk(tx_blk2_slot2, sigcomp, "T1.tn2_blk2_idle");
+        check_eq_blk(tx_blk1_slot3, nullp,   "T1.tn3_blk1_idle");
+        check_eq_blk(tx_blk2_slot3, sigcomp, "T1.tn3_blk2_idle");
+        check_eq_int({28'd0, slot_ndb2}, 4'b1111, "T1.ndb2_all_idle");
 
         // -----------------------------------------------------------------
-        // T2 — push SCH/F targeting TN=2, run one frame to trigger pop,
-        // then during next frame verify TN=2 halves contain the pushed bits.
+        // T2 — push SCH/F targeting TN=2.
         // -----------------------------------------------------------------
-        push_mle(coded_schf, 2'd0, 2'd2);  // SCH_F, target TN=2
-        // Run to TN=3 of the current frame — pop fires there.
-        full_frame();
-        // After tn==3 trigger, override bundle is registered.  Check.
-        check_eq_int({31'd0, ov_active},    1'b1, "T2.ov_active");
-        check_eq_int({30'd0, ov_target_tn}, 2'd2, "T2.ov_tgt");
-        check_eq_int({31'd0, ov_use_blk1},  1'b1, "T2.use_blk1");
-        check_eq_int({31'd0, ov_use_blk2},  1'b1, "T2.use_blk2");
-        check_eq_int({31'd0, ov_ndb2},      1'b0, "T2.ndb2_nts1");
+        push_mle(coded_schf, 2'd0, 2'd2);
+        full_frame();  // triggers pop at tn==3
 
-        // Now walk through the next frame — at TN=2 the mux outputs must
-        // carry the pushed payload.  Mux outputs tx_blkX_slotN_sys are
-        // combinational over the latched schedule + override, so check
-        // after each advance_slot.
         advance_slot(2'd0);
-        check_eq_blk(tx_blk1_slot2, coded_schf[431:216], "T2.tn2_blk1_stable");
-        check_eq_blk(tx_blk2_slot2, coded_schf[215:  0], "T2.tn2_blk2_stable");
-        // Other TNs still schedule (NULL_PDU → nullp bits)
-        check_eq_blk(tx_blk1_slot0, nullp, "T2.tn0_nullp");
-        check_eq_blk(tx_blk1_slot1, nullp, "T2.tn1_nullp");
-        check_eq_blk(tx_blk1_slot3, nullp, "T2.tn3_nullp");
-        // slot_ndb2[2] must be 0 (SCH/F = NTS1).  Other TNs keep schedule's 1.
+        // Target TN=2 carries PDU content
+        check_eq_blk(tx_blk1_slot2, coded_schf[431:216], "T2.tn2_blk1");
+        check_eq_blk(tx_blk2_slot2, coded_schf[215:  0], "T2.tn2_blk2");
+        // Other TNs hold NULL-PDU idle default
+        check_eq_blk(tx_blk1_slot0, nullp,   "T2.tn0_blk1_idle");
+        check_eq_blk(tx_blk2_slot0, sigcomp, "T2.tn0_blk2_idle");
+        check_eq_blk(tx_blk1_slot1, nullp,   "T2.tn1_blk1_idle");
+        check_eq_blk(tx_blk2_slot1, sigcomp, "T2.tn1_blk2_idle");
+        check_eq_blk(tx_blk1_slot3, nullp,   "T2.tn3_blk1_idle");
+        check_eq_blk(tx_blk2_slot3, sigcomp, "T2.tn3_blk2_idle");
+        // slot_ndb2 — TN=2 bit is 0 (NTS1 for SCH/F), others 1
         check_eq_int({28'd0, slot_ndb2}, 4'b1011, "T2.slot_ndb2_mask");
 
         // -----------------------------------------------------------------
-        // T3 — push SCH/HD targeting TN=1, then run another frame.
-        // (queue is already empty after T2's pop, so this is the only entry.)
+        // T3 — push SCH/HD targeting TN=1 (queue empty after T2 pop)
         // -----------------------------------------------------------------
-        push_mle(coded_schhd, 2'd1, 2'd1);  // SCH_HD, target TN=1
-        full_frame();   // triggers pop at tn==3
-        check_eq_int({31'd0, ov_active},    1'b1, "T3.ov_active");
-        check_eq_int({30'd0, ov_target_tn}, 2'd1, "T3.ov_tgt");
-        check_eq_int({31'd0, ov_use_blk1},  1'b1, "T3.use_blk1");
-        check_eq_int({31'd0, ov_use_blk2},  1'b0, "T3.no_blk2");
-        check_eq_int({31'd0, ov_ndb2},      1'b1, "T3.ndb2_nts2");
+        push_mle(coded_schhd, 2'd1, 2'd1);
+        full_frame();
 
         advance_slot(2'd0);
+        // SCH/HD: TN=1 blk1 = coded[431:216], blk2 = sig_companion
         check_eq_blk(tx_blk1_slot1, coded_schhd[431:216], "T3.tn1_blk1");
-        // tn1 blk2 must remain schedule-driven since SCH/HD only overrides
-        // blk1.  For NULL_PDU (class=1, ndb2=1) the mux sources blk2 from
-        // the NDB2 bank, not from null_pdu_bits.
-        check_eq_blk(tx_blk2_slot1, ndb2, "T3.tn1_blk2_unchanged");
-        // slot_ndb2[1] must be 1 now (NTS2); schedule NULL_PDU also has ndb2=1
+        check_eq_blk(tx_blk2_slot1, sigcomp,              "T3.tn1_blk2_companion");
+        // Other TNs idle
+        check_eq_blk(tx_blk1_slot0, nullp,   "T3.tn0_idle");
+        check_eq_blk(tx_blk1_slot2, nullp,   "T3.tn2_idle");
+        check_eq_blk(tx_blk1_slot3, nullp,   "T3.tn3_idle");
+        // slot_ndb2 all 1 (SCH/HD on TN=1 is NTS2; others idle NTS2)
         check_eq_int({28'd0, slot_ndb2}, 4'b1111, "T3.slot_ndb2_all1");
 
         // -----------------------------------------------------------------
-        // T4 — queue drained now (only one entry, popped).  Next frame
-        // triggers the "empty at tn==3" path → override clears.
+        // T4 — queue drained, next full frame → idle re-latches everywhere
         // -----------------------------------------------------------------
         full_frame();
-        check_eq_int({31'd0, ov_active}, 1'b0, "T4.ov_cleared");
+        advance_slot(2'd0);
+        check_eq_blk(tx_blk1_slot1, nullp, "T4.reverts_idle_tn1");
 
-        // Final stats — scheduler should have popped 2 PDUs total
+        // Final stats — scheduler popped 2 PDUs total
         check_eq_int({16'd0, ov_pop_cnt},      16'd2, "T4.pop_cnt");
         check_eq_int({16'd0, ov_override_cnt}, 16'd2, "T4.override_cnt");
         check_eq_int({16'd0, queue_drop_cnt},  16'd0, "T4.no_drops");

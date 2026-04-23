@@ -1,31 +1,36 @@
 // =============================================================================
 // tetra_dl_signal_scheduler.v
 //
-// Downlink signalling scheduler — one-frame-ahead arbiter that pops a
-// single PDU from tetra_dl_signal_queue on each slot_pulse at TN=3 and
-// exposes a per-frame override bundle to tetra_slot_content_mux.
+// Downlink signalling scheduler — one-frame-ahead arbiter that pops one PDU
+// from tetra_dl_signal_queue on each slot_pulse at TN=3 and drives the four
+// per-TN signalling block bundles consumed by tetra_slot_content_mux.
 //
-// Why one PDU per frame (not per slot)?  Signalling bandwidth is tiny —
-// D-LOC-UPDATE-ACCEPT is ~50 bytes, a whole frame is 85 ms.  Popping at
-// the same trigger as the schedule-BRAM refresh (slot_pulse && tn==3)
-// means the override is fully registered and stable for all 4 slots of
-// the next frame by the time slot_pulse fires — zero race against the
-// burst_mux capture edge.
+// No override / no conditional mux downstream: the scheduler is THE source
+// for every SIGNALLING-class slot.  When the queue is empty the outputs
+// carry the NULL-PDU idle default; when a PDU is queued, its target TN's
+// outputs carry the PDU and the other three TNs carry the idle default.
+// slot_content_mux then dispatches class=SIGNALLING straight to these regs
+// without any "if override else schedule" pattern.
 //
-// Output semantics (all outputs registered, change only at tn==3):
-//   override_active        1 if this frame has a signalling override
-//   override_target_tn     which TN (0..3) the override applies to
-//   override_use_blk1/2    which of the two 216-bit halves to override
-//                          (SCH/F uses both, SCH/HD only blk1)
-//   override_ndb2          NTS bit to force on the target TN: 0=NTS1
-//                          (SCH/F), 1=NTS2 (SCH/HD)
-//   override_blk1          coded_bits[431:216]
-//   override_blk2          coded_bits[215:  0]
+// Trigger timing: slot_pulse_sys && (tn_sys == 2'd3) — identical edge to
+// the schedule-BRAM refresh in slot_content_mux.  Registers update once
+// per frame; consumers in tn=0..3 of the next frame see a stable bundle.
 //
-// Coverage: one PDU per frame.  If the queue holds multiple PDUs they
-// drain at 1/frame (~85 ms per registration response).  An MS timeout is
-// ~1 s so we have headroom for 11-12 backlog entries before the MS retries
-// — well above the queue depth of 4.  Not an issue in practice.
+// Block bundle per TN (k = 0..3):
+//   sched_blk1_tn_k    BKN1 payload, 216 bits SCH/HD-coded
+//   sched_blk2_tn_k    BKN2 payload, 216 bits
+//   sched_ndb2[k]      NTS bit: 0 = SCH/F (NTS1), 1 = SCH/HD (NTS2)
+//
+// Per-TN content rules:
+//   queue head valid AND head_target_tn == k:
+//     SCH_F   blk1 = coded[431:216], blk2 = coded[215:0],   ndb2[k] = 0
+//     SCH_HD  blk1 = coded[431:216], blk2 = sig_companion,  ndb2[k] = 1
+//   otherwise (queue empty or different target):
+//     blk1 = null_pdu_bits,          blk2 = sig_companion,  ndb2[k] = 1
+//
+// NULL-PDU is SCH/HD-coded (216 bits) → idle slots are NDB2 with NTS2.
+// `sig_companion` is the SYSINFO/BNCH static broadcast companion half
+// (same source the schedule-BRAM would have routed to BKN2).
 //
 // Coding rules: Verilog-2001 strict
 //   R1  one always block per register
@@ -58,103 +63,138 @@ module tetra_dl_signal_scheduler (
     input  wire [1:0]   head_prio_sys,
 
     // -------------------------------------------------------------------------
-    // Per-frame override bundle to slot_content_mux
+    // Idle default sources
+    //   null_pdu_bits  216-bit SCH/HD-coded NULL-PDU (signalling filler)
+    //   sig_companion  216-bit companion half for SCH/HD slots
+    //                  (SYSINFO / BNCH broadcast, SW-driven)
     // -------------------------------------------------------------------------
-    output reg          override_active_sys,
-    output reg  [1:0]   override_target_tn_sys,
-    output reg          override_use_blk1_sys,
-    output reg          override_use_blk2_sys,
-    output reg          override_ndb2_sys,
-    output reg  [215:0] override_blk1_sys,
-    output reg  [215:0] override_blk2_sys,
+    input  wire [215:0] null_pdu_bits_sys,
+    input  wire [215:0] sig_companion_sys,
+
+    // -------------------------------------------------------------------------
+    // Per-TN signalling block bundle — always valid.  Consumer treats these
+    // as the authoritative source for any schedule slot with class=SIGNALLING.
+    // -------------------------------------------------------------------------
+    output reg  [215:0] sched_blk1_tn0_sys,
+    output reg  [215:0] sched_blk2_tn0_sys,
+    output reg  [215:0] sched_blk1_tn1_sys,
+    output reg  [215:0] sched_blk2_tn1_sys,
+    output reg  [215:0] sched_blk1_tn2_sys,
+    output reg  [215:0] sched_blk2_tn2_sys,
+    output reg  [215:0] sched_blk1_tn3_sys,
+    output reg  [215:0] sched_blk2_tn3_sys,
+    output reg  [3:0]   sched_ndb2_sys,
 
     // -------------------------------------------------------------------------
     // Stats (to AXI regs)
     // -------------------------------------------------------------------------
-    output reg  [15:0]  override_cnt_sys,     // number of frames with override
-    output reg  [15:0]  pop_cnt_sys           // number of queue pops issued
+    output reg  [15:0]  override_cnt_sys,    // number of frames carrying a PDU
+    output reg  [15:0]  pop_cnt_sys          // number of queue pops issued
 );
 
     // -------------------------------------------------------------------------
-    // Trigger — identical edge to tetra_slot_content_mux's schedule refresh.
-    // At this edge the BRAM refresh FSM is already kicking off reads for the
-    // next frame; our override latches become visible simultaneously with
-    // the next frame's schedule entries.
+    // Trigger — identical edge to slot_content_mux's schedule refresh.
     // -------------------------------------------------------------------------
-    wire pop_trigger = slot_pulse_sys && (tn_sys == 2'd3);
+    wire pop_trigger  = slot_pulse_sys && (tn_sys == 2'd3);
+    wire head_is_f    = (head_pdu_type_sys == 2'd0);
+    wire head_is_hd   = (head_pdu_type_sys == 2'd1);
+    wire have_pdu     = pop_trigger && head_valid_sys;
 
-    // head_pdu_type == SCH_F ⇒ override both halves, NTS1.
-    // head_pdu_type == SCH_HD ⇒ override only BKN1, NTS2.  The mux falls
-    // back to the schedule entry for BKN2 (SYSINFO / BNCH filler).
-    wire head_is_sch_f  = (head_pdu_type_sys == 2'd0);
-    wire head_is_sch_hd = (head_pdu_type_sys == 2'd1);
+    // Combinational per-TN "next" values — mux between target-PDU content
+    // and the NULL-PDU/companion idle default, driven from the queue head.
+    // All four TNs see the same `have_pdu`; only one of target==k flags is
+    // set per frame.
+    wire tgt_tn0 = have_pdu && (head_target_tn_sys == 2'd0);
+    wire tgt_tn1 = have_pdu && (head_target_tn_sys == 2'd1);
+    wire tgt_tn2 = have_pdu && (head_target_tn_sys == 2'd2);
+    wire tgt_tn3 = have_pdu && (head_target_tn_sys == 2'd3);
+
+    wire [215:0] next_blk1_tn0 = tgt_tn0 ? head_coded_sys[431:216] : null_pdu_bits_sys;
+    wire [215:0] next_blk2_tn0 = (tgt_tn0 && head_is_f) ? head_coded_sys[215:0] : sig_companion_sys;
+    wire         next_ndb2_tn0 = tgt_tn0 ? head_is_hd : 1'b1;
+
+    wire [215:0] next_blk1_tn1 = tgt_tn1 ? head_coded_sys[431:216] : null_pdu_bits_sys;
+    wire [215:0] next_blk2_tn1 = (tgt_tn1 && head_is_f) ? head_coded_sys[215:0] : sig_companion_sys;
+    wire         next_ndb2_tn1 = tgt_tn1 ? head_is_hd : 1'b1;
+
+    wire [215:0] next_blk1_tn2 = tgt_tn2 ? head_coded_sys[431:216] : null_pdu_bits_sys;
+    wire [215:0] next_blk2_tn2 = (tgt_tn2 && head_is_f) ? head_coded_sys[215:0] : sig_companion_sys;
+    wire         next_ndb2_tn2 = tgt_tn2 ? head_is_hd : 1'b1;
+
+    wire [215:0] next_blk1_tn3 = tgt_tn3 ? head_coded_sys[431:216] : null_pdu_bits_sys;
+    wire [215:0] next_blk2_tn3 = (tgt_tn3 && head_is_f) ? head_coded_sys[215:0] : sig_companion_sys;
+    wire         next_ndb2_tn3 = tgt_tn3 ? head_is_hd : 1'b1;
 
     // -------------------------------------------------------------------------
-    // pop_sys — fires exactly one cycle on the trigger when the queue has
-    // something to give.
+    // pop_sys — 1-cycle strobe on the trigger when a PDU is available.
     // -------------------------------------------------------------------------
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys) pop_sys <= 1'b0;
+        else            pop_sys <= have_pdu;
+    end
+
+    // -------------------------------------------------------------------------
+    // Per-TN output registers — one always block per register (R1).
+    // Latched only on pop_trigger; the entire next frame observes a
+    // stable bundle.  No intermediate combinational mux at the consumer.
+    // -------------------------------------------------------------------------
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)          sched_blk1_tn0_sys <= 216'd0;
+        else if (pop_trigger)    sched_blk1_tn0_sys <= next_blk1_tn0;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)          sched_blk2_tn0_sys <= 216'd0;
+        else if (pop_trigger)    sched_blk2_tn0_sys <= next_blk2_tn0;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)          sched_blk1_tn1_sys <= 216'd0;
+        else if (pop_trigger)    sched_blk1_tn1_sys <= next_blk1_tn1;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)          sched_blk2_tn1_sys <= 216'd0;
+        else if (pop_trigger)    sched_blk2_tn1_sys <= next_blk2_tn1;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)          sched_blk1_tn2_sys <= 216'd0;
+        else if (pop_trigger)    sched_blk1_tn2_sys <= next_blk1_tn2;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)          sched_blk2_tn2_sys <= 216'd0;
+        else if (pop_trigger)    sched_blk2_tn2_sys <= next_blk2_tn2;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)          sched_blk1_tn3_sys <= 216'd0;
+        else if (pop_trigger)    sched_blk1_tn3_sys <= next_blk1_tn3;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)          sched_blk2_tn3_sys <= 216'd0;
+        else if (pop_trigger)    sched_blk2_tn3_sys <= next_blk2_tn3;
+    end
+
+    // 4-bit ndb2 bundle — concatenated update = one R1 register.
     always @(posedge clk_sys or negedge rst_n_sys) begin
         if (!rst_n_sys)
-            pop_sys <= 1'b0;
-        else
-            pop_sys <= pop_trigger && head_valid_sys;
+            sched_ndb2_sys <= 4'b1111;    // idle = all NTS2 (NULL-PDU is SCH/HD)
+        else if (pop_trigger)
+            sched_ndb2_sys <= {next_ndb2_tn3, next_ndb2_tn2,
+                               next_ndb2_tn1, next_ndb2_tn0};
     end
 
     // -------------------------------------------------------------------------
-    // Override registers — latched on trigger edge.  If the queue is empty,
-    // override_active drops to 0 (no PDU → normal schedule governs).
-    //
-    // Critical property: these registers only change at tn==3.  The next
-    // frame's tn=0..3 consumers observe a fully stable override bundle.
-    // This is the whole point of the architecture — zero race with burst_mux.
+    // Stats counters (saturating at 16'hFFFF).  override_cnt counts frames
+    // that carried a real signalling PDU (not idle NULL-PDU filler).
     // -------------------------------------------------------------------------
     always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) begin
-            override_active_sys     <= 1'b0;
-            override_target_tn_sys  <= 2'd0;
-            override_use_blk1_sys   <= 1'b0;
-            override_use_blk2_sys   <= 1'b0;
-            override_ndb2_sys       <= 1'b0;
-            override_blk1_sys       <= 216'd0;
-            override_blk2_sys       <= 216'd0;
-        end else if (pop_trigger) begin
-            if (head_valid_sys) begin
-                override_active_sys    <= 1'b1;
-                override_target_tn_sys <= head_target_tn_sys;
-                override_use_blk1_sys  <= 1'b1;
-                override_use_blk2_sys  <= head_is_sch_f;
-                override_ndb2_sys      <= head_is_sch_hd;
-                override_blk1_sys      <= head_coded_sys[431:216];
-                override_blk2_sys      <= head_coded_sys[215:  0];
-            end else begin
-                override_active_sys    <= 1'b0;
-                override_use_blk1_sys  <= 1'b0;
-                override_use_blk2_sys  <= 1'b0;
-            end
-        end
+        if (!rst_n_sys)                                  pop_cnt_sys <= 16'd0;
+        else if (have_pdu && pop_cnt_sys != 16'hFFFF)    pop_cnt_sys <= pop_cnt_sys + 16'd1;
     end
-
-    // -------------------------------------------------------------------------
-    // Stats counters (saturating at 16'hFFFF)
-    // -------------------------------------------------------------------------
     always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)
-            pop_cnt_sys <= 16'd0;
-        else if (pop_trigger && head_valid_sys && pop_cnt_sys != 16'hFFFF)
-            pop_cnt_sys <= pop_cnt_sys + 16'd1;
-    end
-
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)
-            override_cnt_sys <= 16'd0;
-        else if (pop_trigger && head_valid_sys && override_cnt_sys != 16'hFFFF)
-            override_cnt_sys <= override_cnt_sys + 16'd1;
+        if (!rst_n_sys)                                       override_cnt_sys <= 16'd0;
+        else if (have_pdu && override_cnt_sys != 16'hFFFF)    override_cnt_sys <= override_cnt_sys + 16'd1;
     end
 
     // -------------------------------------------------------------------------
-    // Unused input keepalive — head_prio_sys is informational (scheduler
-    // doesn't make decisions from it; the queue already honored prio at
-    // head selection).  Silence unused-net warnings.
+    // Unused-input keepalive
     // -------------------------------------------------------------------------
     // synthesis translate_off
     wire _unused_sys = |head_prio_sys;

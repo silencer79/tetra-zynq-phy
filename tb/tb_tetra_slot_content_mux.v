@@ -1,40 +1,22 @@
 // =============================================================================
-// tb_tetra_slot_content_mux.v — Self-Checking Testbench (Plan Stufe 4)
+// tb_tetra_slot_content_mux.v — Self-Checking Testbench
 // DUT : tetra_slot_content_mux  + tetra_slot_schedule (dual-port BRAM)
 // =============================================================================
 //
 // Stimulus loads the schedule BRAM via its AXI port, drives the TDMA
-// timebase-facing inputs (tn/fn/mn + slot_pulse), and checks:
-//   TC1: Reset state — all content_mux outputs are 0 after reset
-//        (before any schedule refresh).
+// timebase and the scheduler-fed per-TN signalling bundle, and checks:
+//   TC1: Reset state — all content_mux outputs are 0 after reset.
 //   TC2: Gold-preset — load the 288-entry gold schedule, step through a
-//        full frame (tn=0..3 + slot_pulse + wait for refresh), and verify
-//        slot_burst_type_sys / slot_en_sys / slot_ndb2_sys match the
-//        expected gold pattern for the NEXT frame's (mn', fn').  Sweep
-//        (mn, fn) over a few representative points including fn=17
-//        (next-frame wrap).
-//   TC3: NULL-PDU routing — set up a schedule entry at (mn=1, fn=5) with
-//        class=NULL_PDU idx=0 ndb2=1 enable=1.  Load a distinct
-//        null_pdu_bits_sys pattern.  Step into the (1,5) frame and
-//        verify tx_blk1_slot0 == null_pdu_bits_sys and tx_blk2_slot0 ==
-//        ndb_block2_sw_sys.
-//   TC4: SDB blk2 routing — schedule entry class=BROADCAST idx=3 (SB) at
-//        (mn=0, fn=0, tn=2).  Load distinct sb_bkn2_sw_sys.  Verify
-//        burst_type[2] == 1 (SDB) and tx_blk2_slot2 == sb_bkn2_sw_sys
-//        and tx_blk1_slot2 == 0.
-//   TC5: sb_bb / sb_sb1 passthrough — drive sb1_coded_sys and
-//        aach_coded_sys with distinct patterns; verify sb_sb1_data_sys /
-//        sb_bb_data_sys mirror them one cycle later (registered).
-//   TC6: 4-TN sweep — load 4 distinct schedule entries at (mn=0, fn=0,
-//        tn=0..3) with different payload classes and verify each per-TN
-//        output (burst_type, enable, ndb2, blk1/blk2) after refresh.
-//
-// Timing model:
-//   clk_sys at 100 MHz (10 ns).  slot_pulse_sys fires for 1 cycle to
-//   trigger refresh; content_mux FSM then sequences 4 BRAM reads (5-6
-//   cycles total including BRAM latency) and latches all 4 entries.
-//   Outputs are registered, so the TB should wait ~8 cycles after the
-//   slot_pulse before sampling outputs.
+//        full frame, verify slot_burst_type/en/ndb2 metadata match.
+//   TC3: Class=SIGNALLING routing — schedule class=1 at all 4 TNs.
+//        Drive distinct sched_blk*_tn*_sys patterns and sched_ndb2_sys,
+//        verify tx_blk*_slot* mirror the scheduler inputs and slot_ndb2
+//        mirrors sched_ndb2_sys.
+//   TC4: SDB blk2 routing — class=0 idx=3 SB at (mn=2, fn=5, tn=2).
+//        Verify tx_blk2_slot2 = sb_bkn2_sw, tx_blk1_slot2 = 0, and that
+//        scheduler inputs are ignored for class=0 slots.
+//   TC5: sb_bb / sb_sb1 passthrough from encoder outputs.
+//   TC6: 4-TN sweep across multiple class=0 indices.
 // =============================================================================
 
 `default_nettype none
@@ -101,7 +83,18 @@ reg  [BLOCK_BITS-1:0]  mcch_block2_sw_sys;
 reg  [BLOCK_BITS-1:0]  bnch_block1_sw_sys;
 reg  [BLOCK_BITS-1:0]  bnch_block2_sw_sys;
 reg  [BLOCK_BITS-1:0]  sb_bkn2_sw_sys;
-reg  [BLOCK_BITS-1:0]  null_pdu_bits_sys;
+
+// Scheduler → mux per-TN signalling bundle (scheduler is stubbed — regs
+// are driven by the TB directly to exercise class=SIGNALLING paths).
+reg  [BLOCK_BITS-1:0]  sched_blk1_tn0_sys;
+reg  [BLOCK_BITS-1:0]  sched_blk2_tn0_sys;
+reg  [BLOCK_BITS-1:0]  sched_blk1_tn1_sys;
+reg  [BLOCK_BITS-1:0]  sched_blk2_tn1_sys;
+reg  [BLOCK_BITS-1:0]  sched_blk1_tn2_sys;
+reg  [BLOCK_BITS-1:0]  sched_blk2_tn2_sys;
+reg  [BLOCK_BITS-1:0]  sched_blk1_tn3_sys;
+reg  [BLOCK_BITS-1:0]  sched_blk2_tn3_sys;
+reg  [3:0]             sched_ndb2_sys;
 
 wire [3:0]             slot_burst_type_sys;
 wire [3:0]             slot_en_sys;
@@ -147,16 +140,15 @@ tetra_slot_content_mux #(
     .bnch_block1_sw_sys   (bnch_block1_sw_sys),
     .bnch_block2_sw_sys   (bnch_block2_sw_sys),
     .sb_bkn2_sw_sys       (sb_bkn2_sw_sys),
-    .null_pdu_bits_sys    (null_pdu_bits_sys),
-    // Override bundle — driven by tetra_dl_signal_scheduler in production.
-    // Tied inactive here since this TB exercises the schedule path only.
-    .override_active_sys   (1'b0),
-    .override_target_tn_sys(2'd0),
-    .override_use_blk1_sys (1'b0),
-    .override_use_blk2_sys (1'b0),
-    .override_ndb2_sys     (1'b0),
-    .override_blk1_sys     ({BLOCK_BITS{1'b0}}),
-    .override_blk2_sys     ({BLOCK_BITS{1'b0}}),
+    .sched_blk1_tn0_sys   (sched_blk1_tn0_sys),
+    .sched_blk2_tn0_sys   (sched_blk2_tn0_sys),
+    .sched_blk1_tn1_sys   (sched_blk1_tn1_sys),
+    .sched_blk2_tn1_sys   (sched_blk2_tn1_sys),
+    .sched_blk1_tn2_sys   (sched_blk1_tn2_sys),
+    .sched_blk2_tn2_sys   (sched_blk2_tn2_sys),
+    .sched_blk1_tn3_sys   (sched_blk1_tn3_sys),
+    .sched_blk2_tn3_sys   (sched_blk2_tn3_sys),
+    .sched_ndb2_sys       (sched_ndb2_sys),
     .slot_burst_type_sys  (slot_burst_type_sys),
     .slot_en_sys          (slot_en_sys),
     .slot_ndb2_sys        (slot_ndb2_sys),
@@ -176,9 +168,6 @@ tetra_slot_content_mux #(
     .dbg_sched_entry3_sys (dbg_sched_entry3_sys)
 );
 
-// ---------------------------------------------------------------------------
-// Waveform dump
-// ---------------------------------------------------------------------------
 initial begin
     $dumpfile("sim_out/tb_tetra_slot_content_mux.vcd");
     $dumpvars(0, tb_tetra_slot_content_mux);
@@ -265,13 +254,23 @@ function [15:0] gold_entry;
     end
 endfunction
 
-// Unpacking helpers for expected-signal computation
 function exp_is_sdb;    input [15:0] e; begin exp_is_sdb    = (e[5:4] == 2'b01); end endfunction
 function exp_is_enable; input [15:0] e; begin exp_is_enable = e[2];              end endfunction
 function exp_is_ndb2;   input [15:0] e; begin exp_is_ndb2  = e[3];              end endfunction
+function exp_is_signal; input [15:0] e; begin exp_is_signal = (e[15:12] == 4'd1); end endfunction
+
+// Expected slot_ndb2[k] is the class-dispatched value: SIGNALLING → sched_ndb2[k],
+// STATIC_BROADCAST → entry[3].
+function exp_ndb2_eff;
+    input [15:0] e;
+    input        sched_bit;
+    begin
+        exp_ndb2_eff = exp_is_signal(e) ? sched_bit : exp_is_ndb2(e);
+    end
+endfunction
 
 // ---------------------------------------------------------------------------
-// AXI write task — single-cycle pulse
+// AXI write task
 // ---------------------------------------------------------------------------
 task axi_write_word;
     input [7:0]  addr;
@@ -289,7 +288,6 @@ task axi_write_word;
     end
 endtask
 
-// Write a single 16-bit entry, RMW via internal exp_mem[] mirror
 reg [15:0] exp_mem [0:287];
 task axi_write_entry;
     input [1:0]  mn;
@@ -313,7 +311,6 @@ task axi_write_entry;
     end
 endtask
 
-// Gold schedule preset load
 task load_gold_schedule;
     integer mn_e, fn_e, tn_e, mn_o, fn_o, tn_o;
     reg [15:0] v_even, v_odd;
@@ -338,9 +335,6 @@ task load_gold_schedule;
     end
 endtask
 
-// Fire a slot_pulse_sys with the given (tn, fn, mn); wait for refresh
-// FSM to complete (8 cycles is plenty: S_IDLE -> S_RD0 -> S_RD1 -> S_RD2
-// -> S_RD3 -> S_CAP3 -> output register update).
 task fire_slot_pulse;
     input [1:0] tn;
     input [4:0] fn;
@@ -354,7 +348,6 @@ task fire_slot_pulse;
         slot_pulse_sys = 1'b1;
         @(posedge clk); #1;
         slot_pulse_sys = 1'b0;
-        // Wait 10 cycles for FSM + output register settling
         for (w = 0; w < 10; w = w + 1) @(posedge clk);
         #1;
     end
@@ -372,29 +365,9 @@ end
 integer pass_cnt;
 integer fail_cnt;
 reg [15:0] exp_e0, exp_e1, exp_e2, exp_e3;
-
-// Expected fresh-frame (mn', fn') pair after a slot_pulse on (tn==3, fn, mn):
-//   fn' = (fn==17) ? 0 : fn+1; mn'[1:0] = (fn==17) ? mn[1:0]+1 : mn[1:0].
-// For the first_refresh path (post-reset), refresh targets the CURRENT
-// (mn, fn) of the slot_pulse — this test exercises that path in TC2's
-// first kick.
-function [4:0] fn_next;
-    input [4:0] fn;
-    begin
-        fn_next = (fn == 5'd17) ? 5'd0 : (fn + 5'd1);
-    end
-endfunction
-
-function [1:0] mn_next_low2;
-    input [1:0] mn_low2;
-    input [4:0] fn;
-    begin
-        mn_next_low2 = (fn == 5'd17) ? (mn_low2 + 2'd1) : mn_low2;
-    end
-endfunction
+reg [3:0]  exp_slot_ndb2;
 
 initial begin
-    // Defaults
     axi_we     = 1'b0;
     axi_addr   = 8'h00;
     axi_wdata  = 32'h0;
@@ -416,7 +389,15 @@ initial begin
     bnch_block1_sw_sys = {BLOCK_BITS{1'b0}};
     bnch_block2_sw_sys = {BLOCK_BITS{1'b0}};
     sb_bkn2_sw_sys     = {BLOCK_BITS{1'b0}};
-    null_pdu_bits_sys  = {BLOCK_BITS{1'b0}};
+    sched_blk1_tn0_sys = {BLOCK_BITS{1'b0}};
+    sched_blk2_tn0_sys = {BLOCK_BITS{1'b0}};
+    sched_blk1_tn1_sys = {BLOCK_BITS{1'b0}};
+    sched_blk2_tn1_sys = {BLOCK_BITS{1'b0}};
+    sched_blk1_tn2_sys = {BLOCK_BITS{1'b0}};
+    sched_blk2_tn2_sys = {BLOCK_BITS{1'b0}};
+    sched_blk1_tn3_sys = {BLOCK_BITS{1'b0}};
+    sched_blk2_tn3_sys = {BLOCK_BITS{1'b0}};
+    sched_ndb2_sys     = 4'b0000;
 
     pass_cnt = 0;
     fail_cnt = 0;
@@ -427,7 +408,7 @@ initial begin
     repeat (4) @(posedge clk);
 
     // -----------------------------------------------------------------------
-    // TC1: Reset state — before any slot_pulse, all outputs should be 0.
+    // TC1: Reset state — before any slot_pulse, all outputs 0.
     // -----------------------------------------------------------------------
     begin : tc1
         reg ok;
@@ -450,23 +431,22 @@ initial begin
     end
 
     // -----------------------------------------------------------------------
-    // TC2: Gold-preset — load schedule, fire slot_pulse with (tn=3, mn=0,
-    // fn=0) to trigger a refresh for the NEXT frame (mn=0, fn=1).  Verify
-    // the 4 captured entries match gold_entry(0, 1, 0..3).
-    // Note: Uses first_refresh_pending path the first time — that targets
-    // (mn=0, fn=0, tn=0..3) since tn_sys@trigger = 3 but first_refresh
-    // forces CURRENT-frame target.  So the first slot_pulse loads (0,0,*).
-    // We then fire a SECOND pulse (tn=3, mn=0, fn=0) which is a normal
-    // refresh targeting (0, 1, *).
+    // TC2: Gold-preset — load schedule, step through slot_pulses and verify
+    // metadata.  Note: for class=SIGNALLING slots the effective slot_ndb2[k]
+    // is sched_ndb2_sys[k] (driven by the TB to 0 here, which matches the
+    // gold entry's ndb2=0 for class=1 slots).
     // -----------------------------------------------------------------------
     load_gold_schedule();
 
-    // First pulse — first_refresh path, loads (mn=0, fn=0, tn=0..3)
     fire_slot_pulse(2'd3, 5'd0, 6'd0);
     exp_e0 = gold_entry(2'd0, 5'd0, 2'd0);
     exp_e1 = gold_entry(2'd0, 5'd0, 2'd1);
     exp_e2 = gold_entry(2'd0, 5'd0, 2'd2);
     exp_e3 = gold_entry(2'd0, 5'd0, 2'd3);
+    exp_slot_ndb2 = {exp_ndb2_eff(exp_e3, sched_ndb2_sys[3]),
+                     exp_ndb2_eff(exp_e2, sched_ndb2_sys[2]),
+                     exp_ndb2_eff(exp_e1, sched_ndb2_sys[1]),
+                     exp_ndb2_eff(exp_e0, sched_ndb2_sys[0])};
     begin : tc2_check_first
         reg ok;
         ok = 1'b1;
@@ -478,8 +458,7 @@ initial begin
                                       exp_is_sdb(exp_e1),exp_is_sdb(exp_e0)}) ok = 1'b0;
         if (slot_en_sys !== {exp_is_enable(exp_e3),exp_is_enable(exp_e2),
                               exp_is_enable(exp_e1),exp_is_enable(exp_e0)}) ok = 1'b0;
-        if (slot_ndb2_sys !== {exp_is_ndb2(exp_e3),exp_is_ndb2(exp_e2),
-                                exp_is_ndb2(exp_e1),exp_is_ndb2(exp_e0)}) ok = 1'b0;
+        if (slot_ndb2_sys !== exp_slot_ndb2) ok = 1'b0;
         if (ok) begin
             $display("PASS TC2a: first_refresh loads (mn=0,fn=0,*) — entries %h %h %h %h",
                      exp_e0, exp_e1, exp_e2, exp_e3);
@@ -489,12 +468,12 @@ initial begin
             $display("  got  %h %h %h %h", dbg_sched_entry0_sys, dbg_sched_entry1_sys,
                                             dbg_sched_entry2_sys, dbg_sched_entry3_sys);
             $display("  exp  %h %h %h %h", exp_e0, exp_e1, exp_e2, exp_e3);
-            $display("  bt=%b en=%b ndb2=%b", slot_burst_type_sys, slot_en_sys, slot_ndb2_sys);
+            $display("  bt=%b en=%b ndb2=%b exp_ndb2=%b",
+                     slot_burst_type_sys, slot_en_sys, slot_ndb2_sys, exp_slot_ndb2);
             fail_cnt = fail_cnt + 1;
         end
     end
 
-    // Second pulse — normal refresh from (tn=3, fn=0, mn=0) targets (0,1,*)
     fire_slot_pulse(2'd3, 5'd0, 6'd0);
     exp_e0 = gold_entry(2'd0, 5'd1, 2'd0);
     exp_e1 = gold_entry(2'd0, 5'd1, 2'd1);
@@ -519,7 +498,6 @@ initial begin
         end
     end
 
-    // Third test: fn-wrap at fn=17 (tn=3 trigger targets next mn, fn=0)
     fire_slot_pulse(2'd3, 5'd17, 6'd0);
     exp_e0 = gold_entry(2'd1, 5'd0, 2'd0);
     exp_e1 = gold_entry(2'd1, 5'd0, 2'd1);
@@ -545,64 +523,76 @@ initial begin
     end
 
     // -----------------------------------------------------------------------
-    // TC3: NULL-PDU routing.  Program entry at (mn=1, fn=5, tn=0) as
-    // class=NULL_PDU(1) idx=0 burst_type=NDB(00) ndb2=1 enable=1.  Load
-    // null_pdu_bits_sys with a distinct pattern, and fire the refresh.
-    // Verify tx_blk1_slot0_sys == null_pdu_bits_sys, tx_blk2_slot0 ==
-    // ndb_block2_sw_sys, burst_type[0]=0, ndb2[0]=1, enable[0]=1.
+    // TC3: class=SIGNALLING routing.  All 4 TNs at (mn=1, fn=5) programmed
+    // with class=1.  Drive the scheduler inputs with distinct patterns and
+    // verify mux outputs mirror them; slot_ndb2 mirrors sched_ndb2_sys.
     // -----------------------------------------------------------------------
-    // Clear TN=1..3 entries at (mn=1, fn=5) to NULL_PDU too, so we don't
-    // accidentally hit SB-class and mess up blk2.
-    axi_write_entry(2'd1, 5'd5, 2'd0, pack_entry(4'd1, 6'd0, 2'b00, 1'b1, 1'b1, 1'b0));
-    axi_write_entry(2'd1, 5'd5, 2'd1, pack_entry(4'd1, 6'd0, 2'b00, 1'b1, 1'b1, 1'b0));
-    axi_write_entry(2'd1, 5'd5, 2'd2, pack_entry(4'd1, 6'd0, 2'b00, 1'b1, 1'b1, 1'b0));
-    axi_write_entry(2'd1, 5'd5, 2'd3, pack_entry(4'd1, 6'd0, 2'b00, 1'b1, 1'b1, 1'b0));
+    axi_write_entry(2'd1, 5'd5, 2'd0, pack_entry(4'd1, 6'd0, 2'b00, 1'b0, 1'b1, 1'b0));
+    axi_write_entry(2'd1, 5'd5, 2'd1, pack_entry(4'd1, 6'd0, 2'b00, 1'b0, 1'b1, 1'b0));
+    axi_write_entry(2'd1, 5'd5, 2'd2, pack_entry(4'd1, 6'd0, 2'b00, 1'b0, 1'b1, 1'b0));
+    axi_write_entry(2'd1, 5'd5, 2'd3, pack_entry(4'd1, 6'd0, 2'b00, 1'b0, 1'b1, 1'b0));
 
-    null_pdu_bits_sys = {BLOCK_BITS{1'b0}};
-    null_pdu_bits_sys[215:208] = 8'hA5;
-    null_pdu_bits_sys[7:0]     = 8'h5A;
-    ndb_block2_sw_sys = {BLOCK_BITS{1'b0}};
-    ndb_block2_sw_sys[215:208] = 8'h3C;
+    sched_blk1_tn0_sys = {8'hA0, {(BLOCK_BITS-8){1'b0}}};
+    sched_blk2_tn0_sys = {8'hA1, {(BLOCK_BITS-8){1'b0}}};
+    sched_blk1_tn1_sys = {8'hB0, {(BLOCK_BITS-8){1'b0}}};
+    sched_blk2_tn1_sys = {8'hB1, {(BLOCK_BITS-8){1'b0}}};
+    sched_blk1_tn2_sys = {8'hC0, {(BLOCK_BITS-8){1'b0}}};
+    sched_blk2_tn2_sys = {8'hC1, {(BLOCK_BITS-8){1'b0}}};
+    sched_blk1_tn3_sys = {8'hD0, {(BLOCK_BITS-8){1'b0}}};
+    sched_blk2_tn3_sys = {8'hD1, {(BLOCK_BITS-8){1'b0}}};
+    sched_ndb2_sys     = 4'b1010;
 
-    // Trigger a refresh targeting (mn=1, fn=5, tn=0..3).  Use slot_pulse
-    // with tn=3, mn=1, fn=4 so fn_next=5.
     fire_slot_pulse(2'd3, 5'd4, 6'd1);
     begin : tc3
         reg ok;
         ok = 1'b1;
-        if (slot_burst_type_sys !== 4'b0000) ok = 1'b0;     // all NDB
-        if (slot_en_sys         !== 4'b1111) ok = 1'b0;     // all enabled
-        if (slot_ndb2_sys       !== 4'b1111) ok = 1'b0;     // all ndb2=1
-        if (tx_blk1_slot0_sys   !== null_pdu_bits_sys) ok = 1'b0;
-        if (tx_blk1_slot3_sys   !== null_pdu_bits_sys) ok = 1'b0;
-        if (tx_blk2_slot0_sys   !== ndb_block2_sw_sys) ok = 1'b0;
-        if (tx_blk2_slot2_sys   !== ndb_block2_sw_sys) ok = 1'b0;
+        if (slot_burst_type_sys !== 4'b0000) ok = 1'b0;
+        if (slot_en_sys         !== 4'b1111) ok = 1'b0;
+        if (slot_ndb2_sys       !== 4'b1010) ok = 1'b0;  // mirror sched_ndb2_sys
+        if (tx_blk1_slot0_sys   !== sched_blk1_tn0_sys) ok = 1'b0;
+        if (tx_blk2_slot0_sys   !== sched_blk2_tn0_sys) ok = 1'b0;
+        if (tx_blk1_slot1_sys   !== sched_blk1_tn1_sys) ok = 1'b0;
+        if (tx_blk2_slot1_sys   !== sched_blk2_tn1_sys) ok = 1'b0;
+        if (tx_blk1_slot2_sys   !== sched_blk1_tn2_sys) ok = 1'b0;
+        if (tx_blk2_slot2_sys   !== sched_blk2_tn2_sys) ok = 1'b0;
+        if (tx_blk1_slot3_sys   !== sched_blk1_tn3_sys) ok = 1'b0;
+        if (tx_blk2_slot3_sys   !== sched_blk2_tn3_sys) ok = 1'b0;
         if (ok) begin
-            $display("PASS TC3: NULL_PDU routed to all 4 slots (blk1=null, blk2=ndb_block2)");
+            $display("PASS TC3: class=SIGNALLING routes scheduler per-TN bundle verbatim");
             pass_cnt = pass_cnt + 1;
         end else begin
-            $display("FAIL TC3: NULL_PDU routing mismatch");
-            $display("  bt=%b en=%b ndb2=%b", slot_burst_type_sys, slot_en_sys, slot_ndb2_sys);
-            $display("  blk1_slot0[215:208]=%h exp %h",
-                     tx_blk1_slot0_sys[215:208], null_pdu_bits_sys[215:208]);
-            $display("  blk2_slot0[215:208]=%h exp %h",
-                     tx_blk2_slot0_sys[215:208], ndb_block2_sw_sys[215:208]);
+            $display("FAIL TC3: SIGNALLING routing mismatch");
+            $display("  bt=%b en=%b ndb2=%b (exp 1010)",
+                     slot_burst_type_sys, slot_en_sys, slot_ndb2_sys);
+            $display("  blk1 top [tn0..3]: %h %h %h %h (exp A0 B0 C0 D0)",
+                     tx_blk1_slot0_sys[215:208], tx_blk1_slot1_sys[215:208],
+                     tx_blk1_slot2_sys[215:208], tx_blk1_slot3_sys[215:208]);
+            $display("  blk2 top [tn0..3]: %h %h %h %h (exp A1 B1 C1 D1)",
+                     tx_blk2_slot0_sys[215:208], tx_blk2_slot1_sys[215:208],
+                     tx_blk2_slot2_sys[215:208], tx_blk2_slot3_sys[215:208]);
             fail_cnt = fail_cnt + 1;
         end
     end
 
+    // Reset scheduler regs to 0 for next tests so their residue doesn't
+    // bleed into subsequent checks (TC4/TC6 exercise class=0 — sched inputs
+    // are ignored, but leave them clean).
+    sched_blk1_tn0_sys = {BLOCK_BITS{1'b0}};
+    sched_blk2_tn0_sys = {BLOCK_BITS{1'b0}};
+    sched_blk1_tn1_sys = {BLOCK_BITS{1'b0}};
+    sched_blk2_tn1_sys = {BLOCK_BITS{1'b0}};
+    sched_blk1_tn2_sys = {BLOCK_BITS{1'b0}};
+    sched_blk2_tn2_sys = {BLOCK_BITS{1'b0}};
+    sched_blk1_tn3_sys = {BLOCK_BITS{1'b0}};
+    sched_blk2_tn3_sys = {BLOCK_BITS{1'b0}};
+    sched_ndb2_sys     = 4'b0000;
+
     // -----------------------------------------------------------------------
-    // TC4: SDB blk2 routing.  Program (mn=2, fn=5, tn=2) as
-    // class=BROADCAST(0) idx=3 (SB) burst_type=SDB(01) ndb2=0 enable=1.
-    // Other slots of this frame: set NDB SYSINFO so they are distinguishable.
-    // Load sb_bkn2_sw_sys with distinct pattern.  Verify:
-    //   slot_burst_type_sys[2] == 1 (SDB)
-    //   tx_blk1_slot2_sys == 0
-    //   tx_blk2_slot2_sys == sb_bkn2_sw_sys
+    // TC4: SDB blk2 routing.  (mn=2, fn=5, tn=2) → class=0 idx=3 SB SDB.
     // -----------------------------------------------------------------------
-    axi_write_entry(2'd2, 5'd5, 2'd0, pack_entry(4'd0, 6'd0, 2'b00, 1'b0, 1'b1, 1'b0)); // NDB SYSINFO
+    axi_write_entry(2'd2, 5'd5, 2'd0, pack_entry(4'd0, 6'd0, 2'b00, 1'b0, 1'b1, 1'b0));
     axi_write_entry(2'd2, 5'd5, 2'd1, pack_entry(4'd0, 6'd0, 2'b00, 1'b0, 1'b1, 1'b0));
-    axi_write_entry(2'd2, 5'd5, 2'd2, pack_entry(4'd0, 6'd3, 2'b01, 1'b0, 1'b1, 1'b1)); // SB SDB
+    axi_write_entry(2'd2, 5'd5, 2'd2, pack_entry(4'd0, 6'd3, 2'b01, 1'b0, 1'b1, 1'b1));
     axi_write_entry(2'd2, 5'd5, 2'd3, pack_entry(4'd0, 6'd0, 2'b00, 1'b0, 1'b1, 1'b0));
 
     sb_bkn2_sw_sys = {BLOCK_BITS{1'b0}};
@@ -611,7 +601,6 @@ initial begin
     ndb_block1_sw_sys = {BLOCK_BITS{1'b0}};
     ndb_block1_sw_sys[215:208] = 8'h77;
 
-    // Trigger refresh -> (mn=2, fn=5): slot_pulse (tn=3, fn=4, mn=2) wraps fn=5
     fire_slot_pulse(2'd3, 5'd4, 6'd2);
     begin : tc4
         reg ok;
@@ -637,12 +626,9 @@ initial begin
     end
 
     // -----------------------------------------------------------------------
-    // TC5: sb_bb / sb_sb1 passthrough.  Drive sb1_coded_sys and
-    // aach_coded_sys with distinct patterns; verify outputs mirror them
-    // after one cycle (registered).
+    // TC5: sb_bb / sb_sb1 passthrough.
     // -----------------------------------------------------------------------
     @(posedge clk); #1;
-    // 30 hex digits = 120 bits
     sb1_coded_sys  = 120'h01_2345_6789_ABCD_EFFE_DCBA_9876_5432;
     aach_coded_sys = 30'h1234_5678 & 30'h3FFF_FFFF;
     @(posedge clk); #1;
@@ -666,19 +652,13 @@ initial begin
     end
 
     // -----------------------------------------------------------------------
-    // TC6: 4-TN sweep.  Load 4 distinct classes/idx at (mn=3, fn=2, tn=0..3):
-    //   TN=0: STATIC_BROADCAST idx=0 (NDB_SYSINFO)   NDB    ndb2=0 en=1
-    //   TN=1: STATIC_BROADCAST idx=1 (MCCH)           NDB    ndb2=0 en=1
-    //   TN=2: STATIC_BROADCAST idx=2 (BNCH)           NDB    ndb2=0 en=1
-    //   TN=3: STATIC_BROADCAST idx=7 (empty)          NDB    ndb2=0 en=0
-    // Verify per-TN burst_type / en / ndb2 + blk1/blk2 payload routing.
+    // TC6: 4-TN sweep.  (mn=3, fn=2, tn=0..3): class=0 with varying idx.
     // -----------------------------------------------------------------------
     axi_write_entry(2'd3, 5'd2, 2'd0, pack_entry(4'd0, 6'd0, 2'b00, 1'b0, 1'b1, 1'b0));
     axi_write_entry(2'd3, 5'd2, 2'd1, pack_entry(4'd0, 6'd1, 2'b00, 1'b0, 1'b1, 1'b0));
     axi_write_entry(2'd3, 5'd2, 2'd2, pack_entry(4'd0, 6'd2, 2'b00, 1'b0, 1'b1, 1'b0));
     axi_write_entry(2'd3, 5'd2, 2'd3, pack_entry(4'd0, 6'd7, 2'b00, 1'b0, 1'b0, 1'b0));
 
-    // Distinct payload patterns
     ndb_block1_sw_sys  = {8'hA0, {(BLOCK_BITS-8){1'b0}}};
     ndb_block2_sw_sys  = {8'hA1, {(BLOCK_BITS-8){1'b0}}};
     mcch_block1_sw_sys = {8'hB0, {(BLOCK_BITS-8){1'b0}}};
@@ -686,13 +666,12 @@ initial begin
     bnch_block1_sw_sys = {8'hC0, {(BLOCK_BITS-8){1'b0}}};
     bnch_block2_sw_sys = {8'hC1, {(BLOCK_BITS-8){1'b0}}};
 
-    // Fire refresh targeting (mn=3, fn=2): slot_pulse (tn=3, fn=1, mn=3)
     fire_slot_pulse(2'd3, 5'd1, 6'd3);
     begin : tc6
         reg ok;
         ok = 1'b1;
         if (slot_burst_type_sys !== 4'b0000) ok = 1'b0;
-        if (slot_en_sys         !== 4'b0111) ok = 1'b0;   // TN=3 disabled
+        if (slot_en_sys         !== 4'b0111) ok = 1'b0;
         if (slot_ndb2_sys       !== 4'b0000) ok = 1'b0;
         if (tx_blk1_slot0_sys[215:208] !== 8'hA0) ok = 1'b0;
         if (tx_blk2_slot0_sys[215:208] !== 8'hA1) ok = 1'b0;
@@ -737,7 +716,6 @@ initial begin
     $finish;
 end
 
-// Watchdog
 initial begin
     #10_000_000;
     $fatal(1, "WATCHDOG: simulation timeout");

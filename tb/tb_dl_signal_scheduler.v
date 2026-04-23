@@ -1,18 +1,22 @@
 // =============================================================================
 // tb_dl_signal_scheduler.v — unit test for tetra_dl_signal_scheduler.v
 //
+// The scheduler drives per-TN signalling block bundles:
+//   * When queue is empty → all 4 TNs show the NULL-PDU idle default
+//     (blk1 = null_pdu_bits, blk2 = sig_companion, ndb2 = 1 = NTS2).
+//   * When a PDU is queued for TN=k → TN=k carries the coded PDU content,
+//     the other three TNs keep the NULL-PDU idle default.
+//
 // Coverage:
-//   T1 reset → override_active=0
-//   T2 queue empty at tn==3 trigger → override stays 0
-//   T3 SCH/F PDU head visible at tn==3 trigger → pop_sys fires 1 cyc,
-//      override_active=1, use_blk1=use_blk2=1, ndb2=0, both halves latched,
-//      stable for full next frame (tn=0..3)
-//   T4 SCH/HD PDU head at trigger → pop fires, override_active=1,
-//      use_blk1=1 use_blk2=0, ndb2=1, blk1 latched from coded[431:216]
-//   T5 head_valid drops before tn==3 → override_active falls to 0
-//   T6 no pop on tn!=3 even if head_valid
-//   T7 override registered stable between triggers (check values don't
-//      wobble while head_coded changes mid-frame)
+//   T1 reset → sched_ndb2 = 4'b1111 idle
+//   T2 queue empty at tn==3 trigger → all TNs carry NULL-PDU/companion
+//   T3 SCH/F PDU for target TN=1 → TN1 blk1=coded[431:216], TN1 blk2=coded[215:0],
+//      TN1 ndb2=0 (NTS1); other TNs hold NULL-PDU/companion, ndb2=1
+//   T4 SCH/HD PDU for target TN=2 → TN2 blk1=coded[431:216], TN2 blk2=sig_companion,
+//      TN2 ndb2=1 (NTS2); other TNs hold NULL-PDU
+//   T5 head_valid drops before next tn==3 → idle defaults re-latch
+//   T6 pop never fires on tn != 3 even with valid head
+//   T7 stats counters advance correctly
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
@@ -31,15 +35,15 @@ module tb_dl_signal_scheduler;
     reg  [1:0]   head_pdu_type_sys = 2'd0;
     reg  [1:0]   head_target_tn_sys = 2'd0;
     reg  [1:0]   head_prio_sys = 2'd0;
+    reg  [215:0] null_pdu_bits_sys;
+    reg  [215:0] sig_companion_sys;
 
     wire         pop_sys;
-    wire         override_active_sys;
-    wire [1:0]   override_target_tn_sys;
-    wire         override_use_blk1_sys;
-    wire         override_use_blk2_sys;
-    wire         override_ndb2_sys;
-    wire [215:0] override_blk1_sys;
-    wire [215:0] override_blk2_sys;
+    wire [215:0] sched_blk1_tn0_sys, sched_blk2_tn0_sys;
+    wire [215:0] sched_blk1_tn1_sys, sched_blk2_tn1_sys;
+    wire [215:0] sched_blk1_tn2_sys, sched_blk2_tn2_sys;
+    wire [215:0] sched_blk1_tn3_sys, sched_blk2_tn3_sys;
+    wire [3:0]   sched_ndb2_sys;
     wire [15:0]  override_cnt_sys;
     wire [15:0]  pop_cnt_sys;
 
@@ -59,18 +63,21 @@ module tb_dl_signal_scheduler;
         .head_pdu_type_sys     (head_pdu_type_sys),
         .head_target_tn_sys    (head_target_tn_sys),
         .head_prio_sys         (head_prio_sys),
-        .override_active_sys   (override_active_sys),
-        .override_target_tn_sys(override_target_tn_sys),
-        .override_use_blk1_sys (override_use_blk1_sys),
-        .override_use_blk2_sys (override_use_blk2_sys),
-        .override_ndb2_sys     (override_ndb2_sys),
-        .override_blk1_sys     (override_blk1_sys),
-        .override_blk2_sys     (override_blk2_sys),
+        .null_pdu_bits_sys     (null_pdu_bits_sys),
+        .sig_companion_sys     (sig_companion_sys),
+        .sched_blk1_tn0_sys    (sched_blk1_tn0_sys),
+        .sched_blk2_tn0_sys    (sched_blk2_tn0_sys),
+        .sched_blk1_tn1_sys    (sched_blk1_tn1_sys),
+        .sched_blk2_tn1_sys    (sched_blk2_tn1_sys),
+        .sched_blk1_tn2_sys    (sched_blk1_tn2_sys),
+        .sched_blk2_tn2_sys    (sched_blk2_tn2_sys),
+        .sched_blk1_tn3_sys    (sched_blk1_tn3_sys),
+        .sched_blk2_tn3_sys    (sched_blk2_tn3_sys),
+        .sched_ndb2_sys        (sched_ndb2_sys),
         .override_cnt_sys      (override_cnt_sys),
         .pop_cnt_sys           (pop_cnt_sys)
     );
 
-    // Observe pop pulses
     always @(posedge clk) begin
         if (pop_sys) pop_observed <= pop_observed + 1;
     end
@@ -78,7 +85,6 @@ module tb_dl_signal_scheduler;
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
-    // Drive one slot: advance tn and pulse slot_pulse for 1 cycle at the boundary.
     task automatic tick_slot(input [1:0] new_tn);
         begin
             @(negedge clk);
@@ -111,94 +117,125 @@ module tb_dl_signal_scheduler;
         end
     endtask
 
+    // Check all non-target TNs carry the NULL-PDU idle default.
+    task automatic check_idle_except(input [1:0] target_tn, input [511:0] tag);
+        begin
+            if (target_tn !== 2'd0) begin
+                check_eq_h(sched_blk1_tn0_sys, null_pdu_bits_sys, {tag,".idle_blk1_tn0"});
+                check_eq_h(sched_blk2_tn0_sys, sig_companion_sys, {tag,".idle_blk2_tn0"});
+                check_eq_int({31'd0, sched_ndb2_sys[0]}, 1'b1, {tag,".idle_ndb2_tn0"});
+            end
+            if (target_tn !== 2'd1) begin
+                check_eq_h(sched_blk1_tn1_sys, null_pdu_bits_sys, {tag,".idle_blk1_tn1"});
+                check_eq_h(sched_blk2_tn1_sys, sig_companion_sys, {tag,".idle_blk2_tn1"});
+                check_eq_int({31'd0, sched_ndb2_sys[1]}, 1'b1, {tag,".idle_ndb2_tn1"});
+            end
+            if (target_tn !== 2'd2) begin
+                check_eq_h(sched_blk1_tn2_sys, null_pdu_bits_sys, {tag,".idle_blk1_tn2"});
+                check_eq_h(sched_blk2_tn2_sys, sig_companion_sys, {tag,".idle_blk2_tn2"});
+                check_eq_int({31'd0, sched_ndb2_sys[2]}, 1'b1, {tag,".idle_ndb2_tn2"});
+            end
+            if (target_tn !== 2'd3) begin
+                check_eq_h(sched_blk1_tn3_sys, null_pdu_bits_sys, {tag,".idle_blk1_tn3"});
+                check_eq_h(sched_blk2_tn3_sys, sig_companion_sys, {tag,".idle_blk2_tn3"});
+                check_eq_int({31'd0, sched_ndb2_sys[3]}, 1'b1, {tag,".idle_ndb2_tn3"});
+            end
+        end
+    endtask
+
     // -------------------------------------------------------------------------
     // Main
     // -------------------------------------------------------------------------
     initial begin
         $display("[tb_dl_signal_scheduler] start");
 
+        // Distinctive 216-bit patterns — byte-repeat to fill exactly 216 bits.
+        null_pdu_bits_sys = {27{8'hDE}};
+        sig_companion_sys = {27{8'hCA}};
+
         repeat (4) @(posedge clk);
         @(negedge clk);
         rst_n = 1'b1;
 
         // -----------------------------------------------------------------
-        // T1 — reset state
+        // T1 — reset state: sched_ndb2 defaults to 4'b1111 idle
         // -----------------------------------------------------------------
         @(negedge clk);
-        check_eq_int({31'd0, override_active_sys}, 1'b0, "T1.active0");
+        check_eq_int({28'd0, sched_ndb2_sys}, 4'b1111, "T1.ndb2_all_idle");
 
         // -----------------------------------------------------------------
-        // T2 — empty queue through full frame → override stays 0
+        // T2 — empty queue at tn==3 trigger → all TNs idle-defaulted
         // -----------------------------------------------------------------
         head_valid_sys = 1'b0;
         tick_slot(2'd0); tick_slot(2'd1); tick_slot(2'd2); tick_slot(2'd3);
         @(negedge clk);
-        check_eq_int({31'd0, override_active_sys}, 1'b0, "T2.empty_no_override");
-        check_eq_int({31'd0, pop_sys},             1'b0, "T2.no_pop");
+        check_eq_int({31'd0, pop_sys}, 1'b0, "T2.no_pop");
+        // Use target_tn=3 such that none match; all TNs should be idle.
+        // Pass an impossible value (0..3 range — use target_tn=3 means TN3 is
+        // exempt from idle check).  Easiest: check all 4 idle explicitly.
+        check_eq_h(sched_blk1_tn0_sys, null_pdu_bits_sys, "T2.idle_blk1_tn0");
+        check_eq_h(sched_blk2_tn0_sys, sig_companion_sys, "T2.idle_blk2_tn0");
+        check_eq_h(sched_blk1_tn1_sys, null_pdu_bits_sys, "T2.idle_blk1_tn1");
+        check_eq_h(sched_blk2_tn1_sys, sig_companion_sys, "T2.idle_blk2_tn1");
+        check_eq_h(sched_blk1_tn2_sys, null_pdu_bits_sys, "T2.idle_blk1_tn2");
+        check_eq_h(sched_blk2_tn2_sys, sig_companion_sys, "T2.idle_blk2_tn2");
+        check_eq_h(sched_blk1_tn3_sys, null_pdu_bits_sys, "T2.idle_blk1_tn3");
+        check_eq_h(sched_blk2_tn3_sys, sig_companion_sys, "T2.idle_blk2_tn3");
+        check_eq_int({28'd0, sched_ndb2_sys}, 4'b1111, "T2.ndb2_all_idle");
 
         // -----------------------------------------------------------------
-        // T3 — SCH/F PDU ready, trigger on tn==3
+        // T3 — SCH/F PDU for target TN=1
         // -----------------------------------------------------------------
         head_valid_sys    = 1'b1;
-        head_coded_sys    = {216'hA5A5_BEEF_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0001,
-                             216'h0BAD_F00D_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0002};
+        head_coded_sys    = {{27{8'hA5}}, {27{8'h5A}}};  // top half A5s, bottom half 5As
         head_pdu_type_sys = 2'd0;  // SCH_F
         head_target_tn_sys= 2'd1;
-        head_prio_sys     = 2'd0;
 
-        // Advance to tn==3 and trigger
-        tick_slot(2'd0);
-        tick_slot(2'd1);
-        tick_slot(2'd2);
-        // Pop should fire on the tn==3 tick.
-        tick_slot(2'd3);
+        tick_slot(2'd0); tick_slot(2'd1); tick_slot(2'd2); tick_slot(2'd3);
         @(negedge clk);
-        check_eq_int({31'd0, override_active_sys},   1'b1, "T3.active");
-        check_eq_int({30'd0, override_target_tn_sys},2'd1, "T3.target_tn");
-        check_eq_int({31'd0, override_use_blk1_sys}, 1'b1, "T3.use_blk1");
-        check_eq_int({31'd0, override_use_blk2_sys}, 1'b1, "T3.use_blk2");
-        check_eq_int({31'd0, override_ndb2_sys},     1'b0, "T3.ndb2_is_nts1");
-        check_eq_h(override_blk1_sys, head_coded_sys[431:216], "T3.blk1");
-        check_eq_h(override_blk2_sys, head_coded_sys[215:  0], "T3.blk2");
+        // Target TN=1 carries PDU content
+        check_eq_h(sched_blk1_tn1_sys, head_coded_sys[431:216], "T3.tgt_blk1");
+        check_eq_h(sched_blk2_tn1_sys, head_coded_sys[215:  0], "T3.tgt_blk2");
+        check_eq_int({31'd0, sched_ndb2_sys[1]}, 1'b0, "T3.tgt_ndb2_nts1");
+        // Other TNs hold NULL-PDU idle default
+        check_idle_except(2'd1, "T3");
 
-        // Let queue go empty (simulate queue removed entry after pop)
+        // Drop head (simulate queue now empty)
         head_valid_sys = 1'b0;
 
-        // Stability check — walk through the next frame, override must hold
+        // Stability — walk through next frame; registered values must hold
         tick_slot(2'd0);
-        check_eq_int({31'd0, override_active_sys}, 1'b1, "T3.stable_tn0");
+        check_eq_h(sched_blk1_tn1_sys, head_coded_sys[431:216], "T3.stable_tn0");
         tick_slot(2'd1);
-        check_eq_int({31'd0, override_active_sys}, 1'b1, "T3.stable_tn1");
+        check_eq_h(sched_blk1_tn1_sys, head_coded_sys[431:216], "T3.stable_tn1");
         tick_slot(2'd2);
-        check_eq_int({31'd0, override_active_sys}, 1'b1, "T3.stable_tn2");
-        // tn==3 next arrival with empty head → override drops
+        check_eq_h(sched_blk1_tn1_sys, head_coded_sys[431:216], "T3.stable_tn2");
+        // tn==3 with empty head → idle re-latches
         tick_slot(2'd3);
         @(negedge clk);
-        check_eq_int({31'd0, override_active_sys}, 1'b0, "T3.drops_after_empty_trig");
+        check_eq_h(sched_blk1_tn1_sys, null_pdu_bits_sys, "T3.reverts_empty");
+        check_eq_int({28'd0, sched_ndb2_sys}, 4'b1111, "T3.ndb2_idle_all");
 
         // -----------------------------------------------------------------
-        // T4 — SCH/HD PDU
+        // T4 — SCH/HD PDU for target TN=2
         // -----------------------------------------------------------------
         head_valid_sys    = 1'b1;
-        head_coded_sys    = {216'h1234_5678_9ABC_DEF0_0000_0000_0000_0000_0000_0000_0000_0000_0003,
-                             216'h0};
+        head_coded_sys    = {{27{8'h3C}}, {27{8'h00}}};  // SCH/HD: top half used
         head_pdu_type_sys = 2'd1;  // SCH_HD
         head_target_tn_sys= 2'd2;
 
         tick_slot(2'd0); tick_slot(2'd1); tick_slot(2'd2); tick_slot(2'd3);
         @(negedge clk);
-        check_eq_int({31'd0, override_active_sys},   1'b1, "T4.active");
-        check_eq_int({30'd0, override_target_tn_sys},2'd2, "T4.target_tn");
-        check_eq_int({31'd0, override_use_blk1_sys}, 1'b1, "T4.use_blk1");
-        check_eq_int({31'd0, override_use_blk2_sys}, 1'b0, "T4.no_blk2");
-        check_eq_int({31'd0, override_ndb2_sys},     1'b1, "T4.ndb2_is_nts2");
-        check_eq_h(override_blk1_sys, head_coded_sys[431:216], "T4.blk1");
+        // SCH/HD: only blk1 is coded; blk2 falls back to sig_companion
+        check_eq_h(sched_blk1_tn2_sys, head_coded_sys[431:216], "T4.tgt_blk1");
+        check_eq_h(sched_blk2_tn2_sys, sig_companion_sys,       "T4.tgt_blk2_companion");
+        check_eq_int({31'd0, sched_ndb2_sys[2]}, 1'b1, "T4.tgt_ndb2_nts2");
+        check_idle_except(2'd2, "T4");
 
         head_valid_sys = 1'b0;
-        tick_slot(2'd0); tick_slot(2'd1); tick_slot(2'd2);
-        tick_slot(2'd3);
+        tick_slot(2'd0); tick_slot(2'd1); tick_slot(2'd2); tick_slot(2'd3);
         @(negedge clk);
-        check_eq_int({31'd0, override_active_sys}, 1'b0, "T4.cleared");
+        check_eq_int({28'd0, sched_ndb2_sys}, 4'b1111, "T4.cleared");
 
         // -----------------------------------------------------------------
         // T6 — pop never fires on tn != 3 even with valid head
@@ -212,17 +249,15 @@ module tb_dl_signal_scheduler;
         tick_slot(2'd1);
         tick_slot(2'd2);
         check_eq_int(pop_observed, 0, "T6.no_pop_on_0_1_2");
-        // tn==3 pop must fire (pop_sys is registered so it asserts one cycle
-        // after the trigger edge — let the observer always-block run once more)
         tick_slot(2'd3);
         @(posedge clk);
         @(negedge clk);
         check_eq_int(pop_observed, 1, "T6.pop_on_3");
 
         // -----------------------------------------------------------------
-        // Stats counters should have advanced
+        // T7 — stats counters: 3 pops so far (T3, T4, T6)
         // -----------------------------------------------------------------
-        check_eq_int({16'd0, pop_cnt_sys}, 16'd3, "T7.pop_cnt");
+        check_eq_int({16'd0, pop_cnt_sys},      16'd3, "T7.pop_cnt");
         check_eq_int({16'd0, override_cnt_sys}, 16'd3, "T7.override_cnt");
 
         if (errors == 0)
