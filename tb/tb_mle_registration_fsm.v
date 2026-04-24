@@ -79,6 +79,8 @@ module tb_mle_registration_fsm;
     wire         ack_pulse;
     wire         retransmit_pulse;
     wire         lost_pulse;
+    wire         req_second_pdu_present;
+    wire         req_second_pdu_nr;
 
     tetra_active_session_table #(
         .DEPTH      (AST_DEPTH),
@@ -137,8 +139,8 @@ module tb_mle_registration_fsm;
         .req_coded_bits   (req_coded_bits),
         .req_pdu_type     (req_pdu_type),
         .req_target_tn    (req_target_tn),
-        .req_second_pdu_present (),
-        .req_second_pdu_nr      (),
+        .req_second_pdu_present (req_second_pdu_present),
+        .req_second_pdu_nr      (req_second_pdu_nr),
         .busy             (busy),
         .accept_pulse     (accept_pulse),
         .drop_pulse       (drop_pulse),
@@ -521,6 +523,108 @@ module tb_mle_registration_fsm;
                 fail_count = fail_count + 1;
             end
         end
+
+        // -------------------------------------------------------------
+        // Option B (2026-04-24 commit 7): RA-IN carrying BL-DATA(ns) →
+        // the FSM must flip req_second_pdu_present=1 on the outbound
+        // ACCEPT and echo the MS N(S) as the BL-ACK's N(R) on
+        // req_second_pdu_nr.
+        //
+        // Regression strategy: capture and match the observed
+        // req_second_pdu_{present,nr} on the req_valid pulse.  The
+        // bit-level concat content is already golden'd in
+        // tb_mac_resource_dl_builder.v (T14/T15).
+        // -------------------------------------------------------------
+        rst_n = 1'b0;
+        repeat (4) @(posedge clk);
+        rst_n = 1'b1;
+        @(posedge clk);
+        for (i = 0; i < AST_DEPTH; i = i + 1) begin
+            u_ast.mem[i] = {AST_REC_WIDTH{1'b0}};
+        end
+        @(posedge clk);
+
+        begin : t12_concat_ns0
+            reg saw_second_present;
+            reg saw_second_nr;
+            integer wait_cycles;
+            ul_ssi            = 24'd523;
+            ul_la             = 14'd36;
+            ul_llc_is_bl_data = 1'b1;
+            ul_llc_ns_valid   = 1'b1;
+            ul_llc_ns         = 1'b0;      // MS sent ns=0 → we echo nr=0
+            @(posedge clk);
+            ul_req_valid      = 1'b1;
+            @(posedge clk);
+            ul_req_valid      = 1'b0;
+            saw_second_present = 1'b0;
+            saw_second_nr      = 1'b0;
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !req_valid) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
+            if (req_valid) begin
+                saw_second_present = req_second_pdu_present;
+                saw_second_nr      = req_second_pdu_nr;
+            end
+            test_count = test_count + 1;
+            if (saw_second_present == 1'b1 && saw_second_nr == 1'b0) begin
+                $display("[T12 concat_ns0] PASS req_second_pdu_present=1 nr=0");
+            end else begin
+                $display("[T12 concat_ns0] FAIL req_valid=%b present=%b nr=%b",
+                         req_valid, saw_second_present, saw_second_nr);
+                fail_count = fail_count + 1;
+            end
+            // Close the transaction so the FSM returns to IDLE for the
+            // next test.
+            @(posedge clk); #1;
+            bl_ack_short_ssi = 10'd523;
+            bl_ack_nr        = dut.outstanding_ns;
+            bl_ack_valid     = 1'b1;
+            @(posedge clk); #1;
+            bl_ack_valid     = 1'b0;
+            @(posedge clk);
+        end
+
+        begin : t13_concat_ns1
+            reg saw_second_present;
+            reg saw_second_nr;
+            integer wait_cycles;
+            ul_ssi            = 24'd523;
+            ul_la             = 14'd36;
+            ul_llc_is_bl_data = 1'b1;
+            ul_llc_ns_valid   = 1'b1;
+            ul_llc_ns         = 1'b1;      // MS sent ns=1 → we echo nr=1
+            @(posedge clk);
+            ul_req_valid      = 1'b1;
+            @(posedge clk);
+            ul_req_valid      = 1'b0;
+            saw_second_present = 1'b0;
+            saw_second_nr      = 1'b0;
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !req_valid) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
+            if (req_valid) begin
+                saw_second_present = req_second_pdu_present;
+                saw_second_nr      = req_second_pdu_nr;
+            end
+            test_count = test_count + 1;
+            if (saw_second_present == 1'b1 && saw_second_nr == 1'b1) begin
+                $display("[T13 concat_ns1] PASS req_second_pdu_present=1 nr=1");
+            end else begin
+                $display("[T13 concat_ns1] FAIL req_valid=%b present=%b nr=%b",
+                         req_valid, saw_second_present, saw_second_nr);
+                fail_count = fail_count + 1;
+            end
+        end
+
+        // Restore inputs for cleanliness
+        ul_llc_is_bl_data = 1'b0;
+        ul_llc_ns_valid   = 1'b0;
+        ul_llc_ns         = 1'b0;
 
         $display("=============================================");
         if (fail_count == 0)
