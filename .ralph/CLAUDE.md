@@ -18,7 +18,7 @@ Das PS (ARM Cortex-A9) spielt eine reine **Management-Rolle**:
 
 **Architekturentscheidung 2026-04-22:** Response-Latenz ist damit deterministisch
 innerhalb eines TDMA-Slots (14.17 ms). ARM ist kein Echtzeit-Pfad mehr. Details siehe
-`docs/plan_tetra_bs_stack.md`.
+`docs/ARCHITECTURE.md` §5 (Phase-5/6-Plan) und `docs/PROTOCOL.md` §8 (Registrations-Flow).
 
 **Langfristige Vision:** Dual-Protokoll-Baseband-Engine (DMR Tier II + TETRA V+D) mit umschaltbarem Modulations-/Demodulationsmodus über AXI-Lite Register.
 
@@ -602,7 +602,7 @@ source scripts/vivado_build.tcl
 
 - [x] **Soft vs. Hard Decision Viterbi:** Soft-Decision implementiert (5-bit UL, BER/MER 0% in HW).
 - [x] **RRC-Filter Taps:** implementiert, validiert on-air gegen MTP3550.
-- [x] **MAC/MLE/CMCE Platzierung:** 2026-04-22 entschieden → **RTL-FSMs im FPGA**, ARM nur DB + Admin. Siehe `docs/plan_tetra_bs_stack.md`.
+- [x] **MAC/MLE/CMCE Platzierung:** 2026-04-22 entschieden → **RTL-FSMs im FPGA**, ARM nur DB + Admin. Siehe `docs/ARCHITECTURE.md` §5 und `docs/PROTOCOL.md` §8.
 - [x] **DB-Transport ARM ↔ FPGA:** Variante A gewählt — ARM pusht Subscriber/Group-Table per AXI-Lite in Shadow-BRAM (256 Einträge × 64 bit = 1 BRAM36).
 - [ ] **ACELP Codec:** Für Voice-Relay *nicht* benötigt (bit-transparentes Pass-Through UL-TCH → DL-TCH). Erst relevant für BS-as-Talker oder Recording-Gateway — dann erneut prüfen.
 - [ ] **TEA-Verschlüsselung:** Nicht im initialen Scope. Als separates RTL-Modul ergänzbar.
