@@ -1,0 +1,27 @@
+[package]
+name = "bs_ra_ack_dump"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Offline reference-dump tool — NOT part of the FPGA build pipeline.
+# Emits the bit-exact TETRA downlink that tetra-bluestation produces for a
+# minimal RA-Ack (empty MAC-RESOURCE, random_access_flag=true, addr=ISSI)
+# on SCH/F, so we can byte-diff it against scripts/decode_dl.py output.
+
+[[bin]]
+name = "bs_ra_ack_dump"
+path = "src/main.rs"
+
+[dependencies]
+# Only the soapysdr-free crates — we deliberately avoid `tetra-entities`
+# because its hard dep on `soapysdr` would pull a SoapySDR system library
+# we don't need for a bit-level dump.  The channel-encoder pipeline
+# (encode_cp + CRC-16 + convolutional + puncturing + interleave + scramble)
+# is vendored into src/chanenc/ as a verbatim copy of
+# tetra-bluestation/crates/tetra-entities/src/lmac/components/*.rs .
+# Keep in sync manually if bluestation changes.
+tetra-core = { path = "../../tetra-bluestation/crates/tetra-core" }
+tetra-saps = { path = "../../tetra-bluestation/crates/tetra-saps" }
+tetra-pdus = { path = "../../tetra-bluestation/crates/tetra-pdus" }
+tracing    = "0.1"
