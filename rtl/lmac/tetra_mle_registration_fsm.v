@@ -68,25 +68,15 @@ module tetra_mle_registration_fsm #(
     input  wire                        ul_llc_ns,
 
     // -----------------------------------------------------------------
-    // UL LLC BL-ACK (M1→M2, 2026-04-24) — fires when the MS acknowledges
-    // our most recent BL-DATA D-LOC-UPDATE-ACCEPT.  We toggle our local
-    // outstanding_ns and pulse ack_pulse so software can count the
-    // completed BL-DATA transactions.  The actual registration state in
-    // the active-session-table is already REGISTERED at S_WRITE; this
-    // ack confirmation only affects the LLC-layer N(S)/N(R) sequencing.
+    // UL LLC BL-ACK / slot-pulse are kept on the interface for compatibility
+    // with the existing top-level wiring, but the registration path no longer
+    // waits for an MS-side ack after delivering the Accept.  BlueStation-like
+    // behavior for this flow is "UL BL-DATA(ns) -> DL Accept (+ piggybacked
+    // BL-ACK for the UL request) -> done".
     // -----------------------------------------------------------------
     input  wire                        bl_ack_valid,
     input  wire                        bl_ack_nr,
     input  wire [9:0]                  bl_ack_short_ssi,
-
-    // -----------------------------------------------------------------
-    // Timeslot tick (M3, 2026-04-24) — 1-cycle pulse at the start of each
-    // TDMA timeslot, used by S_WAIT_ACK to count elapsed slots for the
-    // T251 BL-DATA retransmit timer.  Hook up to tx_slot_pulse_sys in
-    // tetra_zynq_top.  When slot_pulse is tied 0 the retransmit logic
-    // is dormant (TB that only exercises the match path can leave it
-    // unwired).
-    // -----------------------------------------------------------------
     input  wire                        slot_pulse,
 
     // -----------------------------------------------------------------
@@ -152,26 +142,6 @@ module tetra_mle_registration_fsm #(
     reg                         lat_ms_ns;
 
     // -------------------------------------------------------------------------
-    // LLC-layer N(S) tracker (M2, 2026-04-24).  MVP: one global 1-bit
-    // register, matches bluestation llc_bs_ms.rs:126-131 per-SSI V(S)
-    // HashMap but simplified to a single active session until the
-    // active-session-table carries per-SSI NS in a future step.
-    //
-    // Initial value 0; toggles 0↔1 on each acknowledged BL-DATA.  Fed into
-    // tetra_mac_resource_dl_builder as `ns` so the outgoing MAC-RESOURCE
-    // wraps the correct LLC BL-DATA N(S) bit.
-    //
-    // Bluestation flow (llc_bs_ms.rs:126-131 get_next_send_seq + :167-171
-    // process_incoming_ack mark_acknowledged):
-    //   TX: ns = V(S); V(S) ^= 1
-    //   RX: if (nr == expected_ack.ns) mark_acknowledged()
-    //
-    // We fuse these — on a matching BL-ACK, we toggle outstanding_ns.  The
-    // next transmitted BL-DATA uses the toggled value.
-    // -------------------------------------------------------------------------
-    reg                         outstanding_ns;
-
-    // -------------------------------------------------------------------------
     // D-LOCATION-UPDATE builder — combinational, always watching the latched
     // request fields.  Produces the raw 54-bit MM PDU (MSB-aligned in 80-bit
     // bus) that the MAC-RESOURCE builder wraps.
@@ -232,14 +202,17 @@ module tetra_mle_registration_fsm #(
     );
 
     // -------------------------------------------------------------------------
-    // MAC-RESOURCE DL builder — 80-bit MM PDU → 268-bit SCH/F info payload.
-    // Triggered from S_BUILD_START.
-    // TODO: widen AST record to carry N(S)/N(R) and forward them here.  For
-    // MVP (first-transaction D-LOC-UPDATE-ACCEPT) NS=NR=0 is correct.
+    // MAC-RESOURCE DL builders — one for the Accept BL-DATA, one for the
+    // separate BL-ACK resource.  BlueStation models these as two distinct
+    // MacResources; the registration FSM mirrors that by issuing two queue
+    // requests when the UL request arrived in acknowledged LLC mode.
     // -------------------------------------------------------------------------
     reg          builder_start;
     wire [267:0] builder_pdu_bits_w;
     wire         builder_valid_w;
+    reg          ack_builder_start;
+    wire [267:0] ack_builder_pdu_bits_w;
+    wire         ack_builder_valid_w;
 
     tetra_mac_resource_dl_builder #(
         .PDU_BITS(268)
@@ -249,7 +222,7 @@ module tetra_mle_registration_fsm #(
         .start             (builder_start),
         .ssi               (lat_ssi),
         .addr_type         (lat_addr_type),
-        .ns                (outstanding_ns),       // toggles on BL-ACK match (M2)
+        .ns                (1'b0),
         .nr                (1'b0),                 // TODO: from AST record
         // D-LOC-UPDATE-ACCEPT is the canonical response to a successful
         // UL Random Access (MAC-ACCESS → MLE → MM demand).  Setting the
@@ -274,21 +247,13 @@ module tetra_mle_registration_fsm #(
         .chan_alloc_flag          (1'b0),
         .chan_alloc_element       (chan_alloc_packed_w),
         .chan_alloc_element_len   (chan_alloc_len_w),
-        // Second concatenated MAC-RESOURCE (commit 3, Option B auto-
-        // BL-ACK).  When the incoming MAC-ACCESS carried BL-DATA/BL-
-        // ADATA (lat_ms_bl_data=1), emit a BL-ACK(nr=lat_ms_ns) in the
-        // same SCH/F slot to satisfy the MS's LLC ack-expectation
-        // (bluestation llc_bs_ms.rs:488-493 schedule_outgoing_ack).
-        //   TL-SDU = {link=0, fcs=0, bl_pdu=11, nr=ms_ns} = 5 bits,
-        //   MSB-aligned in the 80-bit second_pdu_tl_sdu bus.
-        //   LI = 6 (hdr 43 + 5 sdu = 48 bits = 6 bytes).
-        .second_pdu_valid              (lat_ms_bl_data),
-        .second_pdu_length_ind         (6'd6),
-        .second_pdu_random_access_flag (1'b1),
-        .second_pdu_addr_type          (3'd1),
-        .second_pdu_ssi                (lat_ssi),
-        .second_pdu_tl_sdu             ({1'b0, 1'b0, 2'b11, lat_ms_ns, 75'b0}),
-        .second_pdu_tl_sdu_len         (7'd5),
+        .second_pdu_valid              (1'b0),
+        .second_pdu_length_ind         (6'd0),
+        .second_pdu_random_access_flag (1'b0),
+        .second_pdu_addr_type          (3'd0),
+        .second_pdu_ssi                (24'd0),
+        .second_pdu_tl_sdu             (80'd0),
+        .second_pdu_tl_sdu_len         (7'd0),
         .second_pdu_pc_flag            (1'b0),
         .second_pdu_pc_element         (4'd0),
         .second_pdu_sg_flag            (1'b0),
@@ -302,6 +267,20 @@ module tetra_mle_registration_fsm #(
         .valid             (builder_valid_w)
     );
 
+    tetra_mac_resource_bl_ack_builder #(
+        .PDU_BITS(268)
+    ) u_bl_ack_builder (
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .start             (ack_builder_start),
+        .ssi               (lat_ssi),
+        .addr_type         (3'd1),
+        .random_access_flag(1'b1),
+        .nr                (lat_ms_ns),
+        .pdu_bits          (ack_builder_pdu_bits_w),
+        .valid             (ack_builder_valid_w)
+    );
+
     // -------------------------------------------------------------------------
     // SCH/F channel encoder — 268 info bits → 432 type-5 coded bits.
     // Pulsed at S_ENCODE_START after the builder latches a complete PDU.
@@ -309,6 +288,10 @@ module tetra_mle_registration_fsm #(
     reg          sch_encode_start;
     wire [431:0] sch_coded_bits_w;
     wire         sch_coded_valid_w;
+    reg          ack_sch_encode_start;
+    reg [267:0]  lat_ack_info_bits;
+    wire [431:0] ack_sch_coded_bits_w;
+    wire         ack_sch_coded_valid_w;
 
     tetra_sch_f_encoder u_sch_f (
         .clk          (clk),
@@ -318,6 +301,16 @@ module tetra_mle_registration_fsm #(
         .scramble_init(cfg_scramble_init),
         .coded_bits   (sch_coded_bits_w),
         .coded_valid  (sch_coded_valid_w)
+    );
+
+    tetra_sch_f_encoder u_ack_sch_f (
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .encode_start (ack_sch_encode_start),
+        .info_bits    (lat_ack_info_bits),
+        .scramble_init(cfg_scramble_init),
+        .coded_bits   (ack_sch_coded_bits_w),
+        .coded_valid  (ack_sch_coded_valid_w)
     );
 
     // -------------------------------------------------------------------------
@@ -353,20 +346,11 @@ module tetra_mle_registration_fsm #(
     localparam [3:0] S_ENCODE_WAIT  = 4'd9;
     localparam [3:0] S_DELIVER      = 4'd10;
     localparam [3:0] S_DROP         = 4'd11;
-    // M3 — acknowledged-link retransmit path
-    localparam [3:0] S_WAIT_ACK     = 4'd12;
-    localparam [3:0] S_RETRANSMIT   = 4'd13;
-
-    // BL-DATA retransmit timer / counter constants — bluestation
-    // tetra-pdus::llc::consts::{timers,consts}:
-    //   T251_SENDER_RETRY_TIMER = frames!(4) = 16 timeslots
-    //   N252_BL_MAX_TLSDU_RETRANSMITS_ACKED = 3
-    localparam [4:0] T251_SLOTS     = 5'd16;
-    localparam [1:0] N252_MAX       = 2'd3;
-
+    localparam [3:0] S_ACK_BUILD_START  = 4'd12;
+    localparam [3:0] S_ACK_BUILD_WAIT   = 4'd13;
+    localparam [3:0] S_ACK_ENCODE_START = 4'd14;
+    localparam [3:0] S_ACK_ENCODE_WAIT  = 4'd15;
     reg [3:0] state;
-    reg [4:0] wait_slot_cnt;      // 0..15, wraps trigger retransmit
-    reg [1:0] retransmit_count;   // 0..3, exhaust trigger mark_lost
 
     // Synchronous reset — Xilinx DRC (REQP-1839) flags async resets on
     // registers feeding BRAM control pins (WEBWE, ADDRBWRADDR) as memory-
@@ -381,6 +365,7 @@ module tetra_mle_registration_fsm #(
             lat_slot          <= {AST_IDX_WIDTH{1'b0}};
             lat_existing      <= 1'b0;
             lat_info_bits     <= 268'd0;
+            lat_ack_info_bits <= 268'd0;
             lat_ms_bl_data    <= 1'b0;
             lat_ms_ns         <= 1'b0;
             ast_wr_en         <= 1'b0;
@@ -390,7 +375,9 @@ module tetra_mle_registration_fsm #(
             ast_q_mode        <= 1'b0;
             ast_q_issi        <= 24'd0;
             builder_start     <= 1'b0;
+            ack_builder_start <= 1'b0;
             sch_encode_start  <= 1'b0;
+            ack_sch_encode_start <= 1'b0;
             req_valid         <= 1'b0;
             req_coded_bits    <= 432'd0;
             req_pdu_type      <= 2'd0;
@@ -403,14 +390,14 @@ module tetra_mle_registration_fsm #(
             ack_pulse         <= 1'b0;
             retransmit_pulse  <= 1'b0;
             lost_pulse        <= 1'b0;
-            wait_slot_cnt     <= 5'd0;
-            retransmit_count  <= 2'd0;
         end else begin
             // Default strobes — every state may override
             ast_wr_en        <= 1'b0;
             ast_q_start      <= 1'b0;
             builder_start    <= 1'b0;
+            ack_builder_start<= 1'b0;
             sch_encode_start <= 1'b0;
+            ack_sch_encode_start <= 1'b0;
             req_valid        <= 1'b0;
             accept_pulse     <= 1'b0;
             drop_pulse       <= 1'b0;
@@ -527,8 +514,8 @@ module tetra_mle_registration_fsm #(
                     req_coded_bits <= sch_coded_bits_w;
                     req_pdu_type   <= 2'd0;                // SCH_F
                     req_target_tn  <= cfg_mcch_tn;
-                    req_second_pdu_present <= lat_ms_bl_data;
-                    req_second_pdu_nr      <= lat_ms_ns;
+                    req_second_pdu_present <= 1'b0;
+                    req_second_pdu_nr      <= 1'b0;
                     state          <= S_DELIVER;
                 end
             end
@@ -537,63 +524,45 @@ module tetra_mle_registration_fsm #(
             S_DELIVER: begin
                 req_valid        <= 1'b1;
                 accept_pulse     <= 1'b1;
-                wait_slot_cnt    <= 5'd0;
-                retransmit_count <= 2'd0;
-                state            <= S_WAIT_ACK;
+                if (lat_ms_bl_data)
+                    state <= S_ACK_BUILD_START;
+                else
+                    state <= S_IDLE;
             end
 
             // -----------------------------------------------------------------
-            // S_WAIT_ACK — stay here counting timeslots until either
-            //   (a) a matching BL-ACK arrives from the MS → transaction done
-            //       (ack_pulse + N(S) toggle via separate reg below), or
-            //   (b) T251=16 slots elapsed with no ACK → retransmit or give up.
-            //
-            // Bluestation equivalent: llc_bs_ms.rs::submit_retransmissions_to_umac
-            // (Z.564-625) — on age ≥ T251_SENDER_RETRY_TIMER, retransmit if
-            // count < N252_BL_MAX_TLSDU_RETRANSMITS_ACKED, else mark_lost.
+            // Build and queue a separate BL-ACK resource after the Accept.
+            // This matches BlueStation's model of two distinct MacResources
+            // instead of a single concatenated payload blob inside one queue
+            // entry.
             // -----------------------------------------------------------------
-            S_WAIT_ACK: begin
-                if (bl_ack_valid &&
-                    bl_ack_short_ssi == lat_ssi[9:0] &&
-                    bl_ack_nr == outstanding_ns) begin
-                    // Match — ack the transaction, reset retransmit state,
-                    // return to idle so the next UL request can start fresh.
-                    ack_pulse        <= 1'b1;
-                    wait_slot_cnt    <= 5'd0;
-                    retransmit_count <= 2'd0;
-                    state            <= S_IDLE;
-                end else if (slot_pulse) begin
-                    if (wait_slot_cnt == T251_SLOTS - 5'd1) begin
-                        // T251 expired.
-                        wait_slot_cnt <= 5'd0;
-                        if (retransmit_count == N252_MAX) begin
-                            // N252 exhausted — give up and clear outbound.
-                            // Bluestation: tx_reporter.mark_lost() (Z.619).
-                            lost_pulse       <= 1'b1;
-                            retransmit_count <= 2'd0;
-                            state            <= S_IDLE;
-                        end else begin
-                            // Retransmit the existing req_coded_bits without
-                            // rebuilding — N(S), SSI, payload identical.
-                            retransmit_count <= retransmit_count + 2'd1;
-                            state            <= S_RETRANSMIT;
-                        end
-                    end else begin
-                        wait_slot_cnt <= wait_slot_cnt + 5'd1;
-                    end
+            S_ACK_BUILD_START: begin
+                ack_builder_start <= 1'b1;
+                state             <= S_ACK_BUILD_WAIT;
+            end
+
+            S_ACK_BUILD_WAIT: begin
+                if (ack_builder_valid_w) begin
+                    lat_ack_info_bits <= ack_builder_pdu_bits_w;
+                    state             <= S_ACK_ENCODE_START;
                 end
             end
 
-            // -----------------------------------------------------------------
-            // S_RETRANSMIT — single-cycle pulse of req_valid to re-enqueue
-            // the existing req_coded_bits.  Matches bluestation
-            // submit_for_acknowledged_transmission (Z.241-250) which clones
-            // the retained retransmission_buf and re-submits.
-            // -----------------------------------------------------------------
-            S_RETRANSMIT: begin
-                req_valid        <= 1'b1;
-                retransmit_pulse <= 1'b1;
-                state            <= S_WAIT_ACK;
+            S_ACK_ENCODE_START: begin
+                ack_sch_encode_start <= 1'b1;
+                state                <= S_ACK_ENCODE_WAIT;
+            end
+
+            S_ACK_ENCODE_WAIT: begin
+                if (ack_sch_coded_valid_w) begin
+                    req_coded_bits <= ack_sch_coded_bits_w;
+                    req_pdu_type   <= 2'd0;
+                    req_target_tn  <= cfg_mcch_tn;
+                    req_second_pdu_present <= 1'b0;
+                    req_second_pdu_nr      <= 1'b0;
+                    req_valid      <= 1'b1;
+                    state          <= S_IDLE;
+                end
             end
 
             // -----------------------------------------------------------------
@@ -604,31 +573,7 @@ module tetra_mle_registration_fsm #(
 
             default: state <= S_IDLE;
             endcase
-
-            // BL-ACK counter-tick also fires `ack_pulse` for observability
-            // from states other than S_WAIT_ACK (e.g., if the MS spams BL-ACKs
-            // after the transaction is already idle).  outstanding_ns toggles
-            // only on matching states, driven by the separate register below.
-            // No state change here — S_WAIT_ACK arm above owns the transition.
         end
-    end
-
-    // -------------------------------------------------------------------------
-    // N(S) toggle register — M2 one-register-per-always rule.  M3 refinement:
-    // toggle only when state == S_WAIT_ACK, so spurious BL-ACKs arriving
-    // outside the active transaction window don't corrupt the sequence
-    // number.  Mirrors bluestation llc_bs_ms.rs::process_incoming_ack
-    // take_expected_ack_for_ssi (Z.134-142) which refuses to advance V(S)
-    // if no outstanding acknowledged entry exists.
-    // -------------------------------------------------------------------------
-    always @(posedge clk) begin
-        if (!rst_n)
-            outstanding_ns <= 1'b0;
-        else if (state == S_WAIT_ACK &&
-                 bl_ack_valid &&
-                 bl_ack_short_ssi == lat_ssi[9:0] &&
-                 bl_ack_nr == outstanding_ns)
-            outstanding_ns <= ~outstanding_ns;
     end
 
 endmodule

@@ -29,6 +29,72 @@ from decode_dl import (
 )
 
 
+def estimate_freq_offset_dqpsk(iq, sample_rate,
+                               burst_threshold_db=7.0,
+                               channel_bw_hz=25000.0):
+    """CFO for π/4-DQPSK via burst-gated passband centroid.
+
+    Bursty UL signals (MS RA / SCH/HU) have <1 % duty cycle, so the
+    broadband `estimate_freq_offset` picks noise bins between bursts.
+    Power-law methods (s⁴, s⁸) fail on oversampled IQ because
+    consecutive samples are RRC-correlated, not independent symbols.
+
+    This estimator:
+      1. Gates IQ to high-power samples (rolling-power >threshold_dB
+         above median floor) — silence set to zero
+      2. Full-length FFT of the gated stream
+      3. Finds the 25-kHz-wide window with maximum integrated energy
+         (TETRA channel bandwidth, §9.1)
+      4. Reports the power-weighted centroid of that window = carrier
+
+    Searches the full ±sample_rate/2 baseband; the 25-kHz window is
+    the signal passband width, not a search constraint.
+    """
+    iq = np.asarray(iq, dtype=np.complex128)
+    if len(iq) < 2048:
+        return float(estimate_freq_offset(iq, sample_rate))
+
+    # 1) Burst-gate: keep rolling-power > threshold above median noise
+    win = 1024
+    pwr = np.abs(iq) ** 2
+    mp = np.convolve(pwr, np.ones(win) / win, mode='same')
+    floor = float(np.median(mp)) + 1e-12
+    thr = floor * (10.0 ** (burst_threshold_db / 10.0))
+    mask = mp > thr
+    if mask.sum() < 256:
+        iq_gated = iq.copy()  # fallback: no strong bursts found
+    else:
+        iq_gated = iq.copy()
+        iq_gated[~mask] = 0.0
+
+    # 2) Full FFT of gated signal — bursts may be scattered across 30+ s
+    nfft = len(iq_gated)
+    spec = np.abs(np.fft.fft(iq_gated)) ** 2
+    freqs = np.fft.fftfreq(nfft, 1.0 / sample_rate)
+
+    # Sort into ascending frequency for sliding-window integration
+    order = np.argsort(freqs)
+    freqs_s = freqs[order]
+    spec_s = spec[order]
+
+    # 3) Rolling sum over 25-kHz window across full ±sample_rate/2
+    df = freqs_s[1] - freqs_s[0]
+    w_bins = max(4, int(round(channel_bw_hz / df)))
+    if w_bins >= len(spec_s):
+        w_bins = len(spec_s) - 1
+    cs = np.concatenate([[0.0], np.cumsum(spec_s, dtype=np.float64)])
+    win_energy = cs[w_bins:] - cs[:-w_bins]
+    best = int(np.argmax(win_energy))
+
+    # 4) Power-weighted centroid of highest-energy 25-kHz window
+    band = spec_s[best:best + w_bins]
+    band_f = freqs_s[best:best + w_bins]
+    total = band.sum()
+    if total <= 0.0:
+        return float((band_f[0] + band_f[-1]) * 0.5)
+    return float((band * band_f).sum() / total)
+
+
 from decode_dl import scrambler_seq as scrambler_seq_etsi
 
 
@@ -261,6 +327,8 @@ def main():
     ap.add_argument('--max-bursts', type=int, default=50)
     ap.add_argument('--dump-bits', action='store_true',
                     help='Print raw descrambled bits for each burst')
+    ap.add_argument('--cfo', type=float, default=None,
+                    help='Manual CFO override in Hz (skip auto-detection)')
     args = ap.parse_args()
 
     iq, sr = load_iq_file(args.wav_file, swap_iq=args.swap_iq)
@@ -269,8 +337,12 @@ def main():
     print(f'WAV: {args.wav_file}  sr={sr}  dur={len(iq)/sr:.2f}s')
 
     iq = iq / (np.median(np.abs(iq)) + 1e-12)
-    f_off = estimate_freq_offset(iq, sr)
-    print(f'  freq offset: {f_off:+.1f} Hz')
+    if args.cfo is not None:
+        f_off = float(args.cfo)
+        print(f'  freq offset: {f_off:+.1f} Hz (manual --cfo)')
+    else:
+        f_off = estimate_freq_offset_dqpsk(iq, sr)
+        print(f'  freq offset: {f_off:+.1f} Hz (π/4-DQPSK passband centroid)')
     t = np.arange(len(iq)) / sr
     iq = iq * np.exp(-2j * np.pi * f_off * t)
 

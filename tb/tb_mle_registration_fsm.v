@@ -42,12 +42,10 @@ module tb_mle_registration_fsm;
     reg         ul_llc_ns_valid   = 1'b0;
     reg         ul_llc_ns         = 1'b0;
 
-    // ---- UL BL-ACK stimulus (M2, 2026-04-24) ----
+    // ---- Legacy compatibility stimulus (currently unused by the FSM) ----
     reg         bl_ack_valid      = 1'b0;
     reg         bl_ack_nr         = 1'b0;
     reg  [9:0]  bl_ack_short_ssi  = 10'd0;
-
-    // ---- TDMA slot-pulse stimulus (M3, 2026-04-24) ----
     reg         slot_pulse        = 1'b0;
 
     // ---- Cell config ----
@@ -269,16 +267,6 @@ module tb_mle_registration_fsm;
                 $display("[T%0d %0s] PASS slot=%0d tn=%0d type=%0d",
                          test_count, tag, got_slot, got_target_tn, got_pdu_type);
             end
-            // M3 helper: after ACCEPT fires, the FSM is parked in S_WAIT_ACK.
-            // Send a matching BL-ACK so it returns to S_IDLE and the next
-            // ul_req can be consumed.  Uses the current outstanding_ns so the
-            // match succeeds independent of prior toggles.
-            @(posedge clk); #1;
-            bl_ack_short_ssi = issi[9:0];
-            bl_ack_nr        = dut.outstanding_ns;
-            bl_ack_valid     = 1'b1;
-            @(posedge clk); #1;
-            bl_ack_valid     = 1'b0;
             @(posedge clk);
         end
     endtask
@@ -344,15 +332,9 @@ module tb_mle_registration_fsm;
         expect_drop(24'd2000, "full_drop");
 
         // -------------------------------------------------------------
-        // M3 Retransmit flow (2026-04-24): after S_DELIVER the FSM is
-        // parked in S_WAIT_ACK; without a BL-ACK match, each T251=16 slot
-        // pulses must trigger a retransmit (up to N252=3 times), then
-        // lost_pulse on the 4th timeout.
-        //
-        // Clean reset + accept so lat_ssi=523 and retransmit_count=0.
-        // Note: expect_accept's auto BL-ACK would close the transaction,
-        // so we use push_request + wait_for_result directly and leave
-        // the FSM in S_WAIT_ACK.
+        // BlueStation-like registration flow: the FSM must not wait for a
+        // follow-up UL BL-ACK after delivering the Accept.  Once req_valid
+        // has pulsed, the transaction is complete and the FSM returns to IDLE.
         // -------------------------------------------------------------
         rst_n = 1'b0;
         repeat (4) @(posedge clk);
@@ -363,9 +345,9 @@ module tb_mle_registration_fsm;
         end
         @(posedge clk);
 
-        // T6: push_request SSI=523, wait for accept req_valid, do NOT ACK.
-        // FSM now in S_WAIT_ACK with retransmit_count=0.
-        begin : t6_setup
+        // T6: after delivery, the FSM should fall straight back to S_IDLE and
+        // not emit ack/retransmit/lost pulses.
+        begin : t6_return_idle
             reg got_accept, got_drop;
             reg [AST_IDX_WIDTH-1:0] got_slot;
             reg [431:0]             got_coded;
@@ -374,166 +356,25 @@ module tb_mle_registration_fsm;
             push_request(24'd523, 14'd36);
             wait_for_result(got_accept, got_drop, got_slot, got_coded,
                             got_target_tn, got_pdu_type);
-            test_count = test_count + 1;
-            if (got_accept && dut.state == 4'd12 /* S_WAIT_ACK */) begin
-                $display("[T6 m3_wait_ack_entry] PASS state=S_WAIT_ACK retransmit_count=%0d",
-                         dut.retransmit_count);
-            end else begin
-                $display("[T6 m3_wait_ack_entry] FAIL state=%0d got_accept=%b",
-                         dut.state, got_accept);
-                fail_count = fail_count + 1;
-            end
-        end
-
-        // T7: drive 16 slot_pulses (T251 expired) → first retransmit
-        begin : t7_retransmit1
-            integer k;
-            reg saw_retransmit;
-            reg saw_req;
-            saw_retransmit = 1'b0;
-            saw_req        = 1'b0;
-            for (k = 0; k < 16; k = k + 1) begin
-                @(posedge clk); #1;
-                slot_pulse = 1'b1;
-                @(posedge clk); #1;
-                slot_pulse = 1'b0;
-                if (retransmit_pulse) saw_retransmit = 1'b1;
-                if (req_valid)        saw_req        = 1'b1;
-            end
-            // One extra cycle for the S_RETRANSMIT → S_WAIT_ACK edge to settle
-            @(posedge clk); #1;
-            if (retransmit_pulse) saw_retransmit = 1'b1;
-            if (req_valid)        saw_req        = 1'b1;
-            test_count = test_count + 1;
-            if (saw_retransmit && saw_req && dut.retransmit_count == 2'd1) begin
-                $display("[T7 m3_retrans_1] PASS retransmit_pulse + req_valid, count=1");
-            end else begin
-                $display("[T7 m3_retrans_1] FAIL saw_rt=%b saw_req=%b count=%0d",
-                         saw_retransmit, saw_req, dut.retransmit_count);
-                fail_count = fail_count + 1;
-            end
-        end
-
-        // T8: another 16 slot_pulses → second retransmit, count=2
-        begin : t8_retransmit2
-            integer k;
-            reg saw_rt;
-            saw_rt = 1'b0;
-            for (k = 0; k < 16; k = k + 1) begin
-                @(posedge clk); #1;
-                slot_pulse = 1'b1;
-                @(posedge clk); #1;
-                slot_pulse = 1'b0;
-                if (retransmit_pulse) saw_rt = 1'b1;
-            end
-            @(posedge clk); #1;
-            if (retransmit_pulse) saw_rt = 1'b1;
-            test_count = test_count + 1;
-            if (saw_rt && dut.retransmit_count == 2'd2) begin
-                $display("[T8 m3_retrans_2] PASS retransmit_pulse, count=2");
-            end else begin
-                $display("[T8 m3_retrans_2] FAIL saw_rt=%b count=%0d",
-                         saw_rt, dut.retransmit_count);
-                fail_count = fail_count + 1;
-            end
-        end
-
-        // T9: another 16 slot_pulses → third retransmit, count=3 (at N252 cap)
-        begin : t9_retransmit3
-            integer k;
-            reg saw_rt;
-            saw_rt = 1'b0;
-            for (k = 0; k < 16; k = k + 1) begin
-                @(posedge clk); #1;
-                slot_pulse = 1'b1;
-                @(posedge clk); #1;
-                slot_pulse = 1'b0;
-                if (retransmit_pulse) saw_rt = 1'b1;
-            end
-            @(posedge clk); #1;
-            if (retransmit_pulse) saw_rt = 1'b1;
-            test_count = test_count + 1;
-            if (saw_rt && dut.retransmit_count == 2'd3) begin
-                $display("[T9 m3_retrans_3] PASS retransmit_pulse, count=3 (N252 cap)");
-            end else begin
-                $display("[T9 m3_retrans_3] FAIL saw_rt=%b count=%0d",
-                         saw_rt, dut.retransmit_count);
-                fail_count = fail_count + 1;
-            end
-        end
-
-        // T10: another 16 slot_pulses → N252 exhausted → lost_pulse, back to S_IDLE
-        begin : t10_lost
-            integer k;
-            reg saw_lost;
-            saw_lost = 1'b0;
-            for (k = 0; k < 16; k = k + 1) begin
-                @(posedge clk); #1;
-                slot_pulse = 1'b1;
-                @(posedge clk); #1;
-                slot_pulse = 1'b0;
-                if (lost_pulse) saw_lost = 1'b1;
-            end
-            @(posedge clk); #1;
-            if (lost_pulse) saw_lost = 1'b1;
-            test_count = test_count + 1;
-            if (saw_lost && dut.state == 4'd0 /* S_IDLE */ &&
-                dut.retransmit_count == 2'd0) begin
-                $display("[T10 m3_lost] PASS lost_pulse, state=S_IDLE, count reset");
-            end else begin
-                $display("[T10 m3_lost] FAIL saw_lost=%b state=%0d count=%0d",
-                         saw_lost, dut.state, dut.retransmit_count);
-                fail_count = fail_count + 1;
-            end
-        end
-
-        // T11: BL-ACK mid-wait → match, S_WAIT_ACK → S_IDLE.  Fresh reset
-        // so retransmit_count starts clean.
-        rst_n = 1'b0;
-        repeat (4) @(posedge clk);
-        rst_n = 1'b1;
-        @(posedge clk);
-        for (i = 0; i < AST_DEPTH; i = i + 1) begin
-            u_ast.mem[i] = {AST_REC_WIDTH{1'b0}};
-        end
-        @(posedge clk);
-        begin : t11_ack_match
-            reg got_accept, got_drop;
-            reg [AST_IDX_WIDTH-1:0] got_slot;
-            reg [431:0]             got_coded;
-            reg [1:0]               got_target_tn;
-            reg [1:0]               got_pdu_type;
-            push_request(24'd523, 14'd36);
-            wait_for_result(got_accept, got_drop, got_slot, got_coded,
-                            got_target_tn, got_pdu_type);
-            // Now in S_WAIT_ACK, outstanding_ns=0.
-            @(posedge clk); #1;
-            bl_ack_short_ssi = 10'd523;
-            bl_ack_nr        = 1'b0;
-            bl_ack_valid     = 1'b1;
-            @(posedge clk); #1;
-            bl_ack_valid     = 1'b0;
             @(posedge clk); #1;
             test_count = test_count + 1;
-            if (dut.state == 4'd0 /* S_IDLE */ && dut.outstanding_ns == 1'b1) begin
-                $display("[T11 m3_ack_match] PASS state=S_IDLE outstanding_ns=1");
+            if (got_accept &&
+                dut.state == 4'd0 /* S_IDLE */ &&
+                ack_pulse == 1'b0 &&
+                retransmit_pulse == 1'b0 &&
+                lost_pulse == 1'b0) begin
+                $display("[T6 return_idle] PASS state=S_IDLE no wait/retransmit");
             end else begin
-                $display("[T11 m3_ack_match] FAIL state=%0d outstanding_ns=%b",
-                         dut.state, dut.outstanding_ns);
+                $display("[T6 return_idle] FAIL state=%0d got_accept=%b ack=%b rt=%b lost=%b",
+                         dut.state, got_accept, ack_pulse, retransmit_pulse, lost_pulse);
                 fail_count = fail_count + 1;
             end
         end
 
         // -------------------------------------------------------------
-        // Option B (2026-04-24 commit 7): RA-IN carrying BL-DATA(ns) →
-        // the FSM must flip req_second_pdu_present=1 on the outbound
-        // ACCEPT and echo the MS N(S) as the BL-ACK's N(R) on
-        // req_second_pdu_nr.
-        //
-        // Regression strategy: capture and match the observed
-        // req_second_pdu_{present,nr} on the req_valid pulse.  The
-        // bit-level concat content is already golden'd in
-        // tb_mac_resource_dl_builder.v (T14/T15).
+        // BlueStation-level scheduler model: UL BL-DATA(ns) produces two
+        // distinct queue requests, first the Accept and then a separate BL-ACK.
+        // The old concat telemetry must stay low.
         // -------------------------------------------------------------
         rst_n = 1'b0;
         repeat (4) @(posedge clk);
@@ -544,9 +385,11 @@ module tb_mle_registration_fsm;
         end
         @(posedge clk);
 
-        begin : t12_concat_ns0
-            reg saw_second_present;
-            reg saw_second_nr;
+        begin : t12_dual_req_ns0
+            reg first_req_seen;
+            reg second_req_seen;
+            reg first_second_present;
+            reg second_second_present;
             integer wait_cycles;
             ul_ssi            = 24'd523;
             ul_la             = 14'd36;
@@ -557,39 +400,41 @@ module tb_mle_registration_fsm;
             ul_req_valid      = 1'b1;
             @(posedge clk);
             ul_req_valid      = 1'b0;
-            saw_second_present = 1'b0;
-            saw_second_nr      = 1'b0;
+            first_req_seen      = 1'b0;
+            second_req_seen     = 1'b0;
+            first_second_present= 1'b0;
+            second_second_present=1'b0;
             wait_cycles = 0;
-            while (wait_cycles < 4000 && !req_valid) begin
+            while (wait_cycles < 4000 && !second_req_seen) begin
                 @(posedge clk);
+                if (req_valid && !first_req_seen) begin
+                    first_req_seen       = 1'b1;
+                    first_second_present = req_second_pdu_present;
+                end else if (req_valid && first_req_seen && !second_req_seen) begin
+                    second_req_seen       = 1'b1;
+                    second_second_present = req_second_pdu_present;
+                end
                 wait_cycles = wait_cycles + 1;
             end
-            if (req_valid) begin
-                saw_second_present = req_second_pdu_present;
-                saw_second_nr      = req_second_pdu_nr;
-            end
             test_count = test_count + 1;
-            if (saw_second_present == 1'b1 && saw_second_nr == 1'b0) begin
-                $display("[T12 concat_ns0] PASS req_second_pdu_present=1 nr=0");
+            if (first_req_seen && second_req_seen &&
+                first_second_present == 1'b0 &&
+                second_second_present == 1'b0) begin
+                $display("[T12 dual_req_ns0] PASS separate accept+ack req_valid pulses");
             end else begin
-                $display("[T12 concat_ns0] FAIL req_valid=%b present=%b nr=%b",
-                         req_valid, saw_second_present, saw_second_nr);
+                $display("[T12 dual_req_ns0] FAIL first=%b second=%b first_present=%b second_present=%b",
+                         first_req_seen, second_req_seen,
+                         first_second_present, second_second_present);
                 fail_count = fail_count + 1;
             end
-            // Close the transaction so the FSM returns to IDLE for the
-            // next test.
-            @(posedge clk); #1;
-            bl_ack_short_ssi = 10'd523;
-            bl_ack_nr        = dut.outstanding_ns;
-            bl_ack_valid     = 1'b1;
-            @(posedge clk); #1;
-            bl_ack_valid     = 1'b0;
             @(posedge clk);
         end
 
-        begin : t13_concat_ns1
-            reg saw_second_present;
-            reg saw_second_nr;
+        begin : t13_dual_req_ns1
+            reg first_req_seen;
+            reg second_req_seen;
+            reg first_second_present;
+            reg second_second_present;
             integer wait_cycles;
             ul_ssi            = 24'd523;
             ul_la             = 14'd36;
@@ -600,23 +445,61 @@ module tb_mle_registration_fsm;
             ul_req_valid      = 1'b1;
             @(posedge clk);
             ul_req_valid      = 1'b0;
+            first_req_seen       = 1'b0;
+            second_req_seen      = 1'b0;
+            first_second_present = 1'b0;
+            second_second_present= 1'b0;
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !second_req_seen) begin
+                @(posedge clk);
+                if (req_valid && !first_req_seen) begin
+                    first_req_seen       = 1'b1;
+                    first_second_present = req_second_pdu_present;
+                end else if (req_valid && first_req_seen && !second_req_seen) begin
+                    second_req_seen       = 1'b1;
+                    second_second_present = req_second_pdu_present;
+                end
+                wait_cycles = wait_cycles + 1;
+            end
+            test_count = test_count + 1;
+            if (first_req_seen && second_req_seen &&
+                first_second_present == 1'b0 &&
+                second_second_present == 1'b0) begin
+                $display("[T13 dual_req_ns1] PASS separate accept+ack req_valid pulses");
+            end else begin
+                $display("[T13 dual_req_ns1] FAIL first=%b second=%b first_present=%b second_present=%b",
+                         first_req_seen, second_req_seen,
+                         first_second_present, second_second_present);
+                fail_count = fail_count + 1;
+            end
+        end
+
+        begin : t14_single_pdu_when_ul_not_bl_data
+            reg saw_second_present;
+            integer wait_cycles;
+            ul_ssi            = 24'd523;
+            ul_la             = 14'd36;
+            ul_llc_is_bl_data = 1'b0;
+            ul_llc_ns_valid   = 1'b0;
+            ul_llc_ns         = 1'b0;
+            @(posedge clk);
+            ul_req_valid      = 1'b1;
+            @(posedge clk);
+            ul_req_valid      = 1'b0;
             saw_second_present = 1'b0;
-            saw_second_nr      = 1'b0;
             wait_cycles = 0;
             while (wait_cycles < 4000 && !req_valid) begin
                 @(posedge clk);
                 wait_cycles = wait_cycles + 1;
             end
-            if (req_valid) begin
+            if (req_valid)
                 saw_second_present = req_second_pdu_present;
-                saw_second_nr      = req_second_pdu_nr;
-            end
             test_count = test_count + 1;
-            if (saw_second_present == 1'b1 && saw_second_nr == 1'b1) begin
-                $display("[T13 concat_ns1] PASS req_second_pdu_present=1 nr=1");
+            if (req_valid && saw_second_present == 1'b0) begin
+                $display("[T14 single_pdu] PASS only accept request emitted");
             end else begin
-                $display("[T13 concat_ns1] FAIL req_valid=%b present=%b nr=%b",
-                         req_valid, saw_second_present, saw_second_nr);
+                $display("[T14 single_pdu] FAIL req_valid=%b present=%b",
+                         req_valid, saw_second_present);
                 fail_count = fail_count + 1;
             end
         end
