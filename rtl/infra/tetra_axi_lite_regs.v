@@ -49,9 +49,13 @@
 //   0x140 TX_TDMA_LOAD  W    [1:0]TN [6:2]FN [12:7]MN [18:13]HN [31]STROBE
 //   0x144 TX_TDMA_STATE RO   [1:0]TN [6:2]FN [12:7]MN [18:13]HN [26:19]sym_cnt
 //   0x148..0x160 NULL_PDU_0..6 R/W  216-bit SCH/HD-coded static NULL-PDU
-//   0x164 UL_PDU_STATUS RO   [0]valid(sticky) [2:1]pdu_type [3]fill [5:4]enc
-//                             [6]access_ack [9:7]addr_type [31:16]pdu_count
-//   0x168 UL_PDU_SSI    RO   [9:0]short_ssi
+//   0x164 UL_PDU_STATUS RO   [0]valid(sticky) [1]pdu_type [2]fill [3]enc
+//                             [5:4]addr_type [6]opt_flag [7]frag_flag
+//                             [11:8]reservation_req [31:16]pdu_count
+//   0x168 UL_PDU_SSI    RO   [23:0]issi (full 24-bit address when addr_type
+//                             ∈ {Ssi,Ussi,Smi}; lower 10 bits hold event_label
+//                             when addr_type==EventLabel) — bluestation
+//                             mac_access.rs::from_bitbuf alignment
 //   0x16C UL_PDU_RAW_0  RO   raw_info_bits[31:0]
 //   0x170 UL_PDU_RAW_1  RO   raw_info_bits[63:32]
 //   0x174 UL_PDU_RAW_2  RO   raw_info_bits[91:64]  (28 bits, upper 4 RAZ)
@@ -274,12 +278,14 @@ module tetra_axi_lite_regs (
     // a stable snapshot of the field inputs into clk_axi-domain registers.
     // ------------------------------------------------------------------
     input  wire        ul_pdu_valid_axi,       // 1-cycle pulse, clk_axi
-    input  wire [1:0]  ul_pdu_type_axi,
+    input  wire        ul_pdu_type_axi,        // 1 bit (mac_pdu_type)
     input  wire        ul_fill_bit_axi,
-    input  wire [1:0]  ul_encryption_mode_axi,
-    input  wire        ul_access_ack_axi,
-    input  wire [2:0]  ul_address_type_axi,
-    input  wire [9:0]  ul_short_ssi_axi,
+    input  wire        ul_encryption_mode_axi, // 1 bit (encrypted)
+    input  wire [1:0]  ul_addr_type_axi,       // 2 bits (was 3)
+    input  wire [23:0] ul_issi_axi,            // 24-bit ISSI (was 10-bit short)
+    input  wire        ul_optional_field_flag_axi,
+    input  wire        ul_frag_flag_axi,
+    input  wire [3:0]  ul_reservation_req_axi,
     input  wire [91:0] ul_raw_info_bits_axi,
     input  wire [15:0] ul_pdu_count_axi,
 
@@ -524,7 +530,7 @@ localparam [6:0] REG_NULL_PDU_6     = 7'h58; // 0x160  (bits [23:0] used)
 // fires the same cycle as the clear write, hw set wins (matches IRQ_STATUS).
 // ---------------------------------------------------------------------------
 localparam [6:0] REG_UL_PDU_STATUS   = 7'h59; // 0x164  RO  sticky valid + fields
-localparam [6:0] REG_UL_PDU_SSI      = 7'h5A; // 0x168  RO  short_ssi[9:0]
+localparam [6:0] REG_UL_PDU_SSI      = 7'h5A; // 0x168  RO  issi[23:0] (full address)
 localparam [6:0] REG_UL_PDU_RAW_0    = 7'h5B; // 0x16C  RO  raw_info_bits[31:0]
 localparam [6:0] REG_UL_PDU_RAW_1    = 7'h5C; // 0x170  RO  raw_info_bits[63:32]
 localparam [6:0] REG_UL_PDU_RAW_2    = 7'h5D; // 0x174  RO  raw_info_bits[91:64]
@@ -820,7 +826,7 @@ always @(*) begin
         REG_NULL_PDU_6:   rdata_mux_axi = {8'b0, null_pdu_w6_axi};
         // UL MAC-ACCESS PDU mailbox (Task #36)
         REG_UL_PDU_STATUS: rdata_mux_axi = ul_pdu_status_axi;
-        REG_UL_PDU_SSI:    rdata_mux_axi = {22'b0, ul_short_ssi_lat_axi};
+        REG_UL_PDU_SSI:    rdata_mux_axi = {8'b0, ul_issi_lat_axi};
         REG_UL_PDU_RAW_0:  rdata_mux_axi = ul_raw_info_bits_lat_axi[31:0];
         REG_UL_PDU_RAW_1:  rdata_mux_axi = ul_raw_info_bits_lat_axi[63:32];
         REG_UL_PDU_RAW_2:  rdata_mux_axi = {4'b0, ul_raw_info_bits_lat_axi[91:64]};
@@ -1448,12 +1454,14 @@ assign null_pdu_bits_axi = {null_pdu_w0_axi, null_pdu_w1_axi, null_pdu_w2_axi,
 // never misses a PDU that arrived the same cycle it acked a prior one.
 // ---------------------------------------------------------------------------
 reg        ul_pdu_valid_sticky_axi;
-reg [1:0]  ul_pdu_type_lat_axi;
+reg        ul_pdu_type_lat_axi;
 reg        ul_fill_bit_lat_axi;
-reg [1:0]  ul_encryption_mode_lat_axi;
-reg        ul_access_ack_lat_axi;
-reg [2:0]  ul_address_type_lat_axi;
-reg [9:0]  ul_short_ssi_lat_axi;
+reg        ul_encryption_mode_lat_axi;
+reg [1:0]  ul_addr_type_lat_axi;
+reg [23:0] ul_issi_lat_axi;
+reg        ul_optional_field_flag_lat_axi;
+reg        ul_frag_flag_lat_axi;
+reg [3:0]  ul_reservation_req_lat_axi;
 reg [91:0] ul_raw_info_bits_lat_axi;
 reg [15:0] ul_pdu_count_lat_axi;
 
@@ -1471,34 +1479,50 @@ end
 
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi) begin
-        ul_pdu_type_lat_axi        <= 2'd0;
-        ul_fill_bit_lat_axi        <= 1'b0;
-        ul_encryption_mode_lat_axi <= 2'd0;
-        ul_access_ack_lat_axi      <= 1'b0;
-        ul_address_type_lat_axi    <= 3'd0;
-        ul_short_ssi_lat_axi       <= 10'd0;
-        ul_raw_info_bits_lat_axi   <= 92'd0;
-        ul_pdu_count_lat_axi       <= 16'd0;
+        ul_pdu_type_lat_axi             <= 1'b0;
+        ul_fill_bit_lat_axi             <= 1'b0;
+        ul_encryption_mode_lat_axi      <= 1'b0;
+        ul_addr_type_lat_axi            <= 2'd0;
+        ul_issi_lat_axi                 <= 24'd0;
+        ul_optional_field_flag_lat_axi  <= 1'b0;
+        ul_frag_flag_lat_axi            <= 1'b0;
+        ul_reservation_req_lat_axi      <= 4'd0;
+        ul_raw_info_bits_lat_axi        <= 92'd0;
+        ul_pdu_count_lat_axi            <= 16'd0;
     end else if (ul_pdu_valid_axi) begin
-        ul_pdu_type_lat_axi        <= ul_pdu_type_axi;
-        ul_fill_bit_lat_axi        <= ul_fill_bit_axi;
-        ul_encryption_mode_lat_axi <= ul_encryption_mode_axi;
-        ul_access_ack_lat_axi      <= ul_access_ack_axi;
-        ul_address_type_lat_axi    <= ul_address_type_axi;
-        ul_short_ssi_lat_axi       <= ul_short_ssi_axi;
-        ul_raw_info_bits_lat_axi   <= ul_raw_info_bits_axi;
-        ul_pdu_count_lat_axi       <= ul_pdu_count_axi;
+        ul_pdu_type_lat_axi             <= ul_pdu_type_axi;
+        ul_fill_bit_lat_axi             <= ul_fill_bit_axi;
+        ul_encryption_mode_lat_axi      <= ul_encryption_mode_axi;
+        ul_addr_type_lat_axi            <= ul_addr_type_axi;
+        ul_issi_lat_axi                 <= ul_issi_axi;
+        ul_optional_field_flag_lat_axi  <= ul_optional_field_flag_axi;
+        ul_frag_flag_lat_axi            <= ul_frag_flag_axi;
+        ul_reservation_req_lat_axi      <= ul_reservation_req_axi;
+        ul_raw_info_bits_lat_axi        <= ul_raw_info_bits_axi;
+        ul_pdu_count_lat_axi            <= ul_pdu_count_axi;
     end
 end
 
-wire [31:0] ul_pdu_status_axi = {ul_pdu_count_lat_axi,           // [31:16]
-                                  6'b0,                           // [15:10]
-                                  ul_address_type_lat_axi,        // [9:7]
-                                  ul_access_ack_lat_axi,          // [6]
-                                  ul_encryption_mode_lat_axi,     // [5:4]
-                                  ul_fill_bit_lat_axi,            // [3]
-                                  ul_pdu_type_lat_axi,            // [2:1]
-                                  ul_pdu_valid_sticky_axi};       // [0]
+// REG_UL_PDU_STATUS layout:
+//   [31:16] pdu_count       (sticky)
+//   [11:8]  reservation_req (4 bits)
+//   [7]     frag_flag
+//   [6]     optional_field_flag
+//   [5:4]   addr_type        (2 bits)
+//   [3]     encrypted        (1 bit)
+//   [2]     fill_bits        (1 bit)
+//   [1]     mac_pdu_type     (1 bit)
+//   [0]     valid_sticky
+wire [31:0] ul_pdu_status_axi = {ul_pdu_count_lat_axi,            // [31:16]
+                                  4'b0,                            // [15:12]
+                                  ul_reservation_req_lat_axi,      // [11:8]
+                                  ul_frag_flag_lat_axi,            // [7]
+                                  ul_optional_field_flag_lat_axi,  // [6]
+                                  ul_addr_type_lat_axi,            // [5:4]
+                                  ul_encryption_mode_lat_axi,      // [3]
+                                  ul_fill_bit_lat_axi,             // [2]
+                                  ul_pdu_type_lat_axi,             // [1]
+                                  ul_pdu_valid_sticky_axi};        // [0]
 
 // UL scrambler seed — R/W, full 32-bit, reset = 0.  MCU writes after it
 // has computed the cell extended-scrambling init from CC/MCC/MNC (same
