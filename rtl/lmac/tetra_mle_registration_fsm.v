@@ -38,10 +38,15 @@ module tetra_mle_registration_fsm #(
     input  wire                        rst_n,
 
     // -----------------------------------------------------------------
-    // Uplink request from UL MAC-ACCESS parser (1-cycle pulse)
+    // Uplink request from UL MAC-ACCESS parser (1-cycle pulse).
+    //   ul_addr_type[1:0] : MAC-ACCESS addr_type (0=Ssi/ISSI, 1=EventLabel,
+    //                       2=Ussi, 3=Smi) — bluestation
+    //                       `mac_access.rs::AddressType`.
+    //   ul_ssi[23:0]      : full 24-bit address when addr_type ∈ {0,2,3}.
+    //                       For EventLabel the lower 10 bits hold the label.
     // -----------------------------------------------------------------
     input  wire                        ul_req_valid,
-    input  wire [2:0]                  ul_addr_type,
+    input  wire [1:0]                  ul_addr_type,
     input  wire [23:0]                 ul_ssi,
     input  wire [13:0]                 ul_la,
     // Location update type from MS's U-LOC-UPDATE-DEMAND (ETSI §16.10.37);
@@ -70,7 +75,7 @@ module tetra_mle_registration_fsm #(
     // -----------------------------------------------------------------
     input  wire                        bl_ack_valid,
     input  wire                        bl_ack_nr,
-    input  wire [9:0]                  bl_ack_short_ssi,
+    input  wire [23:0]                 bl_ack_issi,
     input  wire                        slot_pulse,
 
     // -----------------------------------------------------------------

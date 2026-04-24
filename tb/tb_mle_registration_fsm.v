@@ -24,7 +24,7 @@ module tb_mle_registration_fsm;
     always #5 clk = ~clk;
 
     reg         ul_req_valid      = 1'b0;
-    reg  [2:0]  ul_addr_type      = 3'd1;
+    reg  [1:0]  ul_addr_type      = 2'd0;     // Ssi/ISSI per bluestation
     reg  [23:0] ul_ssi            = 24'd0;
     reg  [13:0] ul_la             = 14'd0;
     reg  [2:0]  ul_loc_upd_type   = 3'b011;  // ITSI attach
@@ -34,7 +34,7 @@ module tb_mle_registration_fsm;
     reg         ul_llc_ns         = 1'b0;
     reg         bl_ack_valid      = 1'b0;
     reg         bl_ack_nr         = 1'b0;
-    reg  [9:0]  bl_ack_short_ssi  = 10'd0;
+    reg  [23:0] bl_ack_issi       = 24'd0;
     reg         slot_pulse        = 1'b0;
 
     reg [13:0]  cfg_la            = 14'd36;
@@ -104,7 +104,7 @@ module tb_mle_registration_fsm;
         .ul_llc_ns        (ul_llc_ns),
         .bl_ack_valid     (bl_ack_valid),
         .bl_ack_nr        (bl_ack_nr),
-        .bl_ack_short_ssi (bl_ack_short_ssi),
+        .bl_ack_issi      (bl_ack_issi),
         .slot_pulse       (slot_pulse),
         .cfg_la           (cfg_la),
         .cfg_scramble_init(cfg_scramble_init),
