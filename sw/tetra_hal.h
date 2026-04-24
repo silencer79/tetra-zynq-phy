@@ -161,10 +161,13 @@
 #define REG_NULL_PDU_6     0x160  /* bits [23:0] used */
 
 /* UL MAC-ACCESS PDU mailbox (Task #36/#37) — parsed MS RA-burst fields.
- *   STATUS   : [0] valid_sticky, [2:1] pdu_type, [3] fill_bit,
- *              [5:4] enc_mode, [6] access_ack, [9:7] addr_type,
- *              [31:16] pdu_count
- *   SSI      : [9:0] short_ssi
+ * Bit layout per bluestation `mac_access.rs::from_bitbuf`.
+ *   STATUS   : [0] valid_sticky, [1] pdu_type, [2] fill_bit, [3] enc_mode,
+ *              [5:4] addr_type (0=Ssi, 1=EventLabel, 2=Ussi, 3=Smi),
+ *              [6] optional_field_flag, [7] frag_flag,
+ *              [11:8] reservation_req, [31:16] pdu_count
+ *   SSI      : [23:0] full 24-bit MAC-ACCESS address (issi when addr_type
+ *              ∈ {0,2,3}; lower 10 bits hold event_label when addr_type==1)
  *   RAW_0..2 : raw_info_bits[31:0]/[63:32]/[91:64]  (RAW_2 upper 4 bits RAZ)
  *   CTRL     : W1C [0] clears valid_sticky (hw-set-wins)
  *   SCRAMB_INIT : R/W 32-bit cell extended-scrambling seed
@@ -192,13 +195,15 @@
 #define REG_SHADOW_CTRL      0x18C
 #define SHADOW_CTRL_COMMIT   (1u << 0)
 
-/* UL_PDU_STATUS bitfield helpers */
+/* UL_PDU_STATUS bitfield helpers (bluestation-aligned bit layout) */
 #define UL_STATUS_VALID(s)     (((s) >> 0)  & 0x1u)
-#define UL_STATUS_PDU_TYPE(s)  (((s) >> 1)  & 0x3u)
-#define UL_STATUS_FILL_BIT(s)  (((s) >> 3)  & 0x1u)
-#define UL_STATUS_ENC_MODE(s)  (((s) >> 4)  & 0x3u)
-#define UL_STATUS_ACCESS_ACK(s)(((s) >> 6)  & 0x1u)
-#define UL_STATUS_ADDR_TYPE(s) (((s) >> 7)  & 0x7u)
+#define UL_STATUS_PDU_TYPE(s)  (((s) >> 1)  & 0x1u)
+#define UL_STATUS_FILL_BIT(s)  (((s) >> 2)  & 0x1u)
+#define UL_STATUS_ENC_MODE(s)  (((s) >> 3)  & 0x1u)
+#define UL_STATUS_ADDR_TYPE(s) (((s) >> 4)  & 0x3u)
+#define UL_STATUS_OPT_FLAG(s)  (((s) >> 6)  & 0x1u)
+#define UL_STATUS_FRAG_FLAG(s) (((s) >> 7)  & 0x1u)
+#define UL_STATUS_RES_REQ(s)   (((s) >> 8)  & 0xFu)
 #define UL_STATUS_PDU_COUNT(s) (((s) >> 16) & 0xFFFFu)
 
 /* ========================================================================

@@ -124,7 +124,12 @@ int main(int argc, char *argv[])
     while (!g_stop) {
         uint32_t status = tetra_reg_read(&hal, REG_UL_PDU_STATUS);
         if (UL_STATUS_VALID(status)) {
-            uint32_t ssi    = tetra_reg_read(&hal, REG_UL_PDU_SSI) & 0x3FF;
+            /* REG_UL_PDU_SSI now holds the full 24-bit MAC-ACCESS address
+             * (bluestation `mac_access.rs::from_bitbuf`).  Mask 0xFFFFFF —
+             * the legacy 0x3FF mask aliased every Motorola 0x282xxx ISSI
+             * onto ssi=523 and made D-LOC-UPDATE-ACCEPT replies unaddressable.
+             */
+            uint32_t ssi    = tetra_reg_read(&hal, REG_UL_PDU_SSI) & 0xFFFFFFu;
             uint32_t raw0   = tetra_reg_read(&hal, REG_UL_PDU_RAW_0);
             uint32_t raw1   = tetra_reg_read(&hal, REG_UL_PDU_RAW_1);
             uint32_t raw2   = tetra_reg_read(&hal, REG_UL_PDU_RAW_2) & 0x0FFFFFFFu;
@@ -132,8 +137,10 @@ int main(int argc, char *argv[])
             uint8_t  pdu_type = UL_STATUS_PDU_TYPE(status);
             uint8_t  fill     = UL_STATUS_FILL_BIT(status);
             uint8_t  enc      = UL_STATUS_ENC_MODE(status);
-            uint8_t  ack      = UL_STATUS_ACCESS_ACK(status);
             uint8_t  at       = UL_STATUS_ADDR_TYPE(status);
+            uint8_t  optf     = UL_STATUS_OPT_FLAG(status);
+            uint8_t  frag     = UL_STATUS_FRAG_FLAG(status);
+            uint8_t  resreq   = UL_STATUS_RES_REQ(status);
             uint16_t count    = UL_STATUS_PDU_COUNT(status);
 
             time_t now = time(NULL);
@@ -141,9 +148,10 @@ int main(int argc, char *argv[])
             char tbuf[32];
             strftime(tbuf, sizeof(tbuf), "%H:%M:%S", tm);
 
-            printf("[%s] #%u pdu=%u fill=%u enc=%u ack=%u at=%u ssi=%u "
-                   "raw=%07X%08X%08X",
-                   tbuf, count, pdu_type, fill, enc, ack, at, ssi,
+            printf("[%s] #%u pdu=%u fill=%u enc=%u at=%u ssi=%u (0x%06X) "
+                   "opt=%u frag=%u resreq=%u raw=%07X%08X%08X",
+                   tbuf, count, pdu_type, fill, enc, at, ssi, ssi,
+                   optf, frag, resreq,
                    raw2, raw1, raw0);
             if (!first && count != (uint16_t)(last_count + 1))
                 printf("  [gap last=%u]", last_count);
