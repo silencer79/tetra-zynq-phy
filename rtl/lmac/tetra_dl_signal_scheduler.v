@@ -61,6 +61,15 @@ module tetra_dl_signal_scheduler (
     input  wire [1:0]   head_pdu_type_sys,   // 00=SCH_F, 01=SCH_HD
     input  wire [1:0]   head_target_tn_sys,
     input  wire [1:0]   head_prio_sys,
+    // Option B telemetry (commit 5) — 1 iff the popped SCH/F block
+    // carries a concatenated auto-BL-ACK after the D-LOC-UPDATE-ACCEPT
+    // (see tetra_dl_signal_queue.v).  Mirrored to the per-pop output
+    // `popped_second_pdu_*` below for top-level ILA probes.
+    input  wire         head_second_pdu_present_sys,
+    input  wire         head_second_pdu_nr_sys,
+
+    output reg          popped_second_pdu_present_sys,
+    output reg          popped_second_pdu_nr_sys,
 
     // -------------------------------------------------------------------------
     // Idle default sources
@@ -191,6 +200,21 @@ module tetra_dl_signal_scheduler (
     always @(posedge clk_sys or negedge rst_n_sys) begin
         if (!rst_n_sys)                                       override_cnt_sys <= 16'd0;
         else if (have_pdu && override_cnt_sys != 16'hFFFF)    override_cnt_sys <= override_cnt_sys + 16'd1;
+    end
+
+    // Option B telemetry pass-through — latched on each pop so the value
+    // stays stable across the frame that carries the SCH/F block.
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)
+            popped_second_pdu_present_sys <= 1'b0;
+        else if (have_pdu)
+            popped_second_pdu_present_sys <= head_second_pdu_present_sys;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)
+            popped_second_pdu_nr_sys <= 1'b0;
+        else if (have_pdu)
+            popped_second_pdu_nr_sys <= head_second_pdu_nr_sys;
     end
 
     // -------------------------------------------------------------------------

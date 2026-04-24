@@ -1837,6 +1837,12 @@ tetra_dl_signal_scheduler u_dl_signal_scheduler (
     .head_pdu_type_sys      (queue_head_pdu_type_w),
     .head_target_tn_sys     (queue_head_target_tn_w),
     .head_prio_sys          (queue_head_prio_w),
+    // Option B telemetry (commit 5) — left floating at top for now;
+    // commit 6 routes to ILA / AXI debug regs.
+    .head_second_pdu_present_sys (1'b0),
+    .head_second_pdu_nr_sys      (1'b0),
+    .popped_second_pdu_present_sys (),
+    .popped_second_pdu_nr_sys      (),
     // Idle default sources (SW-driven banks, CDC-synced)
     //   null_pdu_bits  216-bit SCH/HD-coded NULL-PDU (signalling filler)
     //   sig_companion  216-bit companion half for BKN2 of SCH/HD slots
