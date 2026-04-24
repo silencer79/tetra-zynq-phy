@@ -15,17 +15,23 @@
 //   [5:6)   access_ack
 //   [6:9)   address_type
 //   [9:19)  short_subscriber_identity / event_label (10 bits)
-//   [19:23) 4-bit aux / presence-flags field (empirically 0xE for MTP3550
-//           RA; ETSI leaves this as reservation-requirement / PwrCtrl+
-//           SlotGrant+ChanAlloc pres.  Not semantically parsed by us.)
-//   [23:27) MM PDU-type (4 bits, uplink discriminator per §16.10.39)
-//   [27:30) Location update type (3 bits) — only meaningful when
-//           MM PDU-type == 0x4 (U-LOCATION-UPDATE-DEMAND).  Pass-through
-//           so the MLE registration FSM can echo the matching
-//           Location-update-accept-type in the D-LOC-UPDATE-ACCEPT response
-//           (ETSI §16.10.35a, value table identical to §16.10.37).
-//   remainder: further MM fields (class-of-MS, cipher-control, addr-ext,
-//              etc.) — not parsed here.
+//   [19:23) LLC-PDU-Type (4 bits, start of TM-SDU) —
+//           {link_type[1], has_fcs[1], bl_pdu_type[2]}
+//           per ETSI §21.2.1 Table 21.3 / bluestation
+//           `tetra-pdus::llc::enums::llc_pdu_type::LlcPduType` (values
+//           0=BL-ADATA, 1=BL-DATA, 2=BL-UDATA, 3=BL-ACK, +4=…-FCS).
+//           Extract `ns`/`nr` bits at the offsets below based on the
+//           decoded bl_pdu_type so the MLE FSM can auto-ACK incoming
+//           BL-DATA(ns) frames (bluestation llc_bs_ms.rs:488-493
+//           schedule_outgoing_ack).
+//   [23]    ns  (when bl_pdu_type ∈ {BL-ADATA, BL-DATA})
+//   [24]    nr  (when bl_pdu_type == BL-ADATA)
+//   [23]    nr  (when bl_pdu_type == BL-ACK)
+//   [23:27) MM PDU-type (4 bits) — kept as legacy output but only valid
+//           for non-LLC frames; with BL-DATA wrapping this overlaps the
+//           {ns, MLE-PD[2:0]} bits.  Consumers should prefer the new
+//           ul_llc_* outputs below.
+//   [27:30) Location update type (3 bits) — legacy, same overlap caveat.
 //
 // Only pdu_type == 2'b00 (MAC-ACCESS) is decoded; other types flag as
 // "unhandled" but still pulse pdu_valid_sys so SW can see raw bits.
@@ -84,7 +90,22 @@ module tetra_ul_mac_access_parser #(
     // the outstanding accept's session record).
     output reg                       bl_ack_valid_sys,
     output reg                       bl_ack_nr_sys,
-    output reg  [15:0]               bl_ack_count_sys  // sticky counter (debug)
+    output reg  [15:0]               bl_ack_count_sys, // sticky counter (debug)
+    // -----------------------------------------------------------------
+    // LLC-layer parse outputs (Option B / 2026-04-24 concatenated-BL-ACK
+    // flow).  Registered on the same cycle as pdu_valid_sys; flags read
+    // 0 on non-MAC-ACCESS or invalid frames.  Decoding covers bluestation
+    // LlcPduType values 0..3 (the non-FCS basic-link subset used by MS
+    // during registration).  FCS variants 4..7 currently fall through as
+    // "no match" — extend if future fixtures need them.
+    // -----------------------------------------------------------------
+    output reg                       ul_llc_is_bl_data_sys, // BL-DATA or BL-ADATA
+    output reg                       ul_llc_is_bl_ack_sys,  // BL-ACK (mirror of bl_ack_valid_sys)
+    output reg                       ul_llc_has_fcs_sys,    // [20] has_fcs
+    output reg                       ul_llc_ns_valid_sys,   // ns field present
+    output reg                       ul_llc_ns_sys,         // N(S) from MS
+    output reg                       ul_llc_nr_valid_sys,   // nr field present
+    output reg                       ul_llc_nr_sys          // N(R) from MS
 );
 
 // info_bits_sys[0] = first decoded bit = ETSI bit 0 (MSB per §21.4.3.3).
@@ -115,10 +136,34 @@ wire [2:0]  f_loc_upd_type    = {info_bits_sys[27], info_bits_sys[28],
 //   [21:22] bl_pdu_type (11 = BL-ACK)
 //   [23] N(R)
 wire        f_llc_link_type    = info_bits_sys[19];
+wire        f_llc_has_fcs      = info_bits_sys[20];
 wire [1:0]  f_llc_bl_pdu_type  = {info_bits_sys[21], info_bits_sys[22]};
 wire        f_bl_ack_nr        = info_bits_sys[23];
 wire        f_is_bl_ack        = (f_llc_link_type == 1'b0) &&
                                  (f_llc_bl_pdu_type == 2'b11);
+
+// Option-B LLC parse (2026-04-24): matches bluestation
+// crates/tetra-pdus/src/llc/pdus/{bl_data,bl_adata,bl_ack,bl_udata}.rs.
+//
+//   LlcPduType value → {link_type, has_fcs, bl_pdu_type}
+//     0 BL-ADATA   {0, 0, 00}  ns at [23], nr at [24]
+//     1 BL-DATA    {0, 0, 01}  ns at [23]
+//     2 BL-UDATA   {0, 0, 10}  no flow control
+//     3 BL-ACK     {0, 0, 11}  nr at [23]
+//
+// is_bl_data covers both BL-ADATA and BL-DATA — the MLE FSM schedules an
+// auto-BL-ACK for both cases (bluestation schedule_outgoing_ack triggers
+// whenever an incoming ns exists).
+wire        f_is_bl_adata      = (f_llc_link_type   == 1'b0) &&
+                                 (f_llc_bl_pdu_type == 2'b00);
+wire        f_is_bl_data       = (f_llc_link_type   == 1'b0) &&
+                                 (f_llc_bl_pdu_type == 2'b01);
+// f_is_bl_udata = 2'b10 — present for completeness, not latched today.
+wire        f_ns_valid         = f_is_bl_adata | f_is_bl_data;
+wire        f_nr_valid         = f_is_bl_adata | f_is_bl_ack;
+wire        f_ns_bit           = info_bits_sys[23];
+wire        f_nr_bit           = f_is_bl_adata ? info_bits_sys[24]
+                                               : info_bits_sys[23];
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
@@ -136,9 +181,20 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         bl_ack_valid_sys    <= 1'b0;
         bl_ack_nr_sys       <= 1'b0;
         bl_ack_count_sys    <= 16'd0;
+        ul_llc_is_bl_data_sys <= 1'b0;
+        ul_llc_is_bl_ack_sys  <= 1'b0;
+        ul_llc_has_fcs_sys    <= 1'b0;
+        ul_llc_ns_valid_sys   <= 1'b0;
+        ul_llc_ns_sys         <= 1'b0;
+        ul_llc_nr_valid_sys   <= 1'b0;
+        ul_llc_nr_sys         <= 1'b0;
     end else begin
-        pdu_valid_sys    <= 1'b0;
-        bl_ack_valid_sys <= 1'b0;
+        pdu_valid_sys        <= 1'b0;
+        bl_ack_valid_sys     <= 1'b0;
+        ul_llc_is_bl_data_sys<= 1'b0;
+        ul_llc_is_bl_ack_sys <= 1'b0;
+        ul_llc_ns_valid_sys  <= 1'b0;
+        ul_llc_nr_valid_sys  <= 1'b0;
         if (info_valid_sys && crc_ok_sys) begin
             pdu_type_sys        <= f_pdu_type;
             fill_bit_sys        <= f_fill_bit;
@@ -159,6 +215,16 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
                 bl_ack_nr_sys    <= f_bl_ack_nr;
                 bl_ack_count_sys <= bl_ack_count_sys + 16'd1;
             end
+            // Option B: expose per-LLC-type flags + ns/nr for the MLE
+            // FSM's BL-ACK auto-scheduler.  Latched on the same edge as
+            // pdu_valid_sys; valid flags fall back to 0 on the next cycle.
+            ul_llc_has_fcs_sys    <= f_llc_has_fcs;
+            ul_llc_is_bl_data_sys <= f_is_bl_data | f_is_bl_adata;
+            ul_llc_is_bl_ack_sys  <= f_is_bl_ack;
+            ul_llc_ns_valid_sys   <= f_ns_valid;
+            ul_llc_ns_sys         <= f_ns_bit;
+            ul_llc_nr_valid_sys   <= f_nr_valid;
+            ul_llc_nr_sys         <= f_nr_bit;
         end
     end
 end

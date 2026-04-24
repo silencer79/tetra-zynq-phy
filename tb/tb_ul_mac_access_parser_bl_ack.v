@@ -43,6 +43,13 @@ module tb_ul_mac_access_parser_bl_ack;
     wire        bl_ack_valid_w;
     wire        bl_ack_nr_w;
     wire [15:0] bl_ack_count_w;
+    wire        ul_llc_is_bl_data_w;
+    wire        ul_llc_is_bl_ack_w;
+    wire        ul_llc_has_fcs_w;
+    wire        ul_llc_ns_valid_w;
+    wire        ul_llc_ns_w;
+    wire        ul_llc_nr_valid_w;
+    wire        ul_llc_nr_w;
 
     tetra_ul_mac_access_parser u_dut (
         .clk_sys              (clk),
@@ -63,7 +70,14 @@ module tb_ul_mac_access_parser_bl_ack;
         .pdu_count_sys        (pdu_count_w),
         .bl_ack_valid_sys     (bl_ack_valid_w),
         .bl_ack_nr_sys        (bl_ack_nr_w),
-        .bl_ack_count_sys     (bl_ack_count_w)
+        .bl_ack_count_sys     (bl_ack_count_w),
+        .ul_llc_is_bl_data_sys(ul_llc_is_bl_data_w),
+        .ul_llc_is_bl_ack_sys (ul_llc_is_bl_ack_w),
+        .ul_llc_has_fcs_sys   (ul_llc_has_fcs_w),
+        .ul_llc_ns_valid_sys  (ul_llc_ns_valid_w),
+        .ul_llc_ns_sys        (ul_llc_ns_w),
+        .ul_llc_nr_valid_sys  (ul_llc_nr_valid_w),
+        .ul_llc_nr_sys        (ul_llc_nr_w)
     );
 
     // ---------------------------------------------------------------
@@ -123,11 +137,25 @@ module tb_ul_mac_access_parser_bl_ack;
     // Captured values during the 1-cycle pulse.  Refreshed per drive_frame.
     reg        cap_bl_ack_valid;
     reg        cap_bl_ack_nr;
+    reg        cap_is_bl_data;
+    reg        cap_is_bl_ack;
+    reg        cap_has_fcs;
+    reg        cap_ns_valid;
+    reg        cap_ns;
+    reg        cap_nr_valid;
+    reg        cap_nr;
 
     task drive_frame;
         begin
             cap_bl_ack_valid = 1'b0;
             cap_bl_ack_nr    = 1'b0;
+            cap_is_bl_data   = 1'b0;
+            cap_is_bl_ack    = 1'b0;
+            cap_has_fcs      = 1'b0;
+            cap_ns_valid     = 1'b0;
+            cap_ns           = 1'b0;
+            cap_nr_valid     = 1'b0;
+            cap_nr           = 1'b0;
             @(posedge clk); #1;
             info_valid = 1'b1;
             crc_ok     = 1'b1;
@@ -139,12 +167,53 @@ module tb_ul_mac_access_parser_bl_ack;
                 cap_bl_ack_valid = 1'b1;
                 cap_bl_ack_nr    = bl_ack_nr_w;
             end
+            cap_is_bl_data = ul_llc_is_bl_data_w;
+            cap_is_bl_ack  = ul_llc_is_bl_ack_w;
+            cap_has_fcs    = ul_llc_has_fcs_w;
+            cap_ns_valid   = ul_llc_ns_valid_w;
+            cap_ns         = ul_llc_ns_w;
+            cap_nr_valid   = ul_llc_nr_valid_w;
+            cap_nr         = ul_llc_nr_w;
             @(posedge clk); #1;    // drain cycle, pulse back to 0
         end
     endtask
 
     // ---------------------------------------------------------------
     integer pass_cnt, fail_cnt;
+
+    task expect_llc;
+        input        exp_is_bl_data;
+        input        exp_is_bl_ack;
+        input        exp_ns_valid;
+        input        exp_ns;
+        input        exp_nr_valid;
+        input        exp_nr;
+        input [255:0] label;
+        reg           ok;
+        begin
+            ok = (cap_is_bl_data == exp_is_bl_data) &&
+                 (cap_is_bl_ack  == exp_is_bl_ack)  &&
+                 (cap_ns_valid   == exp_ns_valid)   &&
+                 (!exp_ns_valid || cap_ns == exp_ns) &&
+                 (cap_nr_valid   == exp_nr_valid)   &&
+                 (!exp_nr_valid || cap_nr == exp_nr);
+            if (ok) begin
+                $display("  PASS  %-32s data=%0d ack=%0d ns{v%0d:%0d} nr{v%0d:%0d}",
+                         label, cap_is_bl_data, cap_is_bl_ack,
+                         cap_ns_valid, cap_ns, cap_nr_valid, cap_nr);
+                pass_cnt = pass_cnt + 1;
+            end else begin
+                $display("  FAIL  %-32s got data=%0d ack=%0d ns{v%0d:%0d} nr{v%0d:%0d}  exp data=%0d ack=%0d ns{v%0d:%0d} nr{v%0d:%0d}",
+                         label,
+                         cap_is_bl_data, cap_is_bl_ack,
+                         cap_ns_valid, cap_ns, cap_nr_valid, cap_nr,
+                         exp_is_bl_data, exp_is_bl_ack,
+                         exp_ns_valid, exp_ns, exp_nr_valid, exp_nr);
+                fail_cnt = fail_cnt + 1;
+            end
+        end
+    endtask
+
     task expect_bl_ack;
         input        exp_valid;
         input        exp_nr;
@@ -212,11 +281,60 @@ module tb_ul_mac_access_parser_bl_ack;
                     1'b0, 1'b0, 2'b10, 1'b0, 68'h0);
         drive_frame();
         expect_bl_ack(1'b0, 1'b0, "e BL-UDATA");
+        expect_llc(1'b0, 1'b0, 1'b0, 1'b0, 1'b0, 1'b0, "e BL-UDATA llc");
+
+        // ---------------------------------------------------------------
+        // Option B (2026-04-24): BL-DATA / BL-ADATA ns+nr extraction.
+        // Shared MAC-ACCESS-header fixture (ssi=523).  The new
+        // ul_llc_* outputs are checked in parallel with the existing
+        // bl_ack_valid / bl_ack_nr assertions.
+        // ---------------------------------------------------------------
+
+        // (f) BL-DATA (link=0, has_fcs=0, bl_pdu=01, ns=0)
+        build_frame(2'b00, 1'b0, 2'b00, 1'b1, 3'b010, 10'd523,
+                    1'b0, 1'b0, 2'b01, 1'b0, 68'h0);
+        drive_frame();
+        expect_bl_ack(1'b0, 1'b0, "f BL-DATA ns=0");
+        expect_llc(1'b1, 1'b0, 1'b1, 1'b0, 1'b0, 1'b0,
+                   "f BL-DATA ns=0 llc");
+
+        // (g) BL-DATA ns=1
+        build_frame(2'b00, 1'b0, 2'b00, 1'b1, 3'b010, 10'd523,
+                    1'b0, 1'b0, 2'b01, 1'b1, 68'h0);
+        drive_frame();
+        expect_llc(1'b1, 1'b0, 1'b1, 1'b1, 1'b0, 1'b0,
+                   "g BL-DATA ns=1 llc");
+
+        // (h) BL-ADATA (bl_pdu=00) with ns=1, nr=0 — nr at [24].
+        //     build_frame puts f_seq at [23] (ns), nr goes into tail[67]
+        //     which maps to info_bits[24] (first tail bit).
+        build_frame(2'b00, 1'b0, 2'b00, 1'b1, 3'b010, 10'd523,
+                    1'b0, 1'b0, 2'b00, 1'b1,
+                    {1'b0, 67'h0});                      // tail[67]=0 → bit[24]=0
+        drive_frame();
+        expect_llc(1'b1, 1'b0, 1'b1, 1'b1, 1'b1, 1'b0,
+                   "h BL-ADATA ns=1 nr=0");
+
+        // (i) BL-ADATA ns=0, nr=1
+        build_frame(2'b00, 1'b0, 2'b00, 1'b1, 3'b010, 10'd523,
+                    1'b0, 1'b0, 2'b00, 1'b0,
+                    {1'b1, 67'h0});                      // bit[24]=1
+        drive_frame();
+        expect_llc(1'b1, 1'b0, 1'b1, 1'b0, 1'b1, 1'b1,
+                   "i BL-ADATA ns=0 nr=1");
+
+        // (j) BL-ACK nr=1 — check new LLC outputs alongside legacy.
+        build_frame(2'b00, 1'b0, 2'b00, 1'b1, 3'b010, 10'd523,
+                    1'b0, 1'b0, 2'b11, 1'b1, 68'h0);
+        drive_frame();
+        expect_bl_ack(1'b1, 1'b1, "j BL-ACK nr=1 legacy");
+        expect_llc(1'b0, 1'b1, 1'b0, 1'b0, 1'b1, 1'b1,
+                   "j BL-ACK nr=1 llc");
 
         $display("==========================================");
         $display("PASS=%0d FAIL=%0d  bl_ack_count=%0d",
                  pass_cnt, fail_cnt, bl_ack_count_w);
-        if (fail_cnt == 0 && pass_cnt == 5)
+        if (fail_cnt == 0 && pass_cnt == 13)
             $display("RESULT: PASS");
         else
             $display("RESULT: FAIL");
