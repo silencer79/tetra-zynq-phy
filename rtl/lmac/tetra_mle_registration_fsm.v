@@ -120,6 +120,11 @@ module tetra_mle_registration_fsm #(
     output reg  [431:0]                req_coded_bits,
     output reg  [1:0]                  req_pdu_type,    // 00=SCH_F
     output reg  [1:0]                  req_target_tn,   // mirrors cfg_mcch_tn
+    // Option B telemetry (commit 6) — present when the delivered SCH/F
+    // block contains a concatenated BL-ACK.  Fed into the queue's
+    // wr_mle_second_pdu_* ports for downstream ILA / AXI visibility.
+    output reg                         req_second_pdu_present,
+    output reg                         req_second_pdu_nr,
 
     // -----------------------------------------------------------------
     // Debug / status
@@ -390,6 +395,8 @@ module tetra_mle_registration_fsm #(
             req_coded_bits    <= 432'd0;
             req_pdu_type      <= 2'd0;
             req_target_tn     <= 2'd0;
+            req_second_pdu_present <= 1'b0;
+            req_second_pdu_nr      <= 1'b0;
             busy              <= 1'b0;
             accept_pulse      <= 1'b0;
             drop_pulse        <= 1'b0;
@@ -520,6 +527,8 @@ module tetra_mle_registration_fsm #(
                     req_coded_bits <= sch_coded_bits_w;
                     req_pdu_type   <= 2'd0;                // SCH_F
                     req_target_tn  <= cfg_mcch_tn;
+                    req_second_pdu_present <= lat_ms_bl_data;
+                    req_second_pdu_nr      <= lat_ms_ns;
                     state          <= S_DELIVER;
                 end
             end

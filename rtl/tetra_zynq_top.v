@@ -376,6 +376,14 @@ wire [91:0] ul_raw_info_bits_sys;
 wire        ul_bl_ack_valid_sys;
 wire        ul_bl_ack_nr_sys;
 wire [15:0] ul_bl_ack_count_sys;
+// Option B (commit 6) — UL parser LLC flags for MLE auto-BL-ACK trigger
+wire        ul_llc_is_bl_data_w;
+wire        ul_llc_is_bl_ack_w;
+wire        ul_llc_has_fcs_w;
+wire        ul_llc_ns_valid_w;
+wire        ul_llc_ns_w;
+wire        ul_llc_nr_valid_w;
+wire        ul_llc_nr_w;
 
 // Cell scrambler seed for UL SCH/HU decoder — comes from AXI reg,
 // resynced clk_axi → clk_sys (see CDC block further down).
@@ -418,6 +426,8 @@ wire         mle_req_valid_w;
 wire [431:0] mle_req_coded_bits_w;
 wire [1:0]   mle_req_pdu_type_w;
 wire [1:0]   mle_req_target_tn_w;
+wire         mle_req_second_pdu_present_w;  // Option B telemetry (commit 6)
+wire         mle_req_second_pdu_nr_w;
 wire         mle_busy_w;
 wire         mle_accept_pulse_w;
 wire         mle_drop_pulse_w;
@@ -432,6 +442,10 @@ wire [431:0] queue_head_coded_w;
 wire [1:0]   queue_head_pdu_type_w;
 wire [1:0]   queue_head_target_tn_w;
 wire [1:0]   queue_head_prio_w;
+wire         queue_head_second_pdu_present_w;  // Option B telemetry (commit 6)
+wire         queue_head_second_pdu_nr_w;
+wire         popped_second_pdu_present_w;      // latched for ILA probes
+wire         popped_second_pdu_nr_w;
 wire         sched_pop_w;
 wire [3:0]   queue_depth_mask_w;
 wire [2:0]   queue_depth_count_w;
@@ -512,6 +526,13 @@ tetra_rx_chain #(
     .ul_bl_ack_valid_sys    (ul_bl_ack_valid_sys),
     .ul_bl_ack_nr_sys       (ul_bl_ack_nr_sys),
     .ul_bl_ack_count_sys    (ul_bl_ack_count_sys),
+    .ul_llc_is_bl_data_sys  (ul_llc_is_bl_data_w),
+    .ul_llc_is_bl_ack_sys   (ul_llc_is_bl_ack_w),
+    .ul_llc_has_fcs_sys     (ul_llc_has_fcs_w),
+    .ul_llc_ns_valid_sys    (ul_llc_ns_valid_w),
+    .ul_llc_ns_sys          (ul_llc_ns_w),
+    .ul_llc_nr_valid_sys    (ul_llc_nr_valid_w),
+    .ul_llc_nr_sys          (ul_llc_nr_w),
   .dbg_fe_valid_sys (dbg_fe_valid_sys),
   .dbg_tr_valid_sys (dbg_tr_valid_sys),
   .dbg_demod_valid_sys (dbg_demod_valid_sys)
@@ -1728,6 +1749,10 @@ tetra_mle_registration_fsm #(
     // FSM echoes this into the Location-update-accept-type field of the
     // D-LOC-UPDATE-ACCEPT so the MS recognises the reply (Bug #8).
     .ul_loc_upd_type  (ul_loc_upd_type_sys),
+    // Option B (commit 6) — MS N(S) from UL parser for auto-BL-ACK.
+    .ul_llc_is_bl_data(ul_llc_is_bl_data_w),
+    .ul_llc_ns_valid  (ul_llc_ns_valid_w),
+    .ul_llc_ns        (ul_llc_ns_w),
     // UL LLC BL-ACK — M1+M4 post-accept flow.  Parser pulses bl_ack_valid
     // when a MAC-ACCESS frame carries a BL-ACK (bl_pdu_type=11 at LLC
     // offset).  MLE FSM matches against lat_ssi + outstanding_ns to close
@@ -1762,6 +1787,8 @@ tetra_mle_registration_fsm #(
     .req_coded_bits   (mle_req_coded_bits_w),
     .req_pdu_type     (mle_req_pdu_type_w),
     .req_target_tn    (mle_req_target_tn_w),
+    .req_second_pdu_present (mle_req_second_pdu_present_w),
+    .req_second_pdu_nr      (mle_req_second_pdu_nr_w),
     .busy             (mle_busy_w),
     .accept_pulse     (mle_accept_pulse_w),
     .drop_pulse       (mle_drop_pulse_w),
@@ -1790,9 +1817,11 @@ tetra_dl_signal_queue #(
     .wr_mle_coded     (mle_req_coded_bits_w),
     .wr_mle_pdu_type  (mle_req_pdu_type_w),
     .wr_mle_target_tn (mle_req_target_tn_w),
-    // Option B second_pdu telemetry (commit 4/6) — wired in commit 6.
-    .wr_mle_second_pdu_present (1'b0),
-    .wr_mle_second_pdu_nr      (1'b0),
+    // Option B second_pdu telemetry (commit 6): propagate MLE-FSM's
+    // req_second_pdu_* so the queue entry carries the BL-ACK-present
+    // flag + nr for downstream ILA / AXI visibility.
+    .wr_mle_second_pdu_present (mle_req_second_pdu_present_w),
+    .wr_mle_second_pdu_nr      (mle_req_second_pdu_nr_w),
     // CMCE producer — tied off
     .wr_cmce_valid    (1'b0),
     .wr_cmce_coded    (432'd0),
@@ -1810,9 +1839,8 @@ tetra_dl_signal_queue #(
     .head_pdu_type    (queue_head_pdu_type_w),
     .head_target_tn   (queue_head_target_tn_w),
     .head_prio        (queue_head_prio_w),
-    .head_second_pdu_present (),   // unused at top (commit 5 scheduler
-                                    //  forwards for completeness)
-    .head_second_pdu_nr      (),
+    .head_second_pdu_present (queue_head_second_pdu_present_w),
+    .head_second_pdu_nr      (queue_head_second_pdu_nr_w),
     // Status
     .depth_valid_mask (queue_depth_mask_w),
     .depth_count      (queue_depth_count_w),
@@ -1837,12 +1865,10 @@ tetra_dl_signal_scheduler u_dl_signal_scheduler (
     .head_pdu_type_sys      (queue_head_pdu_type_w),
     .head_target_tn_sys     (queue_head_target_tn_w),
     .head_prio_sys          (queue_head_prio_w),
-    // Option B telemetry (commit 5) — left floating at top for now;
-    // commit 6 routes to ILA / AXI debug regs.
-    .head_second_pdu_present_sys (1'b0),
-    .head_second_pdu_nr_sys      (1'b0),
-    .popped_second_pdu_present_sys (),
-    .popped_second_pdu_nr_sys      (),
+    .head_second_pdu_present_sys   (queue_head_second_pdu_present_w),
+    .head_second_pdu_nr_sys        (queue_head_second_pdu_nr_w),
+    .popped_second_pdu_present_sys (popped_second_pdu_present_w),
+    .popped_second_pdu_nr_sys      (popped_second_pdu_nr_w),
     // Idle default sources (SW-driven banks, CDC-synced)
     //   null_pdu_bits  216-bit SCH/HD-coded NULL-PDU (signalling filler)
     //   sig_companion  216-bit companion half for BKN2 of SCH/HD slots

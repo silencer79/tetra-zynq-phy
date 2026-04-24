@@ -121,6 +121,17 @@ module tetra_rx_chain #(
     output wire                  ul_bl_ack_nr_sys,
     output wire [15:0]           ul_bl_ack_count_sys,
 
+    // Option B (2026-04-24 commit 6) — expose the UL parser's new LLC
+    // flags so the top-level can route them into the MLE registration
+    // FSM's auto-BL-ACK trigger.
+    output wire                  ul_llc_is_bl_data_sys,
+    output wire                  ul_llc_is_bl_ack_sys,
+    output wire                  ul_llc_has_fcs_sys,
+    output wire                  ul_llc_ns_valid_sys,
+    output wire                  ul_llc_ns_sys,
+    output wire                  ul_llc_nr_valid_sys,
+    output wire                  ul_llc_nr_sys,
+
   // -------------------------------------------------------------------------
   // Debug outputs (ILA probes)
   // -------------------------------------------------------------------------
@@ -355,7 +366,14 @@ tetra_ul_mac_access_parser u_ul_mac_parser (
     .pdu_count_sys       (ul_pdu_count_sys),
     .bl_ack_valid_sys    (ul_bl_ack_valid_sys),
     .bl_ack_nr_sys       (ul_bl_ack_nr_sys),
-    .bl_ack_count_sys    (ul_bl_ack_count_sys)
+    .bl_ack_count_sys    (ul_bl_ack_count_sys),
+    .ul_llc_is_bl_data_sys(ul_llc_is_bl_data_sys),
+    .ul_llc_is_bl_ack_sys (ul_llc_is_bl_ack_sys),
+    .ul_llc_has_fcs_sys   (ul_llc_has_fcs_sys),
+    .ul_llc_ns_valid_sys  (ul_llc_ns_valid_sys),
+    .ul_llc_ns_sys        (ul_llc_ns_sys),
+    .ul_llc_nr_valid_sys  (ul_llc_nr_valid_sys),
+    .ul_llc_nr_sys        (ul_llc_nr_sys)
 );
 
 // =============================================================================

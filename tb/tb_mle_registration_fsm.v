@@ -137,6 +137,8 @@ module tb_mle_registration_fsm;
         .req_coded_bits   (req_coded_bits),
         .req_pdu_type     (req_pdu_type),
         .req_target_tn    (req_target_tn),
+        .req_second_pdu_present (),
+        .req_second_pdu_nr      (),
         .busy             (busy),
         .accept_pulse     (accept_pulse),
         .drop_pulse       (drop_pulse),
