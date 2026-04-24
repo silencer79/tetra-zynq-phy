@@ -101,15 +101,21 @@ module tetra_rx_chain #(
     // -------------------------------------------------------------------------
     input  wire [31:0]           ul_scramb_init_sys,
 
-    // Parsed MAC-ACCESS PDU fields (clk_sys; top 2-FF-resyncs sys→axi)
+    // Parsed MAC-ACCESS PDU fields (clk_sys; top 2-FF-resyncs sys→axi).
+    // Bit layout per bluestation `mac_access.rs::from_bitbuf`; widths reflect
+    // the spec exactly (see tetra_ul_mac_access_parser.v header).
     output wire                  ul_pdu_valid_sys,      // 1-cycle pulse per CRC-OK PDU
     output wire [15:0]           ul_pdu_count_sys,
-    output wire [1:0]            ul_pdu_type_sys,
+    output wire                  ul_pdu_type_sys,        // 1 bit
     output wire                  ul_fill_bit_sys,
-    output wire [1:0]            ul_encryption_mode_sys,
-    output wire                  ul_access_ack_sys,
-    output wire [2:0]            ul_address_type_sys,
-    output wire [9:0]            ul_short_ssi_sys,
+    output wire                  ul_encryption_mode_sys, // 1 bit
+    output wire [1:0]            ul_addr_type_sys,       // 2 bits (was 3)
+    output wire [23:0]           ul_issi_sys,            // 24-bit ISSI when addr_type∈{0,2,3}
+    output wire [9:0]            ul_event_label_sys,     // 10-bit when addr_type==1
+    output wire                  ul_optional_field_flag_sys,
+    output wire                  ul_frag_flag_sys,
+    output wire [3:0]            ul_reservation_req_sys,
+    output wire [4:0]            ul_length_ind_sys,
     output wire [3:0]            ul_mm_pdu_type_sys,
     output wire [2:0]            ul_loc_upd_type_sys,
     output wire [91:0]           ul_raw_info_bits_sys,
@@ -356,20 +362,24 @@ tetra_ul_mac_access_parser u_ul_mac_parser (
     .info_bits_sys       (ul_info_bits_sys),
     .info_valid_sys      (ul_info_valid_sys),
     .crc_ok_sys          (ul_crc_ok_sys),
-    .pdu_type_sys        (ul_pdu_type_sys),
-    .fill_bit_sys        (ul_fill_bit_sys),
-    .encryption_mode_sys (ul_encryption_mode_sys),
-    .access_ack_sys      (ul_access_ack_sys),
-    .address_type_sys    (ul_address_type_sys),
-    .short_ssi_sys       (ul_short_ssi_sys),
-    .mm_pdu_type_sys     (ul_mm_pdu_type_sys),
-    .loc_upd_type_sys    (ul_loc_upd_type_sys),
-    .raw_info_bits_sys   (ul_raw_info_bits_sys),
-    .pdu_valid_sys       (ul_pdu_valid_sys),
-    .pdu_count_sys       (ul_pdu_count_sys),
-    .bl_ack_valid_sys    (ul_bl_ack_valid_sys),
-    .bl_ack_nr_sys       (ul_bl_ack_nr_sys),
-    .bl_ack_count_sys    (ul_bl_ack_count_sys),
+    .pdu_type_sys              (ul_pdu_type_sys),
+    .fill_bit_sys              (ul_fill_bit_sys),
+    .encryption_mode_sys       (ul_encryption_mode_sys),
+    .ul_addr_type_sys          (ul_addr_type_sys),
+    .ul_issi_sys               (ul_issi_sys),
+    .ul_event_label_sys        (ul_event_label_sys),
+    .optional_field_flag_sys   (ul_optional_field_flag_sys),
+    .ul_frag_flag_sys          (ul_frag_flag_sys),
+    .ul_reservation_req_sys    (ul_reservation_req_sys),
+    .ul_length_ind_sys         (ul_length_ind_sys),
+    .mm_pdu_type_sys           (ul_mm_pdu_type_sys),
+    .loc_upd_type_sys          (ul_loc_upd_type_sys),
+    .raw_info_bits_sys         (ul_raw_info_bits_sys),
+    .pdu_valid_sys             (ul_pdu_valid_sys),
+    .pdu_count_sys             (ul_pdu_count_sys),
+    .bl_ack_valid_sys          (ul_bl_ack_valid_sys),
+    .bl_ack_nr_sys             (ul_bl_ack_nr_sys),
+    .bl_ack_count_sys          (ul_bl_ack_count_sys),
     .ul_llc_is_bl_data_sys(ul_llc_is_bl_data_sys),
     .ul_llc_is_bl_ack_sys (ul_llc_is_bl_ack_sys),
     .ul_llc_has_fcs_sys   (ul_llc_has_fcs_sys),

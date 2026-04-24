@@ -360,15 +360,21 @@ wire                  ul_sync_found_sys;
 wire [CORR_WIDTH-1:0] ul_corr_peak_sys;
 wire [1:0]            ul_best_phase_sys;
 
-// UL MAC-ACCESS PDU parser outputs (clk_sys) — resynced to clk_axi below
+// UL MAC-ACCESS PDU parser outputs (clk_sys) — resynced to clk_axi below.
+// Bit layout per bluestation `mac_access.rs::from_bitbuf`:
+//   addr_type 2 bits, address 24 bits (or 10-bit event_label).
 wire        ul_pdu_valid_sys;
 wire [15:0] ul_pdu_count_sys;
-wire [1:0]  ul_pdu_type_sys;
+wire        ul_pdu_type_sys;          // 1 bit  (was 2)
 wire        ul_fill_bit_sys;
-wire [1:0]  ul_encryption_mode_sys;
-wire        ul_access_ack_sys;
-wire [2:0]  ul_address_type_sys;
-wire [9:0]  ul_short_ssi_sys;
+wire        ul_encryption_mode_sys;   // 1 bit  (was 2)
+wire [1:0]  ul_addr_type_sys;         // 2 bits (was 3 in ul_address_type_sys)
+wire [23:0] ul_issi_sys;              // 24-bit ISSI (replaces 10-bit short_ssi)
+wire [9:0]  ul_event_label_sys;
+wire        ul_optional_field_flag_sys;
+wire        ul_frag_flag_sys;
+wire [3:0]  ul_reservation_req_sys;
+wire [4:0]  ul_length_ind_sys;
 wire [3:0]  ul_mm_pdu_type_sys;
 wire [2:0]  ul_loc_upd_type_sys;
 wire [91:0] ul_raw_info_bits_sys;
@@ -519,9 +525,13 @@ tetra_rx_chain #(
     .ul_pdu_type_sys        (ul_pdu_type_sys),
     .ul_fill_bit_sys        (ul_fill_bit_sys),
     .ul_encryption_mode_sys (ul_encryption_mode_sys),
-    .ul_access_ack_sys      (ul_access_ack_sys),
-    .ul_address_type_sys    (ul_address_type_sys),
-    .ul_short_ssi_sys       (ul_short_ssi_sys),
+    .ul_addr_type_sys       (ul_addr_type_sys),
+    .ul_issi_sys            (ul_issi_sys),
+    .ul_event_label_sys     (ul_event_label_sys),
+    .ul_optional_field_flag_sys (ul_optional_field_flag_sys),
+    .ul_frag_flag_sys       (ul_frag_flag_sys),
+    .ul_reservation_req_sys (ul_reservation_req_sys),
+    .ul_length_ind_sys      (ul_length_ind_sys),
     .ul_mm_pdu_type_sys     (ul_mm_pdu_type_sys),
     .ul_loc_upd_type_sys    (ul_loc_upd_type_sys),
     .ul_raw_info_bits_sys   (ul_raw_info_bits_sys),
@@ -1278,18 +1288,22 @@ end
 wire ul_pdu_valid_axi_pulse = ul_pdu_tgl_axi_r1 ^ ul_pdu_tgl_axi_r2;
 
 // Per-bit 2-FF resync of the parsed fields (data stable when pulse fires)
-(* ASYNC_REG = "TRUE" *) reg [1:0]  ul_pdu_type_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [1:0]  ul_pdu_type_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg        ul_pdu_type_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg        ul_pdu_type_axi_r1;
 (* ASYNC_REG = "TRUE" *) reg        ul_fill_bit_axi_r0;
 (* ASYNC_REG = "TRUE" *) reg        ul_fill_bit_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [1:0]  ul_encryption_mode_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [1:0]  ul_encryption_mode_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg        ul_access_ack_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg        ul_access_ack_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [2:0]  ul_address_type_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [2:0]  ul_address_type_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [9:0]  ul_short_ssi_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [9:0]  ul_short_ssi_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg        ul_encryption_mode_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg        ul_encryption_mode_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  ul_addr_type_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [1:0]  ul_addr_type_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [23:0] ul_issi_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [23:0] ul_issi_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg        ul_optional_field_flag_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg        ul_optional_field_flag_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg        ul_frag_flag_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg        ul_frag_flag_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [3:0]  ul_reservation_req_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0]  ul_reservation_req_axi_r1;
 (* ASYNC_REG = "TRUE" *) reg [91:0] ul_raw_info_bits_axi_r0;
 (* ASYNC_REG = "TRUE" *) reg [91:0] ul_raw_info_bits_axi_r1;
 (* ASYNC_REG = "TRUE" *) reg [15:0] ul_pdu_count_axi_r0;
@@ -1297,39 +1311,47 @@ wire ul_pdu_valid_axi_pulse = ul_pdu_tgl_axi_r1 ^ ul_pdu_tgl_axi_r2;
 
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     if (!rst_n_axi) begin
-        ul_pdu_type_axi_r0        <= 2'd0;
-        ul_pdu_type_axi_r1        <= 2'd0;
-        ul_fill_bit_axi_r0        <= 1'b0;
-        ul_fill_bit_axi_r1        <= 1'b0;
-        ul_encryption_mode_axi_r0 <= 2'd0;
-        ul_encryption_mode_axi_r1 <= 2'd0;
-        ul_access_ack_axi_r0      <= 1'b0;
-        ul_access_ack_axi_r1      <= 1'b0;
-        ul_address_type_axi_r0    <= 3'd0;
-        ul_address_type_axi_r1    <= 3'd0;
-        ul_short_ssi_axi_r0       <= 10'd0;
-        ul_short_ssi_axi_r1       <= 10'd0;
-        ul_raw_info_bits_axi_r0   <= 92'd0;
-        ul_raw_info_bits_axi_r1   <= 92'd0;
-        ul_pdu_count_axi_r0       <= 16'd0;
-        ul_pdu_count_axi_r1       <= 16'd0;
+        ul_pdu_type_axi_r0            <= 1'b0;
+        ul_pdu_type_axi_r1            <= 1'b0;
+        ul_fill_bit_axi_r0            <= 1'b0;
+        ul_fill_bit_axi_r1            <= 1'b0;
+        ul_encryption_mode_axi_r0     <= 1'b0;
+        ul_encryption_mode_axi_r1     <= 1'b0;
+        ul_addr_type_axi_r0           <= 2'd0;
+        ul_addr_type_axi_r1           <= 2'd0;
+        ul_issi_axi_r0                <= 24'd0;
+        ul_issi_axi_r1                <= 24'd0;
+        ul_optional_field_flag_axi_r0 <= 1'b0;
+        ul_optional_field_flag_axi_r1 <= 1'b0;
+        ul_frag_flag_axi_r0           <= 1'b0;
+        ul_frag_flag_axi_r1           <= 1'b0;
+        ul_reservation_req_axi_r0     <= 4'd0;
+        ul_reservation_req_axi_r1     <= 4'd0;
+        ul_raw_info_bits_axi_r0       <= 92'd0;
+        ul_raw_info_bits_axi_r1       <= 92'd0;
+        ul_pdu_count_axi_r0           <= 16'd0;
+        ul_pdu_count_axi_r1           <= 16'd0;
     end else begin
-        ul_pdu_type_axi_r0        <= ul_pdu_type_sys;
-        ul_pdu_type_axi_r1        <= ul_pdu_type_axi_r0;
-        ul_fill_bit_axi_r0        <= ul_fill_bit_sys;
-        ul_fill_bit_axi_r1        <= ul_fill_bit_axi_r0;
-        ul_encryption_mode_axi_r0 <= ul_encryption_mode_sys;
-        ul_encryption_mode_axi_r1 <= ul_encryption_mode_axi_r0;
-        ul_access_ack_axi_r0      <= ul_access_ack_sys;
-        ul_access_ack_axi_r1      <= ul_access_ack_axi_r0;
-        ul_address_type_axi_r0    <= ul_address_type_sys;
-        ul_address_type_axi_r1    <= ul_address_type_axi_r0;
-        ul_short_ssi_axi_r0       <= ul_short_ssi_sys;
-        ul_short_ssi_axi_r1       <= ul_short_ssi_axi_r0;
-        ul_raw_info_bits_axi_r0   <= ul_raw_info_bits_sys;
-        ul_raw_info_bits_axi_r1   <= ul_raw_info_bits_axi_r0;
-        ul_pdu_count_axi_r0       <= ul_pdu_count_sys;
-        ul_pdu_count_axi_r1       <= ul_pdu_count_axi_r0;
+        ul_pdu_type_axi_r0            <= ul_pdu_type_sys;
+        ul_pdu_type_axi_r1            <= ul_pdu_type_axi_r0;
+        ul_fill_bit_axi_r0            <= ul_fill_bit_sys;
+        ul_fill_bit_axi_r1            <= ul_fill_bit_axi_r0;
+        ul_encryption_mode_axi_r0     <= ul_encryption_mode_sys;
+        ul_encryption_mode_axi_r1     <= ul_encryption_mode_axi_r0;
+        ul_addr_type_axi_r0           <= ul_addr_type_sys;
+        ul_addr_type_axi_r1           <= ul_addr_type_axi_r0;
+        ul_issi_axi_r0                <= ul_issi_sys;
+        ul_issi_axi_r1                <= ul_issi_axi_r0;
+        ul_optional_field_flag_axi_r0 <= ul_optional_field_flag_sys;
+        ul_optional_field_flag_axi_r1 <= ul_optional_field_flag_axi_r0;
+        ul_frag_flag_axi_r0           <= ul_frag_flag_sys;
+        ul_frag_flag_axi_r1           <= ul_frag_flag_axi_r0;
+        ul_reservation_req_axi_r0     <= ul_reservation_req_sys;
+        ul_reservation_req_axi_r1     <= ul_reservation_req_axi_r0;
+        ul_raw_info_bits_axi_r0       <= ul_raw_info_bits_sys;
+        ul_raw_info_bits_axi_r1       <= ul_raw_info_bits_axi_r0;
+        ul_pdu_count_axi_r0           <= ul_pdu_count_sys;
+        ul_pdu_count_axi_r1           <= ul_pdu_count_axi_r0;
     end
 end
 
@@ -1604,16 +1626,18 @@ tetra_axi_lite_regs u_axi_regs (
     .tx_tdma_state_sym_cnt_axi(tx_tdma_state_sym_cnt_axi_r1),
     // UL MAC-ACCESS PDU mailbox (Task #36/#37) — MAC parser outputs
     // resynced clk_sys → clk_axi in the CDC block below.
-    .ul_pdu_valid_axi        (ul_pdu_valid_axi_pulse),
-    .ul_pdu_type_axi         (ul_pdu_type_axi_r1),
-    .ul_fill_bit_axi         (ul_fill_bit_axi_r1),
-    .ul_encryption_mode_axi  (ul_encryption_mode_axi_r1),
-    .ul_access_ack_axi       (ul_access_ack_axi_r1),
-    .ul_address_type_axi     (ul_address_type_axi_r1),
-    .ul_short_ssi_axi        (ul_short_ssi_axi_r1),
-    .ul_raw_info_bits_axi    (ul_raw_info_bits_axi_r1),
-    .ul_pdu_count_axi        (ul_pdu_count_axi_r1),
-    .ul_scramb_init_axi      (ul_scramb_init_axi_w),
+    .ul_pdu_valid_axi             (ul_pdu_valid_axi_pulse),
+    .ul_pdu_type_axi              (ul_pdu_type_axi_r1),
+    .ul_fill_bit_axi              (ul_fill_bit_axi_r1),
+    .ul_encryption_mode_axi       (ul_encryption_mode_axi_r1),
+    .ul_addr_type_axi             (ul_addr_type_axi_r1),
+    .ul_issi_axi                  (ul_issi_axi_r1),
+    .ul_optional_field_flag_axi   (ul_optional_field_flag_axi_r1),
+    .ul_frag_flag_axi             (ul_frag_flag_axi_r1),
+    .ul_reservation_req_axi       (ul_reservation_req_axi_r1),
+    .ul_raw_info_bits_axi         (ul_raw_info_bits_axi_r1),
+    .ul_pdu_count_axi             (ul_pdu_count_axi_r1),
+    .ul_scramb_init_axi           (ul_scramb_init_axi_w),
     // Subscriber-Shadow indirect write window (Phase 6 M2.3 — 0x180..0x18C)
     .shadow_wr_idx_axi       (shadow_wr_idx_w),
     .shadow_wr_data_axi      (shadow_wr_data_w),
@@ -1727,7 +1751,11 @@ tetra_active_session_table #(
 // downlink scrambler init from ETSI §8.2.5.2 and matches the UL seed
 // numerically when SW programs REG_UL_SCRAMB_INIT with the same formula.
 // =============================================================================
-wire [23:0] mle_ul_ssi_w = {14'd0, ul_short_ssi_sys};
+// Real 24-bit ISSI from the corrected MAC-ACCESS parser.  Used to address
+// the D-LOC-UPDATE-ACCEPT reply so the MS recognises the response as its
+// own (the previous 10-bit short_ssi was bit-misaligned and produced
+// ssi=523 for every Motorola MS — see commit `feat(ul-parser):` for fix).
+wire [23:0] mle_ul_ssi_w = ul_issi_sys;
 wire        mle_ul_req_wrapped_w =
     ul_pdu_valid_sys &&
     ul_llc_is_bl_data_w &&
@@ -1757,7 +1785,7 @@ tetra_mle_registration_fsm #(
     .rst_n            (rst_n_sys),
     // UL request
     .ul_req_valid     (mle_ul_req_valid_w),
-    .ul_addr_type     (ul_address_type_sys),
+    .ul_addr_type     (ul_addr_type_sys),
     .ul_ssi           (mle_ul_ssi_w),
     // TODO Bug #3: wire ul_location_area_sys from the MAC-ACCESS parser
     // once the LA field is extracted from U-REGISTER/U-LOCATION-UPDATE.
@@ -1781,7 +1809,7 @@ tetra_mle_registration_fsm #(
     // of the per-session match; MTP3550 test-SSI 523 fits cleanly.
     .bl_ack_valid     (ul_bl_ack_valid_sys),
     .bl_ack_nr        (ul_bl_ack_nr_sys),
-    .bl_ack_short_ssi (ul_short_ssi_sys),
+    .bl_ack_issi      (ul_issi_sys),
     // Timeslot tick for the T251 retransmit timer (M3 — 16 slots to
     // timeout, N252=3 retries).  tx_slot_pulse_sys pulses once per slot.
     .slot_pulse       (tx_tdma_state_slot_pulse_sys),
