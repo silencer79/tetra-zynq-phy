@@ -175,6 +175,42 @@ module tetra_mle_registration_fsm #(
     );
 
     // -------------------------------------------------------------------------
+    // BasicSlotgrant + ChanAllocElement encoders — structurally wired in
+    // ahead of Phase-6 call-setup / paging callers.  For D-LOC-UPDATE-ACCEPT
+    // all three MAC-RESOURCE flag inputs on the builder are tied 0 so the
+    // builder skips the optional elements regardless of what these encoders
+    // output.  Both encoders are pure combinational — they synthesise to
+    // constant zeros here (all-zero inputs propagate through).
+    //
+    // Phase-6 callers will replace these zero stimuli with real semantic
+    // values (capacity_allocation, granting_delay, carrier_num, ...) and
+    // flip the corresponding *_flag on the builder interface — no further
+    // rewiring needed.
+    // -------------------------------------------------------------------------
+    wire [7:0]  slot_grant_packed_w;
+    tetra_basic_slotgrant_encoder u_slotgrant (
+        .capacity_allocation (4'd0),
+        .granting_delay      (4'd0),
+        .packed_element      (slot_grant_packed_w)
+    );
+
+    wire [31:0] chan_alloc_packed_w;
+    wire [4:0]  chan_alloc_len_w;
+    tetra_chan_alloc_encoder u_chanalloc (
+        .alloc_type          (2'd0),
+        .ts_assigned         (4'd0),
+        .ul_dl_assigned      (2'd0),
+        .clch_permission     (1'b0),
+        .cell_change_flag    (1'b0),
+        .carrier_num         (12'd0),
+        .mon_pattern         (2'd3),   // non-zero → 25-bit form, matches
+                                       // bluestation "replace_lab" default
+        .frame18_mon_pattern (2'd0),
+        .packed_element      (chan_alloc_packed_w),
+        .element_len         (chan_alloc_len_w)
+    );
+
+    // -------------------------------------------------------------------------
     // MAC-RESOURCE DL builder — 80-bit MM PDU → 268-bit SCH/F info payload.
     // Triggered from S_BUILD_START.
     // TODO: widen AST record to carry N(S)/N(R) and forward them here.  For
@@ -209,11 +245,14 @@ module tetra_mle_registration_fsm #(
         // call-setup callsites will set these to actual values.
         .power_control_flag       (1'b0),
         .power_control_element    (4'd0),
+        // Flag=0 → builder skips the element.  Outputs of u_slotgrant /
+        // u_chanalloc are wired in so Phase-6 callers can flip the flag
+        // without further structural changes.
         .slot_granting_flag       (1'b0),
-        .slot_granting_element    (8'd0),
+        .slot_granting_element    (slot_grant_packed_w),
         .chan_alloc_flag          (1'b0),
-        .chan_alloc_element       (32'd0),
-        .chan_alloc_element_len   (5'd0),
+        .chan_alloc_element       (chan_alloc_packed_w),
+        .chan_alloc_element_len   (chan_alloc_len_w),
         .mm_pdu_bits       (dloc_mm_bits_w),
         .mm_pdu_len_bits   (dloc_mm_len_w),
         .pdu_bits          (builder_pdu_bits_w),
