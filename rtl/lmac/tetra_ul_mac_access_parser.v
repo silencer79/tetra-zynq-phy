@@ -30,6 +30,27 @@
 // Only pdu_type == 2'b00 (MAC-ACCESS) is decoded; other types flag as
 // "unhandled" but still pulse pdu_valid_sys so SW can see raw bits.
 //
+// Separate LLC BL-ACK detection (M1 of 2026-04-24 post-accept flow):
+//
+// The 19-bit MAC-ACCESS header (bit 0..18) is followed by a 5-bit LLC
+// header — ETSI §22.2.1, bluestation `tetra-pdus::llc::pdus::bl_ack`:
+//
+//     [19]   llc_link_type = 0
+//     [20]   has_fcs       (0 = BL-ACK, 1 = BL-ACK-FCS)
+//     [21:22] bl_pdu_type  (11 = BL-ACK per Clause 21.2.2.1)
+//     [23]   N(R)          acknowledged sender sequence number
+//
+// When bl_pdu_type == 11 at [21:22] and llc_link_type == 0 at [19], the
+// PDU is a standalone BL-ACK from the MS.  The MLE registration FSM
+// consumes `bl_ack_valid_sys` + `bl_ack_nr_sys` + `short_ssi_sys` to
+// terminate the acknowledged BL-DATA transaction that carried
+// D-LOCATION-UPDATE-ACCEPT.  Cf. `llc_bs_ms.rs::process_incoming_ack`.
+//
+// NOTE: The existing MM-PDU-Type / loc-upd-type fields at [23:27)/[27:30)
+// are decoded IN PARALLEL with BL-ACK detection — when the MS sends an
+// MM-DEMAND the BL-ACK check resolves to 0 (no match at [21:22]==11),
+// and vice versa.  No cross-talk.
+//
 // =============================================================================
 
 `default_nettype none
@@ -54,7 +75,16 @@ module tetra_ul_mac_access_parser #(
     output reg  [2:0]                loc_upd_type_sys,  // bits [27:30)
     output reg  [INFO_BITS-1:0]      raw_info_bits_sys,
     output reg                       pdu_valid_sys,    // 1-cycle pulse
-    output reg  [15:0]               pdu_count_sys     // sticky counter
+    output reg  [15:0]               pdu_count_sys,    // sticky counter
+    // LLC BL-ACK detection (M1, 2026-04-24)
+    // bl_ack_valid_sys pulses 1 cycle coincident with pdu_valid_sys when the
+    // 5-bit LLC header at [19:24) matches BL-ACK: link_type=0, bl_pdu_type=11.
+    // bl_ack_nr_sys latches the N(R) bit (position [23]) on the same edge.
+    // SSI match happens downstream (MLE FSM compares short_ssi_sys against
+    // the outstanding accept's session record).
+    output reg                       bl_ack_valid_sys,
+    output reg                       bl_ack_nr_sys,
+    output reg  [15:0]               bl_ack_count_sys  // sticky counter (debug)
 );
 
 // info_bits_sys[0] = first decoded bit = ETSI bit 0 (MSB per §21.4.3.3).
@@ -78,6 +108,18 @@ wire [3:0]  f_mm_pdu_type     = {info_bits_sys[23], info_bits_sys[24],
 wire [2:0]  f_loc_upd_type    = {info_bits_sys[27], info_bits_sys[28],
                                  info_bits_sys[29]};
 
+// LLC BL-ACK detector at bits [19:24) — parallel path, does not affect
+// the MM-field decoders above.  ETSI §22.2.1 / bluestation bl_ack.rs:
+//   [19] llc_link_type  (0 = Basic Link)
+//   [20] has_fcs
+//   [21:22] bl_pdu_type (11 = BL-ACK)
+//   [23] N(R)
+wire        f_llc_link_type    = info_bits_sys[19];
+wire [1:0]  f_llc_bl_pdu_type  = {info_bits_sys[21], info_bits_sys[22]};
+wire        f_bl_ack_nr        = info_bits_sys[23];
+wire        f_is_bl_ack        = (f_llc_link_type == 1'b0) &&
+                                 (f_llc_bl_pdu_type == 2'b11);
+
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
         pdu_type_sys        <= 2'd0;
@@ -91,8 +133,12 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         raw_info_bits_sys   <= {INFO_BITS{1'b0}};
         pdu_valid_sys       <= 1'b0;
         pdu_count_sys       <= 16'd0;
+        bl_ack_valid_sys    <= 1'b0;
+        bl_ack_nr_sys       <= 1'b0;
+        bl_ack_count_sys    <= 16'd0;
     end else begin
-        pdu_valid_sys <= 1'b0;
+        pdu_valid_sys    <= 1'b0;
+        bl_ack_valid_sys <= 1'b0;
         if (info_valid_sys && crc_ok_sys) begin
             pdu_type_sys        <= f_pdu_type;
             fill_bit_sys        <= f_fill_bit;
@@ -105,6 +151,14 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
             raw_info_bits_sys   <= info_bits_sys;
             pdu_valid_sys       <= 1'b1;
             pdu_count_sys       <= pdu_count_sys + 16'd1;
+            // BL-ACK detection — only fires on MAC-ACCESS frames with
+            // bl_pdu_type=11 at the ETSI-strict LLC offset.  Orthogonal to
+            // MM-PDU-type decoder above; both can evaluate the same frame.
+            if (f_is_bl_ack) begin
+                bl_ack_valid_sys <= 1'b1;
+                bl_ack_nr_sys    <= f_bl_ack_nr;
+                bl_ack_count_sys <= bl_ack_count_sys + 16'd1;
+            end
         end
     end
 end

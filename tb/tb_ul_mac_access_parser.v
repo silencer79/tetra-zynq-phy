@@ -40,9 +40,14 @@ wire [1:0]  encryption_mode_w;
 wire        access_ack_w;
 wire [2:0]  address_type_w;
 wire [9:0]  short_ssi_w;
+wire [3:0]  mm_pdu_type_w;
+wire [2:0]  loc_upd_type_w;
 wire [91:0] raw_w;
 wire        pdu_valid_w;
 wire [15:0] pdu_count_w;
+wire        bl_ack_valid_w;
+wire        bl_ack_nr_w;
+wire [15:0] bl_ack_count_w;
 
 tetra_ul_mac_access_parser u_dut (
     .clk_sys              (clk),
@@ -56,9 +61,14 @@ tetra_ul_mac_access_parser u_dut (
     .access_ack_sys       (access_ack_w),
     .address_type_sys     (address_type_w),
     .short_ssi_sys        (short_ssi_w),
+    .mm_pdu_type_sys      (mm_pdu_type_w),
+    .loc_upd_type_sys     (loc_upd_type_w),
     .raw_info_bits_sys    (raw_w),
     .pdu_valid_sys        (pdu_valid_w),
-    .pdu_count_sys        (pdu_count_w)
+    .pdu_count_sys        (pdu_count_w),
+    .bl_ack_valid_sys     (bl_ack_valid_w),
+    .bl_ack_nr_sys        (bl_ack_nr_w),
+    .bl_ack_count_sys     (bl_ack_count_w)
 );
 
 reg [7:0]  exp_bytes [0:N_RECORDS*13 - 1];
@@ -141,8 +151,145 @@ initial begin
         end
     end
 
+    // ---------------------------------------------------------------
+    // BL-ACK Inline Tests (M1 of 2026-04-24)
+    // Synthetic frames with LLC-header BL-ACK pattern at bits [19:24)
+    // to verify bl_ack_valid_sys / bl_ack_nr_sys detection.
+    //
+    // Frame layout (MSB bit 0):
+    //   [0:2)  pdu_type     = 00  (MAC-ACCESS)
+    //   [2:3)  fill_bit     = 0
+    //   [3:5)  encryption   = 00
+    //   [5:6)  access_ack   = 0
+    //   [6:9)  addr_type    = 010 (short_ssi 10-bit present)
+    //   [9:19) short_ssi    = 0x20B (= 523 decimal, MTP3550 empirical)
+    //   [19]   llc_link_type = 0
+    //   [20]   has_fcs      = 0
+    //   [21:22] bl_pdu_type = 11 (BL-ACK)
+    //   [23]   N(R)         = 0 or 1
+    //   [24:92] fill=0
+    // ---------------------------------------------------------------
+
+    $display("--- BL-ACK inline tests ---");
+
+    // Build mask: bits [0:19) = 00_0_00_0_010_0100001011 (for addr_type=2, ssi=523)
+    // Bit layout concrete values:
+    //   bit 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:1, 8:0    ( addr_type=010 )
+    //   bit 9..18 = 10-bit ssi 523 = 0b1000001011
+    //   → bits 9..18 = 1,0,0,0,0,0,1,0,1,1
+    // Then LLC header at 19..23:
+    //   19:0, 20:0, 21:1, 22:1, 23:nr
+
+    // --- Test BL-ACK nr=0 ---
+    info_tmp = 92'd0;
+    // addr_type bits 6,7,8 = 0,1,0
+    info_tmp[7] = 1'b1;
+    // short_ssi = 523 = 0b10_0000_1011
+    info_tmp[9]  = 1'b1; // MSB
+    info_tmp[15] = 1'b1;
+    info_tmp[17] = 1'b1;
+    info_tmp[18] = 1'b1;
+    // LLC BL-ACK: bits 21,22 = 1,1 ; nr=0 at bit 23
+    info_tmp[21] = 1'b1;
+    info_tmp[22] = 1'b1;
+    // bit 23 nr=0 (already zero)
+
+    @(posedge clk); #1;
+    info_bits  = info_tmp;
+    info_valid = 1'b1;
+    crc_ok     = 1'b1;
+    @(posedge clk); #1;
+    // bl_ack_valid_w is a 1-cycle pulse — sampled HERE while info_valid still 1,
+    // deassert info_valid for the *next* edge but latch the pulse readout first.
+    info_valid = 1'b0;
+    crc_ok     = 1'b0;
+
+    if (bl_ack_valid_w && bl_ack_nr_w == 1'b0 && short_ssi_w == 10'd523) begin
+        $display("  BL-ACK nr=0  PASS  bl_ack_nr=%0d short_ssi=%0d", bl_ack_nr_w, short_ssi_w);
+        pass_cnt = pass_cnt + 1;
+    end else begin
+        $display("  BL-ACK nr=0  FAIL  valid=%b nr=%0d ssi=%0d",
+                 bl_ack_valid_w, bl_ack_nr_w, short_ssi_w);
+        fail_cnt = fail_cnt + 1;
+    end
+    @(posedge clk); #1;   // pulse cleared here
+
+    // --- Test BL-ACK nr=1 ---
+    info_tmp[23] = 1'b1;  // nr=1
+
+    @(posedge clk); #1;
+    info_bits  = info_tmp;
+    info_valid = 1'b1;
+    crc_ok     = 1'b1;
+    @(posedge clk); #1;
+    info_valid = 1'b0;
+    crc_ok     = 1'b0;
+
+    if (bl_ack_valid_w && bl_ack_nr_w == 1'b1) begin
+        $display("  BL-ACK nr=1  PASS  bl_ack_nr=%0d", bl_ack_nr_w);
+        pass_cnt = pass_cnt + 1;
+    end else begin
+        $display("  BL-ACK nr=1  FAIL  valid=%b nr=%0d",
+                 bl_ack_valid_w, bl_ack_nr_w);
+        fail_cnt = fail_cnt + 1;
+    end
+    @(posedge clk); #1;
+
+    // --- Test NOT-BL-ACK: bl_pdu_type = 01 (BL-DATA) ---
+    // Expect bl_ack_valid=0 (no false positive on BL-DATA)
+    info_tmp = 92'd0;
+    info_tmp[7] = 1'b1;  // addr_type=2
+    info_tmp[21] = 1'b0; // bl_pdu_type = 01 (BL-DATA)
+    info_tmp[22] = 1'b1;
+
+    @(posedge clk); #1;
+    info_bits  = info_tmp;
+    info_valid = 1'b1;
+    crc_ok     = 1'b1;
+    @(posedge clk); #1;
+    info_valid = 1'b0;
+    crc_ok     = 1'b0;
+    @(posedge clk); #1;
+
+    if (!bl_ack_valid_w) begin
+        $display("  BL-DATA reject  PASS  bl_ack_valid=%b (expected 0)", bl_ack_valid_w);
+        pass_cnt = pass_cnt + 1;
+    end else begin
+        $display("  BL-DATA reject  FAIL  bl_ack_valid=%b (got false positive)",
+                 bl_ack_valid_w);
+        fail_cnt = fail_cnt + 1;
+    end
+
+    // --- Test NOT-BL-ACK: llc_link_type=1 (advanced link) ---
+    // Expect bl_ack_valid=0
+    info_tmp = 92'd0;
+    info_tmp[7] = 1'b1;
+    info_tmp[19] = 1'b1; // llc_link_type=1 (AL, not BL)
+    info_tmp[21] = 1'b1; // bl_pdu_type=11 would match BL-ACK but link_type disqualifies
+    info_tmp[22] = 1'b1;
+
+    @(posedge clk); #1;
+    info_bits  = info_tmp;
+    info_valid = 1'b1;
+    crc_ok     = 1'b1;
+    @(posedge clk); #1;
+    info_valid = 1'b0;
+    crc_ok     = 1'b0;
+    @(posedge clk); #1;
+
+    if (!bl_ack_valid_w) begin
+        $display("  AL reject  PASS  bl_ack_valid=%b (expected 0 on llc_link_type=1)",
+                 bl_ack_valid_w);
+        pass_cnt = pass_cnt + 1;
+    end else begin
+        $display("  AL reject  FAIL  bl_ack_valid=%b (got false positive)",
+                 bl_ack_valid_w);
+        fail_cnt = fail_cnt + 1;
+    end
+
     $display("=============================================");
-    $display("PASS=%0d  FAIL=%0d  pdu_count=%0d", pass_cnt, fail_cnt, pdu_count_w);
+    $display("PASS=%0d  FAIL=%0d  pdu_count=%0d bl_ack_count=%0d",
+             pass_cnt, fail_cnt, pdu_count_w, bl_ack_count_w);
     if (fail_cnt == 0 && pass_cnt > 0)
         $display("RESULT: PASS");
     else
