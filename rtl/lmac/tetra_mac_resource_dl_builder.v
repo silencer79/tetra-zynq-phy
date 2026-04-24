@@ -8,11 +8,14 @@
 //   MAC-RESOURCE DL header (§21.4.3.1 Table 21.55)
 //     PDUtype(2)=00  FillBit(1)  PosOfGrant(1)=0  Encr(2)=00
 //     RandAccFlag(1)=random_access_flag  LengthInd(6)  AddrType(3)=001  SSI(24)
-//     NOTE: PowerCtrl/SlotGrant/ChanAlloc presence flags (3 bits) are
-//     ONLY emitted when PosOfGrant=1 AND addr!=NULL AND LI!=0 per
-//     §21.4.3.1.  Since this builder hard-codes PosOfGrant=0 for a pure
-//     registration ACCEPT, the 3 flag bits are OMITTED — TM-SDU starts
-//     immediately after the 24-bit SSI at bit 40.
+//     PowerCtrl_flag(1)   [+ PowerCtrl_element(4)   when flag=1]
+//     SlotGrant_flag(1)   [+ SlotGrant_element(8)   when flag=1]
+//     ChanAlloc_flag(1)   [+ ChanAlloc_element(n)   when flag=1]
+//     BlueStation mac_resource.rs::to_bitbuf (Z.263-282, Z.289-319) writes
+//     the three 1-bit presence flags unconditionally after the address
+//     block — they are NOT gated on PosOfGrant.  Omitting them (our old
+//     §21.4.3.1 mis-read) shifted every TM-SDU bit up by 3 and caused the
+//     MS to reject the LLC BL-DATA TM-SDU with a type-mismatch.
 //     TM-SDU:
 //       LLC BL-DATA (§21.2.2.3)
 //         LLCLinkType(1)=0  has_fcs(1)=0  bl_pdu_type(2)=01  N(S)(1)
@@ -116,18 +119,18 @@ module tetra_mac_resource_dl_builder #(
     // -------------------------------------------------------------------------
     // Local parameters — field widths
     //
-    // MAC_HDR_BITS reflects the *packed* MAC-RESOURCE header as we emit it
-    // today: 2+1+1+2+1+6+3+24 = 40 bits.  The 3 presence flags (PowerCtrl/
-    // SlotGrant/ChanAlloc) are OMITTED because ETSI §21.4.3.1 Table 21.55
-    // only requires them when PosOfGrant=1; this builder hard-codes
-    // PosOfGrant=0.  The 24-bit address slot assumes AddrType ∈ {1 (SSI),
-    // 3 (USSI)}; other addr_types have different slot widths per Table
-    // 21.55 and are gated below (see lat_addr_type assertion in
-    // S_ASSEMBLE_INNER).
+    // MAC_HDR_BASE_BITS = 2+1+1+2+1+6+3+24 = 40 — the fixed part up through the
+    // 24-bit SSI.  The three mandatory presence flags (PowerCtrl/SlotGrant/
+    // ChanAlloc) add 3 more bits unconditionally → minimum mac_hdr_bits = 43.
+    // When a flag is 1 the corresponding element (4/8/ca_len bits) is also
+    // emitted, making the header up to 80 bits wide for the supported subset
+    // (ca_element max 27 bits per tetra_chan_alloc_encoder).
     //
-    // TODO (Group-Call phase): make MAC_HDR_BITS + the S_MAC_HEAD concat +
-    // the LengthInd math addr_type-dependent so the following widths are
-    // supported cleanly:
+    // The 24-bit address slot assumes AddrType ∈ {1 (SSI), 3 (USSI)}; other
+    // addr_types have different widths per Table 21.55 and are rejected in
+    // S_ASSEMBLE_INNER's simulation guard.
+    //
+    // TODO (Group-Call phase): make the address slot addr_type-dependent:
     //   addr_type 1 (SSI)         → 24 bit  (current default)
     //   addr_type 3 (USSI)        → 24 bit  (identical packing)
     //   addr_type 2 (Event Label) → 10 bit
@@ -135,11 +138,9 @@ module tetra_mac_resource_dl_builder #(
     //   addr_type 5 (SSI+Event)   → 34 bit
     //   addr_type 6 (SSI+Usage)   → 30 bit
     //   addr_type 7 (SMI+Event)   → 58 bit
-    // Same TODO: emit the 3 presence flags when PosOfGrant becomes 1 for
-    // a caller that actually attaches a grant (CMCE call-setup, etc.).
     // -------------------------------------------------------------------------
-    localparam integer MAC_HDR_BITS  = 2 + 1 + 1 + 2 + 1 + 6 + 3 + 24; // =40
-    localparam integer LLC_HDR_BITS  = 1 + 1 + 2 + 1;                             // = 5
+    localparam integer MAC_HDR_BASE_BITS = 2 + 1 + 1 + 2 + 1 + 6 + 3 + 24;  // =40
+    localparam integer LLC_HDR_BITS  = 1 + 1 + 2 + 1;                       // = 5
     localparam integer MLE_PD_BITS   = 3;
 
     // LLC BL-DATA header constants per BlueStation `BlData::to_bitbuf()`.
@@ -175,7 +176,8 @@ module tetra_mac_resource_dl_builder #(
     reg [8:0]        tl_sdu_len;           // MLE PD (3) + MM PDU len
     reg [8:0]        llc_cov_len;          // LLC header + TL-SDU
     reg [8:0]        mac_tm_sdu_len;       // LLC PDU = cov (BlueStation-style, no FCS)
-    reg [8:0]        mac_total_bits;       // MAC header (42) + TM-SDU
+    reg [8:0]        mac_hdr_bits;         // base 40 + 3 mandatory flags + optional elements
+    reg [8:0]        mac_total_bits;       // mac_hdr_bits + TM-SDU
     reg [8:0]        mac_total_octets;     // ceil(mac_total_bits / 8)
     reg [5:0]        length_ind;
     reg              fill_bit_ind;
@@ -210,13 +212,23 @@ module tetra_mac_resource_dl_builder #(
     reg [8:0]  tl_sdu_len_c;
     reg [8:0]  llc_cov_len_c;
     reg [8:0]  mac_tm_sdu_len_c;
+    reg [8:0]  mac_hdr_bits_c;
     reg [8:0]  mac_total_bits_c;
     reg [8:0]  mac_total_octets_c;
     always @(*) begin
         tl_sdu_len_c       = MLE_PD_BITS + {2'b0, lat_mm_len};       // 3..82
         llc_cov_len_c      = LLC_HDR_BITS + tl_sdu_len_c;
         mac_tm_sdu_len_c   = llc_cov_len_c;
-        mac_total_bits_c   = MAC_HDR_BITS + mac_tm_sdu_len_c;
+        // mac_hdr_bits = 40 (base) + 3 (mandatory flag bits)
+        //              + 4  if pc_flag
+        //              + 8  if sg_flag
+        //              + ca_element_len if ca_flag
+        // Matches bluestation mac_resource.rs::compute_header_len (Z.289-319).
+        mac_hdr_bits_c     = 9'd40 + 9'd3
+                             + (lat_pc_flag ? 9'd4 : 9'd0)
+                             + (lat_sg_flag ? 9'd8 : 9'd0)
+                             + (lat_ca_flag ? {4'd0, lat_ca_element_len} : 9'd0);
+        mac_total_bits_c   = mac_hdr_bits_c + mac_tm_sdu_len_c;
         // ceil-to-octet — LengthInd is in octets (Table 21.56, Y2=Z2=1)
         mac_total_octets_c = (mac_total_bits_c + 9'd7) >> 3;
     end
@@ -246,6 +258,7 @@ module tetra_mac_resource_dl_builder #(
             tl_sdu_len         <= 9'd0;
             llc_cov_len        <= 9'd0;
             mac_tm_sdu_len     <= 9'd0;
+            mac_hdr_bits       <= 9'd0;
             mac_total_bits     <= 9'd0;
             mac_total_octets   <= 9'd0;
             length_ind         <= 6'd0;
@@ -294,6 +307,7 @@ module tetra_mac_resource_dl_builder #(
                 tl_sdu_len       <= tl_sdu_len_c;
                 llc_cov_len      <= llc_cov_len_c;
                 mac_tm_sdu_len   <= mac_tm_sdu_len_c;
+                mac_hdr_bits     <= mac_hdr_bits_c;
                 mac_total_bits   <= mac_total_bits_c;
                 mac_total_octets <= mac_total_octets_c;
                 // LengthInd encoding: Y2=Z2=1 → val == octets (§21.4.3.1 Table
@@ -332,51 +346,93 @@ module tetra_mac_resource_dl_builder #(
 
             // -----------------------------------------------------------------
             // Assemble the MAC-RESOURCE header + TM-SDU and pack into
-            // complete_pdu_bits.  Field order (§21.4.3.1 Table 21.55):
-            //   [2]  PDUtype         = 00
-            //   [1]  FillBit         = fill_bit_ind
-            //   [1]  PosOfGrant      = 0
-            //   [2]  EncryptionMode  = 00
-            //   [1]  RandAccFlag     = lat_random_access_flag (caller-driven)
-            //   [6]  LengthInd
-            //   [3]  AddrType        (usually 001 = SSI)
-            //   [24] SSI
-            //   (PowerCtrl/SlotGrant/ChanAlloc presence flags omitted:
-            //    §21.4.3.1 requires them only when PosOfGrant=1.)
-            //   → TM-SDU: LLC PDU (header + TL-SDU) → padding
+            // complete_pdu_bits.  Field order (§21.4.3.1 Table 21.55,
+            // bluestation mac_resource.rs::to_bitbuf):
+            //
+            //   BASE 40 bits (always):
+            //     [2]  PDUtype         = 00
+            //     [1]  FillBit         = fill_bit_ind
+            //     [1]  PosOfGrant      = 0
+            //     [2]  EncryptionMode  = 00
+            //     [1]  RandAccFlag     = lat_random_access_flag (caller-driven)
+            //     [6]  LengthInd       = length_ind (dynamic, in octets)
+            //     [3]  AddrType        = 001 = SSI
+            //     [24] SSI             = lat_ssi
+            //
+            //   MANDATORY presence flags after the address block
+            //   (bluestation mac_resource.rs Z.263-282):
+            //     [1]  power_control_flag
+            //     [4]  power_control_element   — only when flag=1
+            //     [1]  slot_granting_flag
+            //     [8]  slot_granting_element   — only when flag=1
+            //     [1]  chan_alloc_flag
+            //     [ca_len] chan_alloc_element  — only when flag=1
+            //
+            //   TM-SDU:
+            //     LLC BL-DATA header (5) + MLE PD (3) + MM PDU (mm_len)
+            //
+            //   Fill bits (starting at bit position mac_total_bits):
+            //     First fill bit = 1 if fill_bit_ind, remainder 0.
             //
             // The complete 268-bit output goes MSB-first: bit [PDU_BITS-1]
             // is the first bit transmitted on air.
             // -----------------------------------------------------------------
             S_MAC_HEAD: begin
-                // Build the full 268-bit MAC-RESOURCE PDU left-aligned.
-                //
-                // Step 1 — MAC header (40 bit) — parked at the MSB end.
-                // Step 2 — LLC info field (llc_cov_len bit) starts
-                //          immediately after and is embedded by shifting
-                //          llc_buf right by (LLC_BUF_BITS - llc_cov_len) to
-                //          strip trailing don't-care padding, then left-
-                //          shifting by (PDU_BITS - MAC_HDR_BITS -
-                //          llc_cov_len) so its MSB lands adjacent to the
-                //          MAC header.
-                // Step 3 — Remaining bits are zero now; S_PAD flips the
-                //          first fill bit to 1 if fill_bit_ind is set.
+                // ---- Step 1: base 40-bit MAC header at MSB end --------------
+                // Straight concat, identical layout to pre-43-bit refactor for
+                // the first 40 bits so the existing [261] RandAccFlag bit
+                // position / [265] FillBit / [260:255] LengthInd spot checks
+                // in tb_mac_resource_dl_builder keep working.
                 complete_pdu_bits <=
-                    { 2'b00,                             // [267:266] PDUtype
-                      fill_bit_ind,                      // [265]     FillBit
-                      1'b0,                              // [264]     PosOfGrant
-                      2'b00,                             // [263:262] Encryption
-                      lat_random_access_flag,            // [261]     RandAccFlag
-                      length_ind,                        // [260:255] LengthInd
-                      lat_addr_type,                     // [254:252] AddrType
-                      lat_ssi,                           // [251:228] SSI
-                      {(PDU_BITS - MAC_HDR_BITS){1'b0}} } // [227:  0] TM-SDU placeholder
-                    |
-                    // LLC info field — shift llc_buf's top llc_cov_len bits
-                    // into the TM-SDU region at the correct offset.
-                    ( { {(PDU_BITS - LLC_BUF_BITS){1'b0}}, llc_buf }
-                      >> (LLC_BUF_BITS - llc_cov_len)
-                    ) << (PDU_BITS - MAC_HDR_BITS - llc_cov_len);
+                    ( { 2'b00,
+                        fill_bit_ind,
+                        1'b0,
+                        2'b00,
+                        lat_random_access_flag,
+                        length_ind,
+                        lat_addr_type,
+                        lat_ssi,
+                        {(PDU_BITS - 40){1'b0}} }
+                    // ---- Step 2: mandatory pc_flag at bit 40 ----------------
+                    // target LSB-index = PDU_BITS - 1 - 40 = PDU_BITS - 41
+                    | ({{(PDU_BITS-1){1'b0}}, lat_pc_flag}  << (PDU_BITS - 41))
+                    // ---- Step 3: pc_element (4 bit) when flag=1 -------------
+                    // target MSB-position = 41, width = 4
+                    // → shifted left by (PDU_BITS - 41 - 4) = PDU_BITS - 45
+                    | (lat_pc_flag
+                        ? ({{(PDU_BITS-4){1'b0}}, lat_pc_element} << (PDU_BITS - 45))
+                        : {PDU_BITS{1'b0}})
+                    // ---- Step 4: sg_flag ------------------------------------
+                    // target MSB-position = 41 + (pc_flag?4:0)
+                    | ({{(PDU_BITS-1){1'b0}}, lat_sg_flag}
+                        << (PDU_BITS - 41 - 1 - (lat_pc_flag ? 4 : 0)))
+                    // ---- Step 5: sg_element (8 bit) when flag=1 -------------
+                    // target MSB-position = 42 + (pc_flag?4:0)
+                    | (lat_sg_flag
+                        ? ({{(PDU_BITS-8){1'b0}}, lat_sg_element}
+                            << (PDU_BITS - 42 - 8 - (lat_pc_flag ? 4 : 0)))
+                        : {PDU_BITS{1'b0}})
+                    // ---- Step 6: ca_flag ------------------------------------
+                    // target MSB-position = 42 + (pc_flag?4:0) + (sg_flag?8:0)
+                    | ({{(PDU_BITS-1){1'b0}}, lat_ca_flag}
+                        << (PDU_BITS - 42 - 1
+                            - (lat_pc_flag ? 4 : 0)
+                            - (lat_sg_flag ? 8 : 0)))
+                    // ---- Step 7: ca_element (ca_len bit) when flag=1 --------
+                    // Right-aligned in lat_ca_element[31:0].  target MSB-pos =
+                    // 43 + pc_len + sg_len.  Shift the valid bits into place.
+                    | (lat_ca_flag
+                        ? ({{(PDU_BITS-32){1'b0}}, lat_ca_element}
+                            << (PDU_BITS - 43
+                                - (lat_pc_flag ? 4 : 0)
+                                - (lat_sg_flag ? 8 : 0)
+                                - lat_ca_element_len))
+                        : {PDU_BITS{1'b0}})
+                    // ---- Step 8: LLC info field at position mac_hdr_bits ----
+                    | ( ( { {(PDU_BITS - LLC_BUF_BITS){1'b0}}, llc_buf }
+                          >> (LLC_BUF_BITS - llc_cov_len) )
+                        << (PDU_BITS - mac_hdr_bits - llc_cov_len) )
+                    );
                 state <= S_PAD;
             end
 

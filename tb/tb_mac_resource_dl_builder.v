@@ -100,19 +100,25 @@ module tb_mac_resource_dl_builder;
     endfunction
 
     // -------------------------------------------------------------------------
-    // Golden reference — from /tmp/regen_bug7_goldens.py
-    // (SSI=523, NS=0, NR=0). Regenerate if any input or
-    // the MAC-RESOURCE builder's header layout changes.
+    // Golden reference — bluestation-parity 43-bit MAC-RESOURCE header.
+    // Recomputed 2026-04-24 via the bluestation-equivalent Python reference
+    // (MacResource::to_bitbuf + update_len_and_fill_ind in
+    //  crates/tetra-pdus/src/umac/pdus/mac_resource.rs).
     //
-    //   mm_len = 38
-    //   tl_sdu_len = 41 bits  (MLE-PD + MM only)
-    //   llc_cov_len = 46 bits (LLC header + TL-SDU — BL-DATA, no FCS)
-    //   length_ind = 11
-    //   full golden derived from the implementation
-    //   MAC_HDR_BITS = 40      (Bug #7)
+    //   mm_len        = 38
+    //   tl_sdu_len    = 41 bits  (MLE-PD 3 + MM 38)
+    //   llc_cov_len   = 46 bits  (LLC header 5 + TL-SDU)
+    //   hdr_len       = 43 bits  (40 base + 1 pc_flag + 1 sg_flag + 1 ca_flag)
+    //   mac_total_bits= 89 bits  (43 + 46)
+    //   length_ind    = 12 octets
+    //   fill_bits     = 7        (first fill bit = 1)
+    //
+    // Expected emission (MSB-first hex):
+    //   206100020b 022a300020 b04 (then 7-bit fill: first=1 → +0x040)
+    //   +  zero pad to 268 bits.
     // -------------------------------------------------------------------------
     localparam [PDU_BITS-1:0] EXPECTED_1 =
-        268'h205900020b115180010582000000000000000000000000000000000000000000000;
+        268'h206100020b022a300020b0400000000000000000000000000000000000000000000;
 
     integer fail_count = 0;
     integer test_count = 0;
@@ -239,7 +245,7 @@ module tb_mac_resource_dl_builder;
             end else begin
                 $display("[T%0d ssi1000_pdut] PASS", test_count);
             end
-            check_length_ind(got, 6'd11, "ssi1000_len");
+            check_length_ind(got, 6'd12, "ssi1000_len");
             // Address type + SSI
             check_addr_ssi(got, 3'b001, 24'd1000, "ssi1000_addr");
             // Fill-bit flag
