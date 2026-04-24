@@ -36,6 +36,7 @@ module tb_mle_registration_fsm;
     reg  [23:0] ul_ssi           = 24'd0;
     reg  [13:0] ul_la            = 14'd0;
     reg  [2:0]  ul_loc_upd_type  = 3'd0;  // default Roaming; T1 gold uses 000
+    reg         ul_use_l2sig     = 1'b0;
 
     // ---- UL LLC parse stimulus (Option B, 2026-04-24 commit 3) ----
     reg         ul_llc_is_bl_data = 1'b0;
@@ -112,6 +113,7 @@ module tb_mle_registration_fsm;
         .ul_ssi           (ul_ssi),
         .ul_la            (ul_la),
         .ul_loc_upd_type  (ul_loc_upd_type),
+        .ul_use_l2sig     (ul_use_l2sig),
         .ul_llc_is_bl_data(ul_llc_is_bl_data),
         .ul_llc_ns_valid  (ul_llc_ns_valid),
         .ul_llc_ns        (ul_llc_ns),
@@ -182,6 +184,7 @@ module tb_mle_registration_fsm;
             @(posedge clk);
             ul_ssi       <= issi;
             ul_la        <= la;
+            ul_use_l2sig <= 1'b0;
             ul_req_valid <= 1'b1;
             @(posedge clk);
             ul_req_valid <= 1'b0;
@@ -372,9 +375,9 @@ module tb_mle_registration_fsm;
         end
 
         // -------------------------------------------------------------
-        // BlueStation-level scheduler model: UL BL-DATA(ns) produces two
-        // distinct queue requests, first the Accept and then a separate BL-ACK.
-        // The old concat telemetry must stay low.
+        // BlueStation-like on-air model for registration: UL BL-DATA(ns)
+        // yields one SCH/F request carrying the Accept plus a concatenated
+        // BL-ACK resource.
         // -------------------------------------------------------------
         rst_n = 1'b0;
         repeat (4) @(posedge clk);
@@ -385,11 +388,9 @@ module tb_mle_registration_fsm;
         end
         @(posedge clk);
 
-        begin : t12_dual_req_ns0
-            reg first_req_seen;
-            reg second_req_seen;
-            reg first_second_present;
-            reg second_second_present;
+        begin : t12_concat_ns0
+            reg saw_second_present;
+            reg saw_second_nr;
             integer wait_cycles;
             ul_ssi            = 24'd523;
             ul_la             = 14'd36;
@@ -400,41 +401,31 @@ module tb_mle_registration_fsm;
             ul_req_valid      = 1'b1;
             @(posedge clk);
             ul_req_valid      = 1'b0;
-            first_req_seen      = 1'b0;
-            second_req_seen     = 1'b0;
-            first_second_present= 1'b0;
-            second_second_present=1'b0;
+            saw_second_present = 1'b0;
+            saw_second_nr      = 1'b0;
             wait_cycles = 0;
-            while (wait_cycles < 4000 && !second_req_seen) begin
+            while (wait_cycles < 4000 && !req_valid) begin
                 @(posedge clk);
-                if (req_valid && !first_req_seen) begin
-                    first_req_seen       = 1'b1;
-                    first_second_present = req_second_pdu_present;
-                end else if (req_valid && first_req_seen && !second_req_seen) begin
-                    second_req_seen       = 1'b1;
-                    second_second_present = req_second_pdu_present;
-                end
                 wait_cycles = wait_cycles + 1;
             end
+            if (req_valid) begin
+                saw_second_present = req_second_pdu_present;
+                saw_second_nr      = req_second_pdu_nr;
+            end
             test_count = test_count + 1;
-            if (first_req_seen && second_req_seen &&
-                first_second_present == 1'b0 &&
-                second_second_present == 1'b0) begin
-                $display("[T12 dual_req_ns0] PASS separate accept+ack req_valid pulses");
+            if (saw_second_present == 1'b1 && saw_second_nr == 1'b0) begin
+                $display("[T12 concat_ns0] PASS req_second_pdu_present=1 nr=0");
             end else begin
-                $display("[T12 dual_req_ns0] FAIL first=%b second=%b first_present=%b second_present=%b",
-                         first_req_seen, second_req_seen,
-                         first_second_present, second_second_present);
+                $display("[T12 concat_ns0] FAIL req_valid=%b present=%b nr=%b",
+                         req_valid, saw_second_present, saw_second_nr);
                 fail_count = fail_count + 1;
             end
             @(posedge clk);
         end
 
-        begin : t13_dual_req_ns1
-            reg first_req_seen;
-            reg second_req_seen;
-            reg first_second_present;
-            reg second_second_present;
+        begin : t13_concat_ns1
+            reg saw_second_present;
+            reg saw_second_nr;
             integer wait_cycles;
             ul_ssi            = 24'd523;
             ul_la             = 14'd36;
@@ -445,31 +436,23 @@ module tb_mle_registration_fsm;
             ul_req_valid      = 1'b1;
             @(posedge clk);
             ul_req_valid      = 1'b0;
-            first_req_seen       = 1'b0;
-            second_req_seen      = 1'b0;
-            first_second_present = 1'b0;
-            second_second_present= 1'b0;
+            saw_second_present = 1'b0;
+            saw_second_nr      = 1'b0;
             wait_cycles = 0;
-            while (wait_cycles < 4000 && !second_req_seen) begin
+            while (wait_cycles < 4000 && !req_valid) begin
                 @(posedge clk);
-                if (req_valid && !first_req_seen) begin
-                    first_req_seen       = 1'b1;
-                    first_second_present = req_second_pdu_present;
-                end else if (req_valid && first_req_seen && !second_req_seen) begin
-                    second_req_seen       = 1'b1;
-                    second_second_present = req_second_pdu_present;
-                end
                 wait_cycles = wait_cycles + 1;
             end
+            if (req_valid) begin
+                saw_second_present = req_second_pdu_present;
+                saw_second_nr      = req_second_pdu_nr;
+            end
             test_count = test_count + 1;
-            if (first_req_seen && second_req_seen &&
-                first_second_present == 1'b0 &&
-                second_second_present == 1'b0) begin
-                $display("[T13 dual_req_ns1] PASS separate accept+ack req_valid pulses");
+            if (saw_second_present == 1'b1 && saw_second_nr == 1'b1) begin
+                $display("[T13 concat_ns1] PASS req_second_pdu_present=1 nr=1");
             end else begin
-                $display("[T13 dual_req_ns1] FAIL first=%b second=%b first_present=%b second_present=%b",
-                         first_req_seen, second_req_seen,
-                         first_second_present, second_second_present);
+                $display("[T13 concat_ns1] FAIL req_valid=%b present=%b nr=%b",
+                         req_valid, saw_second_present, saw_second_nr);
                 fail_count = fail_count + 1;
             end
         end
@@ -504,7 +487,43 @@ module tb_mle_registration_fsm;
             end
         end
 
+        begin : t15_direct_mm_l2sig
+            reg saw_second_present;
+            reg [3:0] saw_llc_type;
+            integer wait_cycles;
+            ul_ssi            = 24'd523;
+            ul_la             = 14'd36;
+            ul_use_l2sig      = 1'b1;
+            ul_llc_is_bl_data = 1'b0;
+            ul_llc_ns_valid   = 1'b0;
+            ul_llc_ns         = 1'b0;
+            @(posedge clk);
+            ul_req_valid      = 1'b1;
+            @(posedge clk);
+            ul_req_valid      = 1'b0;
+            saw_second_present = 1'b0;
+            saw_llc_type       = 4'd0;
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !req_valid) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
+            if (req_valid) begin
+                saw_second_present = req_second_pdu_present;
+                saw_llc_type       = dut.u_builder.lat_llc_pdu_type;
+            end
+            test_count = test_count + 1;
+            if (req_valid && saw_second_present == 1'b0 && saw_llc_type == 4'd14) begin
+                $display("[T15 direct_mm_l2sig] PASS single-pdu llc=14");
+            end else begin
+                $display("[T15 direct_mm_l2sig] FAIL req_valid=%b present=%b llc=%0d",
+                         req_valid, saw_second_present, saw_llc_type);
+                fail_count = fail_count + 1;
+            end
+        end
+
         // Restore inputs for cleanliness
+        ul_use_l2sig     = 1'b0;
         ul_llc_is_bl_data = 1'b0;
         ul_llc_ns_valid   = 1'b0;
         ul_llc_ns         = 1'b0;

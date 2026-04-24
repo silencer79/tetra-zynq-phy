@@ -26,6 +26,7 @@ from decode_dl import (
     dibits_to_bits, make_scramb_code,
     decode_channel_soft, demod_pi4dqpsk_soft,
     _build_diff_ref, _correlate_at,
+    extract_bits, parse_llc,
 )
 
 
@@ -293,27 +294,208 @@ def bits_to_hex(bits):
     return ' '.join(out)
 
 
+UL_MLE_PDU_NAMES = {
+    0: 'Reserved', 1: 'MM', 2: 'CMCE', 3: 'Reserved',
+    4: 'SNDCP', 5: 'MLE', 6: 'TETRA-Mgmt', 7: 'Testing',
+}
+
+UL_MM_NAMES = {
+    0: 'U-OTAR',
+    1: 'U-AUTH',
+    2: 'U-CK-CHG-ANSWER',
+    3: 'U-ENABLE',
+    4: 'U-LOC-UPD-DEMAND',
+    5: 'Reserved',
+    6: 'Reserved',
+    7: 'Reserved',
+    8: 'Reserved',
+    9: 'Reserved',
+    10: 'U-ATTACH-DETACH-GRP-ID',
+    11: 'Reserved',
+    12: 'U-MM-STATUS',
+}
+
+UL_LOC_UPD_TYPE_NAMES = {
+    0: 'Roaming',
+    1: 'Migrating',
+    2: 'Periodic',
+    3: 'ITSI-Attach',
+    4: 'Call-Restoration',
+}
+
+
+def parse_ul_mm(bits, pos, mm_type):
+    r = {}
+
+    if mm_type == 4:  # U-LOCATION UPDATE DEMAND
+        if pos + 3 <= len(bits):
+            upd_type = extract_bits(bits, pos, 3); pos += 3
+            r['location_update_type'] = upd_type
+            r['location_update_type_name'] = UL_LOC_UPD_TYPE_NAMES.get(upd_type, f'Unknown({upd_type})')
+        if pos + 1 <= len(bits):
+            r['request_to_append_la'] = extract_bits(bits, pos, 1); pos += 1
+        if pos + 1 <= len(bits):
+            r['cipher_control'] = extract_bits(bits, pos, 1); pos += 1
+        if pos + 1 <= len(bits):
+            o_bit = extract_bits(bits, pos, 1); pos += 1
+            r['optional_fields_present'] = o_bit
+            if o_bit == 1:
+                if pos + 1 <= len(bits):
+                    p_class = extract_bits(bits, pos, 1); pos += 1
+                    r['class_of_ms_present'] = p_class
+                    if p_class == 1 and pos + 24 <= len(bits):
+                        r['class_of_ms'] = extract_bits(bits, pos, 24); pos += 24
+                if pos + 1 <= len(bits):
+                    p_esm = extract_bits(bits, pos, 1); pos += 1
+                    r['energy_saving_mode_present'] = p_esm
+                    if p_esm == 1 and pos + 3 <= len(bits):
+                        r['energy_saving_mode'] = extract_bits(bits, pos, 3); pos += 3
+                if pos + 1 <= len(bits):
+                    p_lai = extract_bits(bits, pos, 1); pos += 1
+                    r['la_information_present'] = p_lai
+                    if p_lai == 1 and pos + 14 <= len(bits):
+                        r['location_area'] = extract_bits(bits, pos, 14); pos += 14
+                if pos + 1 <= len(bits):
+                    p_ssi = extract_bits(bits, pos, 1); pos += 1
+                    r['ssi_present'] = p_ssi
+                    if p_ssi == 1 and pos + 24 <= len(bits):
+                        r['ssi'] = extract_bits(bits, pos, 24); pos += 24
+                if pos + 1 <= len(bits):
+                    p_addr_ext = extract_bits(bits, pos, 1); pos += 1
+                    r['address_extension_present'] = p_addr_ext
+                    if p_addr_ext == 1 and pos + 24 <= len(bits):
+                        r['address_extension'] = extract_bits(bits, pos, 24); pos += 24
+                if pos + 1 <= len(bits):
+                    r['more_optional_bits'] = extract_bits(bits, pos, 1); pos += 1
+        r['payload_end'] = pos
+        return r
+
+    if mm_type == 10:  # U-ATTACH/DETACH GROUP ID
+        if pos + 1 <= len(bits):
+            r['group_identity_report'] = extract_bits(bits, pos, 1); pos += 1
+        if pos + 1 <= len(bits):
+            r['attach_detach_mode'] = extract_bits(bits, pos, 1); pos += 1
+        r['payload_end'] = pos
+        return r
+
+    if mm_type == 12:  # U-MM-STATUS
+        if pos + 5 <= len(bits):
+            r['status_value'] = extract_bits(bits, pos, 5); pos += 5
+        r['payload_end'] = pos
+        return r
+
+    return r
+
+
+def parse_ul_mle(bits, pos):
+    if pos + 3 > len(bits):
+        return {'mle_type': 'TOO_SHORT'}
+    disc = extract_bits(bits, pos, 3); pos += 3
+    r = {
+        'mle_disc': disc,
+        'mle_disc_name': UL_MLE_PDU_NAMES.get(disc, '?'),
+    }
+    if disc == 1 and pos + 4 <= len(bits):  # MM
+        mm_type = extract_bits(bits, pos, 4); pos += 4
+        r['mm_type'] = mm_type
+        r['mm_name'] = UL_MM_NAMES.get(mm_type, f'Unknown({mm_type})')
+        r['mm'] = parse_ul_mm(bits, pos, mm_type)
+    r['payload_start'] = pos
+    return r
+
+
+def parse_ul_direct_mm(bits, pos):
+    """Observed UL MAC-ACCESS layout in local captures: MM starts at bit 23."""
+    r = {}
+    if pos + 4 > len(bits):
+        return r
+    mm_type = extract_bits(bits, pos, 4); pos += 4
+    r['mm_type'] = mm_type
+    r['mm_name'] = UL_MM_NAMES.get(mm_type, f'Unknown({mm_type})')
+    r['mm'] = parse_ul_mm(bits, pos, mm_type)
+    r['payload_start'] = pos
+    return r
+
+
 def parse_mac_access(bits92):
-    """Crude MAC-ACCESS PDU field parser per §21.4.3.3 (minimal)."""
+    """Parse UL MAC-ACCESS with enough LLC/MM detail for registration tracing."""
     if bits92 is None or len(bits92) < 20:
         return None
     b = [int(x) & 1 for x in bits92]
-    def field(start, n):
-        v = 0
-        for i in range(n):
-            v = (v << 1) | b[start + i]
-        return v
-    pdu_type = field(0, 2)
+    pdu_type = extract_bits(b, 0, 2)
     fill_bit = b[2]
     # PDU type 0 = MAC-ACCESS
     out = {'pdu_type': pdu_type, 'fill_bit': fill_bit}
     if pdu_type == 0:
-        out['encryption_mode'] = field(3, 2)
-        out['access_ack'] = field(5, 1)
-        # random ID, length indicator, address type etc. — abbreviated
-        out['addr_type'] = field(6, 3)
-        out['short_ssi_or_event_label'] = field(9, 10)
+        pos = 3
+        out['encryption_mode'] = extract_bits(b, pos, 2); pos += 2
+        out['access_ack'] = extract_bits(b, pos, 1); pos += 1
+        out['addr_type'] = extract_bits(b, pos, 3); pos += 3
+        out['short_ssi_or_event_label'] = extract_bits(b, pos, 10); pos += 10
+        out['payload_start'] = pos
+        if pos + 4 <= len(b):
+            llc = parse_llc(b, pos)
+            out['llc'] = llc
+            llc_payload = llc.get('payload_start')
+            if llc_payload is not None and llc_payload + 3 <= len(b):
+                mle = parse_ul_mle(b, llc_payload)
+                out['mle'] = mle
+        if 23 + 4 <= len(b):
+            direct_mm = parse_ul_direct_mm(b, 23)
+            out['direct_mm'] = direct_mm
+            # Prefer the direct-MM path when the LLC nibble is not a known basic-link PDU
+            # but the MM type decodes to a known UL message. This matches the observed
+            # on-air MAC-ACCESS captures where bits [23:27) carry U-LOC-UPD-DEMAND directly.
+            if ('llc' not in out or
+                    out['llc'].get('llc_type_name', '').startswith('Unknown(')) and \
+                    direct_mm.get('mm_name', '').startswith('U-'):
+                out['decoded_mode'] = 'direct_mm'
+            elif 'mle' in out:
+                out['decoded_mode'] = 'llc_mle'
+            else:
+                out['decoded_mode'] = 'raw'
     return out
+
+
+def format_parsed_mac_access(parsed):
+    if not parsed:
+        return 'None'
+    parts = [
+        f"pdu={parsed.get('pdu_type', '?')}",
+        f"fill={parsed.get('fill_bit', '?')}",
+    ]
+    if parsed.get('pdu_type') == 0:
+        parts.append(f"enc={parsed.get('encryption_mode', '?')}")
+        parts.append(f"ack={parsed.get('access_ack', '?')}")
+        parts.append(f"addr_type={parsed.get('addr_type', '?')}")
+        parts.append(f"short_id={parsed.get('short_ssi_or_event_label', '?')}")
+        llc = parsed.get('llc')
+        if llc:
+            seg = llc.get('llc_type_name', '?')
+            if 'ns' in llc:
+                seg += f"(NS={llc['ns']})"
+            if 'nr' in llc:
+                seg += f"(NR={llc['nr']})"
+            parts.append(f"LLC={seg}")
+        mle = parsed.get('mle')
+        if mle:
+            seg = mle.get('mle_disc_name', '?')
+            if 'mm_name' in mle:
+                seg += f"/{mle['mm_name']}"
+                mm = mle.get('mm', {})
+                if 'location_update_type_name' in mm:
+                    seg += f"/{mm['location_update_type_name']}"
+            parts.append(f"MLE={seg}")
+        direct_mm = parsed.get('direct_mm')
+        if direct_mm:
+            seg = direct_mm.get('mm_name', '?')
+            mm = direct_mm.get('mm', {})
+            if 'location_update_type_name' in mm:
+                seg += f"/{mm['location_update_type_name']}"
+            parts.append(f"DirectMM={seg}")
+        if 'decoded_mode' in parsed:
+            parts.append(f"mode={parsed['decoded_mode']}")
+    return ' '.join(parts)
 
 
 def main():
@@ -467,7 +649,9 @@ def main():
         print('=== Decoded MAC-ACCESS PDU (92 bits) ===')
         for i, pdu in enumerate(decoded_pdus[:10]):
             parsed = parse_mac_access(pdu)
-            print(f'  #{i}: {bits_to_hex(pdu)}  parsed={parsed}')
+            print(f'  #{i}: {bits_to_hex(pdu)}')
+            print(f'      {format_parsed_mac_access(parsed)}')
+            print(f'      parsed={parsed}')
 
     return 0
 

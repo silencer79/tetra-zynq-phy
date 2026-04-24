@@ -70,6 +70,11 @@ module tetra_mac_resource_dl_builder #(
     // LLC sequence numbers (from active-session-table per-MS state)
     input  wire                  ns,
     input  wire                  nr,
+    // LLC PDU type for the primary MAC-RESOURCE payload.
+    // Supported today:
+    //   4'd1  = BL-DATA    (LLC hdr 5b + MLE PD 3b + MM)
+    //   4'd14 = L2SigPdu   (LLC hdr 4b + direct MM, no MLE PD)
+    input  wire [3:0]            llc_pdu_type,
 
     // MAC-RESOURCE header RandAccFlag (ETSI §21.4.3.1).  Caller decides:
     //   1 = this PDU is a response to a successful UL Random Access and
@@ -176,13 +181,14 @@ module tetra_mac_resource_dl_builder #(
     //   addr_type 7 (SMI+Event)   → 58 bit
     // -------------------------------------------------------------------------
     localparam integer MAC_HDR_BASE_BITS = 2 + 1 + 1 + 2 + 1 + 6 + 3 + 24;  // =40
-    localparam integer LLC_HDR_BITS  = 1 + 1 + 2 + 1;                       // = 5
+    localparam integer LLC_HDR_BITS_MAX  = 5;
     localparam integer MLE_PD_BITS   = 3;
 
     // LLC BL-DATA header constants per BlueStation `BlData::to_bitbuf()`.
     localparam       LLC_LINK_TYPE_BL = 1'b0;
     localparam       LLC_HAS_FCS_OFF  = 1'b0;
     localparam [1:0] LLC_PDUT_BL_DATA = 2'b01;
+    localparam [3:0] LLC_PDUT_L2SIG   = 4'd14;
 
     // MLE protocol discriminator — MM (§18.5.2 Table 18.4) = 3'b001.
     // Confirmed against scripts/decode_dl.py MLE_PDU_NAMES[1]='MM' and the
@@ -195,6 +201,7 @@ module tetra_mac_resource_dl_builder #(
     reg [23:0]       lat_ssi;
     reg [2:0]        lat_addr_type;
     reg              lat_ns, lat_nr;
+    reg [3:0]        lat_llc_pdu_type;
     reg              lat_random_access_flag;
     reg [79:0]       lat_mm_bits;
     reg [6:0]        lat_mm_len;
@@ -227,6 +234,7 @@ module tetra_mac_resource_dl_builder #(
 
     // Derived lengths
     reg [8:0]        tl_sdu_len;           // MLE PD (3) + MM PDU len
+    reg [3:0]        llc_hdr_bits;
     reg [8:0]        llc_cov_len;          // LLC header + TL-SDU
     reg [8:0]        mac_tm_sdu_len;       // LLC PDU = cov (BlueStation-style, no FCS)
     reg [8:0]        mac_hdr_bits;         // base 40 + 3 mandatory flags + optional elements
@@ -268,6 +276,7 @@ module tetra_mac_resource_dl_builder #(
     reg [PDU_BITS-1:0] complete_pdu_bits;
     // Combinational length helpers used by S_ASSEMBLE_INNER
     reg [8:0]  tl_sdu_len_c;
+    reg [3:0]  llc_hdr_bits_c;
     reg [8:0]  llc_cov_len_c;
     reg [8:0]  mac_tm_sdu_len_c;
     reg [8:0]  mac_hdr_bits_c;
@@ -280,8 +289,14 @@ module tetra_mac_resource_dl_builder #(
     reg [8:0]  pdu2_total_octets_c;
     reg        pdu2_fill_bit_ind_c;
     always @(*) begin
-        tl_sdu_len_c       = MLE_PD_BITS + {2'b0, lat_mm_len};       // 3..82
-        llc_cov_len_c      = LLC_HDR_BITS + tl_sdu_len_c;
+        if (lat_llc_pdu_type == LLC_PDUT_L2SIG) begin
+            tl_sdu_len_c   = {2'b0, lat_mm_len};
+            llc_hdr_bits_c = 4;
+        end else begin
+            tl_sdu_len_c   = MLE_PD_BITS + {2'b0, lat_mm_len};
+            llc_hdr_bits_c = 5;
+        end
+        llc_cov_len_c      = {5'd0, llc_hdr_bits_c} + tl_sdu_len_c;
         mac_tm_sdu_len_c   = llc_cov_len_c;
         // mac_hdr_bits = 40 (base) + 3 (mandatory flag bits)
         //              + 4  if pc_flag
@@ -376,6 +391,7 @@ module tetra_mac_resource_dl_builder #(
             lat_addr_type      <= 3'd0;
             lat_ns             <= 1'b0;
             lat_nr             <= 1'b0;
+            lat_llc_pdu_type   <= 4'd1;
             lat_random_access_flag <= 1'b0;
             lat_mm_bits        <= 80'd0;
             lat_mm_len         <= 7'd0;
@@ -401,6 +417,7 @@ module tetra_mac_resource_dl_builder #(
             lat_second_ca_element   <= 32'd0;
             lat_second_ca_element_len <= 5'd0;
             tl_sdu_len         <= 9'd0;
+            llc_hdr_bits       <= 4'd0;
             llc_cov_len        <= 9'd0;
             mac_tm_sdu_len     <= 9'd0;
             mac_hdr_bits       <= 9'd0;
@@ -429,6 +446,7 @@ module tetra_mac_resource_dl_builder #(
                     lat_addr_type         <= addr_type;
                     lat_ns                <= ns;
                     lat_nr                <= nr;
+                    lat_llc_pdu_type      <= llc_pdu_type;
                     lat_random_access_flag<= random_access_flag;
                     lat_mm_bits           <= mm_pdu_bits;
                     lat_mm_len            <= mm_pdu_len_bits;
@@ -468,6 +486,7 @@ module tetra_mac_resource_dl_builder #(
             S_ASSEMBLE_INNER: begin
                 // Freeze derived lengths for the rest of the pipeline.
                 tl_sdu_len       <= tl_sdu_len_c;
+                llc_hdr_bits     <= llc_hdr_bits_c;
                 llc_cov_len      <= llc_cov_len_c;
                 mac_tm_sdu_len   <= mac_tm_sdu_len_c;
                 mac_hdr_bits     <= mac_hdr_bits_c;
@@ -509,13 +528,19 @@ module tetra_mac_resource_dl_builder #(
 
             // -----------------------------------------------------------------
             S_LLC_HEAD: begin
-                llc_buf <= {LLC_LINK_TYPE_BL,         // 1
-                            LLC_HAS_FCS_OFF,          // 1
-                            LLC_PDUT_BL_DATA,         // 2
-                            lat_ns,                   // 1
-                            MLE_PD_MM,                // 3
-                            lat_mm_bits,              // 80
-                            8'b00000000};             // pad to 96
+                if (lat_llc_pdu_type == LLC_PDUT_L2SIG) begin
+                    llc_buf <= {LLC_PDUT_L2SIG,       // 4
+                                lat_mm_bits,          // 80
+                                12'b000000000000};    // pad to 96
+                end else begin
+                    llc_buf <= {LLC_LINK_TYPE_BL,     // 1
+                                LLC_HAS_FCS_OFF,      // 1
+                                LLC_PDUT_BL_DATA,     // 2
+                                lat_ns,               // 1
+                                MLE_PD_MM,            // 3
+                                lat_mm_bits,          // 80
+                                8'b00000000};         // pad to 96
+                end
                 state    <= S_MAC_HEAD;
             end
 

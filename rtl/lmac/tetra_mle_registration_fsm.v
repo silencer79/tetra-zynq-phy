@@ -53,6 +53,10 @@ module tetra_mle_registration_fsm #(
     // echoed back as the D-LOC-UPDATE-ACCEPT's Location-update-accept-type
     // field so the MS's state machine recognises the response.
     input  wire [2:0]                  ul_loc_upd_type,
+    // 1 when the UL request arrived as direct-MM / LLC L2SigPdu rather than
+    // acknowledged Basic Link. In that case the Accept itself is wrapped as
+    // L2SigPdu and no BL-ACK is appended.
+    input  wire                        ul_use_l2sig,
 
     // -----------------------------------------------------------------
     // Option B auto-BL-ACK (commit 3, 2026-04-24).  When the incoming
@@ -134,6 +138,7 @@ module tetra_mle_registration_fsm #(
     reg [23:0]                  lat_ssi;
     reg [13:0]                  lat_la;
     reg [2:0]                   lat_loc_upd_type;
+    reg                         lat_use_l2sig;
     reg [AST_IDX_WIDTH-1:0]     lat_slot;
     reg                         lat_existing;
     reg [267:0]                 lat_info_bits;       // builder→encoder handoff
@@ -202,17 +207,15 @@ module tetra_mle_registration_fsm #(
     );
 
     // -------------------------------------------------------------------------
-    // MAC-RESOURCE DL builders — one for the Accept BL-DATA, one for the
-    // separate BL-ACK resource.  BlueStation models these as two distinct
-    // MacResources; the registration FSM mirrors that by issuing two queue
-    // requests when the UL request arrived in acknowledged LLC mode.
+    // MAC-RESOURCE DL builder — wraps the Accept as the primary resource and,
+    // when the UL request arrived as BL-DATA/BL-ADATA, appends the BL-ACK as
+    // a second MAC-RESOURCE in the same SCH/F payload.  This matches the
+    // BlueStation on-air behavior more closely than emitting the ACK a frame
+    // later via a separate queue entry.
     // -------------------------------------------------------------------------
     reg          builder_start;
     wire [267:0] builder_pdu_bits_w;
     wire         builder_valid_w;
-    reg          ack_builder_start;
-    wire [267:0] ack_builder_pdu_bits_w;
-    wire         ack_builder_valid_w;
 
     tetra_mac_resource_dl_builder #(
         .PDU_BITS(268)
@@ -224,6 +227,7 @@ module tetra_mle_registration_fsm #(
         .addr_type         (lat_addr_type),
         .ns                (1'b0),
         .nr                (1'b0),                 // TODO: from AST record
+        .llc_pdu_type      (lat_use_l2sig ? 4'd14 : 4'd1),
         // D-LOC-UPDATE-ACCEPT is the canonical response to a successful
         // UL Random Access (MAC-ACCESS → MLE → MM demand).  Setting the
         // MAC-RESOURCE RandAccFlag acknowledges the MS's RA and stops
@@ -247,13 +251,15 @@ module tetra_mle_registration_fsm #(
         .chan_alloc_flag          (1'b0),
         .chan_alloc_element       (chan_alloc_packed_w),
         .chan_alloc_element_len   (chan_alloc_len_w),
-        .second_pdu_valid              (1'b0),
-        .second_pdu_length_ind         (6'd0),
-        .second_pdu_random_access_flag (1'b0),
-        .second_pdu_addr_type          (3'd0),
-        .second_pdu_ssi                (24'd0),
-        .second_pdu_tl_sdu             (80'd0),
-        .second_pdu_tl_sdu_len         (7'd0),
+        // When the incoming MAC-ACCESS carried BL-DATA/BL-ADATA, append a
+        // BL-ACK(nr=lat_ms_ns) after the Accept inside the same SCH/F block.
+        .second_pdu_valid              (lat_ms_bl_data),
+        .second_pdu_length_ind         (6'd6),
+        .second_pdu_random_access_flag (1'b1),
+        .second_pdu_addr_type          (3'd1),
+        .second_pdu_ssi                (lat_ssi),
+        .second_pdu_tl_sdu             ({1'b0, 1'b0, 2'b11, lat_ms_ns, 75'b0}),
+        .second_pdu_tl_sdu_len         (7'd5),
         .second_pdu_pc_flag            (1'b0),
         .second_pdu_pc_element         (4'd0),
         .second_pdu_sg_flag            (1'b0),
@@ -267,20 +273,6 @@ module tetra_mle_registration_fsm #(
         .valid             (builder_valid_w)
     );
 
-    tetra_mac_resource_bl_ack_builder #(
-        .PDU_BITS(268)
-    ) u_bl_ack_builder (
-        .clk               (clk),
-        .rst_n             (rst_n),
-        .start             (ack_builder_start),
-        .ssi               (lat_ssi),
-        .addr_type         (3'd1),
-        .random_access_flag(1'b1),
-        .nr                (lat_ms_ns),
-        .pdu_bits          (ack_builder_pdu_bits_w),
-        .valid             (ack_builder_valid_w)
-    );
-
     // -------------------------------------------------------------------------
     // SCH/F channel encoder — 268 info bits → 432 type-5 coded bits.
     // Pulsed at S_ENCODE_START after the builder latches a complete PDU.
@@ -288,10 +280,6 @@ module tetra_mle_registration_fsm #(
     reg          sch_encode_start;
     wire [431:0] sch_coded_bits_w;
     wire         sch_coded_valid_w;
-    reg          ack_sch_encode_start;
-    reg [267:0]  lat_ack_info_bits;
-    wire [431:0] ack_sch_coded_bits_w;
-    wire         ack_sch_coded_valid_w;
 
     tetra_sch_f_encoder u_sch_f (
         .clk          (clk),
@@ -301,16 +289,6 @@ module tetra_mle_registration_fsm #(
         .scramble_init(cfg_scramble_init),
         .coded_bits   (sch_coded_bits_w),
         .coded_valid  (sch_coded_valid_w)
-    );
-
-    tetra_sch_f_encoder u_ack_sch_f (
-        .clk          (clk),
-        .rst_n        (rst_n),
-        .encode_start (ack_sch_encode_start),
-        .info_bits    (lat_ack_info_bits),
-        .scramble_init(cfg_scramble_init),
-        .coded_bits   (ack_sch_coded_bits_w),
-        .coded_valid  (ack_sch_coded_valid_w)
     );
 
     // -------------------------------------------------------------------------
@@ -346,10 +324,6 @@ module tetra_mle_registration_fsm #(
     localparam [3:0] S_ENCODE_WAIT  = 4'd9;
     localparam [3:0] S_DELIVER      = 4'd10;
     localparam [3:0] S_DROP         = 4'd11;
-    localparam [3:0] S_ACK_BUILD_START  = 4'd12;
-    localparam [3:0] S_ACK_BUILD_WAIT   = 4'd13;
-    localparam [3:0] S_ACK_ENCODE_START = 4'd14;
-    localparam [3:0] S_ACK_ENCODE_WAIT  = 4'd15;
     reg [3:0] state;
 
     // Synchronous reset — Xilinx DRC (REQP-1839) flags async resets on
@@ -362,10 +336,10 @@ module tetra_mle_registration_fsm #(
             lat_ssi           <= 24'd0;
             lat_la            <= 14'd0;
             lat_loc_upd_type  <= 3'd0;
+            lat_use_l2sig     <= 1'b0;
             lat_slot          <= {AST_IDX_WIDTH{1'b0}};
             lat_existing      <= 1'b0;
             lat_info_bits     <= 268'd0;
-            lat_ack_info_bits <= 268'd0;
             lat_ms_bl_data    <= 1'b0;
             lat_ms_ns         <= 1'b0;
             ast_wr_en         <= 1'b0;
@@ -375,9 +349,7 @@ module tetra_mle_registration_fsm #(
             ast_q_mode        <= 1'b0;
             ast_q_issi        <= 24'd0;
             builder_start     <= 1'b0;
-            ack_builder_start <= 1'b0;
             sch_encode_start  <= 1'b0;
-            ack_sch_encode_start <= 1'b0;
             req_valid         <= 1'b0;
             req_coded_bits    <= 432'd0;
             req_pdu_type      <= 2'd0;
@@ -395,9 +367,7 @@ module tetra_mle_registration_fsm #(
             ast_wr_en        <= 1'b0;
             ast_q_start      <= 1'b0;
             builder_start    <= 1'b0;
-            ack_builder_start<= 1'b0;
             sch_encode_start <= 1'b0;
-            ack_sch_encode_start <= 1'b0;
             req_valid        <= 1'b0;
             accept_pulse     <= 1'b0;
             drop_pulse       <= 1'b0;
@@ -422,10 +392,11 @@ module tetra_mle_registration_fsm #(
                     lat_ssi          <= ul_ssi;
                     lat_la           <= ul_la;
                     lat_loc_upd_type <= ul_loc_upd_type;
+                    lat_use_l2sig    <= ul_use_l2sig;
                     // Option B: latch MS N(S) for auto-BL-ACK alongside
                     // Accept (commit 3).  lat_ms_bl_data arms the second
                     // MAC-RESOURCE PDU in the builder.
-                    lat_ms_bl_data   <= ul_llc_is_bl_data & ul_llc_ns_valid;
+                    lat_ms_bl_data   <= (~ul_use_l2sig) & ul_llc_is_bl_data & ul_llc_ns_valid;
                     lat_ms_ns        <= ul_llc_ns;
                     busy             <= 1'b1;
                     state            <= S_CHECK_START;
@@ -514,8 +485,8 @@ module tetra_mle_registration_fsm #(
                     req_coded_bits <= sch_coded_bits_w;
                     req_pdu_type   <= 2'd0;                // SCH_F
                     req_target_tn  <= cfg_mcch_tn;
-                    req_second_pdu_present <= 1'b0;
-                    req_second_pdu_nr      <= 1'b0;
+                    req_second_pdu_present <= lat_ms_bl_data;
+                    req_second_pdu_nr      <= lat_ms_ns;
                     state          <= S_DELIVER;
                 end
             end
@@ -524,45 +495,7 @@ module tetra_mle_registration_fsm #(
             S_DELIVER: begin
                 req_valid        <= 1'b1;
                 accept_pulse     <= 1'b1;
-                if (lat_ms_bl_data)
-                    state <= S_ACK_BUILD_START;
-                else
-                    state <= S_IDLE;
-            end
-
-            // -----------------------------------------------------------------
-            // Build and queue a separate BL-ACK resource after the Accept.
-            // This matches BlueStation's model of two distinct MacResources
-            // instead of a single concatenated payload blob inside one queue
-            // entry.
-            // -----------------------------------------------------------------
-            S_ACK_BUILD_START: begin
-                ack_builder_start <= 1'b1;
-                state             <= S_ACK_BUILD_WAIT;
-            end
-
-            S_ACK_BUILD_WAIT: begin
-                if (ack_builder_valid_w) begin
-                    lat_ack_info_bits <= ack_builder_pdu_bits_w;
-                    state             <= S_ACK_ENCODE_START;
-                end
-            end
-
-            S_ACK_ENCODE_START: begin
-                ack_sch_encode_start <= 1'b1;
-                state                <= S_ACK_ENCODE_WAIT;
-            end
-
-            S_ACK_ENCODE_WAIT: begin
-                if (ack_sch_coded_valid_w) begin
-                    req_coded_bits <= ack_sch_coded_bits_w;
-                    req_pdu_type   <= 2'd0;
-                    req_target_tn  <= cfg_mcch_tn;
-                    req_second_pdu_present <= 1'b0;
-                    req_second_pdu_nr      <= 1'b0;
-                    req_valid      <= 1'b1;
-                    state          <= S_IDLE;
-                end
+                state            <= S_IDLE;
             end
 
             // -----------------------------------------------------------------

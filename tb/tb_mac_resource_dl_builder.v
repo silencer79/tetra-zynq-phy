@@ -24,6 +24,7 @@ module tb_mac_resource_dl_builder;
     reg [2:0]        addr_type= 3'b001;     // SSI
     reg              ns       = 1'b0;
     reg              nr       = 1'b0;
+    reg [3:0]        llc_pdu_type = 4'd1;   // default BL-DATA
     reg              random_access_flag = 1'b0;  // default off for legacy goldens
     // Optional header elements (commit 1 plumbing — all zero for legacy cases)
     reg              power_control_flag     = 1'b0;
@@ -65,6 +66,7 @@ module tb_mac_resource_dl_builder;
         .addr_type          (addr_type),
         .ns                 (ns),
         .nr                 (nr),
+        .llc_pdu_type       (llc_pdu_type),
         .random_access_flag (random_access_flag),
         .power_control_flag     (power_control_flag),
         .power_control_element  (power_control_element),
@@ -177,6 +179,7 @@ module tb_mac_resource_dl_builder;
             ssi     <= ssi_in;
             nr      <= nr_in;
             ns      <= ns_in;
+            llc_pdu_type <= 4'd1;
             mm_bits <= build_mm_accept(ssi_in);
             mm_len  <= 7'd38;
             start   <= 1'b1;
@@ -339,6 +342,40 @@ module tb_mac_resource_dl_builder;
         end
         random_access_flag <= 1'b0;   // restore default
         repeat (4) @(posedge clk);
+
+        // T_l2sig — same MM payload, but wrapped as LLC L2SigPdu=14
+        // instead of BL-DATA. Expect shorter LLC/TM-SDU:
+        //   total bits = 43 + 4 + 38 = 85 → length_ind = 11 octets.
+        begin : t_l2sig
+            reg [PDU_BITS-1:0] got;
+            @(posedge clk);
+            llc_pdu_type <= 4'd14;
+            ssi          <= 24'd523;
+            nr           <= 1'b0;
+            ns           <= 1'b0;
+            mm_bits      <= build_mm_accept(24'd523);
+            mm_len       <= 7'd38;
+            start        <= 1'b1;
+            @(posedge clk);
+            start        <= 1'b0;
+            wait_valid(got);
+            check_length_ind(got, 6'd11, "l2sig_len");
+            test_count = test_count + 1;
+            if (got[224:221] !== 4'd14) begin
+                $display("[T%0d l2sig_hdr] FAIL got=%0d exp=14", test_count, got[224:221]);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d l2sig_hdr] PASS", test_count);
+            end
+            test_count = test_count + 1;
+            if (got[220:217] !== 4'b0101) begin
+                $display("[T%0d l2sig_mmtype] FAIL got=%b exp=0101", test_count, got[220:217]);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d l2sig_mmtype] PASS", test_count);
+            end
+            llc_pdu_type <= 4'd1;
+        end
 
         // =====================================================================
         // Commit 6 — optional-element coverage.  Each new case sets one (or

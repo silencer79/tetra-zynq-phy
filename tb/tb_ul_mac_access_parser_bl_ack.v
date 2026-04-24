@@ -50,6 +50,9 @@ module tb_ul_mac_access_parser_bl_ack;
     wire        ul_llc_ns_w;
     wire        ul_llc_nr_valid_w;
     wire        ul_llc_nr_w;
+    wire        ul_llc_is_mle_mm_w;
+    wire [3:0]  ul_llc_mm_pdu_type_w;
+    wire [2:0]  ul_llc_mm_loc_upd_type_w;
 
     tetra_ul_mac_access_parser u_dut (
         .clk_sys              (clk),
@@ -77,7 +80,10 @@ module tb_ul_mac_access_parser_bl_ack;
         .ul_llc_ns_valid_sys  (ul_llc_ns_valid_w),
         .ul_llc_ns_sys        (ul_llc_ns_w),
         .ul_llc_nr_valid_sys  (ul_llc_nr_valid_w),
-        .ul_llc_nr_sys        (ul_llc_nr_w)
+        .ul_llc_nr_sys        (ul_llc_nr_w),
+        .ul_llc_is_mle_mm_sys (ul_llc_is_mle_mm_w),
+        .ul_llc_mm_pdu_type_sys (ul_llc_mm_pdu_type_w),
+        .ul_llc_mm_loc_upd_type_sys (ul_llc_mm_loc_upd_type_w)
     );
 
     // ---------------------------------------------------------------
@@ -144,6 +150,9 @@ module tb_ul_mac_access_parser_bl_ack;
     reg        cap_ns;
     reg        cap_nr_valid;
     reg        cap_nr;
+    reg        cap_is_mle_mm;
+    reg [3:0]  cap_mm_pdu;
+    reg [2:0]  cap_mm_loc_upd;
 
     task drive_frame;
         begin
@@ -156,6 +165,9 @@ module tb_ul_mac_access_parser_bl_ack;
             cap_ns           = 1'b0;
             cap_nr_valid     = 1'b0;
             cap_nr           = 1'b0;
+            cap_is_mle_mm    = 1'b0;
+            cap_mm_pdu       = 4'd0;
+            cap_mm_loc_upd   = 3'd0;
             @(posedge clk); #1;
             info_valid = 1'b1;
             crc_ok     = 1'b1;
@@ -174,6 +186,9 @@ module tb_ul_mac_access_parser_bl_ack;
             cap_ns         = ul_llc_ns_w;
             cap_nr_valid   = ul_llc_nr_valid_w;
             cap_nr         = ul_llc_nr_w;
+            cap_is_mle_mm  = ul_llc_is_mle_mm_w;
+            cap_mm_pdu     = ul_llc_mm_pdu_type_w;
+            cap_mm_loc_upd = ul_llc_mm_loc_upd_type_w;
             @(posedge clk); #1;    // drain cycle, pulse back to 0
         end
     endtask
@@ -209,6 +224,27 @@ module tb_ul_mac_access_parser_bl_ack;
                          cap_ns_valid, cap_ns, cap_nr_valid, cap_nr,
                          exp_is_bl_data, exp_is_bl_ack,
                          exp_ns_valid, exp_ns, exp_nr_valid, exp_nr);
+                fail_cnt = fail_cnt + 1;
+            end
+        end
+    endtask
+
+    task expect_wrapped_mm;
+        input        exp_is_mle_mm;
+        input [3:0]  exp_mm_pdu;
+        input [2:0]  exp_loc_upd;
+        input [255:0] label;
+        begin
+            if (cap_is_mle_mm == exp_is_mle_mm &&
+                (!exp_is_mle_mm ||
+                 (cap_mm_pdu == exp_mm_pdu && cap_mm_loc_upd == exp_loc_upd))) begin
+                $display("  PASS  %-32s mle_mm=%0d mm_pdu=%0h loc=%0h",
+                         label, cap_is_mle_mm, cap_mm_pdu, cap_mm_loc_upd);
+                pass_cnt = pass_cnt + 1;
+            end else begin
+                $display("  FAIL  %-32s got mle_mm=%0d mm_pdu=%0h loc=%0h exp mle_mm=%0d mm_pdu=%0h loc=%0h",
+                         label, cap_is_mle_mm, cap_mm_pdu, cap_mm_loc_upd,
+                         exp_is_mle_mm, exp_mm_pdu, exp_loc_upd);
                 fail_cnt = fail_cnt + 1;
             end
         end
@@ -290,20 +326,25 @@ module tb_ul_mac_access_parser_bl_ack;
         // bl_ack_valid / bl_ack_nr assertions.
         // ---------------------------------------------------------------
 
-        // (f) BL-DATA (link=0, has_fcs=0, bl_pdu=01, ns=0)
+        // (f) BL-DATA (link=0, has_fcs=0, bl_pdu=01, ns=0) carrying
+        //     MLE/MM + U-LOC-UPDATE-DEMAND(type=3) at wrapped offsets.
         build_frame(2'b00, 1'b0, 2'b00, 1'b1, 3'b010, 10'd523,
-                    1'b0, 1'b0, 2'b01, 1'b0, 68'h0);
+                    1'b0, 1'b0, 2'b01, 1'b0,
+                    {3'b001, 4'h4, 3'b011, 58'h0});
         drive_frame();
         expect_bl_ack(1'b0, 1'b0, "f BL-DATA ns=0");
         expect_llc(1'b1, 1'b0, 1'b1, 1'b0, 1'b0, 1'b0,
                    "f BL-DATA ns=0 llc");
+        expect_wrapped_mm(1'b1, 4'h4, 3'b011, "f wrapped MM loc-upd");
 
         // (g) BL-DATA ns=1
         build_frame(2'b00, 1'b0, 2'b00, 1'b1, 3'b010, 10'd523,
-                    1'b0, 1'b0, 2'b01, 1'b1, 68'h0);
+                    1'b0, 1'b0, 2'b01, 1'b1,
+                    {3'b001, 4'h4, 3'b011, 58'h0});
         drive_frame();
         expect_llc(1'b1, 1'b0, 1'b1, 1'b1, 1'b0, 1'b0,
                    "g BL-DATA ns=1 llc");
+        expect_wrapped_mm(1'b1, 4'h4, 3'b011, "g wrapped MM loc-upd");
 
         // (h) BL-ADATA (bl_pdu=00) with ns=1, nr=0 — nr at [24].
         //     build_frame puts f_seq at [23] (ns), nr goes into tail[67]
@@ -334,7 +375,7 @@ module tb_ul_mac_access_parser_bl_ack;
         $display("==========================================");
         $display("PASS=%0d FAIL=%0d  bl_ack_count=%0d",
                  pass_cnt, fail_cnt, bl_ack_count_w);
-        if (fail_cnt == 0 && pass_cnt == 13)
+        if (fail_cnt == 0 && pass_cnt == 15)
             $display("RESULT: PASS");
         else
             $display("RESULT: FAIL");

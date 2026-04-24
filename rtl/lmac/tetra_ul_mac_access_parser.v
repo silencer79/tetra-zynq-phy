@@ -105,7 +105,11 @@ module tetra_ul_mac_access_parser #(
     output reg                       ul_llc_ns_valid_sys,   // ns field present
     output reg                       ul_llc_ns_sys,         // N(S) from MS
     output reg                       ul_llc_nr_valid_sys,   // nr field present
-    output reg                       ul_llc_nr_sys          // N(R) from MS
+    output reg                       ul_llc_nr_sys,         // N(R) from MS
+    // Wrapped MLE/MM decode for BL-DATA/BL-ADATA carrying MM TL-SDU.
+    output reg                       ul_llc_is_mle_mm_sys,
+    output reg  [3:0]                ul_llc_mm_pdu_type_sys,
+    output reg  [2:0]                ul_llc_mm_loc_upd_type_sys
 );
 
 // info_bits_sys[0] = first decoded bit = ETSI bit 0 (MSB per §21.4.3.3).
@@ -164,6 +168,12 @@ wire        f_nr_valid         = f_is_bl_adata | f_is_bl_ack;
 wire        f_ns_bit           = info_bits_sys[23];
 wire        f_nr_bit           = f_is_bl_adata ? info_bits_sys[24]
                                                : info_bits_sys[23];
+wire [2:0]  f_llc_mle_pd       = {info_bits_sys[24], info_bits_sys[25], info_bits_sys[26]};
+wire [3:0]  f_llc_mm_pdu_type  = {info_bits_sys[27], info_bits_sys[28],
+                                  info_bits_sys[29], info_bits_sys[30]};
+wire [2:0]  f_llc_loc_upd_type = {info_bits_sys[31], info_bits_sys[32],
+                                  info_bits_sys[33]};
+wire        f_is_mle_mm        = (f_llc_mle_pd == 3'b001);
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
@@ -188,6 +198,9 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         ul_llc_ns_sys         <= 1'b0;
         ul_llc_nr_valid_sys   <= 1'b0;
         ul_llc_nr_sys         <= 1'b0;
+        ul_llc_is_mle_mm_sys      <= 1'b0;
+        ul_llc_mm_pdu_type_sys    <= 4'd0;
+        ul_llc_mm_loc_upd_type_sys<= 3'd0;
     end else begin
         pdu_valid_sys        <= 1'b0;
         bl_ack_valid_sys     <= 1'b0;
@@ -195,6 +208,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         ul_llc_is_bl_ack_sys <= 1'b0;
         ul_llc_ns_valid_sys  <= 1'b0;
         ul_llc_nr_valid_sys  <= 1'b0;
+        ul_llc_is_mle_mm_sys <= 1'b0;
         if (info_valid_sys && crc_ok_sys) begin
             pdu_type_sys        <= f_pdu_type;
             fill_bit_sys        <= f_fill_bit;
@@ -225,6 +239,9 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
             ul_llc_ns_sys         <= f_ns_bit;
             ul_llc_nr_valid_sys   <= f_nr_valid;
             ul_llc_nr_sys         <= f_nr_bit;
+            ul_llc_is_mle_mm_sys      <= (f_is_bl_data | f_is_bl_adata) && f_is_mle_mm;
+            ul_llc_mm_pdu_type_sys    <= f_llc_mm_pdu_type;
+            ul_llc_mm_loc_upd_type_sys<= f_llc_loc_upd_type;
         end
     end
 end

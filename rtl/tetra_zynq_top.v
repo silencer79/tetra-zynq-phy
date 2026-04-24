@@ -384,6 +384,9 @@ wire        ul_llc_ns_valid_w;
 wire        ul_llc_ns_w;
 wire        ul_llc_nr_valid_w;
 wire        ul_llc_nr_w;
+wire        ul_llc_is_mle_mm_w;
+wire [3:0]  ul_llc_mm_pdu_type_w;
+wire [2:0]  ul_llc_mm_loc_upd_type_w;
 
 // Cell scrambler seed for UL SCH/HU decoder — comes from AXI reg,
 // resynced clk_axi → clk_sys (see CDC block further down).
@@ -533,6 +536,9 @@ tetra_rx_chain #(
     .ul_llc_ns_sys          (ul_llc_ns_w),
     .ul_llc_nr_valid_sys    (ul_llc_nr_valid_w),
     .ul_llc_nr_sys          (ul_llc_nr_w),
+    .ul_llc_is_mle_mm_sys   (ul_llc_is_mle_mm_w),
+    .ul_llc_mm_pdu_type_sys (ul_llc_mm_pdu_type_w),
+    .ul_llc_mm_loc_upd_type_sys (ul_llc_mm_loc_upd_type_w),
   .dbg_fe_valid_sys (dbg_fe_valid_sys),
   .dbg_tr_valid_sys (dbg_tr_valid_sys),
   .dbg_demod_valid_sys (dbg_demod_valid_sys)
@@ -1722,6 +1728,20 @@ tetra_active_session_table #(
 // numerically when SW programs REG_UL_SCRAMB_INIT with the same formula.
 // =============================================================================
 wire [23:0] mle_ul_ssi_w = {14'd0, ul_short_ssi_sys};
+wire        mle_ul_req_wrapped_w =
+    ul_pdu_valid_sys &&
+    ul_llc_is_bl_data_w &&
+    ul_llc_is_mle_mm_w &&
+    (ul_llc_mm_pdu_type_w == 4'h4);
+wire        mle_ul_req_direct_w =
+    ul_pdu_valid_sys &&
+    (ul_mm_pdu_type_sys == 4'h4);
+wire        mle_ul_req_valid_w =
+    mle_ul_req_wrapped_w || mle_ul_req_direct_w;
+wire [2:0]  mle_ul_loc_upd_type_w =
+    mle_ul_req_wrapped_w ? ul_llc_mm_loc_upd_type_w : ul_loc_upd_type_sys;
+wire        mle_ul_use_l2sig_w =
+    mle_ul_req_direct_w && !mle_ul_req_wrapped_w;
 
 // DL scrambler seed pack — identical to tetra_aach_encoder.v line 127.
 wire [31:0] mle_dl_scramb_init_sys = {cell_cfg_mcc_sys_r1,
@@ -1736,7 +1756,7 @@ tetra_mle_registration_fsm #(
     .clk              (clk_sys),
     .rst_n            (rst_n_sys),
     // UL request
-    .ul_req_valid     (ul_pdu_valid_sys),
+    .ul_req_valid     (mle_ul_req_valid_w),
     .ul_addr_type     (ul_address_type_sys),
     .ul_ssi           (mle_ul_ssi_w),
     // TODO Bug #3: wire ul_location_area_sys from the MAC-ACCESS parser
@@ -1748,7 +1768,8 @@ tetra_mle_registration_fsm #(
     // Parser extracts bits [27:30) of the 92-bit MAC-ACCESS payload; MLE
     // FSM echoes this into the Location-update-accept-type field of the
     // D-LOC-UPDATE-ACCEPT so the MS recognises the reply (Bug #8).
-    .ul_loc_upd_type  (ul_loc_upd_type_sys),
+    .ul_loc_upd_type  (mle_ul_loc_upd_type_w),
+    .ul_use_l2sig     (mle_ul_use_l2sig_w),
     // Option B (commit 6) — MS N(S) from UL parser for auto-BL-ACK.
     .ul_llc_is_bl_data(ul_llc_is_bl_data_w),
     .ul_llc_ns_valid  (ul_llc_ns_valid_w),

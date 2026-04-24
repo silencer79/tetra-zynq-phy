@@ -131,6 +131,9 @@ module tetra_rx_chain #(
     output wire                  ul_llc_ns_sys,
     output wire                  ul_llc_nr_valid_sys,
     output wire                  ul_llc_nr_sys,
+    output wire                  ul_llc_is_mle_mm_sys,
+    output wire [3:0]            ul_llc_mm_pdu_type_sys,
+    output wire [2:0]            ul_llc_mm_loc_upd_type_sys,
 
   // -------------------------------------------------------------------------
   // Debug outputs (ILA probes)
@@ -373,7 +376,10 @@ tetra_ul_mac_access_parser u_ul_mac_parser (
     .ul_llc_ns_valid_sys  (ul_llc_ns_valid_sys),
     .ul_llc_ns_sys        (ul_llc_ns_sys),
     .ul_llc_nr_valid_sys  (ul_llc_nr_valid_sys),
-    .ul_llc_nr_sys        (ul_llc_nr_sys)
+    .ul_llc_nr_sys        (ul_llc_nr_sys),
+    .ul_llc_is_mle_mm_sys (ul_llc_is_mle_mm_sys),
+    .ul_llc_mm_pdu_type_sys (ul_llc_mm_pdu_type_sys),
+    .ul_llc_mm_loc_upd_type_sys (ul_llc_mm_loc_upd_type_sys)
 );
 
 // =============================================================================
