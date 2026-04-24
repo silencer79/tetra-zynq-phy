@@ -1,4 +1,4 @@
-WAV: baseband_382468718Hz_00-11-50_25-04-2026.wav  sr=1536000  dur=17.73s
+WAV: docs/references/captures_external_bs_2026-04-25/baseband_382468718Hz_00-11-50_25-04-2026.wav  sr=1536000  dur=17.73s
   freq offset: +518869.9 Hz (π/4-DQPSK passband centroid)
   sps=7.758
   3 bursts detected
@@ -18,11 +18,11 @@ WAV: baseband_382468718Hz_00-11-50_25-04-2026.wav  sr=1536000  dur=17.73s
 
 === Decoded MAC-ACCESS PDU (92 bits) ===
   #0: 01 41 7F A7 01 12 66 34 20 C1 22 60
-      pdu=0 fill=0 enc=0 ack=0 addr_type=2 short_id=523 LLC=AL-DISC DirectMM=Unknown(13) mode=raw
-      parsed={'pdu_type': 0, 'fill_bit': 0, 'encryption_mode': 0, 'access_ack': 0, 'addr_type': 2, 'short_ssi_or_event_label': 523, 'payload_start': 19, 'llc': {'llc_type': 15, 'llc_type_name': 'AL-DISC'}, 'direct_mm': {'mm_type': 13, 'mm_name': 'Unknown(13)', 'mm': {}, 'payload_start': 27}, 'decoded_mode': 'raw'}
+      pdu=0 fill=0 enc=0 addr=Ssi(ISSI) ssi=2633716 frag=1 res_req=0 LLC=BL-DATA(NS=0) MLE=MM/U-CK-CHG-ANSWER DirectMM=U-AUTH mode=llc_mle
+      parsed={'pdu_type': 0, 'fill_bit': 0, 'encrypted': 0, 'addr_type': 0, 'addr_type_name': 'Ssi(ISSI)', 'ssi': 2633716, 'optional_field_flag': 1, 'frag_flag': 1, 'reservation_req': 0, 'payload_start': 36, 'llc': {'llc_type': 1, 'llc_type_name': 'BL-DATA', 'ns': 0, 'payload_start': 41}, 'mle': {'mle_disc': 1, 'mle_disc_name': 'MM', 'mm_type': 2, 'mm_name': 'U-CK-CHG-ANSWER', 'mm': {}, 'payload_start': 48}, 'direct_mm': {'mm_type': 1, 'mm_name': 'U-AUTH', 'mm': {}, 'payload_start': 40}, 'decoded_mode': 'llc_mle'}
   #1: D4 1C 3C 02 40 50 2F 4D 61 20 00 00
-      pdu=3 fill=0
-      parsed={'pdu_type': 3, 'fill_bit': 0}
+      pdu=1 fill=1
+      parsed={'pdu_type': 1, 'fill_bit': 1, 'mac_top_nibble': 3}
   #2: 41 41 7F A4 63 40 41 41 7F A4 08 00
-      pdu=1 fill=0
-      parsed={'pdu_type': 1, 'fill_bit': 0}
+      pdu=0 fill=1 enc=0 addr=Ssi(ISSI) ssi=2633716 LI=6 LLC=BL-ACK(NR=0) MLE=SNDCP DirectMM=U-ENABLE mode=llc_mle
+      parsed={'pdu_type': 0, 'fill_bit': 1, 'encrypted': 0, 'addr_type': 0, 'addr_type_name': 'Ssi(ISSI)', 'ssi': 2633716, 'optional_field_flag': 1, 'length_ind': 6, 'payload_start': 36, 'llc': {'llc_type': 3, 'llc_type_name': 'BL-ACK', 'nr': 0, 'payload_start': 41}, 'mle': {'mle_disc': 4, 'mle_disc_name': 'SNDCP', 'payload_start': 44}, 'direct_mm': {'mm_type': 3, 'mm_name': 'U-ENABLE', 'mm': {}, 'payload_start': 40}, 'decoded_mode': 'llc_mle'}

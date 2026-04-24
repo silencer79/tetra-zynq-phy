@@ -417,43 +417,86 @@ def parse_ul_direct_mm(bits, pos):
     return r
 
 
+_ADDR_TYPE_NAMES = {0: 'Ssi(ISSI)', 1: 'EventLabel', 2: 'Ussi', 3: 'Smi'}
+
+
 def parse_mac_access(bits92):
-    """Parse UL MAC-ACCESS with enough LLC/MM detail for registration tracing."""
+    """Parse UL MAC-ACCESS per bluestation `mac_access.rs::from_bitbuf`:
+      bit[0]:    mac_pdu_type   (1 bit, must be 0 for MAC-ACCESS)
+      bit[1]:    fill_bits      (1 bit)
+      bit[2]:    encrypted      (1 bit)
+      bits[3..4]: addr_type     (2 bits: 0=ISSI, 1=EventLabel, 2=Ussi, 3=Smi)
+      bits[5..]: address        (24 bits for Ssi/Ussi/Smi, 10 bits for EventLabel)
+      next bit:  optional_field_flag (1)
+        if 1: length_ind_or_cap_req (1)
+          if 0: length_ind (5)
+          if 1: frag_flag (1), reservation_req (4)
+      then: TL-SDU (LLC PDU carrying MLE/direct-MM payload)
+
+    The old parser read addr_type as 3 bits and short_ssi as 10 bits — both
+    off-by-N against ETSI / bluestation. This version matches bluestation bit-exact.
+    """
     if bits92 is None or len(bits92) < 20:
         return None
     b = [int(x) & 1 for x in bits92]
-    pdu_type = extract_bits(b, 0, 2)
-    fill_bit = b[2]
-    # PDU type 0 = MAC-ACCESS
-    out = {'pdu_type': pdu_type, 'fill_bit': fill_bit}
-    if pdu_type == 0:
-        pos = 3
-        out['encryption_mode'] = extract_bits(b, pos, 2); pos += 2
-        out['access_ack'] = extract_bits(b, pos, 1); pos += 1
-        out['addr_type'] = extract_bits(b, pos, 3); pos += 3
-        out['short_ssi_or_event_label'] = extract_bits(b, pos, 10); pos += 10
-        out['payload_start'] = pos
-        if pos + 4 <= len(b):
-            llc = parse_llc(b, pos)
-            out['llc'] = llc
-            llc_payload = llc.get('payload_start')
-            if llc_payload is not None and llc_payload + 3 <= len(b):
-                mle = parse_ul_mle(b, llc_payload)
-                out['mle'] = mle
-        if 23 + 4 <= len(b):
-            direct_mm = parse_ul_direct_mm(b, 23)
-            out['direct_mm'] = direct_mm
-            # Prefer the direct-MM path when the LLC nibble is not a known basic-link PDU
-            # but the MM type decodes to a known UL message. This matches the observed
-            # on-air MAC-ACCESS captures where bits [23:27) carry U-LOC-UPD-DEMAND directly.
-            if ('llc' not in out or
-                    out['llc'].get('llc_type_name', '').startswith('Unknown(')) and \
-                    direct_mm.get('mm_name', '').startswith('U-'):
-                out['decoded_mode'] = 'direct_mm'
-            elif 'mle' in out:
-                out['decoded_mode'] = 'llc_mle'
-            else:
-                out['decoded_mode'] = 'raw'
+    mac_pdu_type = b[0]
+    fill_bits = b[1]
+    out = {'pdu_type': mac_pdu_type, 'fill_bit': fill_bits}
+    if mac_pdu_type != 0:
+        # Not MAC-ACCESS (could be MAC-FRAG-UL type=01 or MAC-U-BLCK type=11
+        # etc.). Keep the flag so the caller can tell these apart.
+        out['mac_top_nibble'] = extract_bits(b, 0, 2)
+        return out
+
+    out['encrypted'] = b[2]
+    addr_type = extract_bits(b, 3, 2)
+    out['addr_type'] = addr_type
+    out['addr_type_name'] = _ADDR_TYPE_NAMES.get(addr_type, f'Unknown({addr_type})')
+    pos = 5
+    if addr_type == 1:  # EventLabel
+        out['event_label'] = extract_bits(b, pos, 10); pos += 10
+    else:  # Ssi (=ISSI), Ussi, Smi all 24 bits
+        out['ssi'] = extract_bits(b, pos, 24); pos += 24
+
+    # Optional field(s)
+    if pos < len(b):
+        opt_flag = b[pos]; pos += 1
+        out['optional_field_flag'] = opt_flag
+        if opt_flag:
+            if pos < len(b):
+                lind_or_cap = b[pos]; pos += 1
+                if lind_or_cap == 0:
+                    if pos + 5 <= len(b):
+                        out['length_ind'] = extract_bits(b, pos, 5); pos += 5
+                else:
+                    if pos + 5 <= len(b):
+                        out['frag_flag'] = b[pos]; pos += 1
+                        out['reservation_req'] = extract_bits(b, pos, 4); pos += 4
+
+    out['payload_start'] = pos
+
+    # TL-SDU starts at pos. Parse LLC layer.
+    if pos + 4 <= len(b):
+        llc = parse_llc(b, pos)
+        out['llc'] = llc
+        llc_payload = llc.get('payload_start')
+        if llc_payload is not None and llc_payload + 3 <= len(b):
+            mle = parse_ul_mle(b, llc_payload)
+            out['mle'] = mle
+
+    # Fallback direct-MM path — for MS's that pack MM-PDU directly behind the
+    # MAC header without LLC wrap (L2SigPdu-ähnlich for UL RAs on some firmwares).
+    if pos + 4 <= len(b):
+        direct_mm = parse_ul_direct_mm(b, pos)
+        out['direct_mm'] = direct_mm
+        llc_name = out.get('llc', {}).get('llc_type_name', '')
+        if (llc_name.startswith('Unknown(') or llc_name == '') and \
+                direct_mm.get('mm_name', '').startswith('U-'):
+            out['decoded_mode'] = 'direct_mm'
+        elif 'mle' in out:
+            out['decoded_mode'] = 'llc_mle'
+        else:
+            out['decoded_mode'] = 'raw'
     return out
 
 
@@ -465,10 +508,18 @@ def format_parsed_mac_access(parsed):
         f"fill={parsed.get('fill_bit', '?')}",
     ]
     if parsed.get('pdu_type') == 0:
-        parts.append(f"enc={parsed.get('encryption_mode', '?')}")
-        parts.append(f"ack={parsed.get('access_ack', '?')}")
-        parts.append(f"addr_type={parsed.get('addr_type', '?')}")
-        parts.append(f"short_id={parsed.get('short_ssi_or_event_label', '?')}")
+        parts.append(f"enc={parsed.get('encrypted', '?')}")
+        parts.append(f"addr={parsed.get('addr_type_name', '?')}")
+        if 'ssi' in parsed:
+            parts.append(f"ssi={parsed['ssi']}")
+        elif 'event_label' in parsed:
+            parts.append(f"ev={parsed['event_label']}")
+        if 'frag_flag' in parsed:
+            parts.append(f"frag={parsed['frag_flag']}")
+        if 'reservation_req' in parsed:
+            parts.append(f"res_req={parsed['reservation_req']}")
+        if 'length_ind' in parsed:
+            parts.append(f"LI={parsed['length_ind']}")
         llc = parsed.get('llc')
         if llc:
             seg = llc.get('llc_type_name', '?')
