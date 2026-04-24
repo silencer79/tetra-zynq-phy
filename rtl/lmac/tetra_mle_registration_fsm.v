@@ -67,6 +67,16 @@ module tetra_mle_registration_fsm #(
     input  wire [9:0]                  bl_ack_short_ssi,
 
     // -----------------------------------------------------------------
+    // Timeslot tick (M3, 2026-04-24) — 1-cycle pulse at the start of each
+    // TDMA timeslot, used by S_WAIT_ACK to count elapsed slots for the
+    // T251 BL-DATA retransmit timer.  Hook up to tx_slot_pulse_sys in
+    // tetra_zynq_top.  When slot_pulse is tied 0 the retransmit logic
+    // is dormant (TB that only exercises the match path can leave it
+    // unwired).
+    // -----------------------------------------------------------------
+    input  wire                        slot_pulse,
+
+    // -----------------------------------------------------------------
     // Cell configuration (static, from AXI regs)
     // -----------------------------------------------------------------
     input  wire [13:0]                 cfg_la,
@@ -104,7 +114,9 @@ module tetra_mle_registration_fsm #(
     output reg                         busy,
     output reg                         accept_pulse,   // 1 cyc on ACCEPT built
     output reg                         drop_pulse,     // 1 cyc on table-full
-    output reg                         ack_pulse       // 1 cyc on matching BL-ACK
+    output reg                         ack_pulse,      // 1 cyc on matching BL-ACK
+    output reg                         retransmit_pulse, // 1 cyc per retransmit
+    output reg                         lost_pulse      // 1 cyc on N252 exhaust
 );
 
     // -------------------------------------------------------------------------
@@ -246,8 +258,20 @@ module tetra_mle_registration_fsm #(
     localparam [3:0] S_ENCODE_WAIT  = 4'd9;
     localparam [3:0] S_DELIVER      = 4'd10;
     localparam [3:0] S_DROP         = 4'd11;
+    // M3 — acknowledged-link retransmit path
+    localparam [3:0] S_WAIT_ACK     = 4'd12;
+    localparam [3:0] S_RETRANSMIT   = 4'd13;
+
+    // BL-DATA retransmit timer / counter constants — bluestation
+    // tetra-pdus::llc::consts::{timers,consts}:
+    //   T251_SENDER_RETRY_TIMER = frames!(4) = 16 timeslots
+    //   N252_BL_MAX_TLSDU_RETRANSMITS_ACKED = 3
+    localparam [4:0] T251_SLOTS     = 5'd16;
+    localparam [1:0] N252_MAX       = 2'd3;
 
     reg [3:0] state;
+    reg [4:0] wait_slot_cnt;      // 0..15, wraps trigger retransmit
+    reg [1:0] retransmit_count;   // 0..3, exhaust trigger mark_lost
 
     // Synchronous reset — Xilinx DRC (REQP-1839) flags async resets on
     // registers feeding BRAM control pins (WEBWE, ADDRBWRADDR) as memory-
@@ -278,6 +302,10 @@ module tetra_mle_registration_fsm #(
             accept_pulse      <= 1'b0;
             drop_pulse        <= 1'b0;
             ack_pulse         <= 1'b0;
+            retransmit_pulse  <= 1'b0;
+            lost_pulse        <= 1'b0;
+            wait_slot_cnt     <= 5'd0;
+            retransmit_count  <= 2'd0;
         end else begin
             // Default strobes — every state may override
             ast_wr_en        <= 1'b0;
@@ -288,6 +316,8 @@ module tetra_mle_registration_fsm #(
             accept_pulse     <= 1'b0;
             drop_pulse       <= 1'b0;
             ack_pulse        <= 1'b0;
+            retransmit_pulse <= 1'b0;
+            lost_pulse       <= 1'b0;
 
             case (state)
             // -----------------------------------------------------------------
@@ -399,9 +429,65 @@ module tetra_mle_registration_fsm #(
 
             // -----------------------------------------------------------------
             S_DELIVER: begin
-                req_valid    <= 1'b1;
-                accept_pulse <= 1'b1;
-                state        <= S_IDLE;
+                req_valid        <= 1'b1;
+                accept_pulse     <= 1'b1;
+                wait_slot_cnt    <= 5'd0;
+                retransmit_count <= 2'd0;
+                state            <= S_WAIT_ACK;
+            end
+
+            // -----------------------------------------------------------------
+            // S_WAIT_ACK — stay here counting timeslots until either
+            //   (a) a matching BL-ACK arrives from the MS → transaction done
+            //       (ack_pulse + N(S) toggle via separate reg below), or
+            //   (b) T251=16 slots elapsed with no ACK → retransmit or give up.
+            //
+            // Bluestation equivalent: llc_bs_ms.rs::submit_retransmissions_to_umac
+            // (Z.564-625) — on age ≥ T251_SENDER_RETRY_TIMER, retransmit if
+            // count < N252_BL_MAX_TLSDU_RETRANSMITS_ACKED, else mark_lost.
+            // -----------------------------------------------------------------
+            S_WAIT_ACK: begin
+                if (bl_ack_valid &&
+                    bl_ack_short_ssi == lat_ssi[9:0] &&
+                    bl_ack_nr == outstanding_ns) begin
+                    // Match — ack the transaction, reset retransmit state,
+                    // return to idle so the next UL request can start fresh.
+                    ack_pulse        <= 1'b1;
+                    wait_slot_cnt    <= 5'd0;
+                    retransmit_count <= 2'd0;
+                    state            <= S_IDLE;
+                end else if (slot_pulse) begin
+                    if (wait_slot_cnt == T251_SLOTS - 5'd1) begin
+                        // T251 expired.
+                        wait_slot_cnt <= 5'd0;
+                        if (retransmit_count == N252_MAX) begin
+                            // N252 exhausted — give up and clear outbound.
+                            // Bluestation: tx_reporter.mark_lost() (Z.619).
+                            lost_pulse       <= 1'b1;
+                            retransmit_count <= 2'd0;
+                            state            <= S_IDLE;
+                        end else begin
+                            // Retransmit the existing req_coded_bits without
+                            // rebuilding — N(S), SSI, payload identical.
+                            retransmit_count <= retransmit_count + 2'd1;
+                            state            <= S_RETRANSMIT;
+                        end
+                    end else begin
+                        wait_slot_cnt <= wait_slot_cnt + 5'd1;
+                    end
+                end
+            end
+
+            // -----------------------------------------------------------------
+            // S_RETRANSMIT — single-cycle pulse of req_valid to re-enqueue
+            // the existing req_coded_bits.  Matches bluestation
+            // submit_for_acknowledged_transmission (Z.241-250) which clones
+            // the retained retransmission_buf and re-submits.
+            // -----------------------------------------------------------------
+            S_RETRANSMIT: begin
+                req_valid        <= 1'b1;
+                retransmit_pulse <= 1'b1;
+                state            <= S_WAIT_ACK;
             end
 
             // -----------------------------------------------------------------
@@ -413,39 +499,27 @@ module tetra_mle_registration_fsm #(
             default: state <= S_IDLE;
             endcase
 
-            // -----------------------------------------------------------------
-            // BL-ACK match + N(S) toggle (M2, 2026-04-24).
-            //
-            // The matching logic is fused into this state block so that the
-            // ack_pulse output (reset to 0 above) can be asserted in the
-            // same cycle as the match.  outstanding_ns lives as its own
-            // register below (R1: one register per always block) — here we
-            // only drive the pulse output.
-            //
-            // Cf. bluestation llc_bs_ms.rs:167-171 (process_incoming_ack)
-            // which calls tx_reporter.mark_acknowledged() on ns match.
-            //
-            // MVP short-ssi compare: MTP3550 test SSI is 523 < 1024 so the
-            // low 10 bits of lat_ssi compare cleanly with bl_ack_short_ssi.
-            // -----------------------------------------------------------------
-            if (bl_ack_valid &&
-                bl_ack_short_ssi == lat_ssi[9:0] &&
-                bl_ack_nr == outstanding_ns) begin
-                ack_pulse <= 1'b1;
-            end
+            // BL-ACK counter-tick also fires `ack_pulse` for observability
+            // from states other than S_WAIT_ACK (e.g., if the MS spams BL-ACKs
+            // after the transaction is already idle).  outstanding_ns toggles
+            // only on matching states, driven by the separate register below.
+            // No state change here — S_WAIT_ACK arm above owns the transition.
         end
     end
 
     // -------------------------------------------------------------------------
-    // N(S) toggle register — M2 one-register-per-always rule.
-    // Independent of the FSM synchronous-reset window above (same clock
-    // domain, same semantic reset).  Using posedge-clk-only to keep it
-    // BRAM-safe (AST-adjacent) like the main state block.
+    // N(S) toggle register — M2 one-register-per-always rule.  M3 refinement:
+    // toggle only when state == S_WAIT_ACK, so spurious BL-ACKs arriving
+    // outside the active transaction window don't corrupt the sequence
+    // number.  Mirrors bluestation llc_bs_ms.rs::process_incoming_ack
+    // take_expected_ack_for_ssi (Z.134-142) which refuses to advance V(S)
+    // if no outstanding acknowledged entry exists.
     // -------------------------------------------------------------------------
     always @(posedge clk) begin
         if (!rst_n)
             outstanding_ns <= 1'b0;
-        else if (bl_ack_valid &&
+        else if (state == S_WAIT_ACK &&
+                 bl_ack_valid &&
                  bl_ack_short_ssi == lat_ssi[9:0] &&
                  bl_ack_nr == outstanding_ns)
             outstanding_ns <= ~outstanding_ns;

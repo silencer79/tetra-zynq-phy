@@ -42,6 +42,9 @@ module tb_mle_registration_fsm;
     reg         bl_ack_nr         = 1'b0;
     reg  [9:0]  bl_ack_short_ssi  = 10'd0;
 
+    // ---- TDMA slot-pulse stimulus (M3, 2026-04-24) ----
+    reg         slot_pulse        = 1'b0;
+
     // ---- Cell config ----
     reg [13:0]  cfg_la            = 14'd36;
     reg [31:0]  cfg_scramble_init = 32'hE1670C03;
@@ -69,6 +72,8 @@ module tb_mle_registration_fsm;
     wire         accept_pulse;
     wire         drop_pulse;
     wire         ack_pulse;
+    wire         retransmit_pulse;
+    wire         lost_pulse;
 
     tetra_active_session_table #(
         .DEPTH      (AST_DEPTH),
@@ -105,6 +110,7 @@ module tb_mle_registration_fsm;
         .bl_ack_valid     (bl_ack_valid),
         .bl_ack_nr        (bl_ack_nr),
         .bl_ack_short_ssi (bl_ack_short_ssi),
+        .slot_pulse       (slot_pulse),
         .cfg_la           (cfg_la),
         .cfg_scramble_init(cfg_scramble_init),
         .cfg_mcch_tn      (cfg_mcch_tn),
@@ -126,7 +132,9 @@ module tb_mle_registration_fsm;
         .busy             (busy),
         .accept_pulse     (accept_pulse),
         .drop_pulse       (drop_pulse),
-        .ack_pulse        (ack_pulse)
+        .ack_pulse        (ack_pulse),
+        .retransmit_pulse (retransmit_pulse),
+        .lost_pulse       (lost_pulse)
     );
 
     integer fail_count = 0;
@@ -241,6 +249,17 @@ module tb_mle_registration_fsm;
                 $display("[T%0d %0s] PASS slot=%0d tn=%0d type=%0d",
                          test_count, tag, got_slot, got_target_tn, got_pdu_type);
             end
+            // M3 helper: after ACCEPT fires, the FSM is parked in S_WAIT_ACK.
+            // Send a matching BL-ACK so it returns to S_IDLE and the next
+            // ul_req can be consumed.  Uses the current outstanding_ns so the
+            // match succeeds independent of prior toggles.
+            @(posedge clk); #1;
+            bl_ack_short_ssi = issi[9:0];
+            bl_ack_nr        = dut.outstanding_ns;
+            bl_ack_valid     = 1'b1;
+            @(posedge clk); #1;
+            bl_ack_valid     = 1'b0;
+            @(posedge clk);
         end
     endtask
 
@@ -305,18 +324,15 @@ module tb_mle_registration_fsm;
         expect_drop(24'd2000, "full_drop");
 
         // -------------------------------------------------------------
-        // T6-T9: BL-ACK handshake (M2 2026-04-24)
+        // M3 Retransmit flow (2026-04-24): after S_DELIVER the FSM is
+        // parked in S_WAIT_ACK; without a BL-ACK match, each T251=16 slot
+        // pulses must trigger a retransmit (up to N252=3 times), then
+        // lost_pulse on the 4th timeout.
         //
-        // The FSM now carries `outstanding_ns` (global 1-bit MVP tracker).
-        // A matching BL-ACK on the same SSI with nr==outstanding_ns must
-        // pulse ack_pulse AND toggle outstanding_ns for the next transmit.
-        // A mismatch (wrong SSI or wrong nr) must NOT pulse ack_pulse and
-        // must NOT toggle outstanding_ns.
-        //
-        // Setup: after T5 (full-drop) the FSM has lat_ssi=24'd2000 latched.
-        // We reset the FSM + AST and run one fresh accept with SSI=523 so
-        // that lat_ssi=24'd523 when the BL-ACK stimulus fires below.
-        // outstanding_ns starts at 0 (reset value).
+        // Clean reset + accept so lat_ssi=523 and retransmit_count=0.
+        // Note: expect_accept's auto BL-ACK would close the transaction,
+        // so we use push_request + wait_for_result directly and leave
+        // the FSM in S_WAIT_ACK.
         // -------------------------------------------------------------
         rst_n = 1'b0;
         repeat (4) @(posedge clk);
@@ -326,76 +342,167 @@ module tb_mle_registration_fsm;
             u_ast.mem[i] = {AST_REC_WIDTH{1'b0}};
         end
         @(posedge clk);
-        // Run a fresh register for SSI=523 so lat_ssi=523
-        expect_accept(24'd523, 6'd0,
-                      EXPECTED_ACCEPT_523_BLK1,
-                      EXPECTED_ACCEPT_523_BLK2,
-                      1'b1, "pre_ack_reg");
 
-        // T6: BL-ACK with matching SSI + matching nr → ack_pulse + toggle
-        @(posedge clk); #1;
-        bl_ack_short_ssi = 10'd523;
-        bl_ack_nr        = 1'b0;
-        bl_ack_valid     = 1'b1;
-        @(posedge clk); #1;
-        test_count = test_count + 1;
-        if (ack_pulse && dut.outstanding_ns == 1'b1) begin
-            $display("[T6 bl_ack_match_nr0] PASS ack_pulse=1 outstanding_ns=1");
-        end else begin
-            $display("[T6 bl_ack_match_nr0] FAIL ack_pulse=%b outstanding_ns=%b",
-                     ack_pulse, dut.outstanding_ns);
-            fail_count = fail_count + 1;
+        // T6: push_request SSI=523, wait for accept req_valid, do NOT ACK.
+        // FSM now in S_WAIT_ACK with retransmit_count=0.
+        begin : t6_setup
+            reg got_accept, got_drop;
+            reg [AST_IDX_WIDTH-1:0] got_slot;
+            reg [431:0]             got_coded;
+            reg [1:0]               got_target_tn;
+            reg [1:0]               got_pdu_type;
+            push_request(24'd523, 14'd36);
+            wait_for_result(got_accept, got_drop, got_slot, got_coded,
+                            got_target_tn, got_pdu_type);
+            test_count = test_count + 1;
+            if (got_accept && dut.state == 4'd12 /* S_WAIT_ACK */) begin
+                $display("[T6 m3_wait_ack_entry] PASS state=S_WAIT_ACK retransmit_count=%0d",
+                         dut.retransmit_count);
+            end else begin
+                $display("[T6 m3_wait_ack_entry] FAIL state=%0d got_accept=%b",
+                         dut.state, got_accept);
+                fail_count = fail_count + 1;
+            end
         end
-        bl_ack_valid = 1'b0;
-        @(posedge clk); #1;
 
-        // T7: second BL-ACK with nr=1 → match (ns is now 1), toggle back to 0
-        bl_ack_short_ssi = 10'd523;
-        bl_ack_nr        = 1'b1;
-        bl_ack_valid     = 1'b1;
-        @(posedge clk); #1;
-        test_count = test_count + 1;
-        if (ack_pulse && dut.outstanding_ns == 1'b0) begin
-            $display("[T7 bl_ack_match_nr1] PASS ack_pulse=1 outstanding_ns=0");
-        end else begin
-            $display("[T7 bl_ack_match_nr1] FAIL ack_pulse=%b outstanding_ns=%b",
-                     ack_pulse, dut.outstanding_ns);
-            fail_count = fail_count + 1;
+        // T7: drive 16 slot_pulses (T251 expired) → first retransmit
+        begin : t7_retransmit1
+            integer k;
+            reg saw_retransmit;
+            reg saw_req;
+            saw_retransmit = 1'b0;
+            saw_req        = 1'b0;
+            for (k = 0; k < 16; k = k + 1) begin
+                @(posedge clk); #1;
+                slot_pulse = 1'b1;
+                @(posedge clk); #1;
+                slot_pulse = 1'b0;
+                if (retransmit_pulse) saw_retransmit = 1'b1;
+                if (req_valid)        saw_req        = 1'b1;
+            end
+            // One extra cycle for the S_RETRANSMIT → S_WAIT_ACK edge to settle
+            @(posedge clk); #1;
+            if (retransmit_pulse) saw_retransmit = 1'b1;
+            if (req_valid)        saw_req        = 1'b1;
+            test_count = test_count + 1;
+            if (saw_retransmit && saw_req && dut.retransmit_count == 2'd1) begin
+                $display("[T7 m3_retrans_1] PASS retransmit_pulse + req_valid, count=1");
+            end else begin
+                $display("[T7 m3_retrans_1] FAIL saw_rt=%b saw_req=%b count=%0d",
+                         saw_retransmit, saw_req, dut.retransmit_count);
+                fail_count = fail_count + 1;
+            end
         end
-        bl_ack_valid = 1'b0;
-        @(posedge clk); #1;
 
-        // T8: BL-ACK with wrong SSI → no ack_pulse, no toggle
-        bl_ack_short_ssi = 10'd999;   // mismatch
-        bl_ack_nr        = 1'b0;
-        bl_ack_valid     = 1'b1;
-        @(posedge clk); #1;
-        test_count = test_count + 1;
-        if (!ack_pulse && dut.outstanding_ns == 1'b0) begin
-            $display("[T8 bl_ack_wrong_ssi] PASS ack_pulse=0 outstanding_ns=0");
-        end else begin
-            $display("[T8 bl_ack_wrong_ssi] FAIL ack_pulse=%b outstanding_ns=%b",
-                     ack_pulse, dut.outstanding_ns);
-            fail_count = fail_count + 1;
+        // T8: another 16 slot_pulses → second retransmit, count=2
+        begin : t8_retransmit2
+            integer k;
+            reg saw_rt;
+            saw_rt = 1'b0;
+            for (k = 0; k < 16; k = k + 1) begin
+                @(posedge clk); #1;
+                slot_pulse = 1'b1;
+                @(posedge clk); #1;
+                slot_pulse = 1'b0;
+                if (retransmit_pulse) saw_rt = 1'b1;
+            end
+            @(posedge clk); #1;
+            if (retransmit_pulse) saw_rt = 1'b1;
+            test_count = test_count + 1;
+            if (saw_rt && dut.retransmit_count == 2'd2) begin
+                $display("[T8 m3_retrans_2] PASS retransmit_pulse, count=2");
+            end else begin
+                $display("[T8 m3_retrans_2] FAIL saw_rt=%b count=%0d",
+                         saw_rt, dut.retransmit_count);
+                fail_count = fail_count + 1;
+            end
         end
-        bl_ack_valid = 1'b0;
-        @(posedge clk); #1;
 
-        // T9: BL-ACK with correct SSI but wrong nr (expected 0, got 1) → no match
-        bl_ack_short_ssi = 10'd523;
-        bl_ack_nr        = 1'b1;       // mismatch vs outstanding_ns=0
-        bl_ack_valid     = 1'b1;
-        @(posedge clk); #1;
-        test_count = test_count + 1;
-        if (!ack_pulse && dut.outstanding_ns == 1'b0) begin
-            $display("[T9 bl_ack_wrong_nr] PASS ack_pulse=0 outstanding_ns=0");
-        end else begin
-            $display("[T9 bl_ack_wrong_nr] FAIL ack_pulse=%b outstanding_ns=%b",
-                     ack_pulse, dut.outstanding_ns);
-            fail_count = fail_count + 1;
+        // T9: another 16 slot_pulses → third retransmit, count=3 (at N252 cap)
+        begin : t9_retransmit3
+            integer k;
+            reg saw_rt;
+            saw_rt = 1'b0;
+            for (k = 0; k < 16; k = k + 1) begin
+                @(posedge clk); #1;
+                slot_pulse = 1'b1;
+                @(posedge clk); #1;
+                slot_pulse = 1'b0;
+                if (retransmit_pulse) saw_rt = 1'b1;
+            end
+            @(posedge clk); #1;
+            if (retransmit_pulse) saw_rt = 1'b1;
+            test_count = test_count + 1;
+            if (saw_rt && dut.retransmit_count == 2'd3) begin
+                $display("[T9 m3_retrans_3] PASS retransmit_pulse, count=3 (N252 cap)");
+            end else begin
+                $display("[T9 m3_retrans_3] FAIL saw_rt=%b count=%0d",
+                         saw_rt, dut.retransmit_count);
+                fail_count = fail_count + 1;
+            end
         end
-        bl_ack_valid = 1'b0;
-        @(posedge clk); #1;
+
+        // T10: another 16 slot_pulses → N252 exhausted → lost_pulse, back to S_IDLE
+        begin : t10_lost
+            integer k;
+            reg saw_lost;
+            saw_lost = 1'b0;
+            for (k = 0; k < 16; k = k + 1) begin
+                @(posedge clk); #1;
+                slot_pulse = 1'b1;
+                @(posedge clk); #1;
+                slot_pulse = 1'b0;
+                if (lost_pulse) saw_lost = 1'b1;
+            end
+            @(posedge clk); #1;
+            if (lost_pulse) saw_lost = 1'b1;
+            test_count = test_count + 1;
+            if (saw_lost && dut.state == 4'd0 /* S_IDLE */ &&
+                dut.retransmit_count == 2'd0) begin
+                $display("[T10 m3_lost] PASS lost_pulse, state=S_IDLE, count reset");
+            end else begin
+                $display("[T10 m3_lost] FAIL saw_lost=%b state=%0d count=%0d",
+                         saw_lost, dut.state, dut.retransmit_count);
+                fail_count = fail_count + 1;
+            end
+        end
+
+        // T11: BL-ACK mid-wait → match, S_WAIT_ACK → S_IDLE.  Fresh reset
+        // so retransmit_count starts clean.
+        rst_n = 1'b0;
+        repeat (4) @(posedge clk);
+        rst_n = 1'b1;
+        @(posedge clk);
+        for (i = 0; i < AST_DEPTH; i = i + 1) begin
+            u_ast.mem[i] = {AST_REC_WIDTH{1'b0}};
+        end
+        @(posedge clk);
+        begin : t11_ack_match
+            reg got_accept, got_drop;
+            reg [AST_IDX_WIDTH-1:0] got_slot;
+            reg [431:0]             got_coded;
+            reg [1:0]               got_target_tn;
+            reg [1:0]               got_pdu_type;
+            push_request(24'd523, 14'd36);
+            wait_for_result(got_accept, got_drop, got_slot, got_coded,
+                            got_target_tn, got_pdu_type);
+            // Now in S_WAIT_ACK, outstanding_ns=0.
+            @(posedge clk); #1;
+            bl_ack_short_ssi = 10'd523;
+            bl_ack_nr        = 1'b0;
+            bl_ack_valid     = 1'b1;
+            @(posedge clk); #1;
+            bl_ack_valid     = 1'b0;
+            @(posedge clk); #1;
+            test_count = test_count + 1;
+            if (dut.state == 4'd0 /* S_IDLE */ && dut.outstanding_ns == 1'b1) begin
+                $display("[T11 m3_ack_match] PASS state=S_IDLE outstanding_ns=1");
+            end else begin
+                $display("[T11 m3_ack_match] FAIL state=%0d outstanding_ns=%b",
+                         dut.state, dut.outstanding_ns);
+                fail_count = fail_count + 1;
+            end
+        end
 
         $display("=============================================");
         if (fail_count == 0)
