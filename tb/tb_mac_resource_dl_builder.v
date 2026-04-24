@@ -311,6 +311,169 @@ module tb_mac_resource_dl_builder;
         random_access_flag <= 1'b0;   // restore default
         repeat (4) @(posedge clk);
 
+        // =====================================================================
+        // Commit 6 — optional-element coverage.  Each new case sets one (or
+        // all three) of power_control/slot_granting/chan_alloc flags and
+        // verifies the full 268-bit MAC-RESOURCE PDU against a bluestation-
+        // equivalent Python reference (/tmp/mac_resource_ref.py:
+        //   build_mac_resource_dl(ssi=523, ns=0, RA=0, mm_bits=...) + flags).
+        //
+        // All cases reuse SSI=523 + the standard 38-bit D-LOC-UPDATE-ACCEPT
+        // MM fixture, so field positions up through bit 40 stay bit-identical
+        // to EXPECTED_1 and the deltas are purely in the optional block.
+        // =====================================================================
+
+        // ---- T_pc: power_control_flag=1, element=5 ------------------------
+        // hdr_len = 43 + 4 = 47.  total = 47+46 = 93.  bytes=12, fill=3.
+        begin : t_pc_flag
+            reg [PDU_BITS-1:0] got;
+            reg [PDU_BITS-1:0] exp;
+            @(posedge clk);
+            ssi                   <= 24'd523;
+            ns                    <= 1'b0;
+            nr                    <= 1'b0;
+            random_access_flag    <= 1'b0;
+            power_control_flag    <= 1'b1;
+            power_control_element <= 4'd5;
+            slot_granting_flag    <= 1'b0;
+            chan_alloc_flag       <= 1'b0;
+            mm_bits               <= build_mm_accept(24'd523);
+            mm_len                <= 7'd38;
+            start                 <= 1'b1;
+            @(posedge clk);
+            start                 <= 1'b0;
+            wait_valid(got);
+            exp = 268'h206100020ba822a300020b040000000000000000000000000000000000000000000;
+            test_count = test_count + 1;
+            if (got !== exp) begin
+                $display("[T%0d pc_flag_on] FAIL", test_count);
+                $display("  got = 268'h%067x", got);
+                $display("  exp = 268'h%067x", exp);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d pc_flag_on] PASS", test_count);
+            end
+            power_control_flag    <= 1'b0;
+            power_control_element <= 4'd0;
+        end
+        repeat (4) @(posedge clk);
+
+        // ---- T_sg: slot_granting_flag=1, element=0x10 (grant 1 slot) -------
+        // hdr_len = 43 + 8 = 51.  total = 97.  bytes=13, fill=7.
+        begin : t_sg_flag
+            reg [PDU_BITS-1:0] got;
+            reg [PDU_BITS-1:0] exp;
+            @(posedge clk);
+            ssi                   <= 24'd523;
+            ns                    <= 1'b0;
+            nr                    <= 1'b0;
+            random_access_flag    <= 1'b0;
+            power_control_flag    <= 1'b0;
+            slot_granting_flag    <= 1'b1;
+            slot_granting_element <= 8'h10;   // cap=1 slot, delay=0
+            chan_alloc_flag       <= 1'b0;
+            mm_bits               <= build_mm_accept(24'd523);
+            mm_len                <= 7'd38;
+            start                 <= 1'b1;
+            @(posedge clk);
+            start                 <= 1'b0;
+            wait_valid(got);
+            exp = 268'h206900020b44022a300020b04000000000000000000000000000000000000000000;
+            test_count = test_count + 1;
+            if (got !== exp) begin
+                $display("[T%0d sg_flag_on] FAIL", test_count);
+                $display("  got = 268'h%067x", got);
+                $display("  exp = 268'h%067x", exp);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d sg_flag_on] PASS", test_count);
+            end
+            slot_granting_flag    <= 1'b0;
+            slot_granting_element <= 8'd0;
+        end
+        repeat (4) @(posedge clk);
+
+        // ---- T_ca: chan_alloc_flag=1, 25-bit replace_lab element ----------
+        // element = 0x0273E94B (carrier_num=1001), element_len=25.
+        // hdr_len = 43 + 25 = 68.  total = 114.  bytes=15, fill=6.
+        begin : t_ca_flag
+            reg [PDU_BITS-1:0] got;
+            reg [PDU_BITS-1:0] exp;
+            @(posedge clk);
+            ssi                    <= 24'd523;
+            ns                     <= 1'b0;
+            nr                     <= 1'b0;
+            random_access_flag     <= 1'b0;
+            power_control_flag     <= 1'b0;
+            slot_granting_flag     <= 1'b0;
+            chan_alloc_flag        <= 1'b1;
+            chan_alloc_element     <= 32'h0273E94B;
+            chan_alloc_element_len <= 5'd25;
+            mm_bits                <= build_mm_accept(24'd523);
+            mm_len                 <= 7'd38;
+            start                  <= 1'b1;
+            @(posedge clk);
+            start                  <= 1'b0;
+            wait_valid(got);
+            exp = 268'h207900020b273e94b11518001058200000000000000000000000000000000000000;
+            test_count = test_count + 1;
+            if (got !== exp) begin
+                $display("[T%0d ca_flag_on] FAIL", test_count);
+                $display("  got = 268'h%067x", got);
+                $display("  exp = 268'h%067x", exp);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d ca_flag_on] PASS", test_count);
+            end
+            chan_alloc_flag        <= 1'b0;
+            chan_alloc_element     <= 32'd0;
+            chan_alloc_element_len <= 5'd0;
+        end
+        repeat (4) @(posedge clk);
+
+        // ---- T_all: all three flags=1 simultaneously ----------------------
+        // hdr_len = 43 + 4 + 8 + 25 = 80.  total = 126.  bytes=16, fill=2.
+        begin : t_all_flags
+            reg [PDU_BITS-1:0] got;
+            reg [PDU_BITS-1:0] exp;
+            @(posedge clk);
+            ssi                    <= 24'd523;
+            ns                     <= 1'b0;
+            nr                     <= 1'b0;
+            random_access_flag     <= 1'b0;
+            power_control_flag     <= 1'b1;
+            power_control_element  <= 4'd5;
+            slot_granting_flag     <= 1'b1;
+            slot_granting_element  <= 8'h10;
+            chan_alloc_flag        <= 1'b1;
+            chan_alloc_element     <= 32'h0273E94B;
+            chan_alloc_element_len <= 5'd25;
+            mm_bits                <= build_mm_accept(24'd523);
+            mm_len                 <= 7'd38;
+            start                  <= 1'b1;
+            @(posedge clk);
+            start                  <= 1'b0;
+            wait_valid(got);
+            exp = 268'h208100020bac4273e94b11518001058200000000000000000000000000000000000;
+            test_count = test_count + 1;
+            if (got !== exp) begin
+                $display("[T%0d all_flags_on] FAIL", test_count);
+                $display("  got = 268'h%067x", got);
+                $display("  exp = 268'h%067x", exp);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d all_flags_on] PASS", test_count);
+            end
+            power_control_flag     <= 1'b0;
+            power_control_element  <= 4'd0;
+            slot_granting_flag     <= 1'b0;
+            slot_granting_element  <= 8'd0;
+            chan_alloc_flag        <= 1'b0;
+            chan_alloc_element     <= 32'd0;
+            chan_alloc_element_len <= 5'd0;
+        end
+        repeat (4) @(posedge clk);
+
         $display("=============================================");
         if (fail_count == 0)
             $display("tb_mac_resource_dl_builder: PASS (%0d/%0d)",
