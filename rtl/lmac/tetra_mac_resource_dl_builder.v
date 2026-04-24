@@ -79,6 +79,31 @@ module tetra_mac_resource_dl_builder #(
     // ACCEPT is always a RA response).
     input  wire                  random_access_flag,
 
+    // -------------------------------------------------------------------
+    // Optional header elements (bluestation MacResource struct, §21.4.3.1):
+    //   power_control_flag  (1 bit, always emitted after SSI)
+    //     + 4-bit power_control_element when flag=1 (§21.5.7)
+    //   slot_granting_flag  (1 bit, always emitted)
+    //     + 8-bit basic slot-granting element when flag=1 (§21.5.6)
+    //       Packed as {cap_alloc[3:0], granting_delay[3:0]}, MSB-first.
+    //   chan_alloc_flag     (1 bit, always emitted)
+    //     + chan_alloc_element_len bits when flag=1 (§21.5.2).
+    //       Variable length 21..25 bits in the supported subset.  Packed
+    //       MSB-first in chan_alloc_element[31:0] (left-aligned after shift,
+    //       top chan_alloc_element_len bits used).
+    //
+    // For D-LOC-UPDATE-ACCEPT (registration) all three flags are tied 0 —
+    // no resource grant piggybacks the accept.  Plumbed for future CMCE
+    // call-setup / paging / group-call scheduling.
+    // -------------------------------------------------------------------
+    input  wire                  power_control_flag,
+    input  wire [3:0]            power_control_element,
+    input  wire                  slot_granting_flag,
+    input  wire [7:0]            slot_granting_element,
+    input  wire                  chan_alloc_flag,
+    input  wire [31:0]           chan_alloc_element,
+    input  wire [4:0]            chan_alloc_element_len,
+
     // Raw MM PDU (MSB=[79], actual length in mm_pdu_len_bits)
     input  wire [79:0]           mm_pdu_bits,
     input  wire [6:0]            mm_pdu_len_bits,
@@ -136,6 +161,15 @@ module tetra_mac_resource_dl_builder #(
     reg              lat_random_access_flag;
     reg [79:0]       lat_mm_bits;
     reg [6:0]        lat_mm_len;
+    // Optional-element inputs latched at S_IDLE (commit 1 plumbing; consumed
+    // by the header packer starting commit 4).
+    reg              lat_pc_flag;
+    reg [3:0]        lat_pc_element;
+    reg              lat_sg_flag;
+    reg [7:0]        lat_sg_element;
+    reg              lat_ca_flag;
+    reg [31:0]       lat_ca_element;
+    reg [4:0]        lat_ca_element_len;
 
     // Derived lengths
     reg [8:0]        tl_sdu_len;           // MLE PD (3) + MM PDU len
@@ -202,6 +236,13 @@ module tetra_mac_resource_dl_builder #(
             lat_random_access_flag <= 1'b0;
             lat_mm_bits        <= 80'd0;
             lat_mm_len         <= 7'd0;
+            lat_pc_flag        <= 1'b0;
+            lat_pc_element     <= 4'd0;
+            lat_sg_flag        <= 1'b0;
+            lat_sg_element     <= 8'd0;
+            lat_ca_flag        <= 1'b0;
+            lat_ca_element     <= 32'd0;
+            lat_ca_element_len <= 5'd0;
             tl_sdu_len         <= 9'd0;
             llc_cov_len        <= 9'd0;
             mac_tm_sdu_len     <= 9'd0;
@@ -229,6 +270,13 @@ module tetra_mac_resource_dl_builder #(
                     lat_random_access_flag<= random_access_flag;
                     lat_mm_bits           <= mm_pdu_bits;
                     lat_mm_len            <= mm_pdu_len_bits;
+                    lat_pc_flag           <= power_control_flag;
+                    lat_pc_element        <= power_control_element;
+                    lat_sg_flag           <= slot_granting_flag;
+                    lat_sg_element        <= slot_granting_element;
+                    lat_ca_flag           <= chan_alloc_flag;
+                    lat_ca_element        <= chan_alloc_element;
+                    lat_ca_element_len    <= chan_alloc_element_len;
                     state                 <= S_ASSEMBLE_INNER;
                 end
             end

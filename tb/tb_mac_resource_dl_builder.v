@@ -25,6 +25,14 @@ module tb_mac_resource_dl_builder;
     reg              ns       = 1'b0;
     reg              nr       = 1'b0;
     reg              random_access_flag = 1'b0;  // default off for legacy goldens
+    // Optional header elements (commit 1 plumbing — all zero for legacy cases)
+    reg              power_control_flag     = 1'b0;
+    reg [3:0]        power_control_element  = 4'd0;
+    reg              slot_granting_flag     = 1'b0;
+    reg [7:0]        slot_granting_element  = 8'd0;
+    reg              chan_alloc_flag        = 1'b0;
+    reg [31:0]       chan_alloc_element     = 32'd0;
+    reg [4:0]        chan_alloc_element_len = 5'd0;
     reg [79:0]       mm_bits  = 80'd0;
     reg [6:0]        mm_len   = 7'd0;
 
@@ -43,6 +51,13 @@ module tb_mac_resource_dl_builder;
         .ns                 (ns),
         .nr                 (nr),
         .random_access_flag (random_access_flag),
+        .power_control_flag     (power_control_flag),
+        .power_control_element  (power_control_element),
+        .slot_granting_flag     (slot_granting_flag),
+        .slot_granting_element  (slot_granting_element),
+        .chan_alloc_flag        (chan_alloc_flag),
+        .chan_alloc_element     (chan_alloc_element),
+        .chan_alloc_element_len (chan_alloc_element_len),
         .mm_pdu_bits        (mm_bits),
         .mm_pdu_len_bits    (mm_len),
         .pdu_bits           (pdu_bits),

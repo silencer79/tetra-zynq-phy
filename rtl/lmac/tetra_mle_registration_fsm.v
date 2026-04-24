@@ -201,6 +201,19 @@ module tetra_mle_registration_fsm #(
         // analogous path).  This FSM is exclusively triggered from the
         // UL MAC-ACCESS parser, so hard-1 is correct here.
         .random_access_flag(1'b1),
+        // D-LOC-UPDATE-ACCEPT carries no resource grant, so all three
+        // optional MAC-RESOURCE elements are absent.  Bluestation-equivalent:
+        // MacResource { power_control_element: None, slot_granting_element: None,
+        //               chan_alloc_element: None, .. } in
+        // crates/tetra-pdus/src/umac/pdus/mac_resource.rs.  Phase-6 CMCE /
+        // call-setup callsites will set these to actual values.
+        .power_control_flag       (1'b0),
+        .power_control_element    (4'd0),
+        .slot_granting_flag       (1'b0),
+        .slot_granting_element    (8'd0),
+        .chan_alloc_flag          (1'b0),
+        .chan_alloc_element       (32'd0),
+        .chan_alloc_element_len   (5'd0),
         .mm_pdu_bits       (dloc_mm_bits_w),
         .mm_pdu_len_bits   (dloc_mm_len_w),
         .pdu_bits          (builder_pdu_bits_w),
