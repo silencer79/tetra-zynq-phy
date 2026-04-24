@@ -37,6 +37,11 @@ module tb_mle_registration_fsm;
     reg  [13:0] ul_la            = 14'd0;
     reg  [2:0]  ul_loc_upd_type  = 3'd0;  // default Roaming; T1 gold uses 000
 
+    // ---- UL BL-ACK stimulus (M2, 2026-04-24) ----
+    reg         bl_ack_valid      = 1'b0;
+    reg         bl_ack_nr         = 1'b0;
+    reg  [9:0]  bl_ack_short_ssi  = 10'd0;
+
     // ---- Cell config ----
     reg [13:0]  cfg_la            = 14'd36;
     reg [31:0]  cfg_scramble_init = 32'hE1670C03;
@@ -63,6 +68,7 @@ module tb_mle_registration_fsm;
     wire         busy;
     wire         accept_pulse;
     wire         drop_pulse;
+    wire         ack_pulse;
 
     tetra_active_session_table #(
         .DEPTH      (AST_DEPTH),
@@ -96,6 +102,9 @@ module tb_mle_registration_fsm;
         .ul_ssi           (ul_ssi),
         .ul_la            (ul_la),
         .ul_loc_upd_type  (ul_loc_upd_type),
+        .bl_ack_valid     (bl_ack_valid),
+        .bl_ack_nr        (bl_ack_nr),
+        .bl_ack_short_ssi (bl_ack_short_ssi),
         .cfg_la           (cfg_la),
         .cfg_scramble_init(cfg_scramble_init),
         .cfg_mcch_tn      (cfg_mcch_tn),
@@ -116,7 +125,8 @@ module tb_mle_registration_fsm;
         .req_target_tn    (req_target_tn),
         .busy             (busy),
         .accept_pulse     (accept_pulse),
-        .drop_pulse       (drop_pulse)
+        .drop_pulse       (drop_pulse),
+        .ack_pulse        (ack_pulse)
     );
 
     integer fail_count = 0;
@@ -293,6 +303,99 @@ module tb_mle_registration_fsm;
 
         // T5: new ISSI with full table → drop
         expect_drop(24'd2000, "full_drop");
+
+        // -------------------------------------------------------------
+        // T6-T9: BL-ACK handshake (M2 2026-04-24)
+        //
+        // The FSM now carries `outstanding_ns` (global 1-bit MVP tracker).
+        // A matching BL-ACK on the same SSI with nr==outstanding_ns must
+        // pulse ack_pulse AND toggle outstanding_ns for the next transmit.
+        // A mismatch (wrong SSI or wrong nr) must NOT pulse ack_pulse and
+        // must NOT toggle outstanding_ns.
+        //
+        // Setup: after T5 (full-drop) the FSM has lat_ssi=24'd2000 latched.
+        // We reset the FSM + AST and run one fresh accept with SSI=523 so
+        // that lat_ssi=24'd523 when the BL-ACK stimulus fires below.
+        // outstanding_ns starts at 0 (reset value).
+        // -------------------------------------------------------------
+        rst_n = 1'b0;
+        repeat (4) @(posedge clk);
+        rst_n = 1'b1;
+        @(posedge clk);
+        for (i = 0; i < AST_DEPTH; i = i + 1) begin
+            u_ast.mem[i] = {AST_REC_WIDTH{1'b0}};
+        end
+        @(posedge clk);
+        // Run a fresh register for SSI=523 so lat_ssi=523
+        expect_accept(24'd523, 6'd0,
+                      EXPECTED_ACCEPT_523_BLK1,
+                      EXPECTED_ACCEPT_523_BLK2,
+                      1'b1, "pre_ack_reg");
+
+        // T6: BL-ACK with matching SSI + matching nr → ack_pulse + toggle
+        @(posedge clk); #1;
+        bl_ack_short_ssi = 10'd523;
+        bl_ack_nr        = 1'b0;
+        bl_ack_valid     = 1'b1;
+        @(posedge clk); #1;
+        test_count = test_count + 1;
+        if (ack_pulse && dut.outstanding_ns == 1'b1) begin
+            $display("[T6 bl_ack_match_nr0] PASS ack_pulse=1 outstanding_ns=1");
+        end else begin
+            $display("[T6 bl_ack_match_nr0] FAIL ack_pulse=%b outstanding_ns=%b",
+                     ack_pulse, dut.outstanding_ns);
+            fail_count = fail_count + 1;
+        end
+        bl_ack_valid = 1'b0;
+        @(posedge clk); #1;
+
+        // T7: second BL-ACK with nr=1 → match (ns is now 1), toggle back to 0
+        bl_ack_short_ssi = 10'd523;
+        bl_ack_nr        = 1'b1;
+        bl_ack_valid     = 1'b1;
+        @(posedge clk); #1;
+        test_count = test_count + 1;
+        if (ack_pulse && dut.outstanding_ns == 1'b0) begin
+            $display("[T7 bl_ack_match_nr1] PASS ack_pulse=1 outstanding_ns=0");
+        end else begin
+            $display("[T7 bl_ack_match_nr1] FAIL ack_pulse=%b outstanding_ns=%b",
+                     ack_pulse, dut.outstanding_ns);
+            fail_count = fail_count + 1;
+        end
+        bl_ack_valid = 1'b0;
+        @(posedge clk); #1;
+
+        // T8: BL-ACK with wrong SSI → no ack_pulse, no toggle
+        bl_ack_short_ssi = 10'd999;   // mismatch
+        bl_ack_nr        = 1'b0;
+        bl_ack_valid     = 1'b1;
+        @(posedge clk); #1;
+        test_count = test_count + 1;
+        if (!ack_pulse && dut.outstanding_ns == 1'b0) begin
+            $display("[T8 bl_ack_wrong_ssi] PASS ack_pulse=0 outstanding_ns=0");
+        end else begin
+            $display("[T8 bl_ack_wrong_ssi] FAIL ack_pulse=%b outstanding_ns=%b",
+                     ack_pulse, dut.outstanding_ns);
+            fail_count = fail_count + 1;
+        end
+        bl_ack_valid = 1'b0;
+        @(posedge clk); #1;
+
+        // T9: BL-ACK with correct SSI but wrong nr (expected 0, got 1) → no match
+        bl_ack_short_ssi = 10'd523;
+        bl_ack_nr        = 1'b1;       // mismatch vs outstanding_ns=0
+        bl_ack_valid     = 1'b1;
+        @(posedge clk); #1;
+        test_count = test_count + 1;
+        if (!ack_pulse && dut.outstanding_ns == 1'b0) begin
+            $display("[T9 bl_ack_wrong_nr] PASS ack_pulse=0 outstanding_ns=0");
+        end else begin
+            $display("[T9 bl_ack_wrong_nr] FAIL ack_pulse=%b outstanding_ns=%b",
+                     ack_pulse, dut.outstanding_ns);
+            fail_count = fail_count + 1;
+        end
+        bl_ack_valid = 1'b0;
+        @(posedge clk); #1;
 
         $display("=============================================");
         if (fail_count == 0)

@@ -55,6 +55,18 @@ module tetra_mle_registration_fsm #(
     input  wire [2:0]                  ul_loc_upd_type,
 
     // -----------------------------------------------------------------
+    // UL LLC BL-ACK (M1→M2, 2026-04-24) — fires when the MS acknowledges
+    // our most recent BL-DATA D-LOC-UPDATE-ACCEPT.  We toggle our local
+    // outstanding_ns and pulse ack_pulse so software can count the
+    // completed BL-DATA transactions.  The actual registration state in
+    // the active-session-table is already REGISTERED at S_WRITE; this
+    // ack confirmation only affects the LLC-layer N(S)/N(R) sequencing.
+    // -----------------------------------------------------------------
+    input  wire                        bl_ack_valid,
+    input  wire                        bl_ack_nr,
+    input  wire [9:0]                  bl_ack_short_ssi,
+
+    // -----------------------------------------------------------------
     // Cell configuration (static, from AXI regs)
     // -----------------------------------------------------------------
     input  wire [13:0]                 cfg_la,
@@ -91,7 +103,8 @@ module tetra_mle_registration_fsm #(
     // -----------------------------------------------------------------
     output reg                         busy,
     output reg                         accept_pulse,   // 1 cyc on ACCEPT built
-    output reg                         drop_pulse      // 1 cyc on table-full
+    output reg                         drop_pulse,     // 1 cyc on table-full
+    output reg                         ack_pulse       // 1 cyc on matching BL-ACK
 );
 
     // -------------------------------------------------------------------------
@@ -104,6 +117,26 @@ module tetra_mle_registration_fsm #(
     reg [AST_IDX_WIDTH-1:0]     lat_slot;
     reg                         lat_existing;
     reg [267:0]                 lat_info_bits;       // builder→encoder handoff
+
+    // -------------------------------------------------------------------------
+    // LLC-layer N(S) tracker (M2, 2026-04-24).  MVP: one global 1-bit
+    // register, matches bluestation llc_bs_ms.rs:126-131 per-SSI V(S)
+    // HashMap but simplified to a single active session until the
+    // active-session-table carries per-SSI NS in a future step.
+    //
+    // Initial value 0; toggles 0↔1 on each acknowledged BL-DATA.  Fed into
+    // tetra_mac_resource_dl_builder as `ns` so the outgoing MAC-RESOURCE
+    // wraps the correct LLC BL-DATA N(S) bit.
+    //
+    // Bluestation flow (llc_bs_ms.rs:126-131 get_next_send_seq + :167-171
+    // process_incoming_ack mark_acknowledged):
+    //   TX: ns = V(S); V(S) ^= 1
+    //   RX: if (nr == expected_ack.ns) mark_acknowledged()
+    //
+    // We fuse these — on a matching BL-ACK, we toggle outstanding_ns.  The
+    // next transmitted BL-DATA uses the toggled value.
+    // -------------------------------------------------------------------------
+    reg                         outstanding_ns;
 
     // -------------------------------------------------------------------------
     // D-LOCATION-UPDATE builder — combinational, always watching the latched
@@ -147,7 +180,7 @@ module tetra_mle_registration_fsm #(
         .start             (builder_start),
         .ssi               (lat_ssi),
         .addr_type         (lat_addr_type),
-        .ns                (1'b0),                 // TODO: from AST record
+        .ns                (outstanding_ns),       // toggles on BL-ACK match (M2)
         .nr                (1'b0),                 // TODO: from AST record
         // D-LOC-UPDATE-ACCEPT is the canonical response to a successful
         // UL Random Access (MAC-ACCESS → MLE → MM demand).  Setting the
@@ -244,6 +277,7 @@ module tetra_mle_registration_fsm #(
             busy              <= 1'b0;
             accept_pulse      <= 1'b0;
             drop_pulse        <= 1'b0;
+            ack_pulse         <= 1'b0;
         end else begin
             // Default strobes — every state may override
             ast_wr_en        <= 1'b0;
@@ -253,6 +287,7 @@ module tetra_mle_registration_fsm #(
             req_valid        <= 1'b0;
             accept_pulse     <= 1'b0;
             drop_pulse       <= 1'b0;
+            ack_pulse        <= 1'b0;
 
             case (state)
             // -----------------------------------------------------------------
@@ -377,7 +412,43 @@ module tetra_mle_registration_fsm #(
 
             default: state <= S_IDLE;
             endcase
+
+            // -----------------------------------------------------------------
+            // BL-ACK match + N(S) toggle (M2, 2026-04-24).
+            //
+            // The matching logic is fused into this state block so that the
+            // ack_pulse output (reset to 0 above) can be asserted in the
+            // same cycle as the match.  outstanding_ns lives as its own
+            // register below (R1: one register per always block) — here we
+            // only drive the pulse output.
+            //
+            // Cf. bluestation llc_bs_ms.rs:167-171 (process_incoming_ack)
+            // which calls tx_reporter.mark_acknowledged() on ns match.
+            //
+            // MVP short-ssi compare: MTP3550 test SSI is 523 < 1024 so the
+            // low 10 bits of lat_ssi compare cleanly with bl_ack_short_ssi.
+            // -----------------------------------------------------------------
+            if (bl_ack_valid &&
+                bl_ack_short_ssi == lat_ssi[9:0] &&
+                bl_ack_nr == outstanding_ns) begin
+                ack_pulse <= 1'b1;
+            end
         end
+    end
+
+    // -------------------------------------------------------------------------
+    // N(S) toggle register — M2 one-register-per-always rule.
+    // Independent of the FSM synchronous-reset window above (same clock
+    // domain, same semantic reset).  Using posedge-clk-only to keep it
+    // BRAM-safe (AST-adjacent) like the main state block.
+    // -------------------------------------------------------------------------
+    always @(posedge clk) begin
+        if (!rst_n)
+            outstanding_ns <= 1'b0;
+        else if (bl_ack_valid &&
+                 bl_ack_short_ssi == lat_ssi[9:0] &&
+                 bl_ack_nr == outstanding_ns)
+            outstanding_ns <= ~outstanding_ns;
     end
 
 endmodule
