@@ -807,37 +807,6 @@ Jeder einzelne Fix bisher ist **nachweislich ETSI- oder osmo-konform** (Bit-Walk
 
 Die strukturelle Komplexität des TETRA-LMAC-Stacks (mit Retransmit, NR/NS, UL-ACK, Slot-aware Delivery) ist in RTL-FSM-Form mehrere Wochen Arbeit. Die 2026-04-22-Architekturentscheidung "FPGA-heavy MAC/MLE/CMCE" hat diesen Aufwand unterschätzt.
 
-### 9.4 Verworfene Hypothesen
-
-**Phase 3 — dynamischer AACH-Grant im RA/ITSI-attach-Fall (verworfen 2026-04-24).**
-Hypothese war: Der AACH müsste beim RA-Ack auf Header=01 (Assigned) oder Header=10
-umschalten, optional mit 6-bit Usage-Marker, damit die MS ihren Reply-Slot erkennt.
-BlueStation-Source-Audit (siehe `.ralph/chat.md` Eintrag 2026-04-24 "BlueStation-AACH-
-Verifikation abgeschlossen") widerlegt das:
-
-- `bs_sched.rs::generate_bbk_block` (Z.1079–1171) branched ausschließlich auf `ts.f`,
-  `ts.t`, `dl_traffic_usage`, `ul_traffic_usage`, `hangtime`. **Kein** Pfad für
-  `DlSchedElem::RandomAccessAck`, `DlSchedElem::Grant` oder `DlSchedElem::Resource`.
-- TS1 (MCCH) auf F1..F17: hart `CommonControl / CommonOnly` mit statischen Access
-  Fields; Kommentar im Code zitiert explizit ETSI §23.5.2.2.2 "MS with a grant
-  transmits in granted slots without checking the AACH".
-- `dl_integrate_sched_elems_for_timeslot` (Z.656–711) setzt bei eintreffender RA
-  nur `pdu.random_access_flag = true` auf der MacResource (Z.686 oder via
-  `dl_make_minimal_resource(addr, None, true)` Z.708). Null AACH-Manipulation.
-- `umac_bs.rs` hat 0 Treffer auf `aach|AccessAssign|dl_usage`.
-
-Konsequenz: Keine AACH-Encoder-Ports, kein Grant-Req-Pfad, keine TN-Extraktion aus
-MAC-ACCESS. Unser `tetra_aach_encoder.v` mit statischem Header=00 auf TS1
-(info=`0x0249`, DL/UL-Assign common/random CC=9) ist BlueStation-äquivalent.
-
-**Neuer Hauptverdacht (nicht Phase 3):** Struktur der Minimal-RA-Ack MAC-RESOURCE —
-BlueStation Slow-Path via `dl_make_minimal_resource(addr, None, true)` erzeugt eine
-**leere** MAC-RESOURCE (nur MAC-Header + `random_access_flag=true`, **keinerlei**
-LLC/MLE/MM-Payload), das D-LOC-UPDATE-ACCEPT folgt separat im nächsten Frame. Unser
-RTL sendet dagegen immer das kombinierte 268-bit-SCH/F mit kompletter MLE/MM-Kette.
-Bit-Dump-Vergleich (BlueStation-Rust-Harness vs. `scripts/decode_dl.py`) folgt als
-Offline-Referenz, um Fast-Path vs. Slow-Path bei echter Cell zu klären.
-
 ---
 
 ## 10. Cell-Acquisition-Sequenz (Receiver-Sicht)
