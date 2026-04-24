@@ -158,6 +158,7 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_basic_slotgrant_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_chan_alloc_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_mac_resource_dl_builder.v \
+ $PROJ_DIR/rtl/lmac/tetra_mac_resource_bl_ack_builder.v \
  $PROJ_DIR/rtl/lmac/tetra_mle_registration_fsm.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_signal_queue.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_signal_scheduler.v \
