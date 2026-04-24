@@ -59,6 +59,15 @@ module tetra_dl_signal_queue #(
     input  wire [431:0] wr_mle_coded,
     input  wire [1:0]   wr_mle_pdu_type,
     input  wire [1:0]   wr_mle_target_tn,
+    // Option B (2026-04-24 commit 4): telemetry bits indicating that the
+    // coded SCH/F block carries a concatenated BL-ACK second MAC-RESOURCE
+    // (bluestation llc_bs_ms.rs schedule_outgoing_ack).  Purely
+    // informational — the actual 2-PDU concat is already baked into the
+    // 432-bit wr_mle_coded payload by tetra_mac_resource_dl_builder.  The
+    // scheduler forwards these to top-level ILA probes / AXI debug regs
+    // so we can observe on-air which slots ship an auto-ACK.
+    input  wire         wr_mle_second_pdu_present,
+    input  wire         wr_mle_second_pdu_nr,
 
     // -------------------------------------------------------------------------
     // Producer write port — CMCE (prio 01, tied off in MVP)
@@ -85,6 +94,8 @@ module tetra_dl_signal_queue #(
     output wire [1:0]   head_pdu_type,
     output wire [1:0]   head_target_tn,
     output wire [1:0]   head_prio,
+    output wire         head_second_pdu_present, // commit 4 telemetry
+    output wire         head_second_pdu_nr,
 
     // -------------------------------------------------------------------------
     // Status / debug
@@ -101,6 +112,8 @@ module tetra_dl_signal_queue #(
     reg [1:0]   entry_pdu_type[0:DEPTH-1];
     reg [1:0]   entry_target_tn[0:DEPTH-1];
     reg [1:0]   entry_prio    [0:DEPTH-1];
+    reg         entry_second_pdu_present [0:DEPTH-1];
+    reg         entry_second_pdu_nr      [0:DEPTH-1];
     reg [DEPTH-1:0] entry_valid;
 
     assign depth_valid_mask = entry_valid;
@@ -122,6 +135,9 @@ module tetra_dl_signal_queue #(
     wire [1:0]   arb_write_target_tn= wr_mle_valid  ? wr_mle_target_tn
                                     : wr_cmce_valid ? wr_cmce_target_tn
                                     :                 wr_sds_target_tn;
+    // Only MLE currently sets a second_pdu; CMCE/SDS default to 0.
+    wire         arb_write_second_pdu_present = wr_mle_valid ? wr_mle_second_pdu_present : 1'b0;
+    wire         arb_write_second_pdu_nr      = wr_mle_valid ? wr_mle_second_pdu_nr      : 1'b0;
 
     // Count producers that attempted this cycle — used for drop-on-collision
     wire [1:0] write_attempts = {1'b0, wr_mle_valid}
@@ -222,6 +238,8 @@ module tetra_dl_signal_queue #(
     assign head_pdu_type  = entry_pdu_type[head_idx];
     assign head_target_tn = entry_target_tn[head_idx];
     assign head_prio      = entry_prio    [head_idx];
+    assign head_second_pdu_present = entry_second_pdu_present[head_idx];
+    assign head_second_pdu_nr      = entry_second_pdu_nr     [head_idx];
 
     // =========================================================================
     // Storage updates — single always block per slot register-set
@@ -255,12 +273,16 @@ module tetra_dl_signal_queue #(
                 entry_pdu_type [s_i] <= 2'd0;
                 entry_target_tn[s_i] <= 2'd0;
                 entry_prio     [s_i] <= 2'd0;
+                entry_second_pdu_present[s_i] <= 1'b0;
+                entry_second_pdu_nr     [s_i] <= 1'b0;
             end
         end else if (write_accepted) begin
             entry_coded    [free_idx] <= arb_write_coded;
             entry_pdu_type [free_idx] <= arb_write_pdu_type;
             entry_target_tn[free_idx] <= arb_write_target_tn;
             entry_prio     [free_idx] <= arb_write_prio;
+            entry_second_pdu_present[free_idx] <= arb_write_second_pdu_present;
+            entry_second_pdu_nr     [free_idx] <= arb_write_second_pdu_nr;
         end
     end
 

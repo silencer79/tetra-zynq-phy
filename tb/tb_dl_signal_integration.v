@@ -104,6 +104,8 @@ module tb_dl_signal_integration;
         .wr_mle_coded     (q_wr_coded),
         .wr_mle_pdu_type  (q_wr_pdu_type),
         .wr_mle_target_tn (q_wr_target_tn),
+        .wr_mle_second_pdu_present (1'b0),
+        .wr_mle_second_pdu_nr      (1'b0),
         .wr_cmce_valid    (1'b0),
         .wr_cmce_coded    (432'd0),
         .wr_cmce_pdu_type (2'd0),
@@ -118,6 +120,8 @@ module tb_dl_signal_integration;
         .head_pdu_type    (queue_head_pdu_type),
         .head_target_tn   (queue_head_target_tn),
         .head_prio        (queue_head_prio),
+        .head_second_pdu_present (),
+        .head_second_pdu_nr      (),
         .depth_valid_mask (queue_depth_mask),
         .depth_count      (queue_depth_count),
         .drop_cnt         (queue_drop_cnt)

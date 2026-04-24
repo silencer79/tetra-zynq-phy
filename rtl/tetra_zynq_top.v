@@ -1790,6 +1790,9 @@ tetra_dl_signal_queue #(
     .wr_mle_coded     (mle_req_coded_bits_w),
     .wr_mle_pdu_type  (mle_req_pdu_type_w),
     .wr_mle_target_tn (mle_req_target_tn_w),
+    // Option B second_pdu telemetry (commit 4/6) — wired in commit 6.
+    .wr_mle_second_pdu_present (1'b0),
+    .wr_mle_second_pdu_nr      (1'b0),
     // CMCE producer — tied off
     .wr_cmce_valid    (1'b0),
     .wr_cmce_coded    (432'd0),
@@ -1807,6 +1810,9 @@ tetra_dl_signal_queue #(
     .head_pdu_type    (queue_head_pdu_type_w),
     .head_target_tn   (queue_head_target_tn_w),
     .head_prio        (queue_head_prio_w),
+    .head_second_pdu_present (),   // unused at top (commit 5 scheduler
+                                    //  forwards for completeness)
+    .head_second_pdu_nr      (),
     // Status
     .depth_valid_mask (queue_depth_mask_w),
     .depth_count      (queue_depth_count_w),
