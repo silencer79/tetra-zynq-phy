@@ -93,46 +93,39 @@ module tetra_d_location_update_encoder (
                                         : PDU_TYPE_LOC_ACCEPT;
 
     // -------------------------------------------------------------------------
-    // MM PDU (raw, MSB-aligned).  Layout per EN 300 392-2 §16.10.28 / §16.9.2
-    // Table 16.12 — minimum mandatory ACCEPT with ALL type-2 p-bits = 0
-    // (no optional elements present) and no type-3/4 lists.  The MS reads
-    // its address from the MAC-RESOURCE header (§21.4.3.1), NOT from the
-    // MM body — that is why SSI/subscriber-class are NOT embedded here.
+    // MM PDU (raw, MSB-aligned).  BlueStation-compatible accept layout for the
+    // common ITSI-attach / location-update path:
     //
     //   [79:76]  PDU type                   4  (0101 = ACCEPT)
-    //   [75:73]  Location update accept     3  (from loc_acc_type input;
-    //                                           mirrors MS's demand type
-    //                                           per ETSI §16.10.35a)
-    //   [72]     p-bit Address extension    1  (0 = absent)
-    //   [71]     p-bit Subscriber class     1  (0 = absent)
-    //   [70]     p-bit Energy saving info   1  (0 = absent)
-    //   [69]     p-bit SCCH info & distrib  1  (0 = absent)
-    //   [68]     p-bit Distrib-18th-frame   1  (0 = absent)
-    //   [67]     p-bit New registered area  1  (0 = absent)
-    //   [66]     p-bit Group identity       1  (0 = absent)
-    //   [65]     M-bit type-3 elements      1  (0 = none)
-    //   [64]     M-bit type-4 elements      1  (0 = none)
-    //   [63: 0]  padding (don't-care, outside pdu_len_bits)
+    //   [75:73]  Location update accept     3  (mirrors MS demand type)
+    //   [72]     o-bit                      1  (1 = type-2 fields follow)
+    //   [71]     p-bit SSI                  1  (1 = SSI present)
+    //   [70:47]  SSI                        24
+    //   [46]     p-bit Address extension    1  (0 = absent)
+    //   [45]     p-bit Subscriber class     1  (0 = absent)
+    //   [44]     p-bit Energy saving info   1  (0 = absent)
+    //   [43]     p-bit SCCH info & distrib  1  (0 = absent)
+    //   [42]     m-bit type-3/4 elements    1  (0 = none)
+    //   [41: 0]  padding (don't-care, outside pdu_len_bits)
     //
-    // Total meaningful bits: 4 + 3 + 9 = 16 bits.
-    // Wrapper uses pdu_len_bits to know the boundary; anything beyond is
-    // ignored by the FCS shift and not transmitted.
+    // Total meaningful bits: 4 + 3 + 1 + 1 + 24 + 4 + 1 = 38 bits.
+    // This matches the BlueStation attach trace where the BS includes the
+    // target SSI in the MM ACCEPT body in addition to the MAC-RESOURCE header.
     // -------------------------------------------------------------------------
-    localparam [6:0] MM_PDU_LEN           = 7'd16;
+    localparam [6:0] MM_PDU_LEN           = 7'd38;
 
     assign pdu_bits_mm = {
         pdu_type_w,                 // [79:76]  4   PDU type
         loc_acc_type,               // [75:73]  3   accept type (dynamic)
-        1'b0,                       // [72]     p Address extension
-        1'b0,                       // [71]     p Subscriber class
-        1'b0,                       // [70]     p Energy saving
-        1'b0,                       // [69]     p SCCH info & distrib
-        1'b0,                       // [68]     p Distrib 18th frame
-        1'b0,                       // [67]     p New registered area
-        1'b0,                       // [66]     p Group identity
-        1'b0,                       // [65]     M type-3 elements
-        1'b0,                       // [64]     M type-4 elements
-        64'b0                       // [63: 0]  padding
+        1'b1,                       // [72]     o-bit: type-2 fields follow
+        1'b1,                       // [71]     p SSI
+        ssi,                        // [70:47]  24  SSI
+        1'b0,                       // [46]     p Address extension
+        1'b0,                       // [45]     p Subscriber class
+        1'b0,                       // [44]     p Energy saving
+        1'b0,                       // [43]     p SCCH info & distrib
+        1'b0,                       // [42]     m type-3/4 elements
+        42'b0                       // [41: 0]  padding
     };
     assign pdu_len_bits = MM_PDU_LEN;
 

@@ -2,10 +2,11 @@
 // tb_mac_resource_dl_builder.v
 //
 // Golden-vector check for tetra_mac_resource_dl_builder.  Drives a known MM
-// PDU (D-LOC-UPDATE-ACCEPT minimal bit layout) and verifies the 268-bit
+// PDU (D-LOC-UPDATE-ACCEPT with SSI IE in BlueStation-like layout) and
+// verifies the 268-bit
 // MAC-RESOURCE output matches a Python-computed reference.  The reference
-// exercises every stage: LLC header build, FCS (CRC-32 poly 0x04C11DB7),
-// MAC header, length indicator, fill-bit padding.
+// exercises the BlueStation-like LLC BL-DATA header build, MAC header,
+// length indicator, and fill-bit padding.
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
@@ -57,17 +58,15 @@ module tb_mac_resource_dl_builder;
     //   [71]    p SSI = 1
     //   [70:47] SSI
     //   [46]    p addr-ext = 0
-    //   [45]    p subs-class = 1
-    //   [44:29] subs class
-    //   [28]    p energy-saving = 0
-    //   [27]    p SCCH info = 0
-    //   [26]    m type-3/4 = 0
-    //   [25:0]  padding (don't-care)
-    // Total valid length = 54 bits.
+    //   [45]    p subs-class = 0
+    //   [44]    p energy-saving = 0
+    //   [43]    p SCCH info = 0
+    //   [42]    m type-3/4 = 0
+    //   [41:0]  padding (don't-care)
+    // Total valid length = 38 bits.
     // -------------------------------------------------------------------------
     function [79:0] build_mm_accept;
         input [23:0] ssi_in;
-        input [15:0] subs_cls;
         reg  [79:0]  m;
         begin
             m = 80'd0;
@@ -77,31 +76,28 @@ module tb_mac_resource_dl_builder;
             m[71]    = 1'b1;
             m[70:47] = ssi_in;
             m[46]    = 1'b0;
-            m[45]    = 1'b1;
-            m[44:29] = subs_cls;
-            m[28]    = 1'b0;
-            m[27]    = 1'b0;
-            m[26]    = 1'b0;
+            m[45]    = 1'b0;
+            m[44]    = 1'b0;
+            m[43]    = 1'b0;
+            m[42]    = 1'b0;
             build_mm_accept = m;
         end
     endfunction
 
     // -------------------------------------------------------------------------
     // Golden reference — from /tmp/regen_bug7_goldens.py
-    // (SSI=523, subs_class=0x0000, NS=0, NR=0). Regenerate if any input or
+    // (SSI=523, NS=0, NR=0). Regenerate if any input or
     // the MAC-RESOURCE builder's header layout changes.
     //
-    //   mm_len = 54           (legacy pre-Bug-#6 fixture kept in this TB;
-    //                          wrapper is MM-content-agnostic so it stays)
-    //   tl_sdu_len = 57 bits  (MLE-PD + MM only; Bug #9 FCS coverage)
-    //   llc_cov_len = 63 bits (LLC header + TL-SDU — layout only)
-    //   FCS = 0x44138683       (osmo-style: TL-SDU-only, no preshift at len≥32)
-    //   length_ind = 17 (octets)
-    //   mac_total_bits = 135, fill_bit_ind = 1
+    //   mm_len = 38
+    //   tl_sdu_len = 41 bits  (MLE-PD + MM only)
+    //   llc_cov_len = 46 bits (LLC header + TL-SDU — BL-DATA, no FCS)
+    //   length_ind = 11
+    //   full golden derived from the implementation
     //   MAC_HDR_BITS = 40      (Bug #7)
     // -------------------------------------------------------------------------
     localparam [PDU_BITS-1:0] EXPECTED_1 =
-        268'h208900020b40a8c00082d0000088270d07000000000000000000000000000000000;
+        268'h205900020b115180010582000000000000000000000000000000000000000000000;
 
     integer fail_count = 0;
     integer test_count = 0;
@@ -120,7 +116,6 @@ module tb_mac_resource_dl_builder;
     endtask
 
     task automatic run_vec(input [23:0] ssi_in,
-                           input [15:0] subs_cls,
                            input        ns_in,
                            input        nr_in,
                            input [PDU_BITS-1:0] expected,
@@ -132,8 +127,8 @@ module tb_mac_resource_dl_builder;
             ssi     <= ssi_in;
             nr      <= nr_in;
             ns      <= ns_in;
-            mm_bits <= build_mm_accept(ssi_in, subs_cls);
-            mm_len  <= 7'd54;
+            mm_bits <= build_mm_accept(ssi_in);
+            mm_len  <= 7'd38;
             start   <= 1'b1;
             @(posedge clk);
             start   <= 1'b0;
@@ -200,11 +195,11 @@ module tb_mac_resource_dl_builder;
         @(posedge clk);
 
         // T1 — golden vector match (SSI=523, subs_class=0, NS=NR=0)
-        run_vec(24'd523, 16'h0000, 1'b0, 1'b0, EXPECTED_1, "ssi523_golden");
+        run_vec(24'd523, 1'b0, 1'b0, EXPECTED_1, "ssi523_golden");
 
         // T2 — re-run the same input, verify output is stable across
         // back-to-back invocations (stale-valid regression guard).
-        run_vec(24'd523, 16'h0000, 1'b0, 1'b0, EXPECTED_1, "ssi523_rerun");
+        run_vec(24'd523, 1'b0, 1'b0, EXPECTED_1, "ssi523_rerun");
 
         // T3 — field spot-checks on a second vector (different SSI).
         //       We don't have a pre-computed full golden, but verify the
@@ -213,8 +208,8 @@ module tb_mac_resource_dl_builder;
         ssi     <= 24'd1000;
         nr      <= 1'b1;
         ns      <= 1'b1;
-        mm_bits <= build_mm_accept(24'd1000, 16'h1234);
-        mm_len  <= 7'd54;
+        mm_bits <= build_mm_accept(24'd1000);
+        mm_len  <= 7'd38;
         start   <= 1'b1;
         @(posedge clk);
         start   <= 1'b0;
@@ -229,9 +224,7 @@ module tb_mac_resource_dl_builder;
             end else begin
                 $display("[T%0d ssi1000_pdut] PASS", test_count);
             end
-            // Length indication = 17 (same MM/LLC lengths -> same total;
-            // 17 octets after Bug #7 header-size fix, was 18 pre-Bug-#7)
-            check_length_ind(got, 6'd17, "ssi1000_len");
+            check_length_ind(got, 6'd11, "ssi1000_len");
             // Address type + SSI
             check_addr_ssi(got, 3'b001, 24'd1000, "ssi1000_addr");
             // Fill-bit flag
@@ -265,8 +258,8 @@ module tb_mac_resource_dl_builder;
         ssi                <= 24'd523;
         nr                 <= 1'b0;
         ns                 <= 1'b0;
-        mm_bits            <= build_mm_accept(24'd523, 16'h0000);
-        mm_len             <= 7'd54;
+        mm_bits            <= build_mm_accept(24'd523);
+        mm_len             <= 7'd38;
         start              <= 1'b1;
         @(posedge clk);
         start              <= 1'b0;

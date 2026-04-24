@@ -122,17 +122,13 @@ module tb_mle_registration_fsm;
     integer fail_count = 0;
     integer test_count = 0;
 
-    // Known SCH/F coded bits for ACCEPT/SSI=523/NS=NR=0 with the ETSI-
-    // conformant minimal MM D-LOC-UPDATE-ACCEPT body (16 bits: PDU-type +
-    // loc-accept-type + 9 x p/M bits all 0).  SSI is addressed via the
-    // MAC-RESOURCE header (AddrType=1, 24-bit SSI), NOT embedded in the
-    // MM body.  Wrapped via tetra_mac_resource_dl_builder and encoded
-    // with scramble_init 0xE1670C03.
-    //   mac_total_bits = 97, length_ind = 13, fill_bit = 1
-    //   tl_sdu_len = 19  (MLE-PD + MM only — Bug #9 FCS coverage)
-    //   FCS = 0x557387CF (osmo-style: init=0xFFFFE000 for len<32, CRC over
-    //                     TL-SDU only, not LLC header.  Bug #9 fix.)
-    //   MAC_HDR_BITS = 40 (Bug #7).
+    // Known SCH/F coded bits for ACCEPT/SSI=523/NS=NR=0 with the BlueStation-
+    // like MM D-LOC-UPDATE-ACCEPT body (38 bits: PDU-type + loc-accept-type
+    // + o-bit + SSI IE + remaining p-/m-bits all 0).  SSI is therefore
+    // carried both in the MAC-RESOURCE header and in the MM body.
+    // Wrapped via tetra_mac_resource_dl_builder using a BlueStation-like
+    // LLC BL-DATA header (no LLC FCS) and encoded with scramble_init
+    // 0xE1670C03.
     //   RandAccFlag = 1 (MLE-FSM wires random_access_flag=1 because
     //                   D-LOC-UPDATE-ACCEPT is always a RA response).
     // Split:
@@ -141,9 +137,9 @@ module tb_mle_registration_fsm;
     // Recompute via /tmp/regen_randacc_goldens.py if MM layout or header
     // layout changes again.
     localparam [215:0] EXPECTED_ACCEPT_523_BLK1 =
-        216'hda33a8d1723947ae1c752c8a561fdd8b8d5cc80fb85ba4d33759f6;
+        216'h1a72e5d166b947a21c77ac827e3f4d0b8d75c81ff05ba0d32510f6;
     localparam [215:0] EXPECTED_ACCEPT_523_BLK2 =
-        216'hc131df69799651eee4f79459f8e505d8b34ac3813b06dacf29a682;
+        216'hc585dd2179b6d1eceff790797aa42ddc95ca8aa13b06da8749a296;
 
     task automatic push_request(input [23:0] issi, input [13:0] la);
         begin
