@@ -253,6 +253,23 @@ module tetra_mle_registration_fsm #(
         .chan_alloc_flag          (1'b0),
         .chan_alloc_element       (chan_alloc_packed_w),
         .chan_alloc_element_len   (chan_alloc_len_w),
+        // Second concatenated MAC-RESOURCE (commit 2 plumbing).  Wired to
+        // constant-0 here; commit 3 will drive these from the Option-B
+        // BL-ACK-alongside-Accept path.
+        .second_pdu_valid              (1'b0),
+        .second_pdu_length_ind         (6'd0),
+        .second_pdu_random_access_flag (1'b0),
+        .second_pdu_addr_type          (3'd0),
+        .second_pdu_ssi                (24'd0),
+        .second_pdu_tl_sdu             (80'd0),
+        .second_pdu_tl_sdu_len         (7'd0),
+        .second_pdu_pc_flag            (1'b0),
+        .second_pdu_pc_element         (4'd0),
+        .second_pdu_sg_flag            (1'b0),
+        .second_pdu_sg_element         (8'd0),
+        .second_pdu_ca_flag            (1'b0),
+        .second_pdu_ca_element         (32'd0),
+        .second_pdu_ca_element_len     (5'd0),
         .mm_pdu_bits       (dloc_mm_bits_w),
         .mm_pdu_len_bits   (dloc_mm_len_w),
         .pdu_bits          (builder_pdu_bits_w),

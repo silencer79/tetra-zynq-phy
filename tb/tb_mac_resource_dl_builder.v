@@ -33,6 +33,21 @@ module tb_mac_resource_dl_builder;
     reg              chan_alloc_flag        = 1'b0;
     reg [31:0]       chan_alloc_element     = 32'd0;
     reg [4:0]        chan_alloc_element_len = 5'd0;
+    // Concatenated PDU #2 inputs (commit 2) — all zero for single-PDU cases
+    reg              second_pdu_valid            = 1'b0;
+    reg  [5:0]       second_pdu_length_ind       = 6'd0;
+    reg              second_pdu_random_access_flag = 1'b0;
+    reg  [2:0]       second_pdu_addr_type        = 3'd0;
+    reg  [23:0]      second_pdu_ssi              = 24'd0;
+    reg  [79:0]      second_pdu_tl_sdu           = 80'd0;
+    reg  [6:0]       second_pdu_tl_sdu_len       = 7'd0;
+    reg              second_pdu_pc_flag          = 1'b0;
+    reg  [3:0]       second_pdu_pc_element       = 4'd0;
+    reg              second_pdu_sg_flag          = 1'b0;
+    reg  [7:0]       second_pdu_sg_element       = 8'd0;
+    reg              second_pdu_ca_flag          = 1'b0;
+    reg  [31:0]      second_pdu_ca_element       = 32'd0;
+    reg  [4:0]       second_pdu_ca_element_len   = 5'd0;
     reg [79:0]       mm_bits  = 80'd0;
     reg [6:0]        mm_len   = 7'd0;
 
@@ -58,6 +73,20 @@ module tb_mac_resource_dl_builder;
         .chan_alloc_flag        (chan_alloc_flag),
         .chan_alloc_element     (chan_alloc_element),
         .chan_alloc_element_len (chan_alloc_element_len),
+        .second_pdu_valid              (second_pdu_valid),
+        .second_pdu_length_ind         (second_pdu_length_ind),
+        .second_pdu_random_access_flag (second_pdu_random_access_flag),
+        .second_pdu_addr_type          (second_pdu_addr_type),
+        .second_pdu_ssi                (second_pdu_ssi),
+        .second_pdu_tl_sdu             (second_pdu_tl_sdu),
+        .second_pdu_tl_sdu_len         (second_pdu_tl_sdu_len),
+        .second_pdu_pc_flag            (second_pdu_pc_flag),
+        .second_pdu_pc_element         (second_pdu_pc_element),
+        .second_pdu_sg_flag            (second_pdu_sg_flag),
+        .second_pdu_sg_element         (second_pdu_sg_element),
+        .second_pdu_ca_flag            (second_pdu_ca_flag),
+        .second_pdu_ca_element         (second_pdu_ca_element),
+        .second_pdu_ca_element_len     (second_pdu_ca_element_len),
         .mm_pdu_bits        (mm_bits),
         .mm_pdu_len_bits    (mm_len),
         .pdu_bits           (pdu_bits),
@@ -471,6 +500,80 @@ module tb_mac_resource_dl_builder;
             chan_alloc_flag        <= 1'b0;
             chan_alloc_element     <= 32'd0;
             chan_alloc_element_len <= 5'd0;
+        end
+        repeat (4) @(posedge clk);
+
+        // =====================================================================
+        // Commit 2 — concatenated second MAC-RESOURCE (Option B BL-ACK).
+        // Emit D-LOC-UPDATE-ACCEPT (PDU #1) + BL-ACK (PDU #2) in a single
+        // 268-bit SCH/F info block.  Golden from /tmp/mac_resource_ref.py
+        // build_concat_accept_plus_blaack(ssi=523, ms_ns=0/1).
+        //
+        // PDU #1 layout: identical to EXPECTED_1 RA=1 variant (226100020b...)
+        //   - hdr 43, LLC 5 + MLE-PD 3 + MM 38, total 89 bits
+        //   - LI=12, internal fill bit at position 89 (first=1)
+        // PDU #2 starts at byte-offset 12 (bit 96):
+        //   - hdr 43 + BL-ACK 5 = 48 bits, LI=6, byte-aligned (fill_bit_ind=0)
+        // Global post-fill first bit = 1 at position 144.
+        // =====================================================================
+        begin : t_concat_blaack
+            reg [PDU_BITS-1:0] got;
+            reg [PDU_BITS-1:0] exp;
+            @(posedge clk);
+            ssi                    <= 24'd523;
+            ns                     <= 1'b0;
+            nr                     <= 1'b0;
+            random_access_flag     <= 1'b1;
+            power_control_flag     <= 1'b0;
+            slot_granting_flag     <= 1'b0;
+            chan_alloc_flag        <= 1'b0;
+            mm_bits                <= build_mm_accept(24'd523);
+            mm_len                 <= 7'd38;
+            // Second PDU — BL-ACK with nr=0, RA-ack=1
+            second_pdu_valid              <= 1'b1;
+            second_pdu_length_ind         <= 6'd6;
+            second_pdu_random_access_flag <= 1'b1;
+            second_pdu_addr_type          <= 3'b001;
+            second_pdu_ssi                <= 24'd523;
+            // BL-ACK TL-SDU, MSB-aligned in 80-bit bus:
+            //   {link=0, fcs=0, bl_pdu=11, nr=0} = 00110
+            second_pdu_tl_sdu             <= {5'b00110, 75'b0};
+            second_pdu_tl_sdu_len         <= 7'd5;
+            second_pdu_pc_flag            <= 1'b0;
+            second_pdu_sg_flag            <= 1'b0;
+            second_pdu_ca_flag            <= 1'b0;
+            start                  <= 1'b1;
+            @(posedge clk);
+            start                  <= 1'b0;
+            wait_valid(got);
+            exp = 268'h226100020b022a300020b040023100020b068000000000000000000000000000000;
+            test_count = test_count + 1;
+            if (got !== exp) begin
+                $display("[T%0d concat_blaack_nr0] FAIL", test_count);
+                $display("  got = 268'h%067x", got);
+                $display("  exp = 268'h%067x", exp);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d concat_blaack_nr0] PASS", test_count);
+            end
+            // ms_ns=1 variant — flip nr bit in BL-ACK TL-SDU
+            @(posedge clk);
+            second_pdu_tl_sdu      <= {5'b00111, 75'b0};
+            start                  <= 1'b1;
+            @(posedge clk);
+            start                  <= 1'b0;
+            wait_valid(got);
+            exp = 268'h226100020b022a300020b040023100020b078000000000000000000000000000000;
+            test_count = test_count + 1;
+            if (got !== exp) begin
+                $display("[T%0d concat_blaack_nr1] FAIL", test_count);
+                $display("  got = 268'h%067x", got);
+                $display("  exp = 268'h%067x", exp);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d concat_blaack_nr1] PASS", test_count);
+            end
+            second_pdu_valid       <= 1'b0;
         end
         repeat (4) @(posedge clk);
 

@@ -107,6 +107,42 @@ module tetra_mac_resource_dl_builder #(
     input  wire [31:0]           chan_alloc_element,
     input  wire [4:0]            chan_alloc_element_len,
 
+    // -------------------------------------------------------------------
+    // Concatenated second MAC-RESOURCE (ETSI §21.4.3.7) — Option B of
+    // the 2026-04-24 BL-ACK-alongside-Accept flow.  When
+    // second_pdu_valid=1 the builder appends a second MAC-RESOURCE PDU
+    // after PDU #1 (byte-aligned) in the same 268-bit MAC-SDU.  All
+    // second_pdu_* inputs mirror PDU #1's structural fields, with the
+    // TM-SDU delivered as a raw bit vector (left-aligned in
+    // second_pdu_tl_sdu[79:0], length in second_pdu_tl_sdu_len).  When
+    // second_pdu_valid=0 the builder behaves identically to the
+    // single-PDU case — backward compatible with the pre-commit-2 TBs.
+    //
+    // For D-LOC-UPDATE-ACCEPT + BL-ACK concat, caller drives:
+    //   second_pdu_valid               = 1
+    //   second_pdu_length_ind          = 6
+    //   second_pdu_random_access_flag  = 1
+    //   second_pdu_addr_type           = 3'b001
+    //   second_pdu_ssi                 = MS SSI
+    //   second_pdu_tl_sdu[79:75]       = {0, 0, 2'b11, nr}   (BlAck::to_bitbuf)
+    //   second_pdu_tl_sdu_len          = 5
+    //   second_pdu_{pc,sg,ca}_flag     = 0
+    // -------------------------------------------------------------------
+    input  wire                  second_pdu_valid,
+    input  wire [5:0]            second_pdu_length_ind,
+    input  wire                  second_pdu_random_access_flag,
+    input  wire [2:0]            second_pdu_addr_type,
+    input  wire [23:0]           second_pdu_ssi,
+    input  wire [79:0]           second_pdu_tl_sdu,
+    input  wire [6:0]            second_pdu_tl_sdu_len,
+    input  wire                  second_pdu_pc_flag,
+    input  wire [3:0]            second_pdu_pc_element,
+    input  wire                  second_pdu_sg_flag,
+    input  wire [7:0]            second_pdu_sg_element,
+    input  wire                  second_pdu_ca_flag,
+    input  wire [31:0]           second_pdu_ca_element,
+    input  wire [4:0]            second_pdu_ca_element_len,
+
     // Raw MM PDU (MSB=[79], actual length in mm_pdu_len_bits)
     input  wire [79:0]           mm_pdu_bits,
     input  wire [6:0]            mm_pdu_len_bits,
@@ -172,6 +208,23 @@ module tetra_mac_resource_dl_builder #(
     reg [31:0]       lat_ca_element;
     reg [4:0]        lat_ca_element_len;
 
+    // Second concatenated PDU (commit 2, 2026-04-24).  All 0 when
+    // lat_second_valid=0 → builder falls back to single-PDU emission.
+    reg              lat_second_valid;
+    reg [5:0]        lat_second_length_ind;
+    reg              lat_second_rand_acc_flag;
+    reg [2:0]        lat_second_addr_type;
+    reg [23:0]       lat_second_ssi;
+    reg [79:0]       lat_second_tl_sdu;
+    reg [6:0]        lat_second_tl_sdu_len;
+    reg              lat_second_pc_flag;
+    reg [3:0]        lat_second_pc_element;
+    reg              lat_second_sg_flag;
+    reg [7:0]        lat_second_sg_element;
+    reg              lat_second_ca_flag;
+    reg [31:0]       lat_second_ca_element;
+    reg [4:0]        lat_second_ca_element_len;
+
     // Derived lengths
     reg [8:0]        tl_sdu_len;           // MLE PD (3) + MM PDU len
     reg [8:0]        llc_cov_len;          // LLC header + TL-SDU
@@ -181,6 +234,11 @@ module tetra_mac_resource_dl_builder #(
     reg [8:0]        mac_total_octets;     // ceil(mac_total_bits / 8)
     reg [5:0]        length_ind;
     reg              fill_bit_ind;
+    // Commit 2: PDU #2 latches (subset of mac_* needed in S_MAC_HEAD / S_PAD).
+    reg [8:0]        pdu2_hdr_bits;        // base 40 + 3 mandatory flags + optional
+    reg [8:0]        pdu2_total_bits;      // hdr + tl_sdu_len
+    reg [8:0]        pdu2_total_octets;
+    reg              pdu2_fill_bit_ind;
 
     // -------------------------------------------------------------------------
     // Inner assembly buffer — space for the full LLC PDU (header + TL-SDU)
@@ -215,6 +273,12 @@ module tetra_mac_resource_dl_builder #(
     reg [8:0]  mac_hdr_bits_c;
     reg [8:0]  mac_total_bits_c;
     reg [8:0]  mac_total_octets_c;
+    // PDU #2 length helpers (commit 2) — meaningful only when
+    // lat_second_valid=1; otherwise treated as 0 everywhere.
+    reg [8:0]  pdu2_hdr_bits_c;
+    reg [8:0]  pdu2_total_bits_c;
+    reg [8:0]  pdu2_total_octets_c;
+    reg        pdu2_fill_bit_ind_c;
     always @(*) begin
         tl_sdu_len_c       = MLE_PD_BITS + {2'b0, lat_mm_len};       // 3..82
         llc_cov_len_c      = LLC_HDR_BITS + tl_sdu_len_c;
@@ -231,7 +295,74 @@ module tetra_mac_resource_dl_builder #(
         mac_total_bits_c   = mac_hdr_bits_c + mac_tm_sdu_len_c;
         // ceil-to-octet — LengthInd is in octets (Table 21.56, Y2=Z2=1)
         mac_total_octets_c = (mac_total_bits_c + 9'd7) >> 3;
+
+        // PDU #2 sizes.  Same structural rules as PDU #1 but TM-SDU is a
+        // raw bit vector (no fixed LLC/MLE prefix added by the builder).
+        pdu2_hdr_bits_c    = 9'd40 + 9'd3
+                             + (lat_second_pc_flag ? 9'd4 : 9'd0)
+                             + (lat_second_sg_flag ? 9'd8 : 9'd0)
+                             + (lat_second_ca_flag ? {4'd0, lat_second_ca_element_len} : 9'd0);
+        pdu2_total_bits_c  = pdu2_hdr_bits_c + {2'd0, lat_second_tl_sdu_len};
+        pdu2_total_octets_c= (pdu2_total_bits_c + 9'd7) >> 3;
+        // Bluestation-local fill_bit_ind (mac_resource.rs:327-330):
+        //   fill_bits = (8 - total%8) % 8; fill_bit_ind = (fill_bits != 0)
+        pdu2_fill_bit_ind_c= |pdu2_total_bits_c[2:0];  // any of bits 2:0 nonzero → not byte-aligned
     end
+
+    // -------------------------------------------------------------------------
+    // Commit 2: PDU #2 (concatenated MAC-RESOURCE) top-aligned bit-pack.
+    // Same structural layout as PDU #1 but using the lat_second_* latches and
+    // raw lat_second_tl_sdu (no builder-inserted LLC/MLE-PD prefix — caller
+    // pre-builds the BL-ACK TL-SDU).  Placed in the 268-bit container at
+    // byte-offset mac_total_octets*8 via a combinational right-shift.
+    // -------------------------------------------------------------------------
+    wire [8:0]              offset_pdu2_msb  = {mac_total_octets, 3'b0};
+    wire [PDU_BITS-1:0]     pdu2_top;
+
+    // PDU #2 base-40 bits + flag/element cascade, identical in structure to
+    // PDU #1 (see S_MAC_HEAD step comments) but replicated here as a wire so
+    // the final S_MAC_HEAD expression stays a single OR of three pieces.
+    assign pdu2_top =
+        ( { 2'b00,
+            pdu2_fill_bit_ind,
+            1'b0,
+            2'b00,
+            lat_second_rand_acc_flag,
+            lat_second_length_ind,
+            lat_second_addr_type,
+            lat_second_ssi,
+            {(PDU_BITS - 40){1'b0}} }
+        | ({{(PDU_BITS-1){1'b0}}, lat_second_pc_flag} << (PDU_BITS - 41))
+        | (lat_second_pc_flag
+            ? ({{(PDU_BITS-4){1'b0}}, lat_second_pc_element} << (PDU_BITS - 45))
+            : {PDU_BITS{1'b0}})
+        | ({{(PDU_BITS-1){1'b0}}, lat_second_sg_flag}
+            << (PDU_BITS - 41 - 1 - (lat_second_pc_flag ? 4 : 0)))
+        | (lat_second_sg_flag
+            ? ({{(PDU_BITS-8){1'b0}}, lat_second_sg_element}
+                << (PDU_BITS - 42 - 8 - (lat_second_pc_flag ? 4 : 0)))
+            : {PDU_BITS{1'b0}})
+        | ({{(PDU_BITS-1){1'b0}}, lat_second_ca_flag}
+            << (PDU_BITS - 42 - 1
+                - (lat_second_pc_flag ? 4 : 0)
+                - (lat_second_sg_flag ? 8 : 0)))
+        | (lat_second_ca_flag
+            ? ({{(PDU_BITS-32){1'b0}}, lat_second_ca_element}
+                << (PDU_BITS - 43
+                    - (lat_second_pc_flag ? 4 : 0)
+                    - (lat_second_sg_flag ? 8 : 0)
+                    - lat_second_ca_element_len))
+            : {PDU_BITS{1'b0}})
+        // TL-SDU — raw left-aligned bits from lat_second_tl_sdu.
+        // Strip the (80 - len) trailing don't-care bits via right-shift,
+        // then left-shift into position right after the PDU #2 header.
+        | ( ( {{(PDU_BITS - 80){1'b0}}, lat_second_tl_sdu}
+              >> (7'd80 - lat_second_tl_sdu_len) )
+            << (PDU_BITS - pdu2_hdr_bits - {2'd0, lat_second_tl_sdu_len}) )
+        );
+
+    wire [PDU_BITS-1:0] pdu2_placed =
+        lat_second_valid ? (pdu2_top >> offset_pdu2_msb) : {PDU_BITS{1'b0}};
 
     // -------------------------------------------------------------------------
     // Master FSM + datapath — one always block, all registers under this clock
@@ -255,6 +386,20 @@ module tetra_mac_resource_dl_builder #(
             lat_ca_flag        <= 1'b0;
             lat_ca_element     <= 32'd0;
             lat_ca_element_len <= 5'd0;
+            lat_second_valid        <= 1'b0;
+            lat_second_length_ind   <= 6'd0;
+            lat_second_rand_acc_flag<= 1'b0;
+            lat_second_addr_type    <= 3'd0;
+            lat_second_ssi          <= 24'd0;
+            lat_second_tl_sdu       <= 80'd0;
+            lat_second_tl_sdu_len   <= 7'd0;
+            lat_second_pc_flag      <= 1'b0;
+            lat_second_pc_element   <= 4'd0;
+            lat_second_sg_flag      <= 1'b0;
+            lat_second_sg_element   <= 8'd0;
+            lat_second_ca_flag      <= 1'b0;
+            lat_second_ca_element   <= 32'd0;
+            lat_second_ca_element_len <= 5'd0;
             tl_sdu_len         <= 9'd0;
             llc_cov_len        <= 9'd0;
             mac_tm_sdu_len     <= 9'd0;
@@ -263,6 +408,10 @@ module tetra_mac_resource_dl_builder #(
             mac_total_octets   <= 9'd0;
             length_ind         <= 6'd0;
             fill_bit_ind       <= 1'b0;
+            pdu2_hdr_bits      <= 9'd0;
+            pdu2_total_bits    <= 9'd0;
+            pdu2_total_octets  <= 9'd0;
+            pdu2_fill_bit_ind  <= 1'b0;
             llc_buf            <= {LLC_BUF_BITS{1'b0}};
             complete_pdu_bits  <= {PDU_BITS{1'b0}};
             pdu_bits           <= {PDU_BITS{1'b0}};
@@ -290,6 +439,20 @@ module tetra_mac_resource_dl_builder #(
                     lat_ca_flag           <= chan_alloc_flag;
                     lat_ca_element        <= chan_alloc_element;
                     lat_ca_element_len    <= chan_alloc_element_len;
+                    lat_second_valid        <= second_pdu_valid;
+                    lat_second_length_ind   <= second_pdu_length_ind;
+                    lat_second_rand_acc_flag<= second_pdu_random_access_flag;
+                    lat_second_addr_type    <= second_pdu_addr_type;
+                    lat_second_ssi          <= second_pdu_ssi;
+                    lat_second_tl_sdu       <= second_pdu_tl_sdu;
+                    lat_second_tl_sdu_len   <= second_pdu_tl_sdu_len;
+                    lat_second_pc_flag      <= second_pdu_pc_flag;
+                    lat_second_pc_element   <= second_pdu_pc_element;
+                    lat_second_sg_flag      <= second_pdu_sg_flag;
+                    lat_second_sg_element   <= second_pdu_sg_element;
+                    lat_second_ca_flag      <= second_pdu_ca_flag;
+                    lat_second_ca_element   <= second_pdu_ca_element;
+                    lat_second_ca_element_len <= second_pdu_ca_element_len;
                     state                 <= S_ASSEMBLE_INNER;
                 end
             end
@@ -313,8 +476,20 @@ module tetra_mac_resource_dl_builder #(
                 // LengthInd encoding: Y2=Z2=1 → val == octets (§21.4.3.1 Table
                 // 21.55 / decodeLength() in tetra-kit mac.cc:563).
                 length_ind       <= mac_total_octets_c[5:0];
-                // Fill bits required iff the MAC total is not already 268.
-                fill_bit_ind     <= (mac_total_bits_c != PDU_BITS[8:0]);
+                // Bluestation-local byte-align semantic (mac_resource.rs
+                // update_len_and_fill_ind Z.327-330): fill_bit_ind = 1 when
+                // the MAC-RESOURCE's own bit count is not a multiple of 8.
+                // Matches the prior "!= PDU_BITS" value for all currently
+                // tested goldens (89-bit D-LOC-UPDATE-ACCEPT both give 1),
+                // but makes concat PDU #2 emit fill_bit_ind=0 when that PDU
+                // is already byte-aligned (e.g., 48-bit BL-ACK).
+                fill_bit_ind     <= |mac_total_bits_c[2:0];
+                // PDU #2 sizes (commit 2).  Consumed in S_MAC_HEAD/S_PAD
+                // only when lat_second_valid=1.
+                pdu2_hdr_bits     <= pdu2_hdr_bits_c;
+                pdu2_total_bits   <= pdu2_total_bits_c;
+                pdu2_total_octets <= pdu2_total_octets_c;
+                pdu2_fill_bit_ind <= pdu2_fill_bit_ind_c;
                 state            <= S_LLC_HEAD;
                 // -------------------------------------------------------------
                 // MVP guard: the packed 24-bit address slot below is only
@@ -432,6 +607,12 @@ module tetra_mac_resource_dl_builder #(
                     | ( ( { {(PDU_BITS - LLC_BUF_BITS){1'b0}}, llc_buf }
                           >> (LLC_BUF_BITS - llc_cov_len) )
                         << (PDU_BITS - mac_hdr_bits - llc_cov_len) )
+                    // ---- Step 9: concatenated PDU #2 (commit 2) ------------
+                    // pdu2_top is built top-aligned above and shifted down by
+                    // offset_pdu2_msb = mac_total_octets * 8 so PDU #2 starts
+                    // on the next byte boundary after PDU #1's octet-padded
+                    // end.  Zero when lat_second_valid=0 → backward-compat.
+                    | pdu2_placed
                     );
                 state <= S_PAD;
             end
@@ -443,11 +624,26 @@ module tetra_mac_resource_dl_builder #(
             // flip the MSB of that region to 1 when fill_bit_ind is set.
             // -----------------------------------------------------------------
             S_PAD: begin
+                // PDU #1 internal byte-align fill (first=1) — bluestation
+                // local fill_bit_ind (see S_ASSEMBLE_INNER).
                 if (fill_bit_ind) begin
-                    // Position of first fill bit = mac_total_bits (0-indexed
-                    // from the MSB of the 268-bit PDU).  Bit index in
-                    // little-endian form = PDU_BITS-1 - mac_total_bits.
                     complete_pdu_bits[PDU_BITS - 1 - mac_total_bits] <= 1'b1;
+                end
+                if (lat_second_valid) begin
+                    // Concat: PDU #2 may also need internal byte-align fill
+                    // (first=1) when not byte-aligned, plus global post-fill
+                    // (first=1) at the end of the concat sequence.
+                    if (pdu2_fill_bit_ind) begin
+                        complete_pdu_bits[PDU_BITS - 1 - offset_pdu2_msb - pdu2_total_bits] <= 1'b1;
+                    end
+                    if ((offset_pdu2_msb + {pdu2_total_octets, 3'b0}) < PDU_BITS[8:0])
+                        complete_pdu_bits[PDU_BITS - 1 - offset_pdu2_msb - {pdu2_total_octets, 3'b0}] <= 1'b1;
+                end else begin
+                    // Single-PDU first-unused-bit marker — only needed when
+                    // the PDU is already byte-aligned (fill_bit_ind=0) and
+                    // there is still space in the 268-bit container.
+                    if (!fill_bit_ind && (mac_total_bits < PDU_BITS[8:0]))
+                        complete_pdu_bits[PDU_BITS - 1 - mac_total_bits] <= 1'b1;
                 end
                 state <= S_DONE;
             end
