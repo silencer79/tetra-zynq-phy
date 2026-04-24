@@ -37,6 +37,11 @@ module tb_mle_registration_fsm;
     reg  [13:0] ul_la            = 14'd0;
     reg  [2:0]  ul_loc_upd_type  = 3'd0;  // default Roaming; T1 gold uses 000
 
+    // ---- UL LLC parse stimulus (Option B, 2026-04-24 commit 3) ----
+    reg         ul_llc_is_bl_data = 1'b0;
+    reg         ul_llc_ns_valid   = 1'b0;
+    reg         ul_llc_ns         = 1'b0;
+
     // ---- UL BL-ACK stimulus (M2, 2026-04-24) ----
     reg         bl_ack_valid      = 1'b0;
     reg         bl_ack_nr         = 1'b0;
@@ -107,6 +112,9 @@ module tb_mle_registration_fsm;
         .ul_ssi           (ul_ssi),
         .ul_la            (ul_la),
         .ul_loc_upd_type  (ul_loc_upd_type),
+        .ul_llc_is_bl_data(ul_llc_is_bl_data),
+        .ul_llc_ns_valid  (ul_llc_ns_valid),
+        .ul_llc_ns        (ul_llc_ns),
         .bl_ack_valid     (bl_ack_valid),
         .bl_ack_nr        (bl_ack_nr),
         .bl_ack_short_ssi (bl_ack_short_ssi),

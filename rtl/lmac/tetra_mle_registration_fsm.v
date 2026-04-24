@@ -55,6 +55,19 @@ module tetra_mle_registration_fsm #(
     input  wire [2:0]                  ul_loc_upd_type,
 
     // -----------------------------------------------------------------
+    // Option B auto-BL-ACK (commit 3, 2026-04-24).  When the incoming
+    // MAC-ACCESS carries BL-DATA/BL-ADATA (ul_llc_is_bl_data=1 and
+    // ul_llc_ns_valid=1), we schedule an auto-ACK alongside the Accept
+    // in the same SCH/F slot.  The BL-ACK's N(R) mirrors the MS's N(S)
+    // (bluestation llc_bs_ms.rs:488-493 schedule_outgoing_ack).  When
+    // the flags are 0 (or the input is unconnected) the FSM falls back
+    // to single-PDU emission.
+    // -----------------------------------------------------------------
+    input  wire                        ul_llc_is_bl_data,
+    input  wire                        ul_llc_ns_valid,
+    input  wire                        ul_llc_ns,
+
+    // -----------------------------------------------------------------
     // UL LLC BL-ACK (M1→M2, 2026-04-24) — fires when the MS acknowledges
     // our most recent BL-DATA D-LOC-UPDATE-ACCEPT.  We toggle our local
     // outstanding_ns and pulse ack_pulse so software can count the
@@ -129,6 +142,9 @@ module tetra_mle_registration_fsm #(
     reg [AST_IDX_WIDTH-1:0]     lat_slot;
     reg                         lat_existing;
     reg [267:0]                 lat_info_bits;       // builder→encoder handoff
+    // MS-provided LLC N(S) latched from the UL parser for auto-BL-ACK.
+    reg                         lat_ms_bl_data;
+    reg                         lat_ms_ns;
 
     // -------------------------------------------------------------------------
     // LLC-layer N(S) tracker (M2, 2026-04-24).  MVP: one global 1-bit
@@ -253,16 +269,21 @@ module tetra_mle_registration_fsm #(
         .chan_alloc_flag          (1'b0),
         .chan_alloc_element       (chan_alloc_packed_w),
         .chan_alloc_element_len   (chan_alloc_len_w),
-        // Second concatenated MAC-RESOURCE (commit 2 plumbing).  Wired to
-        // constant-0 here; commit 3 will drive these from the Option-B
-        // BL-ACK-alongside-Accept path.
-        .second_pdu_valid              (1'b0),
-        .second_pdu_length_ind         (6'd0),
-        .second_pdu_random_access_flag (1'b0),
-        .second_pdu_addr_type          (3'd0),
-        .second_pdu_ssi                (24'd0),
-        .second_pdu_tl_sdu             (80'd0),
-        .second_pdu_tl_sdu_len         (7'd0),
+        // Second concatenated MAC-RESOURCE (commit 3, Option B auto-
+        // BL-ACK).  When the incoming MAC-ACCESS carried BL-DATA/BL-
+        // ADATA (lat_ms_bl_data=1), emit a BL-ACK(nr=lat_ms_ns) in the
+        // same SCH/F slot to satisfy the MS's LLC ack-expectation
+        // (bluestation llc_bs_ms.rs:488-493 schedule_outgoing_ack).
+        //   TL-SDU = {link=0, fcs=0, bl_pdu=11, nr=ms_ns} = 5 bits,
+        //   MSB-aligned in the 80-bit second_pdu_tl_sdu bus.
+        //   LI = 6 (hdr 43 + 5 sdu = 48 bits = 6 bytes).
+        .second_pdu_valid              (lat_ms_bl_data),
+        .second_pdu_length_ind         (6'd6),
+        .second_pdu_random_access_flag (1'b1),
+        .second_pdu_addr_type          (3'd1),
+        .second_pdu_ssi                (lat_ssi),
+        .second_pdu_tl_sdu             ({1'b0, 1'b0, 2'b11, lat_ms_ns, 75'b0}),
+        .second_pdu_tl_sdu_len         (7'd5),
         .second_pdu_pc_flag            (1'b0),
         .second_pdu_pc_element         (4'd0),
         .second_pdu_sg_flag            (1'b0),
@@ -355,6 +376,8 @@ module tetra_mle_registration_fsm #(
             lat_slot          <= {AST_IDX_WIDTH{1'b0}};
             lat_existing      <= 1'b0;
             lat_info_bits     <= 268'd0;
+            lat_ms_bl_data    <= 1'b0;
+            lat_ms_ns         <= 1'b0;
             ast_wr_en         <= 1'b0;
             ast_wr_idx        <= {AST_IDX_WIDTH{1'b0}};
             ast_wr_data       <= {AST_REC_WIDTH{1'b0}};
@@ -405,6 +428,11 @@ module tetra_mle_registration_fsm #(
                     lat_ssi          <= ul_ssi;
                     lat_la           <= ul_la;
                     lat_loc_upd_type <= ul_loc_upd_type;
+                    // Option B: latch MS N(S) for auto-BL-ACK alongside
+                    // Accept (commit 3).  lat_ms_bl_data arms the second
+                    // MAC-RESOURCE PDU in the builder.
+                    lat_ms_bl_data   <= ul_llc_is_bl_data & ul_llc_ns_valid;
+                    lat_ms_ns        <= ul_llc_ns;
                     busy             <= 1'b1;
                     state            <= S_CHECK_START;
                 end
