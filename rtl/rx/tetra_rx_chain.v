@@ -113,6 +113,13 @@ module tetra_rx_chain #(
     output wire [3:0]            ul_mm_pdu_type_sys,
     output wire [2:0]            ul_loc_upd_type_sys,
     output wire [91:0]           ul_raw_info_bits_sys,
+    // LLC BL-ACK detection (M1, 2026-04-24 post-accept flow).  1-cycle
+    // pulse coincident with ul_pdu_valid_sys when the CRC-OK frame carries
+    // a BL-ACK LLC header.  Consumed by the MLE registration FSM to close
+    // acknowledged BL-DATA transactions.
+    output wire                  ul_bl_ack_valid_sys,
+    output wire                  ul_bl_ack_nr_sys,
+    output wire [15:0]           ul_bl_ack_count_sys,
 
   // -------------------------------------------------------------------------
   // Debug outputs (ILA probes)
@@ -345,7 +352,10 @@ tetra_ul_mac_access_parser u_ul_mac_parser (
     .loc_upd_type_sys    (ul_loc_upd_type_sys),
     .raw_info_bits_sys   (ul_raw_info_bits_sys),
     .pdu_valid_sys       (ul_pdu_valid_sys),
-    .pdu_count_sys       (ul_pdu_count_sys)
+    .pdu_count_sys       (ul_pdu_count_sys),
+    .bl_ack_valid_sys    (ul_bl_ack_valid_sys),
+    .bl_ack_nr_sys       (ul_bl_ack_nr_sys),
+    .bl_ack_count_sys    (ul_bl_ack_count_sys)
 );
 
 // =============================================================================

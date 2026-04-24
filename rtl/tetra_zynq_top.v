@@ -372,6 +372,10 @@ wire [9:0]  ul_short_ssi_sys;
 wire [3:0]  ul_mm_pdu_type_sys;
 wire [2:0]  ul_loc_upd_type_sys;
 wire [91:0] ul_raw_info_bits_sys;
+// LLC BL-ACK (M4, 2026-04-24) — UL parser → MLE FSM wires
+wire        ul_bl_ack_valid_sys;
+wire        ul_bl_ack_nr_sys;
+wire [15:0] ul_bl_ack_count_sys;
 
 // Cell scrambler seed for UL SCH/HU decoder — comes from AXI reg,
 // resynced clk_axi → clk_sys (see CDC block further down).
@@ -417,6 +421,10 @@ wire [1:0]   mle_req_target_tn_w;
 wire         mle_busy_w;
 wire         mle_accept_pulse_w;
 wire         mle_drop_pulse_w;
+// M2+M3 observability (2026-04-24) — available for ILA/AXI later
+wire         mle_ack_pulse_w;
+wire         mle_retransmit_pulse_w;
+wire         mle_lost_pulse_w;
 
 // Queue ↔ scheduler wiring
 wire         queue_head_valid_w;
@@ -500,6 +508,10 @@ tetra_rx_chain #(
     .ul_mm_pdu_type_sys     (ul_mm_pdu_type_sys),
     .ul_loc_upd_type_sys    (ul_loc_upd_type_sys),
     .ul_raw_info_bits_sys   (ul_raw_info_bits_sys),
+    // LLC BL-ACK detection (M1+M4, 2026-04-24)
+    .ul_bl_ack_valid_sys    (ul_bl_ack_valid_sys),
+    .ul_bl_ack_nr_sys       (ul_bl_ack_nr_sys),
+    .ul_bl_ack_count_sys    (ul_bl_ack_count_sys),
   .dbg_fe_valid_sys (dbg_fe_valid_sys),
   .dbg_tr_valid_sys (dbg_tr_valid_sys),
   .dbg_demod_valid_sys (dbg_demod_valid_sys)
@@ -1716,6 +1728,17 @@ tetra_mle_registration_fsm #(
     // FSM echoes this into the Location-update-accept-type field of the
     // D-LOC-UPDATE-ACCEPT so the MS recognises the reply (Bug #8).
     .ul_loc_upd_type  (ul_loc_upd_type_sys),
+    // UL LLC BL-ACK — M1+M4 post-accept flow.  Parser pulses bl_ack_valid
+    // when a MAC-ACCESS frame carries a BL-ACK (bl_pdu_type=11 at LLC
+    // offset).  MLE FSM matches against lat_ssi + outstanding_ns to close
+    // the acknowledged BL-DATA transaction.  short_ssi feeds the low 10 bits
+    // of the per-session match; MTP3550 test-SSI 523 fits cleanly.
+    .bl_ack_valid     (ul_bl_ack_valid_sys),
+    .bl_ack_nr        (ul_bl_ack_nr_sys),
+    .bl_ack_short_ssi (ul_short_ssi_sys),
+    // Timeslot tick for the T251 retransmit timer (M3 — 16 slots to
+    // timeout, N252=3 retries).  tx_slot_pulse_sys pulses once per slot.
+    .slot_pulse       (tx_tdma_state_slot_pulse_sys),
     // Cell config — REG_CELL_LA (0x1A0), 2-FF resynced from clk_axi.
     // MUST match the LA value BNCH SYSINFO broadcasts (SW writes
     // tetra_hal.c info.la into this register at boot).
@@ -1741,7 +1764,14 @@ tetra_mle_registration_fsm #(
     .req_target_tn    (mle_req_target_tn_w),
     .busy             (mle_busy_w),
     .accept_pulse     (mle_accept_pulse_w),
-    .drop_pulse       (mle_drop_pulse_w)
+    .drop_pulse       (mle_drop_pulse_w),
+    // M2+M3 observability pulses — not yet exported to AXI regs; available
+    // for ILA/debug attachment.  ack_pulse fires 1 cycle per matching
+    // BL-ACK; retransmit_pulse fires per T251-triggered resend;
+    // lost_pulse fires when N252 is exhausted.
+    .ack_pulse        (mle_ack_pulse_w),
+    .retransmit_pulse (mle_retransmit_pulse_w),
+    .lost_pulse       (mle_lost_pulse_w)
 );
 
 // =============================================================================
