@@ -141,18 +141,14 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         S_IDLE: begin
             if (encode_start_sys) begin
                 // Per-slot AACH info (Gold-mimic, EN 300 392-2 §21.5.2):
-                //   TN=0 FN=18 MN%4=2 → DL=Unalloc(0) UL=Random(1) CC=9
-                //           (info=0x0049) — BSCH anchor slot (Gold delta vs
-                //           other MN%4, per project_aach_three_way_compare.md)
-                //   TN=0  → DL/UL-Assign DL=Common(1) UL=Random(1) CC=9
-                //           (info=0x0249) — NDB2/MCCH slot, MS random access
+                //   TN=0 → DL/UL-Assign DL=Unalloc(0) UL=Unalloc(0) CC=9
+                //          (info=0x0049) — addressed signalling slot as seen
+                //          in the external BS attach reference (#727/#735)
                 //   FN=18 → DL/UL-Assign DL=Unalloc(0) UL=Random(1) CC=0
                 //           (info=0x040)  — hyperframe sync frame
                 //   else  → CapAlloc f1=0 f2=0 (info=0x3000) — SB slots
-                if (tn_sys == 2'd0 && fn_sys == 5'd17 && mn_low2_sys == 2'd2)
+                if (tn_sys == 2'd0)
                     info_sys <= 14'h0049;
-                else if (tn_sys == 2'd0)
-                    info_sys <= 14'h0249;
                 else if (fn_sys == 5'd17)
                     info_sys <= 14'h040;
                 else

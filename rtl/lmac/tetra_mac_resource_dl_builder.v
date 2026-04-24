@@ -72,7 +72,9 @@ module tetra_mac_resource_dl_builder #(
     input  wire                  nr,
     // LLC PDU type for the primary MAC-RESOURCE payload.
     // Supported today:
+    //   4'd0  = BL-ADATA   (LLC hdr 6b + MLE PD 3b + MM)
     //   4'd1  = BL-DATA    (LLC hdr 5b + MLE PD 3b + MM)
+    //   4'd8  = AL-SETUP   (LLC hdr 4b only, no MLE/MM payload)
     //   4'd14 = L2SigPdu   (LLC hdr 4b + direct MM, no MLE PD)
     input  wire [3:0]            llc_pdu_type,
 
@@ -181,14 +183,16 @@ module tetra_mac_resource_dl_builder #(
     //   addr_type 7 (SMI+Event)   → 58 bit
     // -------------------------------------------------------------------------
     localparam integer MAC_HDR_BASE_BITS = 2 + 1 + 1 + 2 + 1 + 6 + 3 + 24;  // =40
-    localparam integer LLC_HDR_BITS_MAX  = 5;
+    localparam integer LLC_HDR_BITS_MAX  = 6;
     localparam integer MLE_PD_BITS   = 3;
 
     // LLC BL-DATA header constants per BlueStation `BlData::to_bitbuf()`.
-    localparam       LLC_LINK_TYPE_BL = 1'b0;
-    localparam       LLC_HAS_FCS_OFF  = 1'b0;
-    localparam [1:0] LLC_PDUT_BL_DATA = 2'b01;
-    localparam [3:0] LLC_PDUT_L2SIG   = 4'd14;
+    localparam       LLC_LINK_TYPE_BL  = 1'b0;
+    localparam       LLC_HAS_FCS_OFF   = 1'b0;
+    localparam [1:0] LLC_PDUT_BL_ADATA = 2'b00;
+    localparam [1:0] LLC_PDUT_BL_DATA  = 2'b01;
+    localparam [3:0] LLC_PDUT_AL_SETUP = 4'd8;
+    localparam [3:0] LLC_PDUT_L2SIG    = 4'd14;
 
     // MLE protocol discriminator — MM (§18.5.2 Table 18.4) = 3'b001.
     // Confirmed against scripts/decode_dl.py MLE_PDU_NAMES[1]='MM' and the
@@ -251,7 +255,7 @@ module tetra_mac_resource_dl_builder #(
     // -------------------------------------------------------------------------
     // Inner assembly buffer — space for the full LLC PDU (header + TL-SDU)
     // BEFORE the FCS is appended.  Max size we need to cover:
-    //   LLC (6) + MLE PD (3) + MM PDU (79) = 88 bits.
+    //   BL-ADATA LLC (6) + MLE PD (3) + MM PDU (80) = 89 bits.
     // Round up to 96 for headroom; MSB = first bit of LLC PDU (i.e.
     // llc_buf[95] = first bit of LLC header on air).
     // -------------------------------------------------------------------------
@@ -292,6 +296,12 @@ module tetra_mac_resource_dl_builder #(
         if (lat_llc_pdu_type == LLC_PDUT_L2SIG) begin
             tl_sdu_len_c   = {2'b0, lat_mm_len};
             llc_hdr_bits_c = 4;
+        end else if (lat_llc_pdu_type == LLC_PDUT_AL_SETUP) begin
+            tl_sdu_len_c   = 9'd0;
+            llc_hdr_bits_c = 4;
+        end else if (lat_llc_pdu_type == {2'b00, LLC_PDUT_BL_ADATA}) begin
+            tl_sdu_len_c   = MLE_PD_BITS + {2'b0, lat_mm_len};
+            llc_hdr_bits_c = 6;
         end else begin
             tl_sdu_len_c   = MLE_PD_BITS + {2'b0, lat_mm_len};
             llc_hdr_bits_c = 5;
@@ -532,6 +542,18 @@ module tetra_mac_resource_dl_builder #(
                     llc_buf <= {LLC_PDUT_L2SIG,       // 4
                                 lat_mm_bits,          // 80
                                 12'b000000000000};    // pad to 96
+                end else if (lat_llc_pdu_type == LLC_PDUT_AL_SETUP) begin
+                    llc_buf <= {LLC_PDUT_AL_SETUP,    // 4
+                                92'b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000};
+                end else if (lat_llc_pdu_type == {2'b00, LLC_PDUT_BL_ADATA}) begin
+                    llc_buf <= {LLC_LINK_TYPE_BL,     // 1
+                                LLC_HAS_FCS_OFF,      // 1
+                                LLC_PDUT_BL_ADATA,    // 2
+                                lat_nr,               // 1
+                                lat_ns,               // 1
+                                MLE_PD_MM,            // 3
+                                lat_mm_bits,          // 80
+                                6'b000000};           // pad to 96
                 end else begin
                     llc_buf <= {LLC_LINK_TYPE_BL,     // 1
                                 LLC_HAS_FCS_OFF,      // 1
