@@ -288,8 +288,9 @@ Bisherige Builds mit WNS bis −0.3 ns hatten on-air keinen Impact. Für Product
 | 2026-04-25 05:10 | `b994e5d` | AACH dynamic Unalloc/Unalloc + 1-Frame Pre-Reply→Accept Gap | ✅ AACH SCH/F bit-exakt zur Gold-Ref, 1× BL-ACK NR=0 vom MS |
 | 2026-04-25 12:18 | `26191b4` | MM-Body bit-exakte Gold-Ref-Replik (102 bit, GILA GSSI=0x2F4D61) + ra_flag=0 im Accept | ✅ **MTP3550 ITSI-Attach erfolgreich** — 1:1 Demand→Accept, kein Retry-Loop |
 | 2026-04-25 16:28 | `9cc6607` | Phase 6 A — Subscriber-Shadow Permit-Check + REJECT-Encoder + REG_DB_POLICY @ 0x1AC | ✅ **on-air verifiziert** — `0x190=0x0001_0001` (1:1 Demand→Accept), `0x1AC=0x1` accept_unknown=1, kein Drop, kein Re-Demand-Loop |
+| 2026-04-25 17:11 | (gleicher Build) | Phase A Strict-Mode-Test: `0x1AC=0` + leere DB → REJECT-Loop (18 Demands ungeacked); danach `tetra_db_mgr add 0 2633617 …` + sync → MS attached + BL-ACK | ✅ Beide Pfade (REJECT + ACCEPT-via-Shadow-Hit) on-air bestätigt |
 
-**Status: M2 erreicht, Phase 6 A live.** Counter direkt nach Deploy: `0x190 = 0x0001_0001` (1 Demand → 1 Accept), `0x1AC = 0x0000_0001` (accept_unknown default), keine erneuten Demands. Phase A bringt Permit-Check infrastructure ohne M2-Regression bei Default-Policy.
+**Status: M2 erreicht, Phase 6 A live + getestet.** Mit `accept_unknown=1` (Default) leere DB → 1:1 Demand→Accept (M2-kompatibel). Mit `accept_unknown=0` + DB-Eintrag → Permit-Check wirkt korrekt. Phase A bringt Permit-Check infrastructure ohne M2-Regression bei Default-Policy.
 
 ### Gold-Reference-Capture (2026-04-25)
 
