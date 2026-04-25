@@ -109,6 +109,30 @@ module tetra_mle_registration_fsm #(
     input  wire [AST_REC_WIDTH-1:0]    ast_q_record,
 
     // -----------------------------------------------------------------
+    // Subscriber-Shadow lookup port (Phase 6 A — permit-check).
+    // FSM scans the 256×64-bit BRAM for the incoming ISSI before
+    // accepting the registration.  Record layout per
+    // `rtl/lmac/tetra_subscriber_shadow.v`:
+    //     [63:40] ISSI / [39:26] LA / [25:8] reserved
+    //     [7] permit_voice / [6] permit_data
+    //     [5] permit_reg / [4:1] priority / [0] valid
+    // -----------------------------------------------------------------
+    output reg                         shadow_q_start,
+    output reg  [23:0]                 shadow_q_issi,
+    input  wire                        shadow_q_busy,
+    input  wire                        shadow_q_done,
+    input  wire                        shadow_q_hit,
+    input  wire [63:0]                 shadow_q_record,
+
+    // -----------------------------------------------------------------
+    // DB policy (REG_DB_POLICY @ 0x1AC):
+    //   accept_unknown=1: shadow miss → still accept (anonymous).
+    //   accept_unknown=0: shadow miss → REJECT with cause=ITSI unknown.
+    // CDC-resynced from clk_axi in tetra_zynq_top.
+    // -----------------------------------------------------------------
+    input  wire                        accept_unknown,
+
+    // -----------------------------------------------------------------
     // DL signalling-queue request — 1-cycle pulse carrying the full 432-bit
     // SCH/F coded PDU plus type/target metadata.  The queue assembles it
     // into an entry; a downstream scheduler decides when it goes on air.
@@ -158,7 +182,7 @@ module tetra_mle_registration_fsm #(
     wire [123:0] dloc_legacy_pdu_w;  // unused here, kept for linter silence
 
     tetra_d_location_update_encoder u_dloc (
-        .pdu_reject        (1'b0),                 // MVP: accept only
+        .pdu_reject        (1'b0),                 // ACCEPT-Pfad nutzt diesen Encoder
         .addr_type         (lat_addr_type),
         .ssi               (lat_ssi),
         .la                (cfg_la),               // legacy 124-bit path
@@ -173,6 +197,29 @@ module tetra_mle_registration_fsm #(
         .pdu_bits_mm       (dloc_mm_bits_w),
         .pdu_len_bits      (dloc_mm_len_w)
     );
+
+    // -------------------------------------------------------------------------
+    // D-LOCATION-UPDATE-REJECT encoder (Phase 6 A, ETSI §16.10.40).
+    // 8-bit MM body: pdu_type=0111, reject_cause(3), o-bit=0.
+    // Used when the subscriber-shadow lookup denies registration
+    // (permit_reg=0 or shadow miss + accept_unknown=0).
+    // -------------------------------------------------------------------------
+    reg  [2:0]   lat_reject_cause;
+    wire [127:0] dreject_mm_bits_w;
+    wire [7:0]   dreject_mm_len_w;
+
+    tetra_d_location_update_reject_encoder u_dreject (
+        .reject_cause (lat_reject_cause),
+        .pdu_bits_mm  (dreject_mm_bits_w),
+        .pdu_len_bits (dreject_mm_len_w)
+    );
+
+    // Mux between ACCEPT (102 bit) and REJECT (8 bit) MM body for the
+    // accept-path MAC-RESOURCE wrapper.  `lat_is_reject` is set during
+    // S_PERMIT_DECIDE when the lookup denies registration.
+    reg          lat_is_reject;
+    wire [127:0] mle_mm_bits_w  = lat_is_reject ? dreject_mm_bits_w : dloc_mm_bits_w;
+    wire [7:0]   mle_mm_len_w   = lat_is_reject ? dreject_mm_len_w  : dloc_mm_len_w;
 
     // -------------------------------------------------------------------------
     // BasicSlotgrant + ChanAllocElement encoders — structurally wired in
@@ -303,8 +350,8 @@ module tetra_mle_registration_fsm #(
         .second_pdu_ca_flag            (1'b0),
         .second_pdu_ca_element         (32'd0),
         .second_pdu_ca_element_len     (5'd0),
-        .mm_pdu_bits       (dloc_mm_bits_w),
-        .mm_pdu_len_bits   (dloc_mm_len_w),
+        .mm_pdu_bits       (mle_mm_bits_w),    // ACCEPT (102b) or REJECT (8b) per lat_is_reject
+        .mm_pdu_len_bits   (mle_mm_len_w),
         .pdu_bits          (accept_builder_pdu_bits_w),
         .valid             (accept_builder_valid_w)
     );
@@ -362,16 +409,16 @@ module tetra_mle_registration_fsm #(
     // -------------------------------------------------------------------------
     // FSM
     // -------------------------------------------------------------------------
-    localparam [3:0] S_IDLE                = 4'd0;
-    localparam [3:0] S_CHECK_START         = 4'd1;
-    localparam [3:0] S_CHECK_WAIT          = 4'd2;
-    localparam [3:0] S_ALLOC_START         = 4'd3;
-    localparam [3:0] S_ALLOC_WAIT          = 4'd4;
-    localparam [3:0] S_WRITE               = 4'd5;
-    localparam [3:0] S_BUILD_SHORT_START   = 4'd6;
-    localparam [3:0] S_BUILD_SHORT_WAIT    = 4'd7;
-    localparam [3:0] S_ENCODE_HD_START     = 4'd8;
-    localparam [3:0] S_ENCODE_HD_WAIT      = 4'd9;
+    localparam [4:0] S_IDLE                = 5'd0;
+    localparam [4:0] S_CHECK_START         = 5'd1;
+    localparam [4:0] S_CHECK_WAIT          = 5'd2;
+    localparam [4:0] S_ALLOC_START         = 5'd3;
+    localparam [4:0] S_ALLOC_WAIT          = 5'd4;
+    localparam [4:0] S_WRITE               = 5'd5;
+    localparam [4:0] S_BUILD_SHORT_START   = 5'd6;
+    localparam [4:0] S_BUILD_SHORT_WAIT    = 5'd7;
+    localparam [4:0] S_ENCODE_HD_START     = 5'd8;
+    localparam [4:0] S_ENCODE_HD_WAIT      = 5'd9;
     localparam [4:0] S_BUILD_ACCEPT_START  = 5'd10;
     localparam [4:0] S_BUILD_ACCEPT_WAIT   = 5'd11;
     localparam [4:0] S_ENCODE_F_START      = 5'd12;
@@ -379,6 +426,10 @@ module tetra_mle_registration_fsm #(
     localparam [4:0] S_DELIVER_ACCEPT      = 5'd14;
     localparam [4:0] S_DROP                = 5'd15;
     localparam [4:0] S_WAIT_GAP_FRAME      = 5'd16;
+    // Phase 6 A: subscriber-shadow lookup before AST query
+    localparam [4:0] S_SHADOW_QUERY        = 5'd17;
+    localparam [4:0] S_SHADOW_WAIT         = 5'd18;
+    localparam [4:0] S_PERMIT_DECIDE       = 5'd19;
     reg [4:0] state;
     reg [2:0] gap_slot_count;
 
@@ -404,6 +455,10 @@ module tetra_mle_registration_fsm #(
             ast_q_start       <= 1'b0;
             ast_q_mode        <= 1'b0;
             ast_q_issi        <= 24'd0;
+            shadow_q_start    <= 1'b0;
+            shadow_q_issi     <= 24'd0;
+            lat_is_reject     <= 1'b0;
+            lat_reject_cause  <= 3'd0;
             short_builder_start  <= 1'b0;
             accept_builder_start <= 1'b0;
             sch_encode_start  <= 1'b0;
@@ -424,6 +479,7 @@ module tetra_mle_registration_fsm #(
             // Default strobes — every state may override
             ast_wr_en        <= 1'b0;
             ast_q_start      <= 1'b0;
+            shadow_q_start   <= 1'b0;
             short_builder_start  <= 1'b0;
             accept_builder_start <= 1'b0;
             sch_encode_start <= 1'b0;
@@ -438,7 +494,8 @@ module tetra_mle_registration_fsm #(
             case (state)
             // -----------------------------------------------------------------
             S_IDLE: begin
-                busy <= 1'b0;
+                busy          <= 1'b0;
+                lat_is_reject <= 1'b0;
                 if (ul_req_valid) begin
                     // D-LOCATION UPDATE ACCEPT is always addressed per SSI
                     // (ETSI EN 300 392-2 §16.10.28).  ul_addr_type on the UL
@@ -454,6 +511,51 @@ module tetra_mle_registration_fsm #(
                     lat_loc_upd_type <= ul_loc_upd_type;
                     lat_use_l2sig    <= ul_use_l2sig;
                     busy             <= 1'b1;
+                    // Phase 6 A: query the subscriber-shadow first before
+                    // touching the AST.  Permit-check decides whether we
+                    // continue with ACCEPT or branch to REJECT.
+                    state            <= S_SHADOW_QUERY;
+                end
+            end
+
+            // -----------------------------------------------------------------
+            // Phase 6 A — Subscriber-Shadow Permit-Check (before AST)
+            //   1. Kick off shadow scan keyed on lat_ssi.
+            //   2. Wait for shadow_q_done.
+            //   3. Branch on hit + record[5]=permit_reg, or on
+            //      accept_unknown policy if shadow miss.
+            // -----------------------------------------------------------------
+            S_SHADOW_QUERY: begin
+                shadow_q_start <= 1'b1;
+                shadow_q_issi  <= lat_ssi;
+                state          <= S_SHADOW_WAIT;
+            end
+
+            S_SHADOW_WAIT: begin
+                if (shadow_q_done) begin
+                    state <= S_PERMIT_DECIDE;
+                end
+            end
+
+            S_PERMIT_DECIDE: begin
+                // shadow_q_record[5] = permit_reg per tetra_subscriber_shadow.v
+                if (shadow_q_hit && shadow_q_record[5]) begin
+                    // Permit granted → continue with ACCEPT path
+                    lat_is_reject <= 1'b0;
+                    state         <= S_CHECK_START;
+                end else if (!shadow_q_hit && accept_unknown) begin
+                    // Anonymous accept (test/permissive mode) → continue ACCEPT
+                    lat_is_reject <= 1'b0;
+                    state         <= S_CHECK_START;
+                end else if (shadow_q_hit && !shadow_q_record[5]) begin
+                    // Known but denied → REJECT, cause = service not authorised
+                    lat_is_reject    <= 1'b1;
+                    lat_reject_cause <= 3'd4;
+                    state            <= S_CHECK_START;
+                end else begin
+                    // Unknown + accept_unknown=0 → REJECT, cause = ITSI unknown
+                    lat_is_reject    <= 1'b1;
+                    lat_reject_cause <= 3'd0;
                     state            <= S_CHECK_START;
                 end
             end

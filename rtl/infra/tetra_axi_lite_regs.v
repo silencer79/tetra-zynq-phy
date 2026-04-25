@@ -338,6 +338,16 @@ module tetra_axi_lite_regs (
     output reg  [13:0] cell_la_axi,
 
     // ------------------------------------------------------------------
+    // DB-Policy — db_policy_axi (Phase 6 A, REG_DB_POLICY @ 0x1AC)
+    //   [0] accept_unknown — 1 (default): shadow miss still accepts
+    //                                     (anonymous attach, M2 behaviour)
+    //                       0: shadow miss → REJECT cause=0 (ITSI unknown)
+    //   [1..31] reserved (auto_enroll_default_profile in Phase E)
+    // CDC-resynced into clk_sys in tetra_zynq_top before MLE-FSM consumes.
+    // ------------------------------------------------------------------
+    output reg  [31:0] db_policy_axi,
+
+    // ------------------------------------------------------------------
     // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
     // 144 words, each word packs TWO 16-bit schedule entries.
     //   schedule_axi_we     : 1-cycle write pulse
@@ -560,6 +570,8 @@ localparam [6:0] REG_SIGNAL_TARGET_TN = 7'h67; // 0x19C R/W {30'd0, cfg_signal_t
 // echoed in D-LOC-UPDATE-ACCEPT.  Default 14'd1 matches the tetra_hal.c
 // info.la default (the legacy hard-coded value in rtl/tetra_zynq_top.v).
 localparam [6:0] REG_CELL_LA          = 7'h68; // 0x1A0 R/W {18'd0, cell_la[13:0]}
+// 0x1A4, 0x1A8 reserved for Phase B/C (mle_detach_cnt, ast_ttl_multiframes)
+localparam [6:0] REG_DB_POLICY        = 7'h6B; // 0x1AC R/W {30'd0, reserved, accept_unknown}
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -843,6 +855,7 @@ always @(*) begin
         REG_MLE_STATS_C:    rdata_mux_axi = {mle_clear_cnt_axi, mle_inject_cnt_axi};
         REG_SIGNAL_TARGET_TN: rdata_mux_axi = {30'b0, cfg_signal_target_tn_axi};
         REG_CELL_LA:      rdata_mux_axi = {18'b0, cell_la_axi};
+        REG_DB_POLICY:    rdata_mux_axi = db_policy_axi;
         default:          rdata_mux_axi = 32'b0;
     endcase
 end
@@ -966,6 +979,21 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
     else if (wr_en_axi & (wr_addr_axi[8:2] == REG_CELL_LA)) begin
         if (wr_strb_axi[0]) cell_la_axi[7:0]  <= wr_data_axi[7:0];
         if (wr_strb_axi[1]) cell_la_axi[13:8] <= wr_data_axi[13:8];
+    end
+end
+
+// ---- DB_POLICY register (0x1AC) — Phase 6 A ----
+// Default accept_unknown=1 — preserves M2 behaviour (anonymous attaches OK)
+// when the subscriber-shadow is empty.  Operator can flip to 0 to enforce
+// strict permit-check (only known + permit_reg=1 ISSIs may register).
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        db_policy_axi <= 32'h0000_0001;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_DB_POLICY)) begin
+        if (wr_strb_axi[0]) db_policy_axi[ 7: 0] <= wr_data_axi[ 7: 0];
+        if (wr_strb_axi[1]) db_policy_axi[15: 8] <= wr_data_axi[15: 8];
+        if (wr_strb_axi[2]) db_policy_axi[23:16] <= wr_data_axi[23:16];
+        if (wr_strb_axi[3]) db_policy_axi[31:24] <= wr_data_axi[31:24];
     end
 end
 

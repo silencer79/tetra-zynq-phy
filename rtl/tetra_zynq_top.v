@@ -247,6 +247,9 @@ wire [1:0]  cfg_signal_target_tn_axi_w;
 // .cfg_la so D-LOC-UPDATE-ACCEPT echoes the same LA that BNCH SYSINFO
 // broadcasts.  Per-bit 2-FF resynced into clk_sys below as cell_la_sys_r1.
 wire [13:0] cell_la_axi_w;
+// Phase 6 A: DB-Policy register (REG_DB_POLICY @ 0x1AC).
+// Bit 0 = accept_unknown (CDC-resynced into clk_sys below).
+wire [31:0] db_policy_axi_w;
 
 // Synchronize static AXI control bits into the consuming clock domains.
 (* ASYNC_REG = "TRUE" *) reg ctrl_loopback_lvds_r0;
@@ -1653,6 +1656,7 @@ tetra_axi_lite_regs u_axi_regs (
     .cfg_signal_target_tn_axi(cfg_signal_target_tn_axi_w),
     // Cell Location Area (R/W @ 0x1A0) — resynced into clk_sys below
     .cell_la_axi             (cell_la_axi_w),
+    .db_policy_axi           (db_policy_axi_w),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -1673,6 +1677,10 @@ tetra_axi_lite_regs u_axi_regs (
 // the BRAM still infers.  clk_axi == clk_sys in this design so direct
 // connect is safe.
 // =============================================================================
+// Phase 6 A: Shadow-Lookup-Port wires (MLE-FSM ↔ Shadow)
+wire        mle_shadow_q_start_w;
+wire [23:0] mle_shadow_q_issi_w;
+
 tetra_subscriber_shadow #(
     .DEPTH      (256),
     .IDX_WIDTH  (8),
@@ -1684,8 +1692,8 @@ tetra_subscriber_shadow #(
     .wr_idx   (shadow_wr_idx_w),
     .wr_data  (shadow_wr_data_w),
     .wr_en    (shadow_wr_en_w),
-    .q_start  (1'b0),
-    .q_issi   (24'd0),
+    .q_start  (mle_shadow_q_start_w),
+    .q_issi   (mle_shadow_q_issi_w),
     .q_busy   (shadow_q_busy_w),
     .q_done   (shadow_q_done_w),
     .q_hit    (shadow_q_hit_w),
@@ -1832,6 +1840,14 @@ tetra_mle_registration_fsm #(
     .cfg_address_extension ({cell_cfg_mcc_sys_r1, cell_cfg_mnc_sys_r1}),
     .cfg_subscriber_class  (16'hFFFF),
     .cfg_energy_saving_info(14'h0000),
+    // Phase 6 A — Subscriber-Shadow lookup + permit policy
+    .shadow_q_start   (mle_shadow_q_start_w),
+    .shadow_q_issi    (mle_shadow_q_issi_w),
+    .shadow_q_busy    (shadow_q_busy_w),
+    .shadow_q_done    (shadow_q_done_w),
+    .shadow_q_hit     (shadow_q_hit_w),
+    .shadow_q_record  (shadow_q_record_w),
+    .accept_unknown   (db_policy_accept_unknown_sys_r1),
     // AST
     .ast_wr_en        (ast_wr_en_w),
     .ast_wr_idx       (ast_wr_idx_w),
@@ -2141,6 +2157,9 @@ end
 (* ASYNC_REG = "TRUE" *) reg [1:0]  cfg_mcch_tn_sys_r1;
 (* ASYNC_REG = "TRUE" *) reg [13:0] cell_la_sys_r0;
 (* ASYNC_REG = "TRUE" *) reg [13:0] cell_la_sys_r1;
+// Phase 6 A — DB-Policy[0] = accept_unknown, 2-FF resynced to clk_sys
+(* ASYNC_REG = "TRUE" *) reg        db_policy_accept_unknown_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg        db_policy_accept_unknown_sys_r1;
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) cell_cfg_sys_code_sys_r0 <= 4'd0;
@@ -2245,6 +2264,15 @@ end
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) cell_la_sys_r1 <= 14'd1;
     else            cell_la_sys_r1 <= cell_la_sys_r0;
+end
+// Phase 6 A — accept_unknown CDC (default 1: M2 backward-compatible)
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) db_policy_accept_unknown_sys_r0 <= 1'b1;
+    else            db_policy_accept_unknown_sys_r0 <= db_policy_axi_w[0];
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) db_policy_accept_unknown_sys_r1 <= 1'b1;
+    else            db_policy_accept_unknown_sys_r1 <= db_policy_accept_unknown_sys_r0;
 end
 
 // Lookahead tuple (next-slot tn, fn, mn).  The sb1/aach encoders are

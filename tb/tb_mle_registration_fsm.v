@@ -57,6 +57,19 @@ module tb_mle_registration_fsm;
     wire [AST_IDX_WIDTH-1:0]     ast_q_slot;
     wire [AST_REC_WIDTH-1:0]     ast_q_record;
 
+    // Phase 6 A: subscriber-shadow lookup wires (FSM ↔ Shadow DUT)
+    wire                         shadow_q_start;
+    wire [23:0]                  shadow_q_issi;
+    wire                         shadow_q_busy;
+    wire                         shadow_q_done;
+    wire                         shadow_q_hit;
+    wire [63:0]                  shadow_q_record;
+    reg                          accept_unknown = 1'b1;  // permissive default
+    // Shadow write port driven from TB to seed records (mimics ARM via AXI)
+    reg [7:0]                    shadow_wr_idx  = 8'd0;
+    reg [63:0]                   shadow_wr_data = 64'd0;
+    reg                          shadow_wr_en   = 1'b0;
+
     wire         req_valid;
     wire [431:0] req_coded_bits;
     wire [1:0]   req_pdu_type;
@@ -89,6 +102,27 @@ module tb_mle_registration_fsm;
         .q_hit   (ast_q_hit),
         .q_slot  (ast_q_slot),
         .q_record(ast_q_record)
+    );
+
+    // Phase 6 A — real subscriber-shadow DUT for end-to-end permit check
+    tetra_subscriber_shadow #(
+        .DEPTH      (256),
+        .IDX_WIDTH  (8),
+        .REC_WIDTH  (64),
+        .ISSI_WIDTH (24)
+    ) u_shadow (
+        .clk      (clk),
+        .rst_n    (rst_n),
+        .wr_idx   (shadow_wr_idx),
+        .wr_data  (shadow_wr_data),
+        .wr_en    (shadow_wr_en),
+        .q_start  (shadow_q_start),
+        .q_issi   (shadow_q_issi),
+        .q_busy   (shadow_q_busy),
+        .q_done   (shadow_q_done),
+        .q_hit    (shadow_q_hit),
+        .q_slot   (),
+        .q_record (shadow_q_record)
     );
 
     tetra_mle_registration_fsm #(
@@ -127,6 +161,13 @@ module tb_mle_registration_fsm;
         .ast_q_hit        (ast_q_hit),
         .ast_q_slot       (ast_q_slot),
         .ast_q_record     (ast_q_record),
+        .shadow_q_start   (shadow_q_start),
+        .shadow_q_issi    (shadow_q_issi),
+        .shadow_q_busy    (shadow_q_busy),
+        .shadow_q_done    (shadow_q_done),
+        .shadow_q_hit     (shadow_q_hit),
+        .shadow_q_record  (shadow_q_record),
+        .accept_unknown   (accept_unknown),
         .req_valid        (req_valid),
         .req_coded_bits   (req_coded_bits),
         .req_pdu_type     (req_pdu_type),
@@ -150,6 +191,15 @@ module tb_mle_registration_fsm;
         begin
             for (idx = 0; idx < AST_DEPTH; idx = idx + 1)
                 u_ast.mem[idx] = {AST_REC_WIDTH{1'b0}};
+        end
+    endtask
+
+    // Phase 6 A — clear subscriber-shadow BRAM at sim init
+    task automatic clear_shadow;
+        integer idx;
+        begin
+            for (idx = 0; idx < 256; idx = idx + 1)
+                u_shadow.mem[idx] = 64'd0;
         end
     endtask
 
@@ -256,6 +306,108 @@ module tb_mle_registration_fsm;
         end
     endtask
 
+    // Phase 6 A — seed a subscriber-shadow record (slot, ISSI, permit_reg)
+    task automatic seed_shadow(input [7:0]  slot,
+                               input [23:0] issi,
+                               input        permit_reg);
+        begin
+            @(posedge clk);
+            shadow_wr_idx  <= slot;
+            // Layout per tetra_subscriber_shadow.v:
+            //   [63:40] ISSI / [39:26] LA=0 / [25:8] reserved=0
+            //   [7] permit_voice / [6] permit_data / [5] permit_reg
+            //   [4:1] priority / [0] valid
+            shadow_wr_data <= {issi, 14'd0, 18'd0,
+                               1'b0, 1'b0, permit_reg, 4'd0, 1'b1};
+            shadow_wr_en   <= 1'b1;
+            @(posedge clk);
+            shadow_wr_en   <= 1'b0;
+        end
+    endtask
+
+    // Phase 6 A — assert a registration goes the REJECT path with given cause.
+    // We watch for accept_pulse (FSM signals "decision delivered to queue")
+    // and then probe internal lat_is_reject + lat_reject_cause.
+    task automatic expect_reject(input [23:0] issi,
+                                 input [2:0]  exp_cause,
+                                 input [255:0] tag);
+        integer wait_cycles;
+        begin
+            test_count = test_count + 1;
+            push_request(issi, 14'd36);
+            // wait for pre-reply (first req_valid)
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !req_valid) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
+            // FSM now in S_WAIT_GAP_FRAME — drive 4 slot_pulses
+            pulse_slots(4);
+            // wait for full Accept/Reject (second req_valid + accept_pulse)
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !accept_pulse) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
+            if (!accept_pulse) begin
+                $display("[T%0d] FAIL %0s no decision pulse", test_count, tag);
+                fail_count = fail_count + 1;
+            end else if (dut.lat_is_reject !== 1'b1) begin
+                $display("[T%0d] FAIL %0s expected REJECT path, lat_is_reject=%b",
+                         test_count, tag, dut.lat_is_reject);
+                fail_count = fail_count + 1;
+            end else if (dut.lat_reject_cause !== exp_cause) begin
+                $display("[T%0d] FAIL %0s reject_cause got=%0d exp=%0d",
+                         test_count, tag, dut.lat_reject_cause, exp_cause);
+                fail_count = fail_count + 1;
+            end else if (dut.mle_mm_len_w !== 8'd8) begin
+                $display("[T%0d] FAIL %0s MM length got=%0d exp=8 (REJECT)",
+                         test_count, tag, dut.mle_mm_len_w);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d] PASS %0s REJECT cause=%0d MM=8bit",
+                         test_count, tag, dut.lat_reject_cause);
+            end
+            repeat (3) @(posedge clk);
+        end
+    endtask
+
+    task automatic expect_accept(input [23:0] issi,
+                                 input [255:0] tag);
+        integer wait_cycles;
+        begin
+            test_count = test_count + 1;
+            push_request(issi, 14'd36);
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !req_valid) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
+            pulse_slots(4);
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !accept_pulse) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
+            if (!accept_pulse) begin
+                $display("[T%0d] FAIL %0s no decision pulse", test_count, tag);
+                fail_count = fail_count + 1;
+            end else if (dut.lat_is_reject !== 1'b0) begin
+                $display("[T%0d] FAIL %0s expected ACCEPT path, lat_is_reject=%b",
+                         test_count, tag, dut.lat_is_reject);
+                fail_count = fail_count + 1;
+            end else if (dut.mle_mm_len_w !== 8'd102) begin
+                $display("[T%0d] FAIL %0s MM length got=%0d exp=102 (ACCEPT)",
+                         test_count, tag, dut.mle_mm_len_w);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d] PASS %0s ACCEPT MM=102bit",
+                         test_count, tag);
+            end
+            repeat (3) @(posedge clk);
+        end
+    endtask
+
     task automatic expect_drop(input [23:0] issi);
         integer wait_cycles;
         begin
@@ -285,6 +437,7 @@ module tb_mle_registration_fsm;
         @(posedge clk);
 
         clear_ast();
+        clear_shadow();
         @(posedge clk);
 
         expect_two_phase_accept(24'd523, 6'd0);
@@ -326,6 +479,38 @@ module tb_mle_registration_fsm;
             $display("PASS MTP3550 24-bit ISSI propagated to MAC-RESOURCE SSI@[251:228]=0x282F91");
         end
 
+        // -------------------------------------------------------------------
+        // Phase 6 A — Permit-Check tests (Subscriber-Shadow lookup)
+        // Pre-conditions: AST has 4 entries (slot 0..3) from the earlier
+        // expect_two_phase_accept calls above.  Free slots 4..63.
+        // -------------------------------------------------------------------
+
+        // T7 PERMIT OK: shadow has ISSI=0x111111 with permit_reg=1 → ACCEPT
+        seed_shadow(8'd10, 24'h111111, 1'b1);
+        accept_unknown <= 1'b0;  // strict mode: only known + permitted attach
+        repeat (4) @(posedge clk);
+        expect_accept(24'h111111, "permit_ok");
+
+        // T8 PERMIT DENIED: shadow has ISSI=0x222222 with permit_reg=0
+        //                   → REJECT cause=4 (service not authorised)
+        seed_shadow(8'd11, 24'h222222, 1'b0);
+        repeat (4) @(posedge clk);
+        expect_reject(24'h222222, 3'd4, "permit_denied");
+
+        // T9 UNKNOWN + accept_unknown=0: not in shadow → REJECT cause=0
+        accept_unknown <= 1'b0;
+        repeat (4) @(posedge clk);
+        expect_reject(24'h333333, 3'd0, "unknown_strict");
+
+        // T10 UNKNOWN + accept_unknown=1: not in shadow → ACCEPT (anonymous)
+        accept_unknown <= 1'b1;
+        repeat (4) @(posedge clk);
+        expect_accept(24'h444444, "unknown_permissive");
+
+        // -------------------------------------------------------------------
+        // Final test: AST full → drop (existing M2 behaviour)
+        // -------------------------------------------------------------------
+        accept_unknown <= 1'b1;
         for (i = 4; i < AST_DEPTH; i = i + 1)
             u_ast.mem[i] = {{(AST_REC_WIDTH - 1){1'b0}}, 1'b1};
         @(posedge clk);
