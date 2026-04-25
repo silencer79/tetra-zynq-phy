@@ -144,16 +144,16 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
             if (encode_start_sys) begin
                 // Per-slot AACH info (Gold-mimic, EN 300 392-2 §21.5.2):
                 //   TN=0 + addressed signalling → DL/UL-Assign Unalloc/Unalloc
-                //                                (0x0049)
+                //                                (0x0009)
                 //   TN=0 + idle signalling      → DL/UL-Assign Common/Random
                 //                                (0x0249)
                 //   FN=18, TN!=0                → DL/UL-Assign Unalloc/Random
-                //                                (0x040)
+                //                                (0x0049)
                 //   else                        → Capacity Allocation (0x3000)
                 if (tn_sys == 2'd0)
-                    info_sys <= signalling_active_sys ? 14'h0049 : 14'h0249;
+                    info_sys <= signalling_active_sys ? 14'h0009 : 14'h0249;
                 else if (fn_sys == 5'd17)
-                    info_sys <= 14'h040;
+                    info_sys <= 14'h049;
                 else
                     info_sys <= 14'h3000;
                 // Init LFSR; handle degenerate lfsr=0 case (never in practice)

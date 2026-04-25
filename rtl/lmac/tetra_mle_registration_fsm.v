@@ -368,13 +368,15 @@ module tetra_mle_registration_fsm #(
     localparam [3:0] S_BUILD_SHORT_WAIT    = 4'd7;
     localparam [3:0] S_ENCODE_HD_START     = 4'd8;
     localparam [3:0] S_ENCODE_HD_WAIT      = 4'd9;
-    localparam [3:0] S_BUILD_ACCEPT_START  = 4'd10;
-    localparam [3:0] S_BUILD_ACCEPT_WAIT   = 4'd11;
-    localparam [3:0] S_ENCODE_F_START      = 4'd12;
-    localparam [3:0] S_ENCODE_F_WAIT       = 4'd13;
-    localparam [3:0] S_DELIVER_ACCEPT      = 4'd14;
-    localparam [3:0] S_DROP                = 4'd15;
-    reg [3:0] state;
+    localparam [4:0] S_BUILD_ACCEPT_START  = 5'd10;
+    localparam [4:0] S_BUILD_ACCEPT_WAIT   = 5'd11;
+    localparam [4:0] S_ENCODE_F_START      = 5'd12;
+    localparam [4:0] S_ENCODE_F_WAIT       = 5'd13;
+    localparam [4:0] S_DELIVER_ACCEPT      = 5'd14;
+    localparam [4:0] S_DROP                = 5'd15;
+    localparam [4:0] S_WAIT_GAP_FRAME      = 5'd16;
+    reg [4:0] state;
+    reg [2:0] gap_slot_count;
 
     // Synchronous reset — Xilinx DRC (REQP-1839) flags async resets on
     // registers feeding BRAM control pins (WEBWE, ADDRBWRADDR) as memory-
@@ -391,6 +393,7 @@ module tetra_mle_registration_fsm #(
             lat_existing      <= 1'b0;
             lat_accept_info_bits <= 268'd0;
             lat_short_info_bits  <= 124'd0;
+            gap_slot_count    <= 3'd0;
             ast_wr_en         <= 1'b0;
             ast_wr_idx        <= {AST_IDX_WIDTH{1'b0}};
             ast_wr_data       <= {AST_REC_WIDTH{1'b0}};
@@ -533,7 +536,23 @@ module tetra_mle_registration_fsm #(
                     req_second_pdu_present <= 1'b0;
                     req_second_pdu_nr      <= 1'b0;
                     req_valid      <= 1'b1;
-                    state          <= S_BUILD_ACCEPT_START;
+                    gap_slot_count <= 3'd4;
+                    state          <= S_WAIT_GAP_FRAME;
+                end
+            end
+
+            // -----------------------------------------------------------------
+            // Match the external BS spacing: the short SCH/HD pre-reply appears
+            // on TN1/FN=N, the full SCH/F accept two frames later on TN1/FN=N+2.
+            // The scheduler pops at most one signalling PDU per frame, so hold
+            // the accept back for one full TDMA frame (4 slot pulses) after the
+            // pre-reply request has been queued.
+            S_WAIT_GAP_FRAME: begin
+                if (slot_pulse) begin
+                    if (gap_slot_count == 3'd1)
+                        state <= S_BUILD_ACCEPT_START;
+                    else
+                        gap_slot_count <= gap_slot_count - 3'd1;
                 end
             end
 

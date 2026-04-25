@@ -164,6 +164,18 @@ module tb_mle_registration_fsm;
         end
     endtask
 
+    task automatic pulse_slots(input integer count);
+        integer j;
+        begin
+            for (j = 0; j < count; j = j + 1) begin
+                @(posedge clk);
+                slot_pulse <= 1'b1;
+                @(posedge clk);
+                slot_pulse <= 1'b0;
+            end
+        end
+    endtask
+
     task automatic wait_for_req(output reg [1:0] got_pdu_type,
                                 output reg [1:0] got_target_tn,
                                 output reg [431:0] got_coded,
@@ -200,6 +212,7 @@ module tb_mle_registration_fsm;
             test_count = test_count + 1;
             push_request(issi, 14'd36);
             wait_for_req(got_type1, got_tn1, got_coded1, got_accept1);
+            pulse_slots(4);
             wait_for_req(got_type2, got_tn2, got_coded2, got_accept2);
 
             if (got_type1 !== 2'd1) begin
