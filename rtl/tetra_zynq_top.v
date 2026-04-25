@@ -1756,14 +1756,20 @@ tetra_active_session_table #(
 // own (the previous 10-bit short_ssi was bit-misaligned and produced
 // ssi=523 for every Motorola MS — see commit `feat(ul-parser):` for fix).
 wire [23:0] mle_ul_ssi_w = ul_issi_sys;
+// Accept mm_type 4 (U-LOC-UPDATE-DEMAND, complete PDU) and mm_type 2
+// (frag_flag=1 fragment header — both MTP3550 and the gold-ref external MS
+// emit this as their initial registration burst; the real MM-type lives in
+// the un-reassembled remainder, but the external BS treats this as a valid
+// trigger for D-LOC-UPDATE-ACCEPT — see PROTOCOL.md §9 / capture
+// docs/references/captures_external_bs_2026-04-25/).
 wire        mle_ul_req_wrapped_w =
     ul_pdu_valid_sys &&
     ul_llc_is_bl_data_w &&
     ul_llc_is_mle_mm_w &&
-    (ul_llc_mm_pdu_type_w == 4'h4);
+    ((ul_llc_mm_pdu_type_w == 4'h4) || (ul_llc_mm_pdu_type_w == 4'h2));
 wire        mle_ul_req_direct_w =
     ul_pdu_valid_sys &&
-    (ul_mm_pdu_type_sys == 4'h4);
+    ((ul_mm_pdu_type_sys == 4'h4) || (ul_mm_pdu_type_sys == 4'h2));
 wire        mle_ul_req_valid_w =
     mle_ul_req_wrapped_w || mle_ul_req_direct_w;
 wire [2:0]  mle_ul_loc_upd_type_w =
