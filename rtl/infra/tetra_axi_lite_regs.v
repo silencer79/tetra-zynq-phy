@@ -319,6 +319,8 @@ module tetra_axi_lite_regs (
     input  wire [15:0] mle_inject_cnt_axi,
     input  wire [15:0] mle_clear_cnt_axi,
     input  wire [15:0] mle_detach_cnt_axi,    // Phase 6 B (REG_AST_DETACH_CNT @ 0x1A4 [15:0])
+    input  wire [15:0] ast_ttl_evict_cnt_axi, // Phase 6 C (REG_AST_TTL_EVICT_CNT @ 0x1B0 [15:0])
+    output reg  [31:0] ast_ttl_multiframes_axi,// Phase 6 C (REG_AST_TTL_MFS @ 0x1A8, default 84706)
 
     // ------------------------------------------------------------------
     // DL-signalling scheduler config — cfg_signal_target_tn_axi
@@ -572,8 +574,9 @@ localparam [6:0] REG_SIGNAL_TARGET_TN = 7'h67; // 0x19C R/W {30'd0, cfg_signal_t
 // info.la default (the legacy hard-coded value in rtl/tetra_zynq_top.v).
 localparam [6:0] REG_CELL_LA          = 7'h68; // 0x1A0 R/W {18'd0, cell_la[13:0]}
 localparam [6:0] REG_AST_DETACH_CNT   = 7'h69; // 0x1A4 RO  {16'd0, mle_detach_cnt[15:0]}  Phase 6 B
-// 0x1A8 reserved for Phase C (ast_ttl_multiframes)
+localparam [6:0] REG_AST_TTL_MFS      = 7'h6A; // 0x1A8 R/W TTL threshold in multiframes (Phase 6 C, default 84706 ≈ 24h)
 localparam [6:0] REG_DB_POLICY        = 7'h6B; // 0x1AC R/W {30'd0, reserved, accept_unknown}
+localparam [6:0] REG_AST_TTL_EVICT_CNT = 7'h6C; // 0x1B0 RO {16'd0, ast_ttl_evict_cnt[15:0]} Phase 6 C
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -858,6 +861,8 @@ always @(*) begin
         REG_SIGNAL_TARGET_TN: rdata_mux_axi = {30'b0, cfg_signal_target_tn_axi};
         REG_CELL_LA:      rdata_mux_axi = {18'b0, cell_la_axi};
         REG_AST_DETACH_CNT: rdata_mux_axi = {16'b0, mle_detach_cnt_axi};
+        REG_AST_TTL_MFS:   rdata_mux_axi = ast_ttl_multiframes_axi;
+        REG_AST_TTL_EVICT_CNT: rdata_mux_axi = {16'b0, ast_ttl_evict_cnt_axi};
         REG_DB_POLICY:    rdata_mux_axi = db_policy_axi;
         default:          rdata_mux_axi = 32'b0;
     endcase
@@ -982,6 +987,20 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
     else if (wr_en_axi & (wr_addr_axi[8:2] == REG_CELL_LA)) begin
         if (wr_strb_axi[0]) cell_la_axi[7:0]  <= wr_data_axi[7:0];
         if (wr_strb_axi[1]) cell_la_axi[13:8] <= wr_data_axi[13:8];
+    end
+end
+
+// ---- AST_TTL_MULTIFRAMES register (0x1A8) — Phase 6 C ----
+// 32-bit RW, default 84706 (≈ 24 h at 1.02 s per multiframe).
+// 0 disables eviction (sweeper still runs, but no slot expires).
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        ast_ttl_multiframes_axi <= 32'd84706;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_AST_TTL_MFS)) begin
+        if (wr_strb_axi[0]) ast_ttl_multiframes_axi[ 7: 0] <= wr_data_axi[ 7: 0];
+        if (wr_strb_axi[1]) ast_ttl_multiframes_axi[15: 8] <= wr_data_axi[15: 8];
+        if (wr_strb_axi[2]) ast_ttl_multiframes_axi[23:16] <= wr_data_axi[23:16];
+        if (wr_strb_axi[3]) ast_ttl_multiframes_axi[31:24] <= wr_data_axi[31:24];
     end
 end
 

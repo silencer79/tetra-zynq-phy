@@ -29,11 +29,25 @@ module tb_active_session_table;
 
     always #5 clk = ~clk;
 
+    // Phase 6 C — TTL Sweeper test plumbing (existing tests leave these
+    // tied off — sweep_enable=0 disables the sweeper completely).
+    reg         sweep_enable    = 1'b0;
+    reg [23:0]  sweep_now       = 24'd0;
+    reg [23:0]  sweep_threshold = 24'd5;     // expire if age > 5 multiframes
+    reg         sweep_tick      = 1'b0;
+    wire        sweep_evict_pulse;
+    wire [IDX_WIDTH-1:0] sweep_idx;
+
     tetra_active_session_table #(
         .DEPTH     (DEPTH),
         .IDX_WIDTH (IDX_WIDTH),
         .REC_WIDTH (REC_WIDTH),
-        .ISSI_WIDTH(ISSI_WIDTH)
+        .ISSI_WIDTH(ISSI_WIDTH),
+        // For the legacy 64-bit AST in this TB, last_seen lives in bits
+        // [REC_WIDTH-ISSI_WIDTH-1 : REC_WIDTH-ISSI_WIDTH-LAST_SEEN_WIDTH]
+        // = [39:16] when REC_WIDTH=64.  TB writes `valid` at bit 0.
+        .LAST_SEEN_WIDTH(24),
+        .LAST_SEEN_LSB(REC_WIDTH - ISSI_WIDTH - 24)
     ) dut (
         .clk     (clk),
         .rst_n   (rst_n),
@@ -47,7 +61,14 @@ module tb_active_session_table;
         .q_done  (q_done),
         .q_hit   (q_hit),
         .q_slot  (q_slot),
-        .q_record(q_record)
+        .q_record(q_record),
+        // Sweeper port-B
+        .sweep_enable      (sweep_enable),
+        .sweep_now         (sweep_now),
+        .sweep_threshold   (sweep_threshold),
+        .sweep_tick        (sweep_tick),
+        .sweep_evict_pulse (sweep_evict_pulse),
+        .sweep_idx         (sweep_idx)
     );
 
     // ---------------------------------------------------------------------
@@ -179,6 +200,60 @@ module tb_active_session_table;
         // ----- Invalidate middle, alloc finds it -----
         write_rec(6'd42, 24'h00_0000, 1'b0);
         lookup_and_check(Q_ALLOC, 24'd0, 1'b1, 6'd42, 12);
+
+        // ----- Phase 6 C — TTL-Sweep tests -----
+        //
+        // Layout for this TB (REC_WIDTH=64, ISSI_WIDTH=24, LAST_SEEN_LSB=16):
+        //   [63:40]  ISSI
+        //   [39:16]  last_seen_multiframe (24 bit)
+        //   [15: 1]  reserved
+        //   [0]      valid
+        //
+        // Seed three slots with explicit last_seen and let the sweeper run.
+
+        // Slot 0: last_seen=10  → age = sweep_now(20) - 10 = 10 > threshold(5) → evict
+        // Slot 5: last_seen=18  → age = 2 ≤ 5 → keep
+        // Slot 30: last_seen=0  → age = 20 > 5 → evict
+        // Use NBA-style writes (matching write_rec task) — blocking assigns
+        // race with the AST always-block on the same posedge.
+        begin : seed_block
+            reg [REC_WIDTH-1:0] r;
+            r = {24'hAA_AA01, 24'd10, 15'd0, 1'b1}; @(posedge clk);
+            wr_idx <= 6'd0;  wr_data <= r; wr_en <= 1'b1; @(posedge clk);
+            r = {24'hAA_AA05, 24'd18, 15'd0, 1'b1};
+            wr_idx <= 6'd5;  wr_data <= r;               @(posedge clk);
+            r = {24'hAA_AA30, 24'd0,  15'd0, 1'b1};
+            wr_idx <= 6'd30; wr_data <= r;               @(posedge clk);
+            wr_en  <= 1'b0;
+            @(posedge clk);
+        end
+
+        sweep_now       = 24'd20;
+        sweep_threshold = 24'd5;
+        sweep_enable    = 1'b1;
+
+        // Drive the sweeper through enough ticks to scan all DEPTH slots.
+        // Each tick: 1 cycle for SW_IDLE→SW_READ, 1 cycle SW_READ→SW_CHECK,
+        // 1 cycle SW_CHECK→SW_IDLE → 3 cycles per tick.  Drive tick-pulses
+        // with at least 4 cycles between to let the FSM finish.
+        begin
+            integer t;
+            for (t = 0; t < DEPTH + 4; t = t + 1) begin
+                @(posedge clk);
+                sweep_tick <= 1'b1;
+                @(posedge clk);
+                sweep_tick <= 1'b0;
+                repeat (4) @(posedge clk);
+            end
+        end
+
+        // Now verify: slot 0 + 30 should be cleared, slot 5 should still hit.
+        test_count = test_count + 1;
+        lookup_and_check(Q_QUERY, 24'hAA_AA01, 1'b0, 6'd0, 13);   // slot 0 evicted
+        lookup_and_check(Q_QUERY, 24'hAA_AA05, 1'b1, 6'd5, 14);   // slot 5 kept
+        lookup_and_check(Q_QUERY, 24'hAA_AA30, 1'b0, 6'd0, 15);   // slot 30 evicted
+
+        sweep_enable = 1'b0;
 
         // ----- Summary -----
         $display("=============================================");

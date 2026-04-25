@@ -59,7 +59,15 @@ module tetra_active_session_table #(
     parameter integer DEPTH      = 64,
     parameter integer IDX_WIDTH  = 6,     // $clog2(DEPTH)
     parameter integer REC_WIDTH  = 64,
-    parameter integer ISSI_WIDTH = 24
+    parameter integer ISSI_WIDTH = 24,
+    // Phase 6 C — TTL-Sweep configuration.
+    // last_seen field offset inside the record (24-bit field).  The default
+    // matches the Phase B AST layout (bits [REC_WIDTH-1-ISSI_WIDTH-1
+    // : REC_WIDTH-ISSI_WIDTH-24] = bits [103:80] when REC_WIDTH=128).
+    // Setting LAST_SEEN_WIDTH=0 disables the sweeper completely (legacy
+    // mode for Phase A and earlier).
+    parameter integer LAST_SEEN_WIDTH = 24,
+    parameter integer LAST_SEEN_LSB   = REC_WIDTH - ISSI_WIDTH - LAST_SEEN_WIDTH
 )(
     input  wire                       clk,
     input  wire                       rst_n,
@@ -77,11 +85,30 @@ module tetra_active_session_table #(
     output reg                        q_done,
     output reg                        q_hit,
     output reg  [IDX_WIDTH-1:0]       q_slot,
-    output reg  [REC_WIDTH-1:0]       q_record
+    output reg  [REC_WIDTH-1:0]       q_record,
+
+    // Phase 6 C — TTL-Sweep (background scanner).
+    //   sweep_enable      : gate from REG_DB_POLICY (or always-on)
+    //   sweep_now         : free-running 24-bit multiframe counter
+    //   sweep_threshold   : evict when (now - last_seen) > threshold
+    //   sweep_tick        : 1-cycle pulse — advances scan_idx by 1.
+    //                       Drive once per multiframe; FSM checks one
+    //                       slot per tick.  64 ticks = full sweep cycle
+    //                       (~65 s at 1.02 s/MF).
+    //   sweep_evict_pulse : 1-cycle, fires when a slot is invalidated.
+    //   sweep_idx         : current scan position (debug visibility).
+    input  wire                       sweep_enable,
+    input  wire [23:0]                sweep_now,
+    input  wire [23:0]                sweep_threshold,
+    input  wire                       sweep_tick,
+    output reg                        sweep_evict_pulse,
+    output wire [IDX_WIDTH-1:0]       sweep_idx
 );
 
     // -------------------------------------------------------------------------
-    // Storage — inferred block RAM
+    // Storage — inferred block RAM (true dual-port).
+    //   Port A : FSM scan/write (existing q_* / wr_*)
+    //   Port B : TTL sweeper (Phase 6 C — independent read+invalidate)
     // -------------------------------------------------------------------------
     (* ram_style = "block" *) reg [REC_WIDTH-1:0] mem [0:DEPTH-1];
 
@@ -89,11 +116,28 @@ module tetra_active_session_table #(
     reg [IDX_WIDTH:0]    rd_addr_ext;     // 1 extra bit so DEPTH is representable
     wire [IDX_WIDTH-1:0] rd_addr = rd_addr_ext[IDX_WIDTH-1:0];
 
+    // Sweeper port-B signals (declared early so the BRAM block can see them)
+    reg [IDX_WIDTH-1:0]  sweep_scan_idx_r;
+    reg [REC_WIDTH-1:0]  sweep_rd_data;
+    reg                  sweep_invalidate_now;     // 1-cycle write-zero strobe
+
+    assign sweep_idx = sweep_scan_idx_r;
+
+    // Port A (FSM scan / external write)
     always @(posedge clk) begin
         if (wr_en) begin
             mem[wr_idx] <= wr_data;
         end
         rd_data <= mem[rd_addr];
+    end
+
+    // Port B (TTL sweeper read + invalidate write).  Vivado infers a true
+    // dual-port BRAM when each port is in its own always block.
+    always @(posedge clk) begin
+        if (sweep_invalidate_now) begin
+            mem[sweep_scan_idx_r] <= {REC_WIDTH{1'b0}};
+        end
+        sweep_rd_data <= mem[sweep_scan_idx_r];
     end
 
     // -------------------------------------------------------------------------
@@ -168,6 +212,90 @@ module tetra_active_session_table #(
                     end
                 end
             end
+        end
+    end
+
+    // -------------------------------------------------------------------------
+    // Phase 6 C — TTL Sweeper (round-robin background scanner, port B).
+    //
+    // Once per `sweep_tick` (~1 multiframe = 1.02 s), the FSM advances to
+    // the next slot and reads sweep_rd_data on the following cycle.
+    // After the read settles, it computes (sweep_now - last_seen) and
+    // compares against sweep_threshold.  On expiry, it pulses
+    // sweep_invalidate_now for one cycle, which writes {0…} into the slot
+    // via port B, and emits sweep_evict_pulse.
+    //
+    // Three-stage pipeline:
+    //   S_IDLE  → wait sweep_tick
+    //   S_READ  → wait one cycle for BRAM read latency, sweep_rd_data valid
+    //   S_CHECK → compare last_seen, decide invalidate, pulse evict
+    //
+    // 64 slots × 1 tick/MF = full sweep cycle ~65 s with default 1.02 s/MF.
+    // -------------------------------------------------------------------------
+    localparam [1:0] SW_IDLE       = 2'd0;
+    localparam [1:0] SW_READ       = 2'd1;
+    localparam [1:0] SW_CHECK      = 2'd2;
+    localparam [1:0] SW_INVALIDATE = 2'd3;  // hold scan_idx for port-B write
+    reg [1:0] sweep_state;
+
+    wire                          sweep_rec_valid_w  = sweep_rd_data[0];
+    wire [LAST_SEEN_WIDTH-1:0]    sweep_last_seen_w  =
+        sweep_rd_data[LAST_SEEN_LSB +: LAST_SEEN_WIDTH];
+    // Modular subtraction (now wraps every 16M MF, threshold also 24-bit).
+    wire [23:0] sweep_age_w = sweep_now - {{(24-LAST_SEEN_WIDTH){1'b0}},
+                                           sweep_last_seen_w};
+    wire        sweep_expired_w =
+        sweep_rec_valid_w && (sweep_age_w > sweep_threshold);
+
+    always @(posedge clk) begin
+        if (!rst_n) begin
+            sweep_scan_idx_r     <= {IDX_WIDTH{1'b0}};
+            sweep_state          <= SW_IDLE;
+            sweep_invalidate_now <= 1'b0;
+            sweep_evict_pulse    <= 1'b0;
+        end else begin
+            sweep_invalidate_now <= 1'b0;
+            sweep_evict_pulse    <= 1'b0;
+
+            case (sweep_state)
+            SW_IDLE: begin
+                if (sweep_enable && sweep_tick) begin
+                    // address sweep_scan_idx_r is already on port B —
+                    // result lands in sweep_rd_data after this edge.
+                    sweep_state <= SW_READ;
+                end
+            end
+
+            SW_READ: begin
+                // BRAM read latency = 1 clock; sweep_rd_data is valid now.
+                sweep_state <= SW_CHECK;
+            end
+
+            SW_CHECK: begin
+                if (sweep_expired_w) begin
+                    // Pulse invalidate_now NOW; port B writes mem[scan_idx]=0
+                    // on the next edge.  Hold scan_idx through SW_INVALIDATE
+                    // so the port-B write lands on the correct slot, then
+                    // advance.
+                    sweep_invalidate_now <= 1'b1;
+                    sweep_evict_pulse    <= 1'b1;
+                    sweep_state          <= SW_INVALIDATE;
+                end else begin
+                    sweep_scan_idx_r <= sweep_scan_idx_r + {{(IDX_WIDTH-1){1'b0}}, 1'b1};
+                    sweep_state      <= SW_IDLE;
+                end
+            end
+
+            SW_INVALIDATE: begin
+                // Port-B write committed this cycle (sweep_invalidate_now
+                // was set in SW_CHECK and is sampled on this edge).  Now
+                // safe to advance scan_idx and return to idle.
+                sweep_scan_idx_r <= sweep_scan_idx_r + {{(IDX_WIDTH-1){1'b0}}, 1'b1};
+                sweep_state      <= SW_IDLE;
+            end
+
+            default: sweep_state <= SW_IDLE;
+            endcase
         end
     end
 

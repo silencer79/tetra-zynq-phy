@@ -250,6 +250,8 @@ wire [13:0] cell_la_axi_w;
 // Phase 6 A: DB-Policy register (REG_DB_POLICY @ 0x1AC).
 // Bit 0 = accept_unknown (CDC-resynced into clk_sys below).
 wire [31:0] db_policy_axi_w;
+// Phase 6 C: TTL threshold (REG_AST_TTL_MFS @ 0x1A8) in multiframes
+wire [31:0] ast_ttl_multiframes_axi_w;
 
 // Synchronize static AXI control bits into the consuming clock domains.
 (* ASYNC_REG = "TRUE" *) reg ctrl_loopback_lvds_r0;
@@ -1659,6 +1661,8 @@ tetra_axi_lite_regs u_axi_regs (
     // Cell Location Area (R/W @ 0x1A0) — resynced into clk_sys below
     .cell_la_axi             (cell_la_axi_w),
     .db_policy_axi           (db_policy_axi_w),
+    .ast_ttl_multiframes_axi (ast_ttl_multiframes_axi_w),
+    .ast_ttl_evict_cnt_axi   (ast_ttl_evict_cnt_axi_r1),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -1741,11 +1745,27 @@ tetra_subscriber_shadow #(
 //   [ 71: 68] state (4)  — 1=REG_ACCEPT_SENT
 //   [ 67:  1] reserved (Phase D: group_count + group_list[8])
 //   [  0]     valid (kept at bit 0 — alloc-scan signature unchanged)
+// Phase 6 C — TTL-Sweeper wires
+wire        ast_sweep_evict_pulse_w;
+wire [5:0]  ast_sweep_idx_w;
+// Sweep tick = +1 multiframe (= edge of mf_global_cnt_sys).  We reuse the
+// same edge-detect we already built for mf_global_cnt to make a 1-cycle
+// pulse per multiframe.
+reg         mf_tick_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys)
+        mf_tick_sys <= 1'b0;
+    else
+        mf_tick_sys <= (tx_mf_cnt_sys != tx_mf_cnt_sys_prev);
+end
+
 tetra_active_session_table #(
     .DEPTH      (64),
     .IDX_WIDTH  (6),
     .REC_WIDTH  (128),
-    .ISSI_WIDTH (24)
+    .ISSI_WIDTH (24),
+    .LAST_SEEN_WIDTH (24),
+    .LAST_SEEN_LSB   (128 - 24 - 24)   // bits [103:80]
 ) u_active_session_table (
     .clk      (clk_sys),
     .rst_n    (rst_n_sys),
@@ -1759,7 +1779,14 @@ tetra_active_session_table #(
     .q_done   (ast_q_done_w),
     .q_hit    (ast_q_hit_w),
     .q_slot   (ast_q_slot_w),
-    .q_record (ast_q_record_w)
+    .q_record (ast_q_record_w),
+    // Phase 6 C — TTL-Sweep
+    .sweep_enable      (1'b1),                       // always-on for now
+    .sweep_now         (mf_global_cnt_sys),
+    .sweep_threshold   (ast_ttl_multiframes_sys_r1),
+    .sweep_tick        (mf_tick_sys),
+    .sweep_evict_pulse (ast_sweep_evict_pulse_w),
+    .sweep_idx         (ast_sweep_idx_w)
 );
 
 // =============================================================================
@@ -2034,6 +2061,8 @@ wire [15:0] mle_clear_cnt_sys  = queue_drop_cnt_w;
 
 // Phase 6 B — detach counter (16-bit saturating, AXI 0x1A4 [15:0])
 reg [15:0] mle_detach_cnt_sys;
+// Phase 6 C — TTL evict counter (16-bit saturating, AXI 0x1B0 [15:0])
+reg [15:0] ast_ttl_evict_cnt_sys;
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
@@ -2042,12 +2071,14 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         mle_drop_cnt_sys    <= 16'd0;
         mle_busy_sticky_sys <= 1'b0;
         mle_detach_cnt_sys  <= 16'd0;
+        ast_ttl_evict_cnt_sys <= 16'd0;
     end else begin
         if (mle_ul_req_valid_w)  mle_ul_req_cnt_sys <= mle_ul_req_cnt_sys + 16'd1;
         if (mle_accept_pulse_w)  mle_accept_cnt_sys <= mle_accept_cnt_sys + 16'd1;
         if (mle_drop_pulse_w)    mle_drop_cnt_sys   <= mle_drop_cnt_sys   + 16'd1;
         if (mle_busy_w)          mle_busy_sticky_sys <= 1'b1;
         if (mle_detach_pulse_w)  mle_detach_cnt_sys <= mle_detach_cnt_sys + 16'd1;
+        if (ast_sweep_evict_pulse_w) ast_ttl_evict_cnt_sys <= ast_ttl_evict_cnt_sys + 16'd1;
     end
 end
 
@@ -2065,6 +2096,8 @@ end
 (* ASYNC_REG = "TRUE" *) reg [15:0] mle_clear_cnt_axi_r1;
 (* ASYNC_REG = "TRUE" *) reg [15:0] mle_detach_cnt_axi_r0;     // Phase 6 B
 (* ASYNC_REG = "TRUE" *) reg [15:0] mle_detach_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] ast_ttl_evict_cnt_axi_r0;   // Phase 6 C
+(* ASYNC_REG = "TRUE" *) reg [15:0] ast_ttl_evict_cnt_axi_r1;
 
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     if (!rst_n_axi) begin
@@ -2082,6 +2115,8 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         mle_clear_cnt_axi_r1   <= 16'd0;
         mle_detach_cnt_axi_r0  <= 16'd0;
         mle_detach_cnt_axi_r1  <= 16'd0;
+        ast_ttl_evict_cnt_axi_r0 <= 16'd0;
+        ast_ttl_evict_cnt_axi_r1 <= 16'd0;
     end else begin
         mle_ul_req_cnt_axi_r0  <= mle_ul_req_cnt_sys;
         mle_ul_req_cnt_axi_r1  <= mle_ul_req_cnt_axi_r0;
@@ -2097,6 +2132,8 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         mle_clear_cnt_axi_r1   <= mle_clear_cnt_axi_r0;
         mle_detach_cnt_axi_r0  <= mle_detach_cnt_sys;
         mle_detach_cnt_axi_r1  <= mle_detach_cnt_axi_r0;
+        ast_ttl_evict_cnt_axi_r0 <= ast_ttl_evict_cnt_sys;
+        ast_ttl_evict_cnt_axi_r1 <= ast_ttl_evict_cnt_axi_r0;
     end
 end
 
@@ -2208,6 +2245,10 @@ end
 // Phase 6 A — DB-Policy[0] = accept_unknown, 2-FF resynced to clk_sys
 (* ASYNC_REG = "TRUE" *) reg        db_policy_accept_unknown_sys_r0;
 (* ASYNC_REG = "TRUE" *) reg        db_policy_accept_unknown_sys_r1;
+// Phase 6 C — AST TTL threshold (24-bit, even though AXI is 32-bit; upper
+// bits ignored).  2-FF resynced to clk_sys.
+(* ASYNC_REG = "TRUE" *) reg [23:0] ast_ttl_multiframes_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [23:0] ast_ttl_multiframes_sys_r1;
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) cell_cfg_sys_code_sys_r0 <= 4'd0;
@@ -2321,6 +2362,15 @@ end
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) db_policy_accept_unknown_sys_r1 <= 1'b1;
     else            db_policy_accept_unknown_sys_r1 <= db_policy_accept_unknown_sys_r0;
+end
+// Phase 6 C — AST TTL multiframes CDC (default 84706 ≈ 24 h)
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) ast_ttl_multiframes_sys_r0 <= 24'd84706;
+    else            ast_ttl_multiframes_sys_r0 <= ast_ttl_multiframes_axi_w[23:0];
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) ast_ttl_multiframes_sys_r1 <= 24'd84706;
+    else            ast_ttl_multiframes_sys_r1 <= ast_ttl_multiframes_sys_r0;
 end
 
 // Lookahead tuple (next-slot tn, fn, mn).  The sb1/aach encoders are
