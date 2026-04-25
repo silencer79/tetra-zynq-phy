@@ -268,15 +268,33 @@ if $DO_INIT; then
 
     bash "${SCRIPT_DIR}/tetra_ctrl.sh" full_init
 
-    # Subscriber-DB boot-sync: ensure /var/lib/tetra/db.tsv exists (seed from
-    # default if missing), then push to FPGA shadow BRAM via tetra_db_mgr.
+    # Subscriber-DB boot-sync: ensure /var/lib/tetra/db.tsv exists, is in
+    # the Phase 6 D-rev 4-column format, and is pushed to the FPGA EntityTable
+    # BRAM. If a legacy 7-column TSV from an earlier phase is present, back it
+    # up and reseed from db.tsv.default — otherwise tetra_db_mgr aborts and
+    # the EntityTable stays empty.
+    #
+    # Profiles cache: seed /var/lib/tetra/profiles.tsv with Profile 0 = M2
+    # default (0x0000088F) if the file does not yet exist, so a fresh WebUI
+    # session never serves up a Profile-0 with gila_class=0 (which would
+    # silently break MS attach).
     ssh_cmd "mkdir -p /var/lib/tetra && \
+             if [ -f /var/lib/tetra/db.tsv ] && \
+                head -1 /var/lib/tetra/db.tsv | grep -q 'permit_voice'; then \
+                 mv /var/lib/tetra/db.tsv /var/lib/tetra/db.tsv.legacy.bak; \
+                 echo 'Detected legacy 7-column db.tsv; backed up to db.tsv.legacy.bak'; \
+             fi && \
              if [ ! -f /var/lib/tetra/db.tsv ] && [ -f ${REMOTE_BIN_DIR}/db.tsv.default ]; then \
                  cp ${REMOTE_BIN_DIR}/db.tsv.default /var/lib/tetra/db.tsv; \
                  echo 'Seeded /var/lib/tetra/db.tsv from db.tsv.default'; \
              fi && \
+             if [ ! -f /var/lib/tetra/profiles.tsv ]; then \
+                 printf '# tetra profiles (Phase 6 D-rev §9.2) — slot data_hex\n0\t0x0000088f\n' \
+                     > /var/lib/tetra/profiles.tsv; \
+                 echo 'Seeded /var/lib/tetra/profiles.tsv with Profile-0 M2 default'; \
+             fi && \
              ${REMOTE_BIN_DIR}/tetra_db_mgr sync"
-    echo "Subscriber-DB synced to FPGA shadow BRAM"
+    echo "Subscriber-DB synced to FPGA EntityTable BRAM"
 
     ssh_cmd "nohup /root/tetra_sysinfo > /tmp/tetra_sysinfo.log 2>&1 &"
     echo "tetra_sysinfo started in background → /tmp/tetra_sysinfo.log"
