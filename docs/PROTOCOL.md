@@ -1,10 +1,12 @@
 # PROTOCOL — TETRA Stack, ETSI-Referenz, Fremd-Implementierungen
 
 **Projekt:** tetra-zynq-phy
-**Stand:** 2026-04-24
+**Stand:** 2026-04-25
 
 Ersetzt: `sdrsharp_tetra_dll_analysis.md`. Integriert Findings aus `osmo-tetra`
-Decoder und `tetra-bluestation` (MidnightBlueLabs, Rust-BS-Implementierung).
+Decoder, `tetra-bluestation` (MidnightBlueLabs, Rust-BS-Implementierung), sowie
+dem Gold-Reference-Capture einer fremden TETRA-BS mit erfolgreichem MS-Attach
+(`docs/references/captures_external_bs_2026-04-25/`).
 
 ---
 
@@ -304,20 +306,45 @@ MS ─ Air ─ BS
 
 ### 6.4 MAC-ACCESS UL-Header (§21.4.3.3)
 
-Parser-Layout aus `rtl/lmac/tetra_ul_mac_access_parser.v`:
+Parser-Layout aus `rtl/lmac/tetra_ul_mac_access_parser.v`
+(bluestation-aligned, Rev. 2026-04-25 Commit `eeabf1f`):
 
 ```
-[2 bit]  PDU-Type (0 = MAC-ACCESS)
-[1 bit]  FillBit
-[2 bit]  EncryptionMode
-[1 bit]  Access-Ack
-[3 bit]  AddrType
-[10 bit] short_ssi / event_label   (bei AddrType=2)
-[4 bit]  aux / reservation-requirement / pres-flags (empirisch 0xE bei MTP3550)
-[4 bit]  MM PDU-Type                 (4 = U-LOC-UPDATE-DEMAND)
-[3 bit]  Location-Update-Type        (MS-Demand: 0=Roaming, 3=ITSI attach, ...)
-[...]    Restliche MM-Felder
+bit[0]      mac_pdu_type              (1 bit, 0 = MAC-ACCESS)
+bit[1]      fill_bits                 (1 bit)
+bit[2]      encrypted                 (1 bit)
+bits[3..4]  addr_type                 (2 bit, NICHT 3)
+bits[5..28] address                   (24 bit — Ssi/Ussi/Smi)
+                                      bei addr_type=1 (EventLabel): nur 10 bit → [5..14]
+bit[29]     optional_field_flag
+───────── wenn optional_field_flag = 1: ─────────
+bit[30]     choice-bit (0 = length_ind, 1 = frag_flag+reservation_req)
+bits[31..34] entweder 4 bit length_ind, oder
+             1 bit frag_flag + 3 bit reservation_req
+─────────  TL-SDU startet ab bit 30 (opt=0) bzw. 36 (opt=1) ──────────
+TL-SDU = LLC-PDU (BL-DATA / BL-ADATA / ...)
 ```
+
+**Historischer Bug (2026-04-25 gefixt):** Parser las `addr_type` als 3 bit
+und danach `short_ssi_or_event_label` als 10 bit — falsch aligned, mit dem
+Resultat dass für jede Motorola-MS (ISSI-Präfix `0x282xxx`) konstant
+`short_id=523` herauskam. BS konnte die MS nicht adressieren, Accept landete
+on-Air mit SSI=523. Real-BS (Gold-Ref 2026-04-25) adressiert Accept immer an
+die **echte 24-bit ISSI** aus dem MAC-ACCESS-Header (keine Lookup-Tabelle,
+keine Short-SSI-Auflösung). Parser + Mailbox + MLE-FSM + SW-Monitor sind
+seit Commit `1f1ec3a` 24-bit-durchgängig.
+
+AddrType-Codes pro bluestation `mac_access.rs`:
+
+| Code | Typ | Address-Breite |
+|------|-----|----------------|
+| 0 | Ssi (ISSI) | 24 bit |
+| 1 | EventLabel | 10 bit |
+| 2 | Ussi | 24 bit |
+| 3 | Smi | 24 bit |
+
+Für UL ist bluestation hart `SsiType::Issi // Uplink, always ISSI`, d.h.
+effektiv immer 24-bit-ISSI sobald die MS ihre ITSI kennt (nach erstem Attach).
 
 ### 6.5 LLC PDU-Typen (§22.2)
 
@@ -747,24 +774,35 @@ Der aktuelle MTP3550-Registration-Blocker liegt in Phase 1, nicht in fehlender P
 
 ---
 
-## 9. Offene Registration-Blocker (Stand 2026-04-24)
+## 9. Offene Registration-Blocker (Stand 2026-04-25)
 
-Trotz 9 Bugs gefixt (siehe ARCHITECTURE.md §7) registriert sich MTP3550 nicht. Bluestation-Audit 2026-04-24 zeigte **strukturelle Lücken**:
+Seit 2026-04-24 adressiert unser Stack Accepts two-phase (AL-SETUP SCH/HD +
+BL-ADATA SCH/F, Commit `2c8ad4a`), seit 2026-04-25 mit der **echten 24-bit-ISSI**
+aus dem UL MAC-ACCESS-Header (6 Commits `eeabf1f`→`1f1ec3a`). Der zuvor auf
+Air sichtbare Artefakt-SSI `523` ist verschwunden. Was noch offen ist:
 
-### 9.1 Kritische Abweichungen
+### 9.1 Verbleibende Abweichungen vs. bluestation
 
 | # | Bereich | Unser RTL | bluestation Referenz |
 |---|---------|-----------|----------------------|
-| A | **RandAccFlag** im MAC-Header | hartverdrahtet 0 | true für SSI-adressierte Response auf empfangenen RA; bei Bedarf in **Standalone-Stub-MAC-RESOURCE** (ohne SDU) |
-| B | **MM-Body-Struktur** | 16 bit (4+3+9× 0-bits, kein echtes O/P/M-Bit-Schema) | 38+ bit mit SSI in MM-Body + echte O/P/M-bits |
-| C | **LLC-Typ** | 4 (BL-ADATA+FCS mit FCS-Append) | **1 (BL-DATA)** default, 0 (BL-ADATA) nur bei ACK-Piggyback — beide **ohne** FCS |
-| D | **FCS-Berechnung** | osmo-style gerechnet, aber überflüssig | Gar keine FCS: `fcs_flag: false` hart in `mle_bs.rs:212/277/301` |
+| B | **MM-Body-Gesamtgröße** | LI=11 (SSI only) | LI=21 (address_extension=MNI, subscriber_class, energy_saving_info=StayAlive) |
+| C | **LLC-Typ im Accept** | 0 (BL-ADATA, NR+NS, no FCS) — ok | 0 (BL-ADATA, wenn ACK piggyback) / 1 (BL-DATA, default) |
+| D | **FCS-Berechnung** | weggelassen (ok) | `fcs_flag: false` hart in `mle_bs.rs:212/277/301` |
 | E | **NR/NS-Tracking** | hart 0/0 | pro MS `V(S)`-Toggle in HashMap (`llc_bs_ms.rs:126-131`) |
 | F | **UL-BL-ACK-Empfang** | fehlt komplett | `rx_mac_end_ul` parst BL-ACK von MS (`umac_bs.rs:782`) |
 | G | **Retransmit-Loop** | fehlt | `outbound_messages` + Timer + Retry-Counter (`llc_bs_ms.rs:304-338`) |
-| H | **Slot-aware Delivery** | fixes `REG_SIGNAL_TARGET_TN` | pro-MS RX-Slot gespeichert, Accept landet dort |
+| H | **Slot-aware Delivery** | `REG_SIGNAL_TARGET_TN=0` default | pro-MS RX-Slot gespeichert, Accept landet dort |
 | I | **Subscriber-Shadow-BRAM** | fehlt | permit/LA/home-cell Lookup pro ISSI |
 | J | **Group-Identity-Attach (Schritt 2)** | fehlt | `u_attach_detach_group_identity.rs` + Handler in `mm_bs.rs` |
+
+### 9.1.1 Abgehakt (2026-04-23 bis 2026-04-25)
+
+| # | Bereich | Status |
+|---|---------|--------|
+| A | **RandAccFlag** im MAC-Header | ✅ `90bda0a` — =1 für SSI-adressierte Response |
+| — | **24-bit ISSI-Extraktion** (Parser-Bug) | ✅ `eeabf1f..1f1ec3a` (6 Commits, 2026-04-25) |
+| — | **Two-Phase-Attach-Flow** | ✅ `2c8ad4a` — SCH/HD AL-SETUP LI=7 pre-reply + SCH/F BL-ADATA LI=21 Accept |
+| — | **AACH auf addressiertem Slot** | ✅ `Unalloc/Unalloc` wie Gold-Ref |
 
 ### 9.2 Plausible Root-Cause-Hypothesen (ranked)
 
@@ -796,16 +834,39 @@ Details + Code-Zitate siehe `.ralph/chat.md` Eintrag "[2026-04-24] Ralph — Blu
 
 **Konsequenz:** Unser AACH-Encoder (TS1 TN=0: `header=00, info=0x0249`, DL/UL-Assign Common/Random CC=9) ist strukturell bluestation-kompatibel. Weitere AACH-Edits sind nicht indiziert. Neuer Hauptverdacht: strukturelle Fast-Path/Slow-Path-Trennung beim MAC-RESOURCE-RA-Ack (leere Stub-PDU zuerst, Accept-Body separat später) — siehe §9.1 Punkt A ("Standalone-Stub-MAC-RESOURCE ohne SDU").
 
-### 9.4 Warum wir nicht weiterkommen
+### 9.4 Gold-Reference-Capture (2026-04-25)
 
-Jeder einzelne Fix bisher ist **nachweislich ETSI- oder osmo-konform** (Bit-Walks bestätigt). Aber:
+Hauptdurchbruch: simultaner DL+UL-Capture einer fremden TETRA-BS bei
+**392.9875 MHz** (MCC 262, MNC 1010, CC 1, LA 1) während sich eine
+**MS ISSI 2 633 716** erfolgreich einbucht.
 
-- **ETSI-Text ist normativ, nicht hilfreich genug** für Korner-Cases — mehrere Interpretationen sind möglich
-- **osmo-tetra ist Decoder** — sagt nichts über welchen LLC-Typ eine BS verwenden MUSS
-- **bluestation ist Rust, nicht RTL** — nicht 1:1 portierbar als Block-Commit
-- **Kein bekannter working reference capture** einer realen TETRA-BS mit MTP3550-Registration
+| Datei | Inhalt |
+|-------|--------|
+| `docs/references/captures_external_bs_2026-04-25/baseband_393084625Hz_*.wav` | DL @ 393.0846 MHz (97 kHz off), sr=250 kHz, 18.1 s |
+| `docs/references/captures_external_bs_2026-04-25/baseband_382468718Hz_*.wav` | UL @ 382.4687 MHz (519 kHz off), sr=1.536 MHz, 17.7 s |
+| `…/decode_dl_full.log` | 1278 Burst-Slots, alle CRC-OK |
+| `…/attach_sequence_bursts.txt` | Attach-relevante DL-Bursts mit Bit-Dumps |
 
-Die strukturelle Komplexität des TETRA-LMAC-Stacks (mit Retransmit, NR/NS, UL-ACK, Slot-aware Delivery) ist in RTL-FSM-Form mehrere Wochen Arbeit. Die 2026-04-22-Architekturentscheidung "FPGA-heavy MAC/MLE/CMCE" hat diesen Aufwand unterschätzt.
+**Time-aligned attach sequence:**
+
+| Abs time | Side | Event |
+|----------|------|-------|
+| 00:12:01.36 | UL #0 | MAC-ACCESS addr=Ssi(ISSI=2 633 716) frag=1 LLC=BL-DATA NS=0 + DirectMM |
+| 00:12:01.41 | UL #1 | MAC-U-BLCK |
+| 00:12:01.53 | UL #2 | MAC-ACCESS addr=Ssi(ISSI=2 633 716) LI=6 LLC=BL-ACK NR=0 (ackt BS BL-DATA NS=0) |
+| 00:12:02.30 | DL #727 | SCH/HD AL-SETUP addr=SSI=2 633 716 LI=7 — BS pre-reply |
+| 00:12:02.40 | DL #735 | SCH/F BL-ADATA NR=0 NS=0, D-LOC-UPD-ACCEPT, LI=21 — BS full Accept |
+
+**Implikationen für unseren Stack** (siehe README.md des Capture-Ordners für Details):
+1. RTL-UL-Parser: 2 bit `addr_type` + 24 bit ISSI extrahieren — ✅ Commit `eeabf1f`
+2. MLE-FSM adressiert Accept mit der echten 24-bit-ISSI — ✅ Commit `4ccbed8`
+3. D-LOC-UPD-ACCEPT MM-Body auf LI=21 erweitern (address_extension=MNI,
+   subscriber_class, energy_saving_information=StayAlive) — ⏳ offen
+
+**Konsequenz:** "Kein bekannter working reference capture" ist erledigt.
+Wir haben jetzt einen bit-genauen Goldpfad für den vollen Attach-Handshake
+inkl. UL-BL-ACK-Pfad — die historische LMAC-Lücke für M2 ist
+re-bewertet.
 
 ---
 

@@ -14,16 +14,16 @@ Referenz-Standard: **ETSI EN 300 392-2** (TETRA V+D Air Interface).
 
 ---
 
-## Milestone-Status (Stand 2026-04-24)
+## Milestone-Status (Stand 2026-04-25)
 
 | Meilenstein | Ziel | Status |
 |-------------|------|--------|
 | **M1** | MS sieht BS, RACH sichtbar | ✅ HW-verifiziert (MTP3550, 41/42 CRC-OK) |
-| **M2** | MS bucht sich ein | 🔴 9 PDU-Bugs gefixt, MS registriert trotzdem nicht — siehe `docs/PROTOCOL.md` für Audit |
+| **M2** | MS bucht sich ein | 🟡 Gold-Reference-Capture einer fremden TETRA-BS + erfolgreichem Attach gesichert (`docs/references/captures_external_bs_2026-04-25/`); Two-Phase-Attach-Flow (AL-SETUP SCH/HD + BL-ADATA SCH/F, Commit 2c8ad4a) + 24-Bit-ISSI-Parser-Fix (6 Commits eeabf1f→1f1ec3a) deployed — Erwartung: MS sieht Accept jetzt adressiert zu ihrer realen ISSI statt Parser-Artefakt 523 |
 | **M3** | Gruppenruf mit Voice-Relay | ⏳ Plan (RTL-basiert) |
 | **M4** | Einzelrufe + Paging | ⏳ Plan |
 
-**Aktueller Hauptblocker:** MTP3550 schickt RA-Retries, akzeptiert D-LOC-UPDATE-ACCEPT nicht. Mehrere strukturelle Lücken vs. bluestation-Referenz identifiziert (RandAccFlag, MM-Body-Struktur, LLC-Typ, NR/NS-Tracking, UL-BL-ACK-Pfad) — Details in `docs/PROTOCOL.md` §9.
+**Aktueller Hauptblocker gelockert (2026-04-25):** Gold-Capture @ 392.9875 MHz zeigt, dass die Real-BS das Accept an die **echte 24-bit-ISSI** aus der MAC-ACCESS-RA adressiert (bluestation-Layout: 2-bit addr_type + 24-bit SSI). Unser UL-Parser las stattdessen 10 bits ab falscher Offset → auf-Air landete 523 statt 2 633 617. Fix durch den gesamten Stack (Parser → AXI → CDC → MLE-FSM → SW-Monitor) deployed. Build+Deploy laufen, MS-Verhalten als nächstes zu beobachten. Details in `docs/PROTOCOL.md` §9.
 
 ---
 
@@ -132,7 +132,7 @@ python3 scripts/decode_dl.py --sr 250000 --offset -96625 <capture.wav> --max-bur
 
 Details: `docs/OPERATIONS.md`.
 
-## Ressourcen-Utilization (Zynq-7020, Stand 2026-04-24)
+## Ressourcen-Utilization (Zynq-7020, Stand 2026-04-25)
 
 | Resource | Genutzt | % |
 |----------|---------|---|

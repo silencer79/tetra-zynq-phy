@@ -1,7 +1,7 @@
 # OPERATIONS — Deploy, Test, Troubleshooting
 
 **Projekt:** tetra-zynq-phy (LibreSDR, Zynq-7020 + AD9361)
-**Zuletzt aktualisiert:** 2026-04-24
+**Zuletzt aktualisiert:** 2026-04-25
 
 Ersetzt: `deployment_guide.md`, `deploy_workflow.md`, `test_results.md`,
 `sim_results.txt`, `test_results_raw.txt`.
@@ -172,7 +172,7 @@ vivado -mode batch -source scripts/vivado_sim.tcl -tclargs <module_name>
 
 ---
 
-## 6. Test-Status (Stand 2026-04-24)
+## 6. Test-Status (Stand 2026-04-25)
 
 ### Letzte volle Regression
 
@@ -181,8 +181,12 @@ vivado -mode batch -source scripts/vivado_sim.tcl -tclargs <module_name>
 | PHY-Unit-TBs (iverilog, 22 Module) | **22/22** | 2026-04-13 |
 | Digitaler Loopback (CTRL[2]=1, 30 s) | **30/30 SYNC_LOCKED** | 2026-04-13 |
 | RF Air-Loopback (10 cm, TX_ATT=-10dB) | **27/30 SYNC_LOCKED** | 2026-04-13 |
-| LMAC-Signalling-TBs (manuell) | tb_mac_resource_dl_builder 6/6, tb_mle_registration_fsm 4/4, tb_d_location_update_encoder 16/16, tb_dl_signal_queue + scheduler + slot_content_mux je PASS | 2026-04-23 |
+| LMAC-Signalling-TBs (manuell) | tb_mac_resource_dl_builder 6/6, tb_d_location_update_encoder 16/16, tb_dl_signal_queue + scheduler + slot_content_mux je PASS | 2026-04-23 |
 | UL RX Chain (tb_ul_demod_sch_hu, tb_ul_wav_chain) | 4/4 + 5/5 | 2026-04-22 |
+| **24-bit ISSI Pfad** (tb_ul_mac_access_parser inkl. ext-BS + MTP3550 on-air vectors) | **31/31** | 2026-04-25 |
+| **MLE-FSM ISSI Round-Trip** (tb_mle_registration_fsm — `lat_ssi[23:0]` + `lat_accept_info_bits[251:228]`) | **6/6** | 2026-04-25 |
+| **AXI-Reg 24-bit Mask** (tb_tetra_axi_lite_regs) | **10/10** | 2026-04-25 |
+| **UL BL-ACK Pfad** (tb_ul_mac_access_parser_bl_ack) | **15/15** | 2026-04-25 |
 
 ### Bekannte Caveats
 
@@ -276,8 +280,22 @@ Bisherige Builds mit WNS bis −0.3 ns hatten on-air keinen Impact. Für Product
 | 2026-04-23 21:58 | `ef75722f…` | Bug #7 (MAC-Header 3-bit shift) | ✅ decode_dl zeigt `MLE disc=MM` |
 | 2026-04-23 22:15 | `a37e818b…` | Bug #8 (LocAccType echoed) | ✅ decode_dl zeigt `LocAccType=3 ITSI attach` |
 | 2026-04-23 22:44 | `c656c9b5…` | Bug #9 (FCS osmo-style TL-SDU-only + pre-shift) | ✅ on-air FCS=0xB0A53869 matched osmo |
+| 2026-04-24 | `2c8ad4a` | Two-Phase-Attach (SCH/HD AL-SETUP LI=7 + SCH/F BL-ADATA LI=21) | ✅ matcht Gold-Ref Burst #727+#735 strukturell |
+| 2026-04-25 | `eeabf1f`..`1f1ec3a` (6 Commits) | 24-bit ISSI Pfad — Parser + AXI + CDC + MLE-FSM + SW + TBs | ⏳ Build+Deploy läuft, MS-Verhalten zu beobachten |
 
-Offen: MTP3550-Registration trotz aller Fixes. Nächste Iteration s. `ARCHITECTURE.md` / `PROTOCOL.md`.
+Offen: MTP3550-Registration. Erwartung 2026-04-25-Build: Accept landet auf-Air mit ISSI 2 633 617 statt Artefakt 523. Nächste Iteration: MM-Body LI=21 erweitern (siehe `PROTOCOL.md §9.4`).
+
+### Gold-Reference-Capture (2026-04-25)
+
+Simultaner DL+UL-Capture einer fremden TETRA-BS während erfolgreichem MS-Attach unter `docs/references/captures_external_bs_2026-04-25/`. Reproduktion:
+
+```bash
+python3 scripts/decode_dl.py \
+  docs/references/captures_external_bs_2026-04-25/baseband_393084625Hz_00-11-52_25-04-2026.wav \
+  --sr 250000 --max-bursts 50000 -v
+```
+
+Liefert 1278 valid bursts, inkl. der Burst-Pärchen #727 (SCH/HD AL-SETUP LI=7) + #735 (SCH/F BL-ADATA LI=21 D-LOC-UPD-ACCEPT) für ISSI=2 633 716.
 
 ---
 

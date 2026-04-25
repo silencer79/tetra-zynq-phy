@@ -2,7 +2,7 @@
 
 **Projekt:** tetra-zynq-phy (LibreSDR, Zynq-7020 + AD9361)
 **Architektur-Entscheidung:** 2026-04-22 — FPGA-heavy Stack
-**Zuletzt aktualisiert:** 2026-04-24
+**Zuletzt aktualisiert:** 2026-04-25
 
 Ersetzt: `plan_tetra_bs_stack.md`, `plan_tetra_tdma_rtl_ownership.md`,
 `module_status.md`, `resource_estimate.md`.
@@ -175,7 +175,7 @@ M4: Einzelrufe + Paging              ⏳ Phase 4
 | M2.5 SYSINFO Frame-Counter im RTL | ⚠️ Teilweise — `tx_frame_cnt_sys` läuft frei, aber Frame-Nummer wird aus SW geschrieben (soll in TDMA-Timebase-Umbau migrieren, siehe §5) |
 | M2.6 DL-Signal-Queue/Scheduler | ✅ Refactor Queue+Scheduler (Lock-Spec validiert: 10 UL-RA → 10 MLE-accept → 10 sig_override ohne Drop) |
 
-**Offener Blocker (2026-04-24):** trotz 9 strukturellen PDU-Fixes registriert sich MTP3550 nicht. Siehe `PROTOCOL.md` für bluestation-Audit + offene Hypothesen (RandAccFlag, Subscriber-Shadow, NR/NS-Tracking, UL-BL-ACK-Pfad).
+**Offener Blocker (2026-04-25):** Two-Phase-Attach-Flow + 24-Bit-ISSI-Adressierung deployed. Gold-Reference-Capture einer fremden BS (`docs/references/captures_external_bs_2026-04-25/`) als Bit-genaue Vorlage gesichert. Restliche Lücken sind die LMAC-Strukturen (NR/NS-Tracking, UL-BL-ACK-Pfad, Retransmit-Loop, Subscriber-Shadow) — siehe `PROTOCOL.md §9.1`.
 
 ### 4.3 M3 — Gruppenruf ⏳ (Plan)
 
@@ -294,7 +294,7 @@ Eintrag-Format (16 bit):
 | Infra (AXI-Regs, DMA, Reset) | 3 | 3 | ✅ 3/3 PASS | 1 |
 | **Total** | **~40** | **~35** | **Integration ok** | — |
 
-### 6.2 Detail-Status (Stand 2026-04-24)
+### 6.2 Detail-Status (Stand 2026-04-25)
 
 | Modul | LUT | FF | DSP | BRAM | Sim | Notiz |
 |-------|-----|----|----|------|-----|-------|
@@ -383,17 +383,25 @@ Eintrag-Format (16 bit):
 | 2026-04-23 | Bug #7: 3 unkonditionale presence-flag-bits im MAC-Header | `rtl/lmac/tetra_mac_resource_dl_builder.v` | Flags nur wenn PosOfGrant=1 (ETSI §21.4.3.1) |
 | 2026-04-23 | Bug #8: LocAccType hartverdrahtet | MLE-FSM + MM-Encoder | Echo `ul_loc_upd_type` vom Parser |
 | 2026-04-23 | Bug #9: FCS Coverage-Scope (ganz LLC) + kein Pre-Shift bei len<32 | MAC-RESOURCE-Builder | osmo-style: TL-SDU-only + `crc <<= (32-len)` |
+| 2026-04-24 | RandAccFlag=0 hartverdrahtet | MAC-RESOURCE-Builder | `90bda0a` — =1 für ISSI-adressierte Accept (ETSI §21.4.3.1) |
+| 2026-04-24 | LLC BL-ADATA+FCS statt BL-DATA + MM bluestation-aligned | MLE-FSM, Encoder | `e056439` |
+| 2026-04-24 | Two-Phase-Attach-Flow fehlte | DL-Signalling | `2c8ad4a` — SCH/HD AL-SETUP LI=7 pre-reply + SCH/F BL-ADATA LI=21 Accept (matcht Gold-Ref Burst #727+#735) |
+| 2026-04-25 | UL MAC-ACCESS-Parser falsch aligned: `addr_type=3 bit` + `short_ssi=10 bit` ergab konstant 523 für jede Motorola-MS | `rtl/lmac/tetra_ul_mac_access_parser.v` | `eeabf1f` — bluestation-Layout (2-bit `addr_type` + 24-bit ISSI) |
+| 2026-04-25 | REG_UL_PDU_SSI 10-bit-mask | `rtl/infra/tetra_axi_lite_regs.v`, `sw/tetra_ul_mon.c` | `83f2cdc` + `eb42913` — auf 24-bit (`0xFFFFFF`) erweitert |
+| 2026-04-25 | 24-bit ISSI nicht durch CDC propagiert | `rtl/tetra_zynq_top.v` | `26035a9` |
+| 2026-04-25 | MLE-FSM adressierte mit short_ssi statt 24-bit ISSI | `rtl/lmac/tetra_mle_registration_fsm.v` | `4ccbed8` — `lat_ssi[23:0]` + `lat_accept_info_bits[251:228]` carry full ISSI |
+| 2026-04-25 | TB-Coverage für ISSI-Pfad | `tb/tb_ul_mac_access_parser.v` + `tb/tb_mle_registration_fsm.v` | `1f1ec3a` — externe-BS- + MTP3550-on-air-Vektoren, 31/31 + 6/6 PASS |
 
-### 7.1 Offene Blocker (MS registriert nicht)
+### 7.1 Offene Blocker (Stand 2026-04-25)
 
-Siehe `PROTOCOL.md` — Stand 2026-04-24:
-- RandAccFlag=0 im MAC-Header (sollte =1 für ISSI-Accept sein)
-- MM-Body-Struktur weicht strukturell von bluestation-Referenz ab
-- LLC-Typ `BL-ADATA+FCS` statt `BL-ADATA` (bluestation nutzt `fcs_flag=false`)
+Siehe `PROTOCOL.md §9.1` — verbleibende Lücken sind die LMAC-Strukturen:
+- MM-Body-Größe LI=11 statt LI=21 (address_extension=MNI, subscriber_class, energy_saving_info=StayAlive fehlen)
 - `tetra_subscriber_shadow.v` fehlt (kein permit/LA/home-cell-Lookup)
 - Kein NR/NS-Tracking pro MS
 - Kein UL-BL-ACK-Empfangspfad
 - Kein Retransmit-Loop
+
+**Verifikation der 2026-04-25-Fixes ist im laufenden Build+Deploy** — MS-Verhalten wird beobachtet, um zu sehen, ob das Accept jetzt mit der echten ISSI 2 633 617 statt Artefakt 523 angenommen wird.
 
 ---
 
@@ -414,7 +422,7 @@ Woche 16-19: M4 — Einzelrufe + Paging
 
 | # | Risiko | Impact | Mitigation |
 |---|--------|--------|------------|
-| 1 | **MS-Registration-Blocker unklar** — trotz 9 ETSI-konformer Fixes akzeptiert MTP3550 nichts | Blockiert M2-Abschluss | Bluestation-Audit fortführen (PROTOCOL.md) |
+| 1 | **MS-Registration-Blocker** — historisch unklar; seit 2026-04-25 Gold-Ref-Capture (fremde BS @ 392.9875 MHz) als bit-genaue Vorlage; ISSI-Adressierungs-Bug behoben (Parser-Layout); offen: LI=21 Body + LMAC-Strukturen | Blockiert M2-Abschluss | Gold-Ref + bluestation als parallele Referenzen, MM-Body auf LI=21 erweitern |
 | 2 | FDD RF-Isolation — TX desensibilisiert RX bei Single-Antenna | Reduzierte RX-Empfindlichkeit | Duplexer oder 2 Antennen mit Abstand (Lab: 2 Antennen 10 cm) |
 | 3 | UL Timing Advance — MS sendet Burst zu früh/spät | Sync-Fenster-Miss | Sync-Fenster breit (±2 Symbole), bereits implementiert |
 | 4 | CUB-Erkennung — kurzer Burst (127 sym), 2 sym Guard | RA-Miss | NTS-Threshold angepasst, Holdoff kurz (verifiziert 41/42) |
