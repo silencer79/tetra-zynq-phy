@@ -55,7 +55,12 @@
 `default_nettype none
 
 module tetra_mac_resource_dl_builder #(
-    parameter integer PDU_BITS = 268  // SCH/F MAC-SDU size
+    parameter integer PDU_BITS = 268, // SCH/F MAC-SDU size
+    // LLC assembly buffer: BL-ADATA hdr(6) + MLE-PD(3) + MM body.  Default
+    // 144 bit fits the bluestation-compliant 100-bit D-LOC-UPDATE-ACCEPT
+    // MM body.  Short-builder callers (SCH/HD AL-SETUP, no MM body) override
+    // to a smaller value because PDU_BITS=124 cannot hold a 144-bit buffer.
+    parameter integer LLC_BUF_BITS = 144
 ) (
     input  wire                  clk,
     input  wire                  rst_n,
@@ -150,9 +155,13 @@ module tetra_mac_resource_dl_builder #(
     input  wire [31:0]           second_pdu_ca_element,
     input  wire [4:0]            second_pdu_ca_element_len,
 
-    // Raw MM PDU (MSB=[79], actual length in mm_pdu_len_bits)
-    input  wire [79:0]           mm_pdu_bits,
-    input  wire [6:0]            mm_pdu_len_bits,
+    // Raw MM PDU (MSB=[127], actual length in mm_pdu_len_bits)
+    // Widened 2026-04-25 from 80→128 bit so the bluestation-compliant
+    // D-LOC-UPDATE-ACCEPT body (100 bit, all 3 type-2 optionals present)
+    // fits without losing the upper bits.  Callers that drive only 80 bits
+    // should zero-extend their MSB side.
+    input  wire [127:0]          mm_pdu_bits,
+    input  wire [7:0]            mm_pdu_len_bits,
 
     // Output — 268-bit MAC-RESOURCE PDU, [PDU_BITS-1] = first bit on air
     output reg  [PDU_BITS-1:0]   pdu_bits,
@@ -207,8 +216,8 @@ module tetra_mac_resource_dl_builder #(
     reg              lat_ns, lat_nr;
     reg [3:0]        lat_llc_pdu_type;
     reg              lat_random_access_flag;
-    reg [79:0]       lat_mm_bits;
-    reg [6:0]        lat_mm_len;
+    reg [127:0]      lat_mm_bits;
+    reg [7:0]        lat_mm_len;
     // Optional-element inputs latched at S_IDLE (commit 1 plumbing; consumed
     // by the header packer starting commit 4).
     reg              lat_pc_flag;
@@ -259,7 +268,7 @@ module tetra_mac_resource_dl_builder #(
     // Round up to 96 for headroom; MSB = first bit of LLC PDU (i.e.
     // llc_buf[95] = first bit of LLC header on air).
     // -------------------------------------------------------------------------
-    localparam integer LLC_BUF_BITS = 96;
+    // LLC assembly buffer: see module-level LLC_BUF_BITS parameter.
     reg [LLC_BUF_BITS-1:0] llc_buf;
 
     // -------------------------------------------------------------------------
@@ -294,16 +303,16 @@ module tetra_mac_resource_dl_builder #(
     reg        pdu2_fill_bit_ind_c;
     always @(*) begin
         if (lat_llc_pdu_type == LLC_PDUT_L2SIG) begin
-            tl_sdu_len_c   = {2'b0, lat_mm_len};
+            tl_sdu_len_c   = {1'b0, lat_mm_len};
             llc_hdr_bits_c = 4;
         end else if (lat_llc_pdu_type == LLC_PDUT_AL_SETUP) begin
             tl_sdu_len_c   = 9'd0;
             llc_hdr_bits_c = 4;
         end else if (lat_llc_pdu_type == {2'b00, LLC_PDUT_BL_ADATA}) begin
-            tl_sdu_len_c   = MLE_PD_BITS + {2'b0, lat_mm_len};
+            tl_sdu_len_c   = MLE_PD_BITS + {1'b0, lat_mm_len};
             llc_hdr_bits_c = 6;
         end else begin
-            tl_sdu_len_c   = MLE_PD_BITS + {2'b0, lat_mm_len};
+            tl_sdu_len_c   = MLE_PD_BITS + {1'b0, lat_mm_len};
             llc_hdr_bits_c = 5;
         end
         llc_cov_len_c      = {5'd0, llc_hdr_bits_c} + tl_sdu_len_c;
@@ -403,8 +412,8 @@ module tetra_mac_resource_dl_builder #(
             lat_nr             <= 1'b0;
             lat_llc_pdu_type   <= 4'd1;
             lat_random_access_flag <= 1'b0;
-            lat_mm_bits        <= 80'd0;
-            lat_mm_len         <= 7'd0;
+            lat_mm_bits        <= 128'd0;
+            lat_mm_len         <= 8'd0;
             lat_pc_flag        <= 1'b0;
             lat_pc_element     <= 4'd0;
             lat_sg_flag        <= 1'b0;
@@ -538,30 +547,40 @@ module tetra_mac_resource_dl_builder #(
 
             // -----------------------------------------------------------------
             S_LLC_HEAD: begin
+                // LLC_BUF_BITS = 144.  Layout: header + MLE-PD + lat_mm_bits[127:0]
+                // top-aligned, trailing zero pad to fill the buffer.  Top-aligned
+                // because the downstream shifter does
+                //   llc_buf >> (LLC_BUF_BITS - llc_cov_len)
+                // to drop the trailing pad and place the LLC PDU at bit position
+                // (mac_hdr_bits .. mac_hdr_bits + llc_cov_len - 1).
                 if (lat_llc_pdu_type == LLC_PDUT_L2SIG) begin
+                    // 4 + 128 = 132, pad 12 → 144
                     llc_buf <= {LLC_PDUT_L2SIG,       // 4
-                                lat_mm_bits,          // 80
-                                12'b000000000000};    // pad to 96
+                                lat_mm_bits,          // 128
+                                12'd0};               // pad
                 end else if (lat_llc_pdu_type == LLC_PDUT_AL_SETUP) begin
+                    // 4 header bits, rest zero
                     llc_buf <= {LLC_PDUT_AL_SETUP,    // 4
-                                92'b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000};
+                                140'd0};
                 end else if (lat_llc_pdu_type == {2'b00, LLC_PDUT_BL_ADATA}) begin
+                    // 1+1+2+1+1 + 3 + 128 = 137, pad 7 → 144
                     llc_buf <= {LLC_LINK_TYPE_BL,     // 1
                                 LLC_HAS_FCS_OFF,      // 1
                                 LLC_PDUT_BL_ADATA,    // 2
                                 lat_nr,               // 1
                                 lat_ns,               // 1
                                 MLE_PD_MM,            // 3
-                                lat_mm_bits,          // 80
-                                6'b000000};           // pad to 96
+                                lat_mm_bits,          // 128
+                                7'd0};                // pad
                 end else begin
+                    // BL-DATA: 1+1+2+1 + 3 + 128 = 136, pad 8 → 144
                     llc_buf <= {LLC_LINK_TYPE_BL,     // 1
                                 LLC_HAS_FCS_OFF,      // 1
                                 LLC_PDUT_BL_DATA,     // 2
                                 lat_ns,               // 1
                                 MLE_PD_MM,            // 3
-                                lat_mm_bits,          // 80
-                                8'b00000000};         // pad to 96
+                                lat_mm_bits,          // 128
+                                8'd0};                // pad
                 end
                 state    <= S_MAC_HEAD;
             end

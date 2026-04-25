@@ -1825,6 +1825,13 @@ tetra_mle_registration_fsm #(
     .cfg_la           (cell_la_sys_r1),
     .cfg_scramble_init(mle_dl_scramb_init_sys),
     .cfg_mcch_tn      (cfg_mcch_tn_sys_r1),
+    // D-LOC-UPDATE-ACCEPT MM-Body fields (bluestation-compliant, gold-ref
+    // capture 2026-04-25).  Address-Extension is the MNI: MCC[9:0]<<14 | MNC[13:0].
+    // Subscriber-Class defaults to all-classes-permitted (0xFFFF). Energy-Saving-
+    // Information defaults to StayAlive (14'h0000 → mode=000, FN/MN=0).
+    .cfg_address_extension ({cell_cfg_mcc_sys_r1, cell_cfg_mnc_sys_r1}),
+    .cfg_subscriber_class  (16'hFFFF),
+    .cfg_energy_saving_info(14'h0000),
     // AST
     .ast_wr_en        (ast_wr_en_w),
     .ast_wr_idx       (ast_wr_idx_w),

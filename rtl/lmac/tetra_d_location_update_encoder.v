@@ -2,44 +2,37 @@
 // tetra_d_location_update_encoder.v
 //
 // Combinational bit-packer for the MM D-LOCATION UPDATE ACCEPT / REJECT PDU
-// (EN 300 392-2 §16.8.9).  Emits a 124-bit type-1 info PDU ready to be
-// fed into the SCH/HD channel-coding chain (CRC-16 → tail → RCPC r=2/3
-// → multiplicative interleave → cell-specific scrambling → 216 type-5
-// coded bits) on any single SCH/HD downlink slot.
+// (EN 300 392-2 §16.10.x, ETSI 16.9.2.7).  Emits the raw MM PDU MSB-aligned
+// in a 128-bit bus along with its bit-length, ready to be wrapped by the
+// MAC-RESOURCE DL builder.
 //
-// This module owns only the *field packing* — it does NOT compute CRC,
-// apply channel coding, or manage timing.  Those live in the SCH/HD
-// encoder wrapper (next module), so every MLE/MM PDU can reuse the same
-// coding path.
+// Bluestation-compliant Accept body (always present fields — gold-reference
+// `captures_external_bs_2026-04-25/`):
 //
-// Bit order: `pdu_bits[123]` is the first bit transmitted on the air
-// (MSB-first convention used throughout the TX chain — see
-// tetra_sb1_encoder.v and sw/tetra_hal.c for matching references).
+//   [127:124]  PDU type                                4    (0101 = ACCEPT)
+//   [123:121]  Location update accept type             3    (echo MS demand)
+//   [120]      o-bit                                   1    = 1
+//   [119]      p-bit SSI                               1    = 1
+//   [118: 95]  SSI                                    24
+//   [ 94]      p-bit Address-Extension                 1    = 1
+//   [ 93: 70]  Address-Extension (MNI = MCC<<14 | MNC) 24
+//   [ 69]      p-bit Subscriber-Class                  1    = 1
+//   [ 68: 53]  Subscriber-Class                       16
+//   [ 52]      p-bit Energy-Saving-Info                1    = 1
+//   [ 51: 38]  Energy-Saving-Info                     14    (ESM 3 + FN 5 + MN 6)
+//   [ 37]      p-bit SCCH-info-and-Distrib-18         1    = 0
+//   [ 36]      m-bit New-Registered-Area              1    = 0
+//   [ 35]      m-bit Security-Downlink                1    = 0
+//   [ 34]      m-bit Group-Identity-Location-Accept    1    = 0
+//   [ 33]      m-bit Default-Group-Attach-Lifetime     1    = 0
+//   [ 32]      m-bit Authentication-Downlink           1    = 0
+//   [ 31]      m-bit Group-Identity-Security-Related   1    = 0
+//   [ 30]      m-bit Cell-Type-Control                 1    = 0
+//   [ 29]      m-bit Proprietary                       1    = 0
+//   [ 28]      Trailing m-bit                          1    = 0
+//   [ 27:  0]  padding (don't-care, outside pdu_len_bits)  28
 //
-// Field layout (124 bits, indexed from the MSB-first wire position):
-//   [123:120]  PDU Type          4 bit   0001 = D-LOC-UPDATE ACCEPT
-//                                          0010 = D-LOC-UPDATE REJECT
-//   [119:117]  Address type      3 bit   (1=SSI, 2=USSI, 3=SMI, 4=ISSI, …)
-//   [116:93]   Address (SSI)    24 bit   TETRA short subscriber identity
-//   [ 92:79]   Location Area    14 bit   cell LA
-//   [ 78:77]   Registration    2 bit   00=accept, 01=reject temporary,
-//               result                    10=reject permanent, 11=reserved
-//   [ 76:75]   Encryption mode   2 bit   00=clear, 01=SCK, 10=CCK, 11=DMO
-//   [ 74:73]   Authentication    2 bit   00=none, 01=success, 10=failure
-//               result                    (only meaningful on accept)
-//   [ 72:57]   Subscriber class 16 bit   MS class / service profile
-//   [ 56: 0]   Reserved / 0-fill 57 bit  (populated by MM optional IEs
-//                                          later — frame-countdown, group
-//                                          attach lists, etc.)
-//
-// NOTE: the exact bit layout published by ETSI for D-LOCATION UPDATE
-// ACCEPT is dense and optional-field heavy.  This builder captures the
-// fields that gate acceptance on common TETRA MS (tested against
-// MTP3550) — Registration result=accept + matching LA + SSI in the
-// address block is what the MS needs to transition to "registered".
-// Optional extensions (group attach, cell reselect hints, auth challenge)
-// are left as 0-fill and can be wired in later without changing the
-// already-committed downstream coding path.
+// Total meaningful bits: 4+3+1 + (1+24)+(1+24)+(1+16)+(1+14) + 1 + 8 + 1 = 100.
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
@@ -53,39 +46,40 @@ module tetra_d_location_update_encoder (
     input  wire [2:0]   addr_type,       // EN 300 392-2 Table 21.66
     input  wire [23:0]  ssi,             // short subscriber identity
 
-    // Location / registration
+    // Location / registration (legacy 124-bit path only)
     input  wire [13:0]  la,              // Location Area
     input  wire [1:0]   result,          // 00=accept, 01=rej-temp, 10=rej-perm
     input  wire [1:0]   encryption,      // encryption mode
     input  wire [1:0]   auth_result,     // authentication result
 
-    // Subscriber class / service profile — FSM fills from shadow record
+    // Subscriber class — used in BOTH legacy 124-bit and new MM 128-bit paths
     input  wire [15:0]  subscriber_class,
+
+    // Address Extension (MNI = MCC[9:0]<<14 | MNC[13:0])
+    input  wire [23:0]  address_extension,
+
+    // Energy Saving Information (ETSI §16.10.27 — 14 bits total):
+    //   [13:11] energy_saving_mode (3 bit; 0=StayAlive)
+    //   [10: 6] frame_number       (5 bit; 0 when StayAlive)
+    //   [ 5: 0] multiframe_number  (6 bit; 0 when StayAlive)
+    input  wire [13:0]  energy_saving_info,
 
     // Location update accept type (ETSI §16.10.35a) — must match the
     // Location-update-type the MS sent in U-LOC-UPDATE-DEMAND (§16.10.37).
-    //   3'b000 Roaming       3'b001 Temporary
-    //   3'b010 Periodic      3'b011 ITSI attach
-    //   3'b100 Call restore  3'b101 Migrating
-    //   3'b110 Demand        3'b111 Disabled MS
-    // MLE registration FSM drives this from the UL MAC-ACCESS parser.
     input  wire [2:0]   loc_acc_type,
 
     // Legacy output — 124-bit PDU, [123] first bit on air.  Retained for the
-    // loopback TB that still drives the raw SCH/HD coding chain directly.
+    // loopback TB.
     output wire [123:0] pdu_bits,
 
-    // Wrapper-oriented output — raw MM PDU, MSB-aligned to [79], with the
-    // explicit length so MAC-RESOURCE wrapping (tetra_mac_resource_dl_builder)
-    // can embed just the meaningful bits (no SCH/HD-sized padding).
-    output wire [79:0]  pdu_bits_mm,
-    output wire [6:0]   pdu_len_bits
+    // Wrapper-oriented output — raw MM PDU, MSB-aligned to [127], explicit
+    // bit-length in pdu_len_bits so MAC-RESOURCE wrapping
+    // (tetra_mac_resource_dl_builder) embeds just the meaningful bits.
+    output wire [127:0] pdu_bits_mm,
+    output wire [7:0]   pdu_len_bits
 );
 
     // PDU Type codes — MM PDU type (EN 300 392-2 Table 16.12 / §16.9.2).
-    // D-LOCATION UPDATE ACCEPT = 0b0101, D-LOCATION UPDATE REJECT = 0b0111.
-    // (Historical legacy constants below preserved in wire form for the
-    // SCH/HD-loopback path that the upstream TB still references.)
     localparam [3:0] PDU_TYPE_LOC_ACCEPT = 4'b0101;
     localparam [3:0] PDU_TYPE_LOC_REJECT = 4'b0111;
 
@@ -93,48 +87,41 @@ module tetra_d_location_update_encoder (
                                         : PDU_TYPE_LOC_ACCEPT;
 
     // -------------------------------------------------------------------------
-    // MM PDU (raw, MSB-aligned).  BlueStation-compatible accept layout for the
-    // common ITSI-attach / location-update path:
-    //
-    //   [79:76]  PDU type                   4  (0101 = ACCEPT)
-    //   [75:73]  Location update accept     3  (mirrors MS demand type)
-    //   [72]     o-bit                      1  (1 = type-2 fields follow)
-    //   [71]     p-bit SSI                  1  (1 = SSI present)
-    //   [70:47]  SSI                        24
-    //   [46]     p-bit Address extension    1  (0 = absent)
-    //   [45]     p-bit Subscriber class     1  (0 = absent)
-    //   [44]     p-bit Energy saving info   1  (0 = absent)
-    //   [43]     p-bit SCCH info & distrib  1  (0 = absent)
-    //   [42]     m-bit type-3/4 elements    1  (0 = none)
-    //   [41: 0]  padding (don't-care, outside pdu_len_bits)
-    //
-    // Total meaningful bits: 4 + 3 + 1 + 1 + 24 + 4 + 1 = 38 bits.
-    // This matches the BlueStation attach trace where the BS includes the
-    // target SSI in the MM ACCEPT body in addition to the MAC-RESOURCE header.
+    // MM PDU body — bluestation-compliant Accept.  All 3 type-2 optional
+    // fields (Address-Extension, Subscriber-Class, Energy-Saving-Info) are
+    // always present so the layout is fixed.  P-bits = 1 for those, P-bit
+    // SCCH-info = 0, all 8 type-3/4 m-bits = 0, trailing m-bit = 0.
     // -------------------------------------------------------------------------
-    localparam [6:0] MM_PDU_LEN           = 7'd38;
+    localparam [7:0] MM_PDU_LEN = 8'd100;
 
     assign pdu_bits_mm = {
-        pdu_type_w,                 // [79:76]  4   PDU type
-        loc_acc_type,               // [75:73]  3   accept type (dynamic)
-        1'b1,                       // [72]     o-bit: type-2 fields follow
-        1'b1,                       // [71]     p SSI
-        ssi,                        // [70:47]  24  SSI
-        1'b0,                       // [46]     p Address extension
-        1'b0,                       // [45]     p Subscriber class
-        1'b0,                       // [44]     p Energy saving
-        1'b0,                       // [43]     p SCCH info & distrib
-        1'b0,                       // [42]     m type-3/4 elements
-        42'b0                       // [41: 0]  padding
+        pdu_type_w,                 // [127:124]  4   PDU type
+        loc_acc_type,               // [123:121]  3   accept type
+        1'b1,                       // [120]      o-bit
+        1'b1,                       // [119]      p SSI
+        ssi,                        // [118: 95] 24
+        1'b1,                       // [ 94]      p Address-Extension
+        address_extension,          // [ 93: 70] 24
+        1'b1,                       // [ 69]      p Subscriber-Class
+        subscriber_class,           // [ 68: 53] 16
+        1'b1,                       // [ 52]      p Energy-Saving-Info
+        energy_saving_info,         // [ 51: 38] 14
+        1'b0,                       // [ 37]      p SCCH-info-and-Distrib-18
+        1'b0,                       // [ 36]      m New-Registered-Area
+        1'b0,                       // [ 35]      m Security-Downlink
+        1'b0,                       // [ 34]      m Group-Identity-Location-Accept
+        1'b0,                       // [ 33]      m Default-Group-Attach-Lifetime
+        1'b0,                       // [ 32]      m Authentication-Downlink
+        1'b0,                       // [ 31]      m Group-Identity-Security-Related
+        1'b0,                       // [ 30]      m Cell-Type-Control
+        1'b0,                       // [ 29]      m Proprietary
+        1'b0,                       // [ 28]      trailing m-bit
+        28'b0                       // [ 27:  0]  padding
     };
     assign pdu_len_bits = MM_PDU_LEN;
 
     // -------------------------------------------------------------------------
-    // Legacy 124-bit PDU — unchanged layout, SCH/HD-encoded via the
-    // existing tetra_mle_registration_fsm path (not ETSI-conformant MAC-
-    // RESOURCE — retained only for the loopback TB).  Note the legacy path
-    // used 4'b0001 as its "PDU type" constant; we preserve that historical
-    // byte-sequence to keep the encoder-TB vector bit-exact.
+    // Legacy 124-bit PDU — unchanged layout, used by the loopback TB only.
     // -------------------------------------------------------------------------
     wire [3:0] legacy_pdu_type_w = pdu_reject ? 4'b0010 : 4'b0001;
     assign pdu_bits = {
@@ -146,7 +133,7 @@ module tetra_d_location_update_encoder (
         encryption,          // [ 76: 75]  2
         auth_result,         // [ 74: 73]  2
         subscriber_class,    // [ 72: 57] 16
-        57'b0                // [ 56:  0] 57  reserved
+        57'b0                // [ 56:  0] 57
     };
 
 endmodule

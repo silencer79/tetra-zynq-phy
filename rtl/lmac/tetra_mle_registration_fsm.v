@@ -84,6 +84,14 @@ module tetra_mle_registration_fsm #(
     input  wire [13:0]                 cfg_la,
     input  wire [31:0]                 cfg_scramble_init,
     input  wire [1:0]                  cfg_mcch_tn,       // target_tn for the queue req
+    // Address-Extension (MNI) for the D-LOC-UPDATE-ACCEPT MM body.
+    // Bluestation packs MNI = MCC[9:0]<<14 | MNC[13:0] (24 bit total).
+    input  wire [23:0]                 cfg_address_extension,
+    // Subscriber class default for the MM body (16 bit, broadcast value).
+    input  wire [15:0]                 cfg_subscriber_class,
+    // Energy-Saving-Information field (14 bit: 3 bit ESM + 5 bit FN + 6 bit MN).
+    // Default StayAlive = 14'h0000.
+    input  wire [13:0]                 cfg_energy_saving_info,
 
     // -----------------------------------------------------------------
     // Active-session table port — this FSM owns it for MVP
@@ -139,26 +147,31 @@ module tetra_mle_registration_fsm #(
 
     // -------------------------------------------------------------------------
     // D-LOCATION-UPDATE builder — combinational, always watching the latched
-    // request fields.  Produces the raw 54-bit MM PDU (MSB-aligned in 80-bit
-    // bus) that the MAC-RESOURCE builder wraps.
+    // request fields.  Produces the raw 100-bit MM PDU (MSB-aligned in 128-bit
+    // bus) that the MAC-RESOURCE builder wraps.  Always emits all 3 type-2
+    // optional fields (Address-Extension, Subscriber-Class, Energy-Saving-Info)
+    // — bluestation-compliant Accept body matching the gold-reference capture
+    // (`docs/references/captures_external_bs_2026-04-25/`).
     // -------------------------------------------------------------------------
-    wire [79:0] dloc_mm_bits_w;
-    wire [6:0]  dloc_mm_len_w;
+    wire [127:0] dloc_mm_bits_w;
+    wire [7:0]   dloc_mm_len_w;
     wire [123:0] dloc_legacy_pdu_w;  // unused here, kept for linter silence
 
     tetra_d_location_update_encoder u_dloc (
-        .pdu_reject      (1'b0),                 // MVP: accept only
-        .addr_type       (lat_addr_type),
-        .ssi             (lat_ssi),
-        .la              (cfg_la),               // echo our cell LA
-        .result          (2'b00),                // accept
-        .encryption      (2'b00),                // clear
-        .auth_result     (2'b01),                // success
-        .subscriber_class(16'h0000),             // MVP: placeholder
-        .loc_acc_type    (lat_loc_upd_type),     // echo MS demand type
-        .pdu_bits        (dloc_legacy_pdu_w),
-        .pdu_bits_mm     (dloc_mm_bits_w),
-        .pdu_len_bits    (dloc_mm_len_w)
+        .pdu_reject        (1'b0),                 // MVP: accept only
+        .addr_type         (lat_addr_type),
+        .ssi               (lat_ssi),
+        .la                (cfg_la),               // legacy 124-bit path
+        .result            (2'b00),                // accept
+        .encryption        (2'b00),                // clear
+        .auth_result       (2'b01),                // success
+        .subscriber_class  (cfg_subscriber_class),
+        .address_extension (cfg_address_extension),
+        .energy_saving_info(cfg_energy_saving_info),
+        .loc_acc_type      (lat_loc_upd_type),     // echo MS demand type
+        .pdu_bits          (dloc_legacy_pdu_w),
+        .pdu_bits_mm       (dloc_mm_bits_w),
+        .pdu_len_bits      (dloc_mm_len_w)
     );
 
     // -------------------------------------------------------------------------
@@ -210,7 +223,12 @@ module tetra_mle_registration_fsm #(
     wire         accept_builder_valid_w;
 
     tetra_mac_resource_dl_builder #(
-        .PDU_BITS(124)
+        .PDU_BITS(124),
+        // Short builder fits in 124 bits; override the default 144-bit LLC
+        // buffer so the (PDU_BITS - LLC_BUF_BITS) repeat stays non-negative.
+        // No MM body in the short pre-reply — 96 bit is plenty for AL-SETUP
+        // (4 bit) + slot-grant element (8 bit).
+        .LLC_BUF_BITS(96)
     ) u_short_builder (
         .clk               (clk),
         .rst_n             (rst_n),
@@ -242,8 +260,8 @@ module tetra_mle_registration_fsm #(
         .second_pdu_ca_flag            (1'b0),
         .second_pdu_ca_element         (32'd0),
         .second_pdu_ca_element_len     (5'd0),
-        .mm_pdu_bits       (80'd0),
-        .mm_pdu_len_bits   (7'd0),
+        .mm_pdu_bits       (128'd0),
+        .mm_pdu_len_bits   (8'd0),
         .pdu_bits          (short_builder_pdu_bits_w),
         .valid             (short_builder_valid_w)
     );

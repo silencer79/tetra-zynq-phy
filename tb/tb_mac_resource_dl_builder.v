@@ -49,8 +49,13 @@ module tb_mac_resource_dl_builder;
     reg              second_pdu_ca_flag          = 1'b0;
     reg  [31:0]      second_pdu_ca_element       = 32'd0;
     reg  [4:0]       second_pdu_ca_element_len   = 5'd0;
-    reg [79:0]       mm_bits  = 80'd0;
-    reg [6:0]        mm_len   = 7'd0;
+    // Widened 2026-04-25: wrapper input grew 80→128 bit (lat_mm_bits) and
+    // 7→8 bit (lat_mm_len) to fit the bluestation-compliant 100-bit
+    // D-LOC-UPDATE-ACCEPT body.  Existing 38-bit golden vectors stay valid
+    // because the wrapper extracts only the top `lat_mm_len` bits from
+    // lat_mm_bits — we just zero-extend the 80-bit reference into 128.
+    reg [127:0]      mm_bits  = 128'd0;
+    reg [7:0]        mm_len   = 8'd0;
 
     // DUT outputs
     wire [PDU_BITS-1:0] pdu_bits;
@@ -111,7 +116,10 @@ module tb_mac_resource_dl_builder;
     //   [41:0]  padding (don't-care)
     // Total valid length = 38 bits.
     // -------------------------------------------------------------------------
-    function [79:0] build_mm_accept;
+    // Returns the legacy 38-bit Accept body MSB-aligned in a 128-bit bus
+    // (top 80 bits = old layout, bottom 48 bits = 0).  mm_len stays at 38
+    // so the wrapper extracts only those 38 bits — golden vectors unchanged.
+    function [127:0] build_mm_accept;
         input [23:0] ssi_in;
         reg  [79:0]  m;
         begin
@@ -126,7 +134,7 @@ module tb_mac_resource_dl_builder;
             m[44]    = 1'b0;
             m[43]    = 1'b0;
             m[42]    = 1'b0;
-            build_mm_accept = m;
+            build_mm_accept = {m, 48'd0};
         end
     endfunction
 
@@ -181,7 +189,7 @@ module tb_mac_resource_dl_builder;
             ns      <= ns_in;
             llc_pdu_type <= 4'd1;
             mm_bits <= build_mm_accept(ssi_in);
-            mm_len  <= 7'd38;
+            mm_len  <= 8'd38;
             start   <= 1'b1;
             @(posedge clk);
             start   <= 1'b0;
@@ -262,7 +270,7 @@ module tb_mac_resource_dl_builder;
         nr      <= 1'b1;
         ns      <= 1'b1;
         mm_bits <= build_mm_accept(24'd1000);
-        mm_len  <= 7'd38;
+        mm_len  <= 8'd38;
         start   <= 1'b1;
         @(posedge clk);
         start   <= 1'b0;
@@ -312,7 +320,7 @@ module tb_mac_resource_dl_builder;
         nr                 <= 1'b0;
         ns                 <= 1'b0;
         mm_bits            <= build_mm_accept(24'd523);
-        mm_len             <= 7'd38;
+        mm_len             <= 8'd38;
         start              <= 1'b1;
         @(posedge clk);
         start              <= 1'b0;
@@ -354,7 +362,7 @@ module tb_mac_resource_dl_builder;
             nr           <= 1'b0;
             ns           <= 1'b0;
             mm_bits      <= build_mm_accept(24'd523);
-            mm_len       <= 7'd38;
+            mm_len       <= 8'd38;
             start        <= 1'b1;
             @(posedge clk);
             start        <= 1'b0;
@@ -404,7 +412,7 @@ module tb_mac_resource_dl_builder;
             slot_granting_flag    <= 1'b0;
             chan_alloc_flag       <= 1'b0;
             mm_bits               <= build_mm_accept(24'd523);
-            mm_len                <= 7'd38;
+            mm_len                <= 8'd38;
             start                 <= 1'b1;
             @(posedge clk);
             start                 <= 1'b0;
@@ -439,7 +447,7 @@ module tb_mac_resource_dl_builder;
             slot_granting_element <= 8'h10;   // cap=1 slot, delay=0
             chan_alloc_flag       <= 1'b0;
             mm_bits               <= build_mm_accept(24'd523);
-            mm_len                <= 7'd38;
+            mm_len                <= 8'd38;
             start                 <= 1'b1;
             @(posedge clk);
             start                 <= 1'b0;
@@ -476,7 +484,7 @@ module tb_mac_resource_dl_builder;
             chan_alloc_element     <= 32'h0273E94B;
             chan_alloc_element_len <= 5'd25;
             mm_bits                <= build_mm_accept(24'd523);
-            mm_len                 <= 7'd38;
+            mm_len                 <= 8'd38;
             start                  <= 1'b1;
             @(posedge clk);
             start                  <= 1'b0;
@@ -515,7 +523,7 @@ module tb_mac_resource_dl_builder;
             chan_alloc_element     <= 32'h0273E94B;
             chan_alloc_element_len <= 5'd25;
             mm_bits                <= build_mm_accept(24'd523);
-            mm_len                 <= 7'd38;
+            mm_len                 <= 8'd38;
             start                  <= 1'b1;
             @(posedge clk);
             start                  <= 1'b0;
@@ -565,7 +573,7 @@ module tb_mac_resource_dl_builder;
             slot_granting_flag     <= 1'b0;
             chan_alloc_flag        <= 1'b0;
             mm_bits                <= build_mm_accept(24'd523);
-            mm_len                 <= 7'd38;
+            mm_len                 <= 8'd38;
             // Second PDU — BL-ACK with nr=0, RA-ack=1
             second_pdu_valid              <= 1'b1;
             second_pdu_length_ind         <= 6'd6;

@@ -40,6 +40,10 @@ module tb_mle_registration_fsm;
     reg [13:0]  cfg_la            = 14'd36;
     reg [31:0]  cfg_scramble_init = 32'hE1670C03;
     reg [1:0]   cfg_mcch_tn       = 2'd1;
+    // 2026-04-25: D-LOC-UPDATE-ACCEPT MM-Body fields
+    reg [23:0]  cfg_address_extension  = 24'h000000;
+    reg [15:0]  cfg_subscriber_class   = 16'hFFFF;
+    reg [13:0]  cfg_energy_saving_info = 14'h0000;
 
     wire                         ast_wr_en;
     wire [AST_IDX_WIDTH-1:0]     ast_wr_idx;
@@ -109,6 +113,9 @@ module tb_mle_registration_fsm;
         .cfg_la           (cfg_la),
         .cfg_scramble_init(cfg_scramble_init),
         .cfg_mcch_tn      (cfg_mcch_tn),
+        .cfg_address_extension (cfg_address_extension),
+        .cfg_subscriber_class  (cfg_subscriber_class),
+        .cfg_energy_saving_info(cfg_energy_saving_info),
         .ast_wr_en        (ast_wr_en),
         .ast_wr_idx       (ast_wr_idx),
         .ast_wr_data      (ast_wr_data),
