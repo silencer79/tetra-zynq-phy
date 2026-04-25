@@ -104,9 +104,9 @@ module tb_d_location_update_encoder;
         check_field({132'd0, pdu_bits},116, 93, 64'd0, "ssi_zero");
         check_field({132'd0, pdu_bits}, 92, 79, 64'd0, "la_zero");
 
-        // ----- Test 4: MM wrapper output — bluestation-compliant Accept,
-        // 100-bit body with SSI / Address-Extension / Subscriber-Class /
-        // Energy-Saving-Info all present, full 8-m-bit type-3/4 chain.
+        // ----- Test 4: MM wrapper output — extended Accept with
+        // SSI / Address-Extension / Subscriber-Class / Energy-Saving-Info
+        // present plus a zero-length Security-Downlink type-3 header.
         loc_acc_type       = 3'b011;          // ITSI attach
         ssi                = 24'd10001;
         address_extension  = 24'hABCDEF;
@@ -114,8 +114,8 @@ module tb_d_location_update_encoder;
         energy_saving_info = 14'h0000;        // StayAlive
         #1;
         test_count = test_count + 1;
-        if (pdu_len_bits !== 8'd100) begin
-            $display("[T%0d] FAIL mm_len got=%0d exp=100", test_count, pdu_len_bits);
+        if (pdu_len_bits !== 8'd108) begin
+            $display("[T%0d] FAIL mm_len got=%0d exp=108", test_count, pdu_len_bits);
             fail_count = fail_count + 1;
         end else begin
             $display("[T%0d] PASS mm_len = %0d", test_count, pdu_len_bits);
@@ -132,8 +132,10 @@ module tb_d_location_update_encoder;
         check_field({128'd0, pdu_bits_mm},  52,  52, 64'h1,        "mm_p_esi");
         check_field({128'd0, pdu_bits_mm},  51,  38, 64'h0,        "mm_esi_stayalive");
         check_field({128'd0, pdu_bits_mm},  37,  37, 64'h0,        "mm_p_scch_zero");
-        check_field({128'd0, pdu_bits_mm},  36,  29, 64'h0,        "mm_mbits_8x_zero");
-        check_field({128'd0, pdu_bits_mm},  28,  28, 64'h0,        "mm_trailing_mbit");
+        check_field({128'd0, pdu_bits_mm},  36,  36, 64'h1,        "mm_m_security_present");
+        check_field({128'd0, pdu_bits_mm},  35,  32, 64'h3,        "mm_type3_id_security");
+        check_field({128'd0, pdu_bits_mm},  31,  21, 64'h0,        "mm_type3_len_zero");
+        check_field({128'd0, pdu_bits_mm},  20,  20, 64'h0,        "mm_trailing_mbit");
 
         // ----- Test 5: total width sanity — expected bits set match hand-computed -----
         // With accept, addr_type=1, ssi=1, la=0, everything-else=0:

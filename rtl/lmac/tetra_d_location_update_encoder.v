@@ -21,18 +21,14 @@
 //   [ 52]      p-bit Energy-Saving-Info                1    = 1
 //   [ 51: 38]  Energy-Saving-Info                     14    (ESM 3 + FN 5 + MN 6)
 //   [ 37]      p-bit SCCH-info-and-Distrib-18         1    = 0
-//   [ 36]      m-bit New-Registered-Area              1    = 0
-//   [ 35]      m-bit Security-Downlink                1    = 0
-//   [ 34]      m-bit Group-Identity-Location-Accept    1    = 0
-//   [ 33]      m-bit Default-Group-Attach-Lifetime     1    = 0
-//   [ 32]      m-bit Authentication-Downlink           1    = 0
-//   [ 31]      m-bit Group-Identity-Security-Related   1    = 0
-//   [ 30]      m-bit Cell-Type-Control                 1    = 0
-//   [ 29]      m-bit Proprietary                       1    = 0
-//   [ 28]      Trailing m-bit                          1    = 0
-//   [ 27:  0]  padding (don't-care, outside pdu_len_bits)  28
+//   [ 36]      m-bit Security-Downlink                1    = 1
+//   [ 35: 32]  Type3 ID = Security-Downlink           4    = 3
+//   [ 31: 21]  Type3 length                           11   = 0
+//   [ 20]      Trailing m-bit                         1    = 0
+//   [ 19:  0]  padding (don't-care, outside pdu_len_bits)  20
 //
-// Total meaningful bits: 4+3+1 + (1+24)+(1+24)+(1+16)+(1+14) + 1 + 8 + 1 = 100.
+// Total meaningful bits:
+//   4+3+1 + (1+24)+(1+24)+(1+16)+(1+14) + 1 + (1+4+11+0) + 1 = 108.
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
@@ -87,12 +83,15 @@ module tetra_d_location_update_encoder (
                                         : PDU_TYPE_LOC_ACCEPT;
 
     // -------------------------------------------------------------------------
-    // MM PDU body — bluestation-compliant Accept.  All 3 type-2 optional
-    // fields (Address-Extension, Subscriber-Class, Energy-Saving-Info) are
-    // always present so the layout is fixed.  P-bits = 1 for those, P-bit
-    // SCCH-info = 0, all 8 type-3/4 m-bits = 0, trailing m-bit = 0.
+    // MM PDU body — extended Accept.  The type-2 fields Address-Extension,
+    // Subscriber-Class, and Energy-Saving-Info are always present.  After the
+    // type-2 block we emit a structurally valid zero-length Security-Downlink
+    // type-3 header followed by the terminating m-bit.  This matches the
+    // 21-octet full Accept sizing seen in the external BS reference and avoids
+    // the old incorrect "one zero m-bit per absent type3/4 field" packing.
     // -------------------------------------------------------------------------
-    localparam [7:0] MM_PDU_LEN = 8'd100;
+    localparam [7:0] MM_PDU_LEN = 8'd108;
+    localparam [3:0] TYPE3_ID_SECURITY_DOWNLINK = 4'd3;
 
     assign pdu_bits_mm = {
         pdu_type_w,                 // [127:124]  4   PDU type
@@ -107,16 +106,11 @@ module tetra_d_location_update_encoder (
         1'b1,                       // [ 52]      p Energy-Saving-Info
         energy_saving_info,         // [ 51: 38] 14
         1'b0,                       // [ 37]      p SCCH-info-and-Distrib-18
-        1'b0,                       // [ 36]      m New-Registered-Area
-        1'b0,                       // [ 35]      m Security-Downlink
-        1'b0,                       // [ 34]      m Group-Identity-Location-Accept
-        1'b0,                       // [ 33]      m Default-Group-Attach-Lifetime
-        1'b0,                       // [ 32]      m Authentication-Downlink
-        1'b0,                       // [ 31]      m Group-Identity-Security-Related
-        1'b0,                       // [ 30]      m Cell-Type-Control
-        1'b0,                       // [ 29]      m Proprietary
-        1'b0,                       // [ 28]      trailing m-bit
-        28'b0                       // [ 27:  0]  padding
+        1'b1,                       // [ 36]      m Security-Downlink present
+        TYPE3_ID_SECURITY_DOWNLINK, // [ 35: 32] type-3 field ID
+        11'd0,                      // [ 31: 21] type-3 payload length = 0
+        1'b0,                       // [ 20]      trailing m-bit
+        20'b0                       // [ 19:  0]  padding
     };
     assign pdu_len_bits = MM_PDU_LEN;
 

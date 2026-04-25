@@ -147,11 +147,11 @@ module tetra_mle_registration_fsm #(
 
     // -------------------------------------------------------------------------
     // D-LOCATION-UPDATE builder — combinational, always watching the latched
-    // request fields.  Produces the raw 100-bit MM PDU (MSB-aligned in 128-bit
+    // request fields.  Produces the raw 108-bit MM PDU (MSB-aligned in 128-bit
     // bus) that the MAC-RESOURCE builder wraps.  Always emits all 3 type-2
     // optional fields (Address-Extension, Subscriber-Class, Energy-Saving-Info)
-    // — bluestation-compliant Accept body matching the gold-reference capture
-    // (`docs/references/captures_external_bs_2026-04-25/`).
+    // plus a zero-length Security-Downlink type-3 header so the full Accept
+    // lands at the external-reference LI=21 sizing.
     // -------------------------------------------------------------------------
     wire [127:0] dloc_mm_bits_w;
     wire [7:0]   dloc_mm_len_w;
@@ -213,7 +213,7 @@ module tetra_mle_registration_fsm #(
     // -------------------------------------------------------------------------
     // MAC-RESOURCE DL builders:
     //   - short pre-reply: SCH/HD, MAC-RESOURCE + slot-grant + LLC AL-SETUP
-    //   - full accept:     SCH/F, MAC-RESOURCE + LLC BL-ADATA + MLE/MM
+    //   - full accept:     SCH/F, MAC-RESOURCE + slot-grant + LLC BL-ADATA + MLE/MM
     // -------------------------------------------------------------------------
     reg          short_builder_start;
     reg          accept_builder_start;
