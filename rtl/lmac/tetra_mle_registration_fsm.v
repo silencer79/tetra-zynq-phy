@@ -277,7 +277,11 @@ module tetra_mle_registration_fsm #(
         .ns                (1'b0),
         .nr                (1'b0),
         .llc_pdu_type      (4'd0),                 // BL-ADATA
-        .random_access_flag(1'b1),
+        // Gold-ref Burst #735: RA-flag = 0 on the full Accept.  The RA
+        // acknowledgement was already piggybacked in the SCH/HD AL-SETUP
+        // pre-reply (Burst #727, RA-flag=1), so the SCH/F Accept must NOT
+        // re-acknowledge.  Setting this to 1 here was a delta vs. gold.
+        .random_access_flag(1'b0),
         .power_control_flag       (1'b0),
         .power_control_element    (4'd0),
         .slot_granting_flag       (1'b1),

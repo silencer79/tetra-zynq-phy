@@ -6,29 +6,31 @@
 // in a 128-bit bus along with its bit-length, ready to be wrapped by the
 // MAC-RESOURCE DL builder.
 //
-// Bluestation-compliant Accept body (always present fields — gold-reference
-// `captures_external_bs_2026-04-25/`):
+// Bit-exact replica of the 2026-04-25 gold-reference Accept (Burst #735 in
+// docs/references/captures_external_bs_2026-04-25/, MM body = 102 bit):
 //
-//   [127:124]  PDU type                                4    (0101 = ACCEPT)
+//   [127:124]  PDU type                                4    = 0101 (ACCEPT)
 //   [123:121]  Location update accept type             3    (echo MS demand)
 //   [120]      o-bit                                   1    = 1
-//   [119]      p-bit SSI                               1    = 1
-//   [118: 95]  SSI                                    24
-//   [ 94]      p-bit Address-Extension                 1    = 1
-//   [ 93: 70]  Address-Extension (MNI = MCC<<14 | MNC) 24
-//   [ 69]      p-bit Subscriber-Class                  1    = 1
-//   [ 68: 53]  Subscriber-Class                       16
-//   [ 52]      p-bit Energy-Saving-Info                1    = 1
-//   [ 51: 38]  Energy-Saving-Info                     14    (ESM 3 + FN 5 + MN 6)
-//   [ 37]      p-bit SCCH-info-and-Distrib-18         1    = 0
-//   [ 36]      m-bit Security-Downlink                1    = 1
-//   [ 35: 32]  Type3 ID = Security-Downlink           4    = 3
-//   [ 31: 21]  Type3 length                           11   = 0
-//   [ 20]      Trailing m-bit                         1    = 0
-//   [ 19:  0]  padding (don't-care, outside pdu_len_bits)  20
+//   [119]      p-bit SSI                               1    = 0   (NO SSI in MM body —
+//                                                                  SSI lives in the
+//                                                                  MAC-RESOURCE addr field)
+//   [118]      p-bit Address-Extension                 1    = 0
+//   [117]      p-bit Subscriber-Class                  1    = 0
+//   [116]      p-bit Energy-Saving-Info                1    = 1
+//   [115:102]  Energy-Saving-Info                     14    = 0 (StayAlive: ESM=0, FN=0, MN=0)
+//   [101]      p-bit SCCH-info-and-Distrib-18         1    = 0
+//   [100]      m-bit (Type-3 element follows)          1    = 1
+//   [ 99: 96]  Type-3 elem_id                          4    = 0101 (= 5,
+//                                                                  GroupIdentityLocationAccept)
+//   [ 95: 85]  Type-3 length (= GILA payload bits)    11    = 58
+//   [ 84: 27]  GILA payload                           58    (gold-ref: bit-exact replica
+//                                                            of the external-BS Burst #735
+//                                                            GILA — see GILA_PAYLOAD below)
+//   [ 26]      Trailing m-bit (D-LOC-UPDATE-ACCEPT)    1    = 0
+//   [ 25:  0]  padding (don't-care, outside pdu_len_bits)  26
 //
-// Total meaningful bits:
-//   4+3+1 + (1+24)+(1+24)+(1+16)+(1+14) + 1 + (1+4+11+0) + 1 = 108.
+// Total meaningful bits: 4+3 + 1+1+1+1 + 1+14 + 1 + 1+4+11+58 + 1 = 102.
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
@@ -38,7 +40,7 @@ module tetra_d_location_update_encoder (
     //                     1 = REJECT (PDU-Type 0010)
     input  wire         pdu_reject,
 
-    // Address block
+    // Address block (legacy 124-bit path / loopback TB)
     input  wire [2:0]   addr_type,       // EN 300 392-2 Table 21.66
     input  wire [23:0]  ssi,             // short subscriber identity
 
@@ -48,10 +50,13 @@ module tetra_d_location_update_encoder (
     input  wire [1:0]   encryption,      // encryption mode
     input  wire [1:0]   auth_result,     // authentication result
 
-    // Subscriber class — used in BOTH legacy 124-bit and new MM 128-bit paths
+    // Subscriber class (legacy 124-bit path only — the new MM body sets
+    // p_subscriber_class=0 to match gold-ref, so this 16-bit value is not
+    // emitted into pdu_bits_mm).
     input  wire [15:0]  subscriber_class,
 
-    // Address Extension (MNI = MCC[9:0]<<14 | MNC[13:0])
+    // Address Extension (legacy / unused in new MM body — gold-ref Accept
+    // has p_address_extension=0).  Kept on the port for back-compat.
     input  wire [23:0]  address_extension,
 
     // Energy Saving Information (ETSI §16.10.27 — 14 bits total):
@@ -75,42 +80,62 @@ module tetra_d_location_update_encoder (
     output wire [7:0]   pdu_len_bits
 );
 
-    // PDU Type codes — MM PDU type (EN 300 392-2 Table 16.12 / §16.9.2).
+    // PDU Type codes — MM PDU type DL (EN 300 392-2 Table 16.12).
     localparam [3:0] PDU_TYPE_LOC_ACCEPT = 4'b0101;
     localparam [3:0] PDU_TYPE_LOC_REJECT = 4'b0111;
 
     wire [3:0] pdu_type_w = pdu_reject ? PDU_TYPE_LOC_REJECT
                                         : PDU_TYPE_LOC_ACCEPT;
 
+    // Type-3/4 element IDs (bluestation MmType34ElemIdDl).
+    localparam [3:0] T3_ID_GROUP_IDENTITY_LOCATION_ACCEPT = 4'd5;
+    localparam [3:0] T4_ID_GROUP_IDENTITY_DOWNLINK        = 4'd7;
+
     // -------------------------------------------------------------------------
-    // MM PDU body — extended Accept.  The type-2 fields Address-Extension,
-    // Subscriber-Class, and Energy-Saving-Info are always present.  After the
-    // type-2 block we emit a structurally valid zero-length Security-Downlink
-    // type-3 header followed by the terminating m-bit.  This matches the
-    // 21-octet full Accept sizing seen in the external BS reference and avoids
-    // the old incorrect "one zero m-bit per absent type3/4 field" packing.
+    // GILA payload (58 bit) — bit-exact replica of the external-BS gold
+    // reference Burst #735 (docs/references/captures_external_bs_2026-04-25/).
+    //
+    // Internal layout per bluestation `group_identity_location_accept.rs`
+    // and `group_identity_downlink.rs`:
+    //
+    //   accept_reject(1)  reserved(1)  obit(1)
+    //     m-bit(1)+id=7(4)+length=38(11)+num_elems=1(6)
+    //       attach_type=0(1) lifetime=01(2) class=100(3) addr_type=00(2)
+    //       gssi=0x2F4D61(24)
+    //   trailing m-bit(1)
+    //
+    //   Bit pattern: 0011011100000100110000001001100000010111101001101011000010
+    //
+    // The external BS used GSSI=0x2F4D61 + lifetime=1 + class=4 for the
+    // attached MS in this capture.  We replay it verbatim — see
+    // ~/.claude/.../memory/reference_gold_attach_bitexact.md for the spec.
     // -------------------------------------------------------------------------
-    localparam [7:0] MM_PDU_LEN = 8'd108;
-    localparam [3:0] TYPE3_ID_SECURITY_DOWNLINK = 4'd3;
+    localparam [57:0] GILA_PAYLOAD =
+        58'b0011011100000100110000001001100000010111101001101011000010;
+    localparam [10:0] GILA_LENGTH = 11'd58;
+
+    // -------------------------------------------------------------------------
+    // 102-bit MM body, MSB-aligned in [127:26].  Bits [25:0] are padding
+    // (zeroed out for cleanliness; the wrapper looks at pdu_len_bits anyway).
+    // -------------------------------------------------------------------------
+    localparam [7:0] MM_PDU_LEN = 8'd102;
 
     assign pdu_bits_mm = {
-        pdu_type_w,                 // [127:124]  4   PDU type
-        loc_acc_type,               // [123:121]  3   accept type
-        1'b1,                       // [120]      o-bit
-        1'b1,                       // [119]      p SSI
-        ssi,                        // [118: 95] 24
-        1'b1,                       // [ 94]      p Address-Extension
-        address_extension,          // [ 93: 70] 24
-        1'b1,                       // [ 69]      p Subscriber-Class
-        subscriber_class,           // [ 68: 53] 16
-        1'b1,                       // [ 52]      p Energy-Saving-Info
-        energy_saving_info,         // [ 51: 38] 14
-        1'b0,                       // [ 37]      p SCCH-info-and-Distrib-18
-        1'b1,                       // [ 36]      m Security-Downlink present
-        TYPE3_ID_SECURITY_DOWNLINK, // [ 35: 32] type-3 field ID
-        11'd0,                      // [ 31: 21] type-3 payload length = 0
-        1'b0,                       // [ 20]      trailing m-bit
-        20'b0                       // [ 19:  0]  padding
+        pdu_type_w,                                // [127:124]   4   PDU type
+        loc_acc_type,                              // [123:121]   3   accept type
+        1'b1,                                      // [120]       o-bit
+        1'b0,                                      // [119]       p_ssi             = 0
+        1'b0,                                      // [118]       p_address_extension = 0
+        1'b0,                                      // [117]       p_subscriber_class  = 0
+        1'b1,                                      // [116]       p_energy_saving_info = 1
+        energy_saving_info,                        // [115:102]  14   ESI (StayAlive default)
+        1'b0,                                      // [101]       p_scch_info        = 0
+        1'b1,                                      // [100]       m-bit (T3 follows)
+        T3_ID_GROUP_IDENTITY_LOCATION_ACCEPT,      // [ 99: 96]   4   id = 5 (GILA)
+        GILA_LENGTH,                               // [ 95: 85]  11   length = 58
+        GILA_PAYLOAD,                              // [ 84: 27]  58   gold-ref GILA payload
+        1'b0,                                      // [ 26]       trailing m-bit (D-LOC-UPD-ACCEPT)
+        26'b0                                      // [ 25:  0]  padding
     };
     assign pdu_len_bits = MM_PDU_LEN;
 
