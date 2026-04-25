@@ -189,6 +189,7 @@ vivado -mode batch -source scripts/vivado_sim.tcl -tclargs <module_name>
 | **UL BL-ACK Pfad** (tb_ul_mac_access_parser_bl_ack) | **15/15** | 2026-04-25 |
 | **D-LOC-UPDATE-ACCEPT Encoder** (102-bit MM body bit-exakt) | **34/34** | 2026-04-25 |
 | **D-LOC-UPDATE-REJECT Encoder** (Phase A, 8-bit body) | **8/8** | 2026-04-25 |
+| **MLE-FSM Phase B** (Detach known/unknown) — Erweiterung tb_mle_registration_fsm | **12/12** (10 Phase A + 2 Phase B) | 2026-04-25 |
 
 ### Bekannte Caveats
 
@@ -289,8 +290,9 @@ Bisherige Builds mit WNS bis −0.3 ns hatten on-air keinen Impact. Für Product
 | 2026-04-25 12:18 | `26191b4` | MM-Body bit-exakte Gold-Ref-Replik (102 bit, GILA GSSI=0x2F4D61) + ra_flag=0 im Accept | ✅ **MTP3550 ITSI-Attach erfolgreich** — 1:1 Demand→Accept, kein Retry-Loop |
 | 2026-04-25 16:28 | `9cc6607` | Phase 6 A — Subscriber-Shadow Permit-Check + REJECT-Encoder + REG_DB_POLICY @ 0x1AC | ✅ **on-air verifiziert** — `0x190=0x0001_0001` (1:1 Demand→Accept), `0x1AC=0x1` accept_unknown=1, kein Drop, kein Re-Demand-Loop |
 | 2026-04-25 17:11 | (gleicher Build) | Phase A Strict-Mode-Test: `0x1AC=0` + leere DB → REJECT-Loop (18 Demands ungeacked); danach `tetra_db_mgr add 0 2633617 …` + sync → MS attached + BL-ACK | ✅ Beide Pfade (REJECT + ACCEPT-via-Shadow-Hit) on-air bestätigt |
+| 2026-04-25 ~18:30 | `cae0ebc` | Phase 6 B — AST 64→128 bit, U-ITSI-DETACH räumt AST-Slot, mf_global_cnt 24-bit, REG_AST_DETACH_CNT @ 0x1A4 | 🟡 deploy pending |
 
-**Status: M2 erreicht, Phase 6 A live + getestet.** Mit `accept_unknown=1` (Default) leere DB → 1:1 Demand→Accept (M2-kompatibel). Mit `accept_unknown=0` + DB-Eintrag → Permit-Check wirkt korrekt. Phase A bringt Permit-Check infrastructure ohne M2-Regression bei Default-Policy.
+**Status: M2 + Phase A + Phase B implementiert.** Phase B legt das Layout-Fundament für Phase C (TTL-Sweep nutzt `last_seen`).
 
 ### Gold-Reference-Capture (2026-04-25)
 
