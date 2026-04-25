@@ -318,6 +318,7 @@ module tetra_axi_lite_regs (
     input  wire        mle_busy_sticky_axi,
     input  wire [15:0] mle_inject_cnt_axi,
     input  wire [15:0] mle_clear_cnt_axi,
+    input  wire [15:0] mle_detach_cnt_axi,    // Phase 6 B (REG_AST_DETACH_CNT @ 0x1A4 [15:0])
 
     // ------------------------------------------------------------------
     // DL-signalling scheduler config — cfg_signal_target_tn_axi
@@ -570,7 +571,8 @@ localparam [6:0] REG_SIGNAL_TARGET_TN = 7'h67; // 0x19C R/W {30'd0, cfg_signal_t
 // echoed in D-LOC-UPDATE-ACCEPT.  Default 14'd1 matches the tetra_hal.c
 // info.la default (the legacy hard-coded value in rtl/tetra_zynq_top.v).
 localparam [6:0] REG_CELL_LA          = 7'h68; // 0x1A0 R/W {18'd0, cell_la[13:0]}
-// 0x1A4, 0x1A8 reserved for Phase B/C (mle_detach_cnt, ast_ttl_multiframes)
+localparam [6:0] REG_AST_DETACH_CNT   = 7'h69; // 0x1A4 RO  {16'd0, mle_detach_cnt[15:0]}  Phase 6 B
+// 0x1A8 reserved for Phase C (ast_ttl_multiframes)
 localparam [6:0] REG_DB_POLICY        = 7'h6B; // 0x1AC R/W {30'd0, reserved, accept_unknown}
 
 // ---------------------------------------------------------------------------
@@ -855,6 +857,7 @@ always @(*) begin
         REG_MLE_STATS_C:    rdata_mux_axi = {mle_clear_cnt_axi, mle_inject_cnt_axi};
         REG_SIGNAL_TARGET_TN: rdata_mux_axi = {30'b0, cfg_signal_target_tn_axi};
         REG_CELL_LA:      rdata_mux_axi = {18'b0, cell_la_axi};
+        REG_AST_DETACH_CNT: rdata_mux_axi = {16'b0, mle_detach_cnt_axi};
         REG_DB_POLICY:    rdata_mux_axi = db_policy_axi;
         default:          rdata_mux_axi = 32'b0;
     endcase

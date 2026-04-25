@@ -419,7 +419,7 @@ wire [63:0] shadow_q_record_w;
 // Active-Session Table (Phase 6 M2.3b) — 64×64-bit BRAM, FSM-owned.
 wire        ast_wr_en_w;
 wire [5:0]  ast_wr_idx_w;
-wire [63:0] ast_wr_data_w;
+wire [127:0] ast_wr_data_w;        // Phase B — widened 64→128
 wire        ast_q_start_w;
 wire        ast_q_mode_w;
 wire [23:0] ast_q_issi_w;
@@ -427,7 +427,7 @@ wire        ast_q_busy_w;
 wire        ast_q_done_w;
 wire        ast_q_hit_w;
 wire [5:0]  ast_q_slot_w;
-wire [63:0] ast_q_record_w;
+wire [127:0] ast_q_record_w;       // Phase B — widened 64→128
 
 // MLE-registration FSM → DL-signalling-queue request port.  The MLE emits
 // the full 432-bit SCH/F codeword as a queue-request; the scheduler
@@ -447,6 +447,7 @@ wire         mle_drop_pulse_w;
 wire         mle_ack_pulse_w;
 wire         mle_retransmit_pulse_w;
 wire         mle_lost_pulse_w;
+wire         mle_detach_pulse_w;             // Phase 6 B
 
 // Queue ↔ scheduler wiring
 wire         queue_head_valid_w;
@@ -1652,6 +1653,7 @@ tetra_axi_lite_regs u_axi_regs (
     .mle_busy_sticky_axi     (mle_busy_sticky_axi_r1),
     .mle_inject_cnt_axi      (mle_inject_cnt_axi_r1),
     .mle_clear_cnt_axi       (mle_clear_cnt_axi_r1),
+    .mle_detach_cnt_axi      (mle_detach_cnt_axi_r1),
     // DL-signalling scheduler config (R/W @ 0x19C) — resynced into clk_sys below
     .cfg_signal_target_tn_axi(cfg_signal_target_tn_axi_w),
     // Cell Location Area (R/W @ 0x1A0) — resynced into clk_sys below
@@ -1681,6 +1683,29 @@ tetra_axi_lite_regs u_axi_regs (
 wire        mle_shadow_q_start_w;
 wire [23:0] mle_shadow_q_issi_w;
 
+// Phase 6 B — free-running 24-bit multiframe counter for AST `last_seen`
+// and TTL-Sweep (Phase C).  Increments once per multiframe (~1.02 s),
+// rollover ~197 days.  Detect MF transitions via tx_mf_cnt_sys edges.
+reg [5:0]  tx_mf_cnt_sys_prev;
+reg [23:0] mf_global_cnt_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        tx_mf_cnt_sys_prev <= 6'd1;
+        mf_global_cnt_sys  <= 24'd0;
+    end else begin
+        tx_mf_cnt_sys_prev <= tx_mf_cnt_sys;
+        if (tx_mf_cnt_sys != tx_mf_cnt_sys_prev)
+            mf_global_cnt_sys <= mf_global_cnt_sys + 24'd1;
+    end
+end
+
+// Phase 6 B — U-ITSI-DETACH trigger (MM PDU type 1, MLE=MM, LLC=BL-DATA)
+wire ul_itsi_detach_sys =
+    ul_pdu_valid_sys &&
+    ul_llc_is_bl_data_w &&
+    ul_llc_is_mle_mm_w &&
+    (ul_llc_mm_pdu_type_w == 4'h1);
+
 tetra_subscriber_shadow #(
     .DEPTH      (256),
     .IDX_WIDTH  (8),
@@ -1709,10 +1734,17 @@ tetra_subscriber_shadow #(
 // ARM).  Record layout is owned by the FSM — the table only interprets
 // [63:40]=ISSI (query match) and [0]=valid (alloc match).
 // =============================================================================
+// Phase 6 B — AST record widened 64 → 128 bit:
+//   [127:104] ISSI (24)
+//   [103: 80] last_seen_multiframe (24)  — TTL key (Phase C uses this)
+//   [ 79: 72] shadow_idx (8)
+//   [ 71: 68] state (4)  — 1=REG_ACCEPT_SENT
+//   [ 67:  1] reserved (Phase D: group_count + group_list[8])
+//   [  0]     valid (kept at bit 0 — alloc-scan signature unchanged)
 tetra_active_session_table #(
     .DEPTH      (64),
     .IDX_WIDTH  (6),
-    .REC_WIDTH  (64),
+    .REC_WIDTH  (128),
     .ISSI_WIDTH (24)
 ) u_active_session_table (
     .clk      (clk_sys),
@@ -1793,7 +1825,7 @@ wire [31:0] mle_dl_scramb_init_sys = {cell_cfg_mcc_sys_r1,
 
 tetra_mle_registration_fsm #(
     .AST_IDX_WIDTH(6),
-    .AST_REC_WIDTH(64)
+    .AST_REC_WIDTH(128)              // Phase 6 B — widened layout
 ) u_mle_registration_fsm (
     .clk              (clk_sys),
     .rst_n            (rst_n_sys),
@@ -1848,6 +1880,10 @@ tetra_mle_registration_fsm #(
     .shadow_q_hit     (shadow_q_hit_w),
     .shadow_q_record  (shadow_q_record_w),
     .accept_unknown   (db_policy_accept_unknown_sys_r1),
+    // Phase 6 B — Detach pulse + multiframe counter for AST last_seen
+    .ul_detach_valid  (ul_itsi_detach_sys),
+    .ul_detach_ssi    (ul_issi_sys),
+    .mf_global_cnt    (mf_global_cnt_sys),
     // AST
     .ast_wr_en        (ast_wr_en_w),
     .ast_wr_idx       (ast_wr_idx_w),
@@ -1876,7 +1912,8 @@ tetra_mle_registration_fsm #(
     // lost_pulse fires when N252 is exhausted.
     .ack_pulse        (mle_ack_pulse_w),
     .retransmit_pulse (mle_retransmit_pulse_w),
-    .lost_pulse       (mle_lost_pulse_w)
+    .lost_pulse       (mle_lost_pulse_w),
+    .detach_pulse     (mle_detach_pulse_w)         // Phase 6 B
 );
 
 // =============================================================================
@@ -1995,17 +2032,22 @@ reg        mle_busy_sticky_sys;
 wire [15:0] mle_inject_cnt_sys = sig_override_cnt_w;
 wire [15:0] mle_clear_cnt_sys  = queue_drop_cnt_w;
 
+// Phase 6 B — detach counter (16-bit saturating, AXI 0x1A4 [15:0])
+reg [15:0] mle_detach_cnt_sys;
+
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
         mle_ul_req_cnt_sys  <= 16'd0;
         mle_accept_cnt_sys  <= 16'd0;
         mle_drop_cnt_sys    <= 16'd0;
         mle_busy_sticky_sys <= 1'b0;
+        mle_detach_cnt_sys  <= 16'd0;
     end else begin
         if (mle_ul_req_valid_w)  mle_ul_req_cnt_sys <= mle_ul_req_cnt_sys + 16'd1;
         if (mle_accept_pulse_w)  mle_accept_cnt_sys <= mle_accept_cnt_sys + 16'd1;
         if (mle_drop_pulse_w)    mle_drop_cnt_sys   <= mle_drop_cnt_sys   + 16'd1;
         if (mle_busy_w)          mle_busy_sticky_sys <= 1'b1;
+        if (mle_detach_pulse_w)  mle_detach_cnt_sys <= mle_detach_cnt_sys + 16'd1;
     end
 end
 
@@ -2021,6 +2063,8 @@ end
 (* ASYNC_REG = "TRUE" *) reg [15:0] mle_inject_cnt_axi_r1;
 (* ASYNC_REG = "TRUE" *) reg [15:0] mle_clear_cnt_axi_r0;
 (* ASYNC_REG = "TRUE" *) reg [15:0] mle_clear_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] mle_detach_cnt_axi_r0;     // Phase 6 B
+(* ASYNC_REG = "TRUE" *) reg [15:0] mle_detach_cnt_axi_r1;
 
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     if (!rst_n_axi) begin
@@ -2036,6 +2080,8 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         mle_inject_cnt_axi_r1  <= 16'd0;
         mle_clear_cnt_axi_r0   <= 16'd0;
         mle_clear_cnt_axi_r1   <= 16'd0;
+        mle_detach_cnt_axi_r0  <= 16'd0;
+        mle_detach_cnt_axi_r1  <= 16'd0;
     end else begin
         mle_ul_req_cnt_axi_r0  <= mle_ul_req_cnt_sys;
         mle_ul_req_cnt_axi_r1  <= mle_ul_req_cnt_axi_r0;
@@ -2049,6 +2095,8 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         mle_inject_cnt_axi_r1  <= mle_inject_cnt_axi_r0;
         mle_clear_cnt_axi_r0   <= mle_clear_cnt_sys;
         mle_clear_cnt_axi_r1   <= mle_clear_cnt_axi_r0;
+        mle_detach_cnt_axi_r0  <= mle_detach_cnt_sys;
+        mle_detach_cnt_axi_r1  <= mle_detach_cnt_axi_r0;
     end
 end
 

@@ -32,7 +32,9 @@
 
 module tetra_mle_registration_fsm #(
     parameter integer AST_IDX_WIDTH = 6,
-    parameter integer AST_REC_WIDTH = 64
+    // Phase B: AST record widened to 128 bit (last_seen 24 bit + shadow_idx +
+    // state).  Keep parameter so TB / older callers can still drive 64-bit.
+    parameter integer AST_REC_WIDTH = 128
 )(
     input  wire                        clk,
     input  wire                        rst_n,
@@ -133,6 +135,17 @@ module tetra_mle_registration_fsm #(
     input  wire                        accept_unknown,
 
     // -----------------------------------------------------------------
+    // Phase B — Detach pulse + free-running multiframe counter.
+    // ul_detach_valid = U-ITSI-DETACH (mm_pdu_type=1, MLE=MM, LLC=BL-DATA)
+    //                   → AST entry for ul_detach_ssi cleared.
+    // mf_global_cnt 24-bit free-running multiframe tick (see top-level),
+    // used to refresh AST `last_seen` field for TTL sweep (Phase C).
+    // -----------------------------------------------------------------
+    input  wire                        ul_detach_valid,
+    input  wire [23:0]                 ul_detach_ssi,
+    input  wire [23:0]                 mf_global_cnt,
+
+    // -----------------------------------------------------------------
     // DL signalling-queue request — 1-cycle pulse carrying the full 432-bit
     // SCH/F coded PDU plus type/target metadata.  The queue assembles it
     // into an entry; a downstream scheduler decides when it goes on air.
@@ -153,7 +166,8 @@ module tetra_mle_registration_fsm #(
     output reg                         drop_pulse,     // 1 cyc on table-full
     output reg                         ack_pulse,      // 1 cyc on matching BL-ACK
     output reg                         retransmit_pulse, // 1 cyc per retransmit
-    output reg                         lost_pulse      // 1 cyc on N252 exhaust
+    output reg                         lost_pulse,     // 1 cyc on N252 exhaust
+    output reg                         detach_pulse    // 1 cyc on AST clear (Phase B)
 );
 
     // -------------------------------------------------------------------------
@@ -389,22 +403,27 @@ module tetra_mle_registration_fsm #(
     );
 
     // -------------------------------------------------------------------------
-    // Session record packer — thin layout (see tetra_active_session_table.v)
-    // [REC-1 -: 24]   ISSI            (visible to AST query scan)
-    // [ 39:26]        LA
-    // [ 25:22]        session state   (1=REG_ACCEPT_SENT)
-    // [ 21:16]        slot
-    // [ 15: 1]        reserved
-    // [ 0]            valid           (visible to AST alloc scan)
+    // Session record packer (Phase B — 128 bit layout)
+    // [127:104]  ISSI               24    (visible to AST query scan)
+    // [103: 80]  last_seen_multiframe 24  (free-running counter, TTL key)
+    // [ 79: 72]  shadow_idx          8    (Phase A backref — 0 if unknown)
+    // [ 71: 68]  state               4    (1=REG_ACCEPT_SENT)
+    // [ 67:  1]  reserved           67    (Phase D: group_count + group_list)
+    // [  0]      valid               1    (visible to AST alloc scan)
     // -------------------------------------------------------------------------
     wire [AST_REC_WIDTH-1:0] session_record_w = {
-        lat_ssi,                    // [63:40]
-        lat_la,                     // [39:26]
-        4'd1,                       // [25:22] state=REG_ACCEPT_SENT
-        lat_slot,                   // [21:16]
-        15'd0,                      // [15: 1] reserved
-        1'b1                        // [0]     valid
+        lat_ssi,                    // [127:104]  24  ISSI (top, alloc/query)
+        mf_global_cnt,              // [103: 80]  24  last_seen_multiframe
+        8'd0,                       // [ 79: 72]   8  shadow_idx (Phase D)
+        4'd1,                       // [ 71: 68]   4  state=REG_ACCEPT_SENT
+        67'd0,                      // [ 67:  1]  67  reserved
+        1'b1                        // [  0]       1  valid
     };
+
+    // -------------------------------------------------------------------------
+    // Detach record — same layout, all-zero except width (write valid=0)
+    // -------------------------------------------------------------------------
+    wire [AST_REC_WIDTH-1:0] detach_zero_record_w = {AST_REC_WIDTH{1'b0}};
 
     // -------------------------------------------------------------------------
     // FSM
@@ -430,6 +449,11 @@ module tetra_mle_registration_fsm #(
     localparam [4:0] S_SHADOW_QUERY        = 5'd17;
     localparam [4:0] S_SHADOW_WAIT         = 5'd18;
     localparam [4:0] S_PERMIT_DECIDE       = 5'd19;
+    // Phase 6 B: U-ITSI-DETACH path — clear AST entry for ISSI
+    localparam [4:0] S_DETACH_QUERY        = 5'd20;
+    localparam [4:0] S_DETACH_WAIT         = 5'd21;
+    localparam [4:0] S_DETACH_CLEAR        = 5'd22;
+    reg [23:0] lat_detach_ssi;
     reg [4:0] state;
     reg [2:0] gap_slot_count;
 
@@ -459,6 +483,8 @@ module tetra_mle_registration_fsm #(
             shadow_q_issi     <= 24'd0;
             lat_is_reject     <= 1'b0;
             lat_reject_cause  <= 3'd0;
+            lat_detach_ssi    <= 24'd0;
+            detach_pulse      <= 1'b0;
             short_builder_start  <= 1'b0;
             accept_builder_start <= 1'b0;
             sch_encode_start  <= 1'b0;
@@ -490,13 +516,21 @@ module tetra_mle_registration_fsm #(
             ack_pulse        <= 1'b0;
             retransmit_pulse <= 1'b0;
             lost_pulse       <= 1'b0;
+            detach_pulse     <= 1'b0;
 
             case (state)
             // -----------------------------------------------------------------
             S_IDLE: begin
                 busy          <= 1'b0;
                 lat_is_reject <= 1'b0;
-                if (ul_req_valid) begin
+                // Phase 6 B — U-ITSI-DETACH takes priority over a new
+                // registration request (shouldn't happen on the same cycle
+                // anyway, but the explicit ordering avoids a race).
+                if (ul_detach_valid) begin
+                    lat_detach_ssi <= ul_detach_ssi;
+                    busy           <= 1'b1;
+                    state          <= S_DETACH_QUERY;
+                end else if (ul_req_valid) begin
                     // D-LOCATION UPDATE ACCEPT is always addressed per SSI
                     // (ETSI EN 300 392-2 §16.10.28).  ul_addr_type on the UL
                     // request carries the MS-picked MAC addressing (often
@@ -558,6 +592,42 @@ module tetra_mle_registration_fsm #(
                     lat_reject_cause <= 3'd0;
                     state            <= S_CHECK_START;
                 end
+            end
+
+            // -----------------------------------------------------------------
+            // Phase 6 B — U-ITSI-DETACH path: query AST for ISSI, clear slot.
+            //   1. AST.query(lat_detach_ssi)
+            //   2. hit  → AST.write(slot, valid=0) + detach_pulse
+            //      miss → ignore, detach_pulse still fires for counter purpose
+            //   3. No DL response (ETSI: ITSI-DETACH is one-way).
+            // -----------------------------------------------------------------
+            S_DETACH_QUERY: begin
+                ast_q_start <= 1'b1;
+                ast_q_mode  <= 1'b0;       // query existing
+                ast_q_issi  <= lat_detach_ssi;
+                state       <= S_DETACH_WAIT;
+            end
+
+            S_DETACH_WAIT: begin
+                if (ast_q_done) begin
+                    if (ast_q_hit) begin
+                        // Latch the slot we will overwrite with a zeroed record
+                        lat_slot <= ast_q_slot;
+                        state    <= S_DETACH_CLEAR;
+                    end else begin
+                        // No matching session — pulse counter, return idle.
+                        detach_pulse <= 1'b1;
+                        state        <= S_IDLE;
+                    end
+                end
+            end
+
+            S_DETACH_CLEAR: begin
+                ast_wr_en    <= 1'b1;
+                ast_wr_idx   <= lat_slot;
+                ast_wr_data  <= detach_zero_record_w;
+                detach_pulse <= 1'b1;
+                state        <= S_IDLE;
             end
 
             // -----------------------------------------------------------------

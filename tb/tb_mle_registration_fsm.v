@@ -16,7 +16,9 @@
 module tb_mle_registration_fsm;
     localparam integer AST_DEPTH      = 64;
     localparam integer AST_IDX_WIDTH  = 6;
-    localparam integer AST_REC_WIDTH  = 64;
+    // Phase 6 B — AST widened from 64→128 bit to fit last_seen + shadow_idx
+    // + state + Phase D group cache.  See tetra_zynq_top.v.
+    localparam integer AST_REC_WIDTH  = 128;
     localparam integer AST_ISSI_WIDTH = 24;
 
     reg                         clk   = 1'b0;
@@ -36,6 +38,10 @@ module tb_mle_registration_fsm;
     reg         bl_ack_nr         = 1'b0;
     reg  [23:0] bl_ack_issi       = 24'd0;
     reg         slot_pulse        = 1'b0;
+    // Phase 6 B — Detach + multiframe counter
+    reg         ul_detach_valid   = 1'b0;
+    reg  [23:0] ul_detach_ssi     = 24'd0;
+    reg  [23:0] mf_global_cnt     = 24'd0;
 
     reg [13:0]  cfg_la            = 14'd36;
     reg [31:0]  cfg_scramble_init = 32'hE1670C03;
@@ -80,6 +86,7 @@ module tb_mle_registration_fsm;
     wire         ack_pulse;
     wire         retransmit_pulse;
     wire         lost_pulse;
+    wire         detach_pulse;
     wire         req_second_pdu_present;
     wire         req_second_pdu_nr;
 
@@ -179,7 +186,12 @@ module tb_mle_registration_fsm;
         .drop_pulse       (drop_pulse),
         .ack_pulse        (ack_pulse),
         .retransmit_pulse (retransmit_pulse),
-        .lost_pulse       (lost_pulse)
+        .lost_pulse       (lost_pulse),
+        // Phase 6 B
+        .ul_detach_valid  (ul_detach_valid),
+        .ul_detach_ssi    (ul_detach_ssi),
+        .mf_global_cnt    (mf_global_cnt),
+        .detach_pulse     (detach_pulse)
     );
 
     integer fail_count = 0;
@@ -408,6 +420,60 @@ module tb_mle_registration_fsm;
         end
     endtask
 
+    // Phase 6 B — issue a U-ITSI-DETACH pulse and wait for the FSM to fire
+    // detach_pulse (= AST.write(slot, valid=0) completed or hit-miss).
+    task automatic detach_request(input [23:0] issi);
+        begin
+            @(posedge clk);
+            ul_detach_ssi   <= issi;
+            ul_detach_valid <= 1'b1;
+            @(posedge clk);
+            ul_detach_valid <= 1'b0;
+        end
+    endtask
+
+    task automatic expect_detach_clear(input [7:0]  exp_slot,
+                                       input [23:0] issi,
+                                       input [255:0] tag);
+        integer wait_cycles;
+        begin
+            test_count = test_count + 1;
+            // capture pre-state: AST entry should still hold the registration
+            if (u_ast.mem[exp_slot][127:104] !== issi) begin
+                $display("[T%0d] FAIL %0s pre-condition: AST[%0d] ISSI=0x%06X exp=0x%06X",
+                         test_count, tag, exp_slot, u_ast.mem[exp_slot][127:104], issi);
+                fail_count = fail_count + 1;
+            end
+            detach_request(issi);
+            // wait for detach_pulse
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !detach_pulse) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
+            if (!detach_pulse) begin
+                $display("[T%0d] FAIL %0s no detach_pulse after 4000 cycles",
+                         test_count, tag);
+                fail_count = fail_count + 1;
+            end else begin
+                // AST.write commits one cycle after wr_en is sampled.
+                // We are now at the cycle where detach_pulse fires (= same
+                // cycle as wr_en); wait one more posedge so the BRAM has
+                // the zero record.
+                @(posedge clk);
+                if (u_ast.mem[exp_slot] !== {AST_REC_WIDTH{1'b0}}) begin
+                    $display("[T%0d] FAIL %0s AST[%0d] not cleared, top=0x%h",
+                             test_count, tag, exp_slot, u_ast.mem[exp_slot][127:64]);
+                    fail_count = fail_count + 1;
+                end else begin
+                    $display("[T%0d] PASS %0s AST slot %0d cleared (valid=0, ISSI=0)",
+                             test_count, tag, exp_slot);
+                end
+            end
+            repeat (3) @(posedge clk);
+        end
+    endtask
+
     task automatic expect_drop(input [23:0] issi);
         integer wait_cycles;
         begin
@@ -508,10 +574,48 @@ module tb_mle_registration_fsm;
         expect_accept(24'h444444, "unknown_permissive");
 
         // -------------------------------------------------------------------
+        // Phase 6 B — Detach test (U-ITSI-DETACH clears AST entry)
+        //
+        // Pre-state from earlier expect_two_phase_accept calls:
+        //   slot 0 = ISSI 523 (last write was T2 with ssi=523)
+        //   slot 1 = ISSI 1000
+        //   slot 2 = ISSI 0x282FF4
+        //   slot 3 = ISSI 0x282F91
+        // The Phase A tests (T6..T9) did NOT call expect_two_phase_accept, they
+        // only checked the FSM decision — so AST[0..3] still hold those records.
+        // -------------------------------------------------------------------
+
+        // T11 DETACH known ISSI: slot 3 (MTP3550) → AST entry cleared
+        expect_detach_clear(8'd3, 24'h282F91, "detach_known_mtp3550");
+
+        // T12 DETACH unknown ISSI: should pulse counter but no AST write
+        begin
+            integer det_wait;
+            test_count = test_count + 1;
+            detach_request(24'hABCDEF);
+            det_wait = 0;
+            while (det_wait < 4000 && !detach_pulse) begin
+                @(posedge clk);
+                det_wait = det_wait + 1;
+            end
+            if (!detach_pulse) begin
+                $display("[T%0d] FAIL detach_unknown no pulse", test_count);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d] PASS detach_unknown_no_match (counter pulse)",
+                         test_count);
+            end
+            // Wait long enough for FSM to finish whatever scan was in flight
+            // and return to S_IDLE before next test.
+            repeat (200) @(posedge clk);
+        end
+
+        // -------------------------------------------------------------------
         // Final test: AST full → drop (existing M2 behaviour)
+        // T11 detached slot 3, so we have to refill all 64 slots here.
         // -------------------------------------------------------------------
         accept_unknown <= 1'b1;
-        for (i = 4; i < AST_DEPTH; i = i + 1)
+        for (i = 0; i < AST_DEPTH; i = i + 1)
             u_ast.mem[i] = {{(AST_REC_WIDTH - 1){1'b0}}, 1'b1};
         @(posedge clk);
 
