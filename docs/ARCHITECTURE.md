@@ -415,12 +415,20 @@ Details + Bit-Walk: `PROTOCOL.md §9` und
 ### 7.2 Offene Lücken zu M3 (Group Call/Voice)
 
 Diese sind für M2 nicht relevant gewesen, werden aber für M3 gebraucht:
-- `tetra_subscriber_shadow.v` fehlt (kein permit/LA/home-cell-Lookup pro ISSI)
+- `tetra_subscriber_shadow.v` fehlt (kein permit/LA/home-cell-Lookup pro ISSI) → ✅ Phase A 2026-04-25
 - Kein NR/NS-Tracking pro MS (Dialog-PDUs)
 - UL-BL-ACK wird parsed, MLE-FSM ignoriert noch
 - Kein Retransmit-Loop für verlorene DL-PDUs
 - Group-Identity-Attach (echter Path mit dynamischer GILA aus Subscriber-DB)
 - Voice-Pfad (CMCE D-SETUP/D-CONNECT, ACELP)
+- **UL-RX-Pfad erkennt nur RA-Slot-Bursts** (CB/CUB) — NUB (Normal Uplink
+  Burst auf allocated slots, beinhaltet U-ITSI-DETACH, Auth-PDUs, BL-ACK
+  nach Attach, Voice) wird vom Sync-Detector durchgelassen. Air-Capture
+  2026-04-25 19:16 zeigt 12 Bursts auf-Air vs. nur 3 in `ul_mon`.
+  **Konsequenz für Phase B**: Detach-Counter bleibt 0 obwohl MS sauberen
+  `U-ITSI-DETACH` sendet. **TTL-Sweep** (Phase C) kompensiert die Lücke
+  zeitbasiert. Vollständiger NUB-RX-Pfad-Fix gehört zu M3.1, nicht
+  Phase 6. Details: Memory `project_ul_rx_nub_gap.md`.
 
 ---
 
