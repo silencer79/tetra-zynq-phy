@@ -184,9 +184,11 @@ vivado -mode batch -source scripts/vivado_sim.tcl -tclargs <module_name>
 | LMAC-Signalling-TBs (manuell) | tb_mac_resource_dl_builder 6/6, tb_d_location_update_encoder 16/16, tb_dl_signal_queue + scheduler + slot_content_mux je PASS | 2026-04-23 |
 | UL RX Chain (tb_ul_demod_sch_hu, tb_ul_wav_chain) | 4/4 + 5/5 | 2026-04-22 |
 | **24-bit ISSI Pfad** (tb_ul_mac_access_parser inkl. ext-BS + MTP3550 on-air vectors) | **31/31** | 2026-04-25 |
-| **MLE-FSM ISSI Round-Trip** (tb_mle_registration_fsm — `lat_ssi[23:0]` + `lat_accept_info_bits[251:228]`) | **6/6** | 2026-04-25 |
+| **MLE-FSM ISSI Round-Trip + Permit-Check** (tb_mle_registration_fsm — 6 M2 + 4 Phase-A Cases) | **10/10** | 2026-04-25 |
 | **AXI-Reg 24-bit Mask** (tb_tetra_axi_lite_regs) | **10/10** | 2026-04-25 |
 | **UL BL-ACK Pfad** (tb_ul_mac_access_parser_bl_ack) | **15/15** | 2026-04-25 |
+| **D-LOC-UPDATE-ACCEPT Encoder** (102-bit MM body bit-exakt) | **34/34** | 2026-04-25 |
+| **D-LOC-UPDATE-REJECT Encoder** (Phase A, 8-bit body) | **8/8** | 2026-04-25 |
 
 ### Bekannte Caveats
 
@@ -285,8 +287,9 @@ Bisherige Builds mit WNS bis −0.3 ns hatten on-air keinen Impact. Für Product
 | 2026-04-25 03:17 | `545cc50` | MLE trigger: mm_type=2 (= U-LOC-UPDATE-DEMAND per `MmPduTypeUl`) | ✅ accept_cnt 0→53, Accepts on-air |
 | 2026-04-25 05:10 | `b994e5d` | AACH dynamic Unalloc/Unalloc + 1-Frame Pre-Reply→Accept Gap | ✅ AACH SCH/F bit-exakt zur Gold-Ref, 1× BL-ACK NR=0 vom MS |
 | 2026-04-25 12:18 | `26191b4` | MM-Body bit-exakte Gold-Ref-Replik (102 bit, GILA GSSI=0x2F4D61) + ra_flag=0 im Accept | ✅ **MTP3550 ITSI-Attach erfolgreich** — 1:1 Demand→Accept, kein Retry-Loop |
+| 2026-04-25 ~16:00 | `2af8e8c` | Phase 6 A — Subscriber-Shadow Permit-Check + REJECT-Encoder + REG_DB_POLICY @ 0x1AC | 🟡 deploy pending (wenn `accept_unknown=1` Default → erwartetes Verhalten = M2-identisch) |
 
-**Status: M2 erreicht.** Counter-Beweis nach Deploy `26191b4`: `0x190 = 0x0001_0001` (1 Demand → 1 Accept), keine erneuten Demands. Nächste Iteration: M3 (Group Call/Voice).
+**Status: M2 erreicht, Phase 6 A in flight.** Counter-Beweis Build `26191b4`: `0x190 = 0x0001_0001` (1 Demand → 1 Accept), keine erneuten Demands. Phase A bringt Permit-Check infrastructure ohne M2-Regression bei Default-Policy.
 
 ### Gold-Reference-Capture (2026-04-25)
 

@@ -401,6 +401,7 @@ Eintrag-Format (16 bit):
 | 2026-04-25 | UL-MM-Type-Filter mismatch | `rtl/tetra_zynq_top.v` | `545cc50` — mm_type=2 (= U-LOC-UPDATE-DEMAND per `MmPduTypeUl`) als Trigger akzeptiert (DL-Tabelle hatte =4 erwartet) |
 | 2026-04-25 | AACH statisch + Pre-Reply→Accept Gap fehlte | `rtl/tx/tetra_aach_encoder.v`, `rtl/lmac/tetra_dl_signal_scheduler.v`, `rtl/lmac/tetra_mle_registration_fsm.v` | `b994e5d` — dynamic AACH Unalloc/Unalloc + 1-Frame Gap S_WAIT_GAP_FRAME |
 | 2026-04-25 | MM-Body-Inhalt nicht bit-exakt zur Gold-Ref | `rtl/lmac/tetra_d_location_update_encoder.v` + `rtl/lmac/tetra_mle_registration_fsm.v` | `26191b4` — 102-bit MM body bit-exakt, GILA mit GSSI=0x2F4D61, ra_flag=0 im Accept → **MTP3550 attached** |
+| 2026-04-25 | Subscriber-Shadow Permit-Check fehlte (jeder ISSI durfte attachen) | `rtl/lmac/tetra_d_location_update_reject_encoder.v` (NEU) + `rtl/lmac/tetra_mle_registration_fsm.v` (S_SHADOW_QUERY/WAIT/PERMIT_DECIDE) + `rtl/tetra_zynq_top.v` (Shadow.q_* Verdrahtung + DB-Policy CDC) + `rtl/infra/tetra_axi_lite_regs.v` (REG_DB_POLICY @ 0x1AC) | `2af8e8c` — Phase A der Subscriber-DB; Default `accept_unknown=1` bewahrt M2-Verhalten, `=0` aktiviert strict permit-check |
 
 ### 7.1 M2 erreicht (2026-04-25 12:18 ZULU)
 
@@ -593,15 +594,17 @@ schreibt sofort durch).
 
 ### 9.7 Roadmap (Phasen)
 
-| Phase | Inhalt | Aufwand |
-|-------|--------|---------|
-| **A** | Shadow-Lookup-Pfad in MLE-FSM, Permit-Check, Auto-Enroll | ~1 Tag |
-| **B** | Detach-Pfad + AST-Erweiterung last_seen 8→24 bit | ~½ Tag |
-| **C** | TTL-Sweep FSM (`tetra_ast_ttl_sweeper.v`) | ~½ Tag |
-| **D** | GILA-Encoder mit GSSI/lifetime/class aus Lookup statt hardcoded | ~1 Tag |
-| **E** | WebUI + inotify-Watcher | ~1 Tag SW |
+| Phase | Inhalt | Status |
+|-------|--------|--------|
+| **A** | Shadow-Lookup-Pfad in MLE-FSM, Permit-Check, REJECT-Encoder | ✅ 2026-04-25 (Commit `2af8e8c`, TBs 10/10) |
+| **B** | Detach-Pfad + AST-Erweiterung last_seen 8→24 bit + Profile-Table | ⏳ Plan |
+| **C** | TTL-Sweep FSM (`tetra_ast_ttl_sweeper.v`) | ⏳ Plan |
+| **D** | GILA-Encoder mit GSSI/lifetime/class aus Lookup statt hardcoded | ⏳ Plan |
+| **E** | WebUI + inotify-Watcher + Auto-Enroll (ARM-Daemon) | ⏳ Plan |
 
-Total ~3–4 Tage RTL+SW.
+Auto-Enroll wurde bewusst aus Phase A herausgenommen — landet in Phase E
+als ARM-Daemon-Job (UL-mon-Watcher → db.tsv-Update → BRAM-Sync), das
+spart einen Shadow-Schreibport-Mux im RTL.
 
 ---
 
