@@ -302,6 +302,30 @@ Liefert 1278 valid bursts, inkl. der Burst-Pärchen #727 (SCH/HD AL-SETUP LI=7) 
 
 ---
 
+## 9.1 Board-Vorbereitung für Phase 6 (Subscriber-DB)
+
+Vor Phase A der Subscriber-DB-Implementierung (siehe `ARCHITECTURE.md §9`)
+muss am Board folgendes angelegt sein:
+
+```bash
+# Subscriber-DB-Verzeichnis
+sshpass -p openwifi ssh root@192.168.2.180 'mkdir -p /var/lib/tetra'
+
+# Initiale entities.tsv anlegen (Format: slot ISSI/GSSI type profile_id valid)
+sshpass -p openwifi ssh root@192.168.2.180 \
+  'echo -e "0\t2633617\t0\t0\t1" > /var/lib/tetra/entities.tsv'
+# (Slot 0, ISSI 0x282F91, type=ISSI, profile=0=minimal-permit, valid)
+
+# tetra_db_mgr beim Boot starten — TODO für deploy.sh --init Phase E
+```
+
+Aktueller Status: **`/var/lib/tetra/` existiert nicht**, Subscriber-Shadow
+am Board ist leer. `accept_unknown=1` Default macht das egal — jeder ISSI
+darf attachen. Vor produktivem Betrieb: TSV initialisieren + tetra_db_mgr
+als Daemon nach Phase E.
+
+---
+
 ## 10. Script-Inventar
 
 | Script | Zweck |
