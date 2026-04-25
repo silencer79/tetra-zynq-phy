@@ -86,6 +86,9 @@ Vivado Build → bootgen (.bit → .bit.bin) → Cross-Compile SW → SCP Upload
 | `/lib/firmware/tetra_zynq_phy.bit.bin` | FPGA Bitstream (persistent) |
 | `/root/tetra_sysinfo` | SYSINFO/TX-Daemon (ARM binary) |
 | `/root/tetra_ul_mon` | UL-MAC-ACCESS-Monitor-Daemon |
+| `/root/tetra_db_mgr` | Subscriber-DB ↔ Shadow-BRAM CLI |
+| `/var/lib/tetra/db.tsv` | Subscriber-DB (TSV, persistent) |
+| `/www/index.html` + `/www/cgi-bin/*.cgi` | WebUI (busybox httpd) |
 | `/tmp/tetra_sysinfo.log` | Sysinfo Log |
 | `/tmp/tetra_ul_mon.log` | UL-mon Log (MS-RA-Decodes) |
 | `/sys/bus/iio/devices/iio:device1/` | AD9361 IIO Sysfs |
@@ -251,6 +254,45 @@ Für auto-offset-Failure (korrelation < 0.9): manuell Offset setzen —
 ### 7.4 tetra-kit als zweiter Decoder
 
 `scripts/wav_to_tkbits.py` konvertiert unsere WAVs in tetra-kit-kompatibles Input-Format. tetra-kit (externes Tool) lockt unabhängig auf unsere DL (0 Sync-Loss in 35 s, Ref 2026-04-20) und kann als zweiter Decoder dienen wenn `decode_dl.py` zu streng ist.
+
+### 7.5 WebUI — Subscriber-DB + Live-Counter (Phase 6 E.1+E.2+E.3)
+
+`http://192.168.2.180/` → busybox httpd liefert `index.html` + CGI.
+Tabs: **Cell Config** (Frequenz/CC/SYSINFO via `apply.cgi`) und
+**Subscribers** (DB + Sessions).
+
+| Endpoint | Methode | Zweck |
+|----------|---------|-------|
+| `/cgi-bin/entities.cgi` | GET | JSON-Liste der Subscriber-Slots aus `db.tsv` |
+| `/cgi-bin/entities.cgi` | POST `op=add&slot=&issi=&la=&pv=&pd=&pr=&prio=` | Hinzufügen + sofort `tetra_db_mgr sync` zur BRAM |
+| `/cgi-bin/entities.cgi` | POST `op=del&slot=N` | Löschen + sync |
+| `/cgi-bin/sessions.cgi` | GET | Live-Counter via `busybox devmem` (0x190/0x194/0x198/0x1A4/0x1A8/0x1AC/0x1B0/0x168) + `tail /tmp/tetra_ul_mon.log` |
+| `/cgi-bin/policy.cgi`   | POST `op=set&accept_unknown=0|1` | OPEN ↔ RESTRICTED Toggle (RMW auf REG_DB_POLICY @ 0x1AC) |
+
+Boot-Sync: `deploy.sh --init` legt `/var/lib/tetra/db.tsv` aus
+`sw/db.tsv.default` an (falls noch nicht vorhanden) und ruft
+`tetra_db_mgr sync` — Shadow-BRAM ist nach Reboot vorgeladen, kein
+manueller `add`-Schritt nötig. Default enthält MTP3550 (ISSI 2633617)
+auf Slot 0.
+
+### 7.6 UL-Sync-Threshold (Phase B Detach-Diagnose)
+
+`tetra_ul_sync_detect_os4` korreliert über 15 Symbole x-seq (4-bit
+saturierend, max 15). Geteilter `REG_SYNC_THRESH @ 0x0C` mit
+`tetra_sync_detect`-DL.
+
+| Threshold | Wirkung |
+|-----------|---------|
+| 0x0F (alt) | nur perfekte Matches → ~3/12 echter Bursts gefangen |
+| **0x0D** (neu, Default seit `4bd43e3`) | sweet spot, alle echten Bursts, ~0.2 false-pos/s |
+| 0x0C | 1500+ false-pos/s aus Rauschen |
+
+DL-Sync nutzt den selben Reg, ist aber nur RX-Loopback-Diagnose —
+TX-Aussendung ist unabhängig. Senken auf 0x0D ist risk-free.
+
+Wenn `0x190` (Demand-Counter) oder `0x1A4` (Detach-Counter) bei
+MS-Aktivität nicht zählen: erst `0x5C` (UL-OS4-Sync-Cnt) prüfen —
+bleibt der niedrig, ist's der Threshold.
 
 ---
 

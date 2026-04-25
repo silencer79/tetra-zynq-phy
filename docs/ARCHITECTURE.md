@@ -403,7 +403,7 @@ Eintrag-Format (16 bit):
 | 2026-04-25 | MM-Body-Inhalt nicht bit-exakt zur Gold-Ref | `rtl/lmac/tetra_d_location_update_encoder.v` + `rtl/lmac/tetra_mle_registration_fsm.v` | `26191b4` — 102-bit MM body bit-exakt, GILA mit GSSI=0x2F4D61, ra_flag=0 im Accept → **MTP3550 attached** |
 | 2026-04-25 | Subscriber-Shadow Permit-Check fehlte (jeder ISSI durfte attachen) | `rtl/lmac/tetra_d_location_update_reject_encoder.v` (NEU) + `rtl/lmac/tetra_mle_registration_fsm.v` (S_SHADOW_QUERY/WAIT/PERMIT_DECIDE) + `rtl/tetra_zynq_top.v` (Shadow.q_* Verdrahtung + DB-Policy CDC) + `rtl/infra/tetra_axi_lite_regs.v` (REG_DB_POLICY @ 0x1AC) | `2af8e8c` — Phase A der Subscriber-DB; Default `accept_unknown=1` bewahrt M2-Verhalten, `=0` aktiviert strict permit-check |
 | 2026-04-25 | U-ITSI-DETACH räumt AST-Slot nicht; AST-`last_seen` fehlte für TTL-Sweep | AST 64→128 bit + free-running 24-bit Multiframe-Counter (`mf_global_cnt_sys`) + `S_DETACH_QUERY/WAIT/CLEAR` States + `REG_AST_DETACH_CNT @ 0x1A4` | `cae0ebc` — Phase B; AST schlüsselt mit ISSI im Top-Block, `last_seen` rollt nach 197 Tagen, Detach-Trigger=mm_pdu_type=1 |
-| 2026-04-25 | Stille AST-Slots werden nie geräumt (Zombie-Risiko) — Detach-Path verlässt sich auf NUB-RX-Pfad der noch nicht da ist | AST true dual-port BRAM, neuer Sweeper-FSM (SW_IDLE→READ→CHECK→INVALIDATE) intern im AST-Modul + REG_AST_TTL_MULTIFRAMES @ 0x1A8 (default 84706 ≈ 24 h) + REG_AST_TTL_EVICT_CNT @ 0x1B0 | `e51cc6c` — Phase C; 1 Slot pro Multiframe, kompensiert NUB-RX-Gap zeitbasiert |
+| 2026-04-25 | Stille AST-Slots werden nie geräumt (Zombie-Risiko) — Detach-Path verlässt sich auf NUB-RX-Pfad der noch nicht da ist | AST single-port BRAM mit Sweep-Mux (Vivado `INBB-3` verbietet two-driver-pattern), neuer Sweeper-FSM (SW_IDLE→READ→CHECK→INVALIDATE) intern im AST-Modul + REG_AST_TTL_MULTIFRAMES @ 0x1A8 (default 84706 ≈ 24 h) + REG_AST_TTL_EVICT_CNT @ 0x1B0 | `e51cc6c` + `a9d0f1a` — Phase C; 1 Slot pro Multiframe, on-air verifiziert (TTL=30 → ≥1 Evict in <2 s) |
 
 ### 7.1 M2 erreicht (2026-04-25 12:18 ZULU)
 
@@ -422,14 +422,15 @@ Diese sind für M2 nicht relevant gewesen, werden aber für M3 gebraucht:
 - Kein Retransmit-Loop für verlorene DL-PDUs
 - Group-Identity-Attach (echter Path mit dynamischer GILA aus Subscriber-DB)
 - Voice-Pfad (CMCE D-SETUP/D-CONNECT, ACELP)
-- **UL-RX-Pfad erkennt nur RA-Slot-Bursts** (CB/CUB) — NUB (Normal Uplink
-  Burst auf allocated slots, beinhaltet U-ITSI-DETACH, Auth-PDUs, BL-ACK
-  nach Attach, Voice) wird vom Sync-Detector durchgelassen. Air-Capture
-  2026-04-25 19:16 zeigt 12 Bursts auf-Air vs. nur 3 in `ul_mon`.
-  **Konsequenz für Phase B**: Detach-Counter bleibt 0 obwohl MS sauberen
-  `U-ITSI-DETACH` sendet. **TTL-Sweep** (Phase C) kompensiert die Lücke
-  zeitbasiert. Vollständiger NUB-RX-Pfad-Fix gehört zu M3.1, nicht
-  Phase 6. Details: Memory `project_ul_rx_nub_gap.md`.
+- **UL-RX-Lücke war Sync-Threshold, kein NUB-Pfad-Bug** (RESOLVED 2026-04-25):
+  Air-Capture zeigte 12 Bursts vs. 3 in `ul_mon` → Hypothese "NUB-Pfad
+  fehlt" widerlegt: alle 12 sind SCH/HU mit gültigem CRC, davon 4× echte
+  `U-ITSI-DETACH` (mm_type=1 per `MmPduTypeUl`, decode_ul.py hatte's
+  als U-AUTH gelabelt — DL-Tabelle statt UL). Echte Ursache:
+  `tetra_ul_sync_detect_os4` 4-bit-corr saturiert bei 15, geteilter
+  `REG_SYNC_THRESH` Default 0x0F filterte ~75% raus. Live auf 0x0D
+  getuned, `0x1A4` zählt seither on-air. Default-Fix Commit `4bd43e3`,
+  decoder-Tabelle `4d673d3`. Memory: `project_ul_os4_threshold.md`.
 
 ---
 
@@ -610,11 +611,13 @@ schreibt sofort durch).
 | **B** | Detach-Pfad + AST 64→128 bit (last_seen 24 bit + shadow_idx + state) | ✅ 2026-04-25 (Commit `cae0ebc`, TBs 12/12). Profile-Table → Phase D. |
 | **C** | TTL-Sweep FSM (intern in AST, true dual-port BRAM) | ✅ 2026-04-25 (Commit `e51cc6c`, TBs 16/16). REG_AST_TTL_MULTIFRAMES @ 0x1A8 + REG_AST_TTL_EVICT_CNT @ 0x1B0. |
 | **D** | GILA-Encoder mit GSSI/lifetime/class aus Lookup statt hardcoded | ⏳ Plan |
-| **E** | WebUI + inotify-Watcher + Auto-Enroll (ARM-Daemon) | ⏳ Plan |
+| **E.1+E.2+E.3** | WebUI Subscriber-DB (busybox-CGI) — `entities.cgi`, `sessions.cgi`, `policy.cgi` + 2-Tab `index.html` + Boot-Sync `db.tsv.default` → Shadow-BRAM | ✅ 2026-04-25 (Commits `e951871`, `2a7f98d`, `5e23a7e`, `42bcd10`, `ed4707d`, `3a8728f`); on-air verifiziert: WebUI-Delete → MS bleibt mit RESTRICTED-Mode draußen |
+| **E.4** | inotify-Watcher (`tetra_dbsync` Daemon, `db.tsv` → BRAM autosync) | ⏳ Plan |
+| **E.5** | Auto-Enroll (UL-mon-Watcher → unknown ISSI → tsv-Append + Default-Profile) | ⏳ Plan |
 
-Auto-Enroll wurde bewusst aus Phase A herausgenommen — landet in Phase E
-als ARM-Daemon-Job (UL-mon-Watcher → db.tsv-Update → BRAM-Sync), das
-spart einen Shadow-Schreibport-Mux im RTL.
+Phase E.1–E.3 deckt den Operator-Flow vollständig ab (DB editieren,
+Live-Counter sehen, OPEN/RESTRICTED toggeln) — Auto-Enroll bleibt für
+hands-off-Cell-Provisioning offen, ist aber kein M3-Blocker.
 
 ---
 
