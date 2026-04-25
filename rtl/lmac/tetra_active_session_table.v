@@ -106,9 +106,16 @@ module tetra_active_session_table #(
 );
 
     // -------------------------------------------------------------------------
-    // Storage — inferred block RAM (true dual-port).
-    //   Port A : FSM scan/write (existing q_* / wr_*)
-    //   Port B : TTL sweeper (Phase 6 C — independent read+invalidate)
+    // Storage — inferred block RAM, single-port (Vivado-friendly).
+    //
+    // Port A is FSM scan/write (q_* + wr_*).  The TTL sweeper shares this
+    // port with priority deferral: it kicks off its single-slot read only
+    // when the scan-FSM is idle (q_busy=0), and its write (invalidate-zero)
+    // is muxed in front of wr_en — external wr_en always wins on conflict.
+    // This avoids the multi-driver pattern that Vivado refuses to map to
+    // a true dual-port BRAM, while keeping the sweeper functionally on par
+    // with the original Phase-C design (1 slot per multiframe is far below
+    // the FSM's hot-path duty cycle).
     // -------------------------------------------------------------------------
     (* ram_style = "block" *) reg [REC_WIDTH-1:0] mem [0:DEPTH-1];
 
@@ -116,28 +123,49 @@ module tetra_active_session_table #(
     reg [IDX_WIDTH:0]    rd_addr_ext;     // 1 extra bit so DEPTH is representable
     wire [IDX_WIDTH-1:0] rd_addr = rd_addr_ext[IDX_WIDTH-1:0];
 
-    // Sweeper port-B signals (declared early so the BRAM block can see them)
+    // Sweeper signals — declared early so the BRAM block can see them
     reg [IDX_WIDTH-1:0]  sweep_scan_idx_r;
     reg [REC_WIDTH-1:0]  sweep_rd_data;
     reg                  sweep_invalidate_now;     // 1-cycle write-zero strobe
+    reg [1:0]            sweep_state;              // forward decl (FSM below)
+
+    // Sweeper "owns" the read port for one cycle in SW_IDLE when it gets a
+    // tick, but only if the scan-FSM is fully idle (q_busy=0 AND no pending
+    // q_start, so we don't trample on a query that's about to launch).  The
+    // BRAM read of mem[sweep_scan_idx_r] then settles into rd_data on the
+    // next edge and is captured into sweep_rd_data via the pipe below.
+    wire sweep_reading_w =
+        (sweep_state == 2'd0)        // SW_IDLE
+     && sweep_enable
+     && sweep_tick
+     && !q_busy
+     && !q_start;
 
     assign sweep_idx = sweep_scan_idx_r;
 
-    // Port A (FSM scan / external write)
+    // Muxed write: external wr_en has priority, sweeper invalidate fills idle.
+    wire                  port_wr_en   = wr_en | sweep_invalidate_now;
+    wire [IDX_WIDTH-1:0]  port_wr_idx  = wr_en ? wr_idx  : sweep_scan_idx_r;
+    wire [REC_WIDTH-1:0]  port_wr_data = wr_en ? wr_data : {REC_WIDTH{1'b0}};
+
+    // Muxed read addr: scan-FSM has priority (q_busy=1).  When scan idle and
+    // sweeper wants a read, route the address.
+    wire [IDX_WIDTH-1:0]  port_rd_addr = sweep_reading_w ? sweep_scan_idx_r : rd_addr;
+
+    // Single-port BRAM.  rd_data lands one cycle after port_rd_addr.
     always @(posedge clk) begin
-        if (wr_en) begin
-            mem[wr_idx] <= wr_data;
+        if (port_wr_en) begin
+            mem[port_wr_idx] <= port_wr_data;
         end
-        rd_data <= mem[rd_addr];
+        rd_data <= mem[port_rd_addr];
     end
 
-    // Port B (TTL sweeper read + invalidate write).  Vivado infers a true
-    // dual-port BRAM when each port is in its own always block.
+    // 1-cycle pipeline: when sweeper "owned" the address last cycle, the
+    // resulting rd_data lands HERE — capture it as sweep_rd_data.
+    reg sweep_owned_pipe;
     always @(posedge clk) begin
-        if (sweep_invalidate_now) begin
-            mem[sweep_scan_idx_r] <= {REC_WIDTH{1'b0}};
-        end
-        sweep_rd_data <= mem[sweep_scan_idx_r];
+        sweep_owned_pipe <= sweep_reading_w;
+        if (sweep_owned_pipe) sweep_rd_data <= rd_data;
     end
 
     // -------------------------------------------------------------------------
@@ -235,8 +263,8 @@ module tetra_active_session_table #(
     localparam [1:0] SW_IDLE       = 2'd0;
     localparam [1:0] SW_READ       = 2'd1;
     localparam [1:0] SW_CHECK      = 2'd2;
-    localparam [1:0] SW_INVALIDATE = 2'd3;  // hold scan_idx for port-B write
-    reg [1:0] sweep_state;
+    localparam [1:0] SW_INVALIDATE = 2'd3;  // hold scan_idx for muxed write
+    // (sweep_state declared above — forward decl for sweep_reading_w wire)
 
     wire                          sweep_rec_valid_w  = sweep_rd_data[0];
     wire [LAST_SEEN_WIDTH-1:0]    sweep_last_seen_w  =
