@@ -287,9 +287,9 @@ Bisherige Builds mit WNS bis −0.3 ns hatten on-air keinen Impact. Für Product
 | 2026-04-25 03:17 | `545cc50` | MLE trigger: mm_type=2 (= U-LOC-UPDATE-DEMAND per `MmPduTypeUl`) | ✅ accept_cnt 0→53, Accepts on-air |
 | 2026-04-25 05:10 | `b994e5d` | AACH dynamic Unalloc/Unalloc + 1-Frame Pre-Reply→Accept Gap | ✅ AACH SCH/F bit-exakt zur Gold-Ref, 1× BL-ACK NR=0 vom MS |
 | 2026-04-25 12:18 | `26191b4` | MM-Body bit-exakte Gold-Ref-Replik (102 bit, GILA GSSI=0x2F4D61) + ra_flag=0 im Accept | ✅ **MTP3550 ITSI-Attach erfolgreich** — 1:1 Demand→Accept, kein Retry-Loop |
-| 2026-04-25 ~16:00 | `2af8e8c` | Phase 6 A — Subscriber-Shadow Permit-Check + REJECT-Encoder + REG_DB_POLICY @ 0x1AC | 🟡 deploy pending (wenn `accept_unknown=1` Default → erwartetes Verhalten = M2-identisch) |
+| 2026-04-25 16:28 | `9cc6607` | Phase 6 A — Subscriber-Shadow Permit-Check + REJECT-Encoder + REG_DB_POLICY @ 0x1AC | ✅ **on-air verifiziert** — `0x190=0x0001_0001` (1:1 Demand→Accept), `0x1AC=0x1` accept_unknown=1, kein Drop, kein Re-Demand-Loop |
 
-**Status: M2 erreicht, Phase 6 A in flight.** Counter-Beweis Build `26191b4`: `0x190 = 0x0001_0001` (1 Demand → 1 Accept), keine erneuten Demands. Phase A bringt Permit-Check infrastructure ohne M2-Regression bei Default-Policy.
+**Status: M2 erreicht, Phase 6 A live.** Counter direkt nach Deploy: `0x190 = 0x0001_0001` (1 Demand → 1 Accept), `0x1AC = 0x0000_0001` (accept_unknown default), keine erneuten Demands. Phase A bringt Permit-Check infrastructure ohne M2-Regression bei Default-Policy.
 
 ### Gold-Reference-Capture (2026-04-25)
 
