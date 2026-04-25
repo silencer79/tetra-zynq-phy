@@ -21,13 +21,13 @@ rd() {
 # unsigned-decimal subset of a 32-bit hex word
 hex_lo16()  { printf '%u' "$(( $1 & 0xFFFF ))"; }
 hex_hi16()  { printf '%u' "$(( ($1 >> 16) & 0xFFFF ))"; }
-hex_bit31() { printf '%u' "$(( ($1 >> 31) & 0x1 ))"; }
+hex_bit16() { printf '%u' "$(( ($1 >> 16) & 0x1 ))"; }
 hex_bit0()  { printf '%u' "$(( $1 & 0x1 ))"; }
 hex_full()  { printf '%u' "$(( $1 ))"; }
 hex_lo24()  { printf '%u' "$(( $1 & 0xFFFFFF ))"; }
 
 W_190=$(rd 0x43C00190)   # {accept[31:16], ul_req[15:0]}
-W_194=$(rd 0x43C00194)   # {busy[31], drop[15:0]}
+W_194=$(rd 0x43C00194)   # {15'b0, busy_sticky[16], drop[15:0]}
 W_198=$(rd 0x43C00198)   # {clear[31:16], sig_override[15:0]}
 W_1A4=$(rd 0x43C001A4)   # {0, detach[15:0]}
 W_1B0=$(rd 0x43C001B0)   # {0, evict[15:0]}
@@ -38,7 +38,7 @@ W_168=$(rd 0x43C00168)   # last MTP3550 mailbox ISSI (24-bit)
 ul_req=$(hex_lo16 "$W_190")
 accept=$(hex_hi16 "$W_190")
 drop=$(hex_lo16 "$W_194")
-busy=$(hex_bit31 "$W_194")
+busy=$(hex_bit16 "$W_194")
 sig_override=$(hex_lo16 "$W_198")
 clear=$(hex_hi16 "$W_198")
 detach=$(hex_lo16 "$W_1A4")
