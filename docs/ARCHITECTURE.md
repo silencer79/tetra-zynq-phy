@@ -613,12 +613,18 @@ schreibt sofort durch).
 | **C** | TTL-Sweep FSM (intern in AST, true dual-port BRAM) | ✅ 2026-04-25 (Commit `e51cc6c`, TBs 16/16). REG_AST_TTL_MULTIFRAMES @ 0x1A8 + REG_AST_TTL_EVICT_CNT @ 0x1B0. |
 | **D-rev** | EntityTable 256 × 64 bit (§9.2 statt Subscriber-Shadow); ProfileTable 6 × 32 bit + AXI 0x1C0; AST 128→256 bit; Multi-Lookup MLE-FSM (Entity→Profile→Default-GSSI→AST per §9.3); GILA-Encoder dynamisch aus Lookup; tetra_db_mgr CLI auf 4-Spalten-TSV; `entities.cgi` JSON-Shape; `profiles.cgi` neu; WebUI 3-Tab + Profile-Editor | ✅ 2026-04-26 (Branch `refactor/phase-d-spec`; Commits `c204c6d`/`7166844`/`ae37d05`/`e1f8f80`/`8185b7f`. TBs: tb_entity_table 18/18, tb_profile_table 13/13, tb_active_session_table 16/16, tb_d_location_update_encoder 34/34, tb_mle_registration_fsm 18/18 mit allen 6 neuen D-rev-Cases incl. profile0_m2_guard). M2 bit-identity bewahrt: Profile 0 reset-default `0x0000_088F` + GSSI 0x2F4D61 reproduziert die MTP3550-Accept-GILA bit-genau. Drift-Vorgänger `refactor/phase-d-profiles` bleibt als Audit-Trail im git-Verlauf, wird aber NICHT in `main` gemergt. |
 | **E.1+E.2+E.3** | WebUI Subscriber-DB (busybox-CGI) — `entities.cgi`, `sessions.cgi`, `policy.cgi` + 2-Tab `index.html` + Boot-Sync `db.tsv.default` → Shadow-BRAM | ✅ 2026-04-25 (Commits `e951871`, `2a7f98d`, `5e23a7e`, `42bcd10`, `ed4707d`, `3a8728f`); on-air verifiziert: WebUI-Delete → MS bleibt mit RESTRICTED-Mode draußen |
-| **E.4** | inotify-Watcher (`tetra_dbsync` Daemon, `db.tsv` → BRAM autosync) | ⏳ Plan |
-| **E.5** | Auto-Enroll (UL-mon-Watcher → unknown ISSI → tsv-Append + Default-Profile) | ⏳ Plan |
+| **E.4** | DB-Sync-Daemon `sw/tetra_dbsync.sh` — busybox-poll-basiert (kein inotifyd), watcht `db.tsv` mtime alle 2 s, ruft `tetra_db_mgr sync` bei Änderung. Operator-SSH-Edits werden so automatisch in die EntityTable-BRAM übertragen. | ✅ 2026-04-26 (Commit `afb9a0d`, on-air verifiziert: Mtime-Trigger → `pushed 256 slots (N valid)` Latenz ≤ 2 s) |
+| **E.5** | Auto-Enroll-Daemon `sw/tetra_autoenroll.sh` — `tail -F /tmp/tetra_ul_mon.log`, parsed jede neue ISSI, hängt unbekannte an db.tsv mit `profile_id=0` an. Gated by `REG_DB_POLICY[0]` (OPEN-only). E.4-Watcher pusht den neuen Slot dann zur BRAM. | ✅ 2026-04-26 (Commit `afb9a0d`, on-air verifiziert: Fake-Logzeile `ssi=4242424` → enrolled Slot 2, BRAM hat sofort 3 valid Entities). Daemon-Detach via `setsid` (`998c5ef`). |
 
-Phase E.1–E.3 deckt den Operator-Flow vollständig ab (DB editieren,
-Live-Counter sehen, OPEN/RESTRICTED toggeln) — Auto-Enroll bleibt für
-hands-off-Cell-Provisioning offen, ist aber kein M3-Blocker.
+**Phase 6 vollständig abgeschlossen.** Operator-Flow von "rohe DB-Edits"
+über "Web-UI mit Profile-Editor + Policy-Toggle" bis "MS-Plug-and-Play
+ohne Operator-Interaktion" deckt alle drei Bedienmodi ab. M3
+Group-Call/Voice kann auf der EntityTable-GSSI-Slots + AST.group_list[8]
+aufsetzen.
+
+Phase E.1–E.3 deckt den Operator-Flow ab (DB editieren, Live-Counter
+sehen, OPEN/RESTRICTED toggeln). E.4 + E.5 ergänzen das um SSH-Edit-
+Autosync (TSV → BRAM) und ISSI-Auto-Enrollment (UL-mon → TSV → BRAM).
 
 ---
 

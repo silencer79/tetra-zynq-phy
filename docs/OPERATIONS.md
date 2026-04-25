@@ -86,11 +86,16 @@ Vivado Build → bootgen (.bit → .bit.bin) → Cross-Compile SW → SCP Upload
 | `/lib/firmware/tetra_zynq_phy.bit.bin` | FPGA Bitstream (persistent) |
 | `/root/tetra_sysinfo` | SYSINFO/TX-Daemon (ARM binary) |
 | `/root/tetra_ul_mon` | UL-MAC-ACCESS-Monitor-Daemon |
-| `/root/tetra_db_mgr` | Subscriber-DB ↔ Shadow-BRAM CLI |
-| `/var/lib/tetra/db.tsv` | Subscriber-DB (TSV, persistent) |
-| `/www/index.html` + `/www/cgi-bin/*.cgi` | WebUI (busybox httpd) |
-| `/tmp/tetra_sysinfo.log` | Sysinfo Log |
-| `/tmp/tetra_ul_mon.log` | UL-mon Log (MS-RA-Decodes) |
+| `/root/tetra_db_mgr` | EntityTable ↔ BRAM CLI (Phase 6 D-rev §9.2) |
+| `/root/tetra_dbsync.sh` | Phase 6 E.4 — pollt db.tsv, ruft `tetra_db_mgr sync` |
+| `/root/tetra_autoenroll.sh` | Phase 6 E.5 — tail-F ul_mon.log, hängt unbekannte ISSIs an db.tsv (OPEN-mode only) |
+| `/var/lib/tetra/db.tsv` | EntityTable-Persistenz (4-Spalten: slot entity_id entity_type profile_id) |
+| `/var/lib/tetra/profiles.tsv` | ProfileTable-Mirror (für `profiles.cgi` GET, durch POST aktualisiert) |
+| `/www/index.html` + `/www/cgi-bin/*.cgi` | WebUI (busybox httpd, 3 Tabs: Cell Config, Subscribers, Profiles) |
+| `/tmp/tetra_sysinfo.log` | Sysinfo-Log (TX-Daemon, beendet sich nach Init) |
+| `/tmp/tetra_ul_mon.log` | UL-mon Log (MAC-ACCESS-PDU-Stream, Quelle für E.5) |
+| `/tmp/tetra_dbsync.log` | E.4-Sync-Log |
+| `/tmp/tetra_autoenroll.log` | E.5-Enroll-Log |
 | `/sys/bus/iio/devices/iio:device1/` | AD9361 IIO Sysfs |
 
 ### Kanonisches Control-Tool
@@ -286,10 +291,35 @@ M2-Gold-Ref-D-LOC-UPDATE-ACCEPT-GILA. Operator-Edits via Profiles-Tab
 verändern on-air-GILA-Bits sofort beim nächsten Attach.
 
 **Migration-Hinweis:** Legacy-DB-TSV (7 Spalten, vor 2026-04-26) wird
-von `tetra_db_mgr` als "format obsolete" abgelehnt. Vor Phase-D-rev-
-Build alte TSV löschen und aus `sw/db.tsv.default` regenerieren.
+von `tetra_db_mgr` als "format obsolete" abgelehnt. `deploy.sh --init`
+erkennt das (Header enthält `permit_voice`) und sichert es nach
+`db.tsv.legacy.bak`, bevor `db.tsv.default` neu kopiert wird (siehe
+`0a53dd4`).
 
-### 7.6 UL-Sync-Threshold (Phase B Detach-Diagnose)
+### 7.6 DB-Sync + Auto-Enroll (Phase 6 E.4 + E.5)
+
+Zwei busybox-Shell-Daemons, gestartet von `deploy.sh --init`,
+prozessieren EntityTable-Änderungen ohne Operator-Eingriff:
+
+| Daemon | Funktion | Trigger | Latenz |
+|--------|----------|---------|--------|
+| `tetra_dbsync.sh` | watcht `/var/lib/tetra/db.tsv` mtime → `tetra_db_mgr sync` | jede TSV-Änderung (SSH/scp/Auto-Enroll) | ≤ 2 s |
+| `tetra_autoenroll.sh` | `tail -F /tmp/tetra_ul_mon.log`, parst `ssi=NNN`, hängt unbekannte ISSIs an db.tsv mit `profile_id=0` | jede neue ISSI im UL-Stream **wenn** `REG_DB_POLICY[0]=1` (OPEN) | ≤ 2 s (E.4-Pickup) |
+
+Workflow-Beispiele:
+- **Operator-Edit via SSH:** `vi /var/lib/tetra/db.tsv` → 2 s später ist die EntityTable-BRAM aktualisiert.
+- **Plug-and-Play für unbekannte MS:** OPEN-Mode aktiv, neue MS sendet Demand → autoenroll fügt ISSI hinzu → dbsync schiebt zur BRAM → der nächste Demand desselben MS landet im hit-Branch der MLE-FSM und wird normal accepted. Kein Operator-Eingriff.
+- **RESTRICTED-Mode**: autoenroll skipt, REJECT-Verhalten wie vor E.5.
+
+Logs: `/tmp/tetra_dbsync.log`, `/tmp/tetra_autoenroll.log`.
+
+`busybox` auf der LibreSDR hat **kein `inotifyd`**, deshalb mtime-Polling
+statt Filesystem-Events.
+
+`busybox`-`nohup` über SSH ist unzuverlässig — Daemons werden via `setsid
+< /dev/null > log 2>&1 &` detached (siehe `998c5ef`).
+
+### 7.7 UL-Sync-Threshold (Phase B Detach-Diagnose)
 
 `tetra_ul_sync_detect_os4` korreliert über 15 Symbole x-seq (4-bit
 saturierend, max 15). Geteilter `REG_SYNC_THRESH @ 0x0C` mit
