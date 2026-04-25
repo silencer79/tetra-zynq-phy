@@ -2,7 +2,7 @@
 
 **Projekt:** tetra-zynq-phy (LibreSDR, Zynq-7020 + AD9361)
 **Architektur-Entscheidung:** 2026-04-22 — FPGA-heavy Stack
-**Zuletzt aktualisiert:** 2026-04-25
+**Zuletzt aktualisiert:** 2026-04-25 (M2 erreicht — MTP3550 attached)
 
 Ersetzt: `plan_tetra_bs_stack.md`, `plan_tetra_tdma_rtl_ownership.md`,
 `module_status.md`, `resource_estimate.md`.
@@ -147,7 +147,7 @@ tetra_zynq_top.v
 
 ```
 M1: MS sieht BS, RACH sichtbar       ✅ fertig (UL-Decode HW-verifiziert 2026-04-22)
-M2: MS bucht sich ein                🔴 in Arbeit (9 Bugs gefixt, MS registriert trotzdem nicht)
+M2: MS bucht sich ein                ✅ HW-verifiziert 2026-04-25 12:18 (Build `26191b4`, MTP3550 attached)
 M3: Gruppenruf mit Voice-Relay       ⏳ Phase 3 (komplett in RTL geplant)
 M4: Einzelrufe + Paging              ⏳ Phase 4
 ```
@@ -164,18 +164,25 @@ M4: Einzelrufe + Paging              ⏳ Phase 4
 | M1.6 RACH-Erkennung | 41/42 CRC-Pass gegen Python-Baseline | ✅ 2026-04-22 |
 | M1.7 AD9361 FDD | Duplex=0 (10 MHz Band 4), RX 428.25 / TX 438.25 MHz | ✅ |
 
-### 4.2 M2 — MS bucht sich ein 🔴
+### 4.2 M2 — MS bucht sich ein ✅
 
 | Substep | Status |
 |---------|--------|
 | M2.1 SCH/HU Channel-Decoding | ✅ `tetra_ul_sch_hu_decoder.v` + `tetra_ul_viterbi_r14.v` (ETSI-konform), HW-verifiziert |
-| M2.2 MAC Layer (MAC-RESOURCE Builder + AST) | ✅ `tetra_mac_resource_dl_builder.v` + `tetra_active_session_table.v` existieren. ❌ `tetra_mac_fragment.v` fehlt (nicht blockierend für kurze Accept-PDUs). |
-| M2.3 MLE Registration FSM + D-LOC-UPDATE-Encoder | ✅ Module da (`tetra_mle_registration_fsm.v`, `tetra_d_location_update_encoder.v`). ❌ `tetra_subscriber_shadow.v` Permit-Lookup fehlt. MS registriert nicht trotz 9 Bug-Fixes — siehe PROTOCOL.md für Tiefen-Audit. |
-| M2.4 Per-Slot TX-Content-Mux | ✅ `tetra_slot_content_mux.v` + `tetra_dl_signal_queue.v` + `tetra_dl_signal_scheduler.v` (Refactor 2026-04-23, branch `refactor/dl-signal-arch`) |
-| M2.5 SYSINFO Frame-Counter im RTL | ⚠️ Teilweise — `tx_frame_cnt_sys` läuft frei, aber Frame-Nummer wird aus SW geschrieben (soll in TDMA-Timebase-Umbau migrieren, siehe §5) |
-| M2.6 DL-Signal-Queue/Scheduler | ✅ Refactor Queue+Scheduler (Lock-Spec validiert: 10 UL-RA → 10 MLE-accept → 10 sig_override ohne Drop) |
+| M2.2 MAC Layer (MAC-RESOURCE Builder + AST) | ✅ `tetra_mac_resource_dl_builder.v` + `tetra_active_session_table.v` |
+| M2.3 MLE Registration FSM + D-LOC-UPDATE-Encoder | ✅ Two-Phase-Attach (SCH/HD AL-SETUP + SCH/F BL-ADATA), 102-bit MM body bit-exakt zur Gold-Ref, ra_flag=0 im Accept |
+| M2.4 Per-Slot TX-Content-Mux | ✅ `tetra_slot_content_mux.v` + `tetra_dl_signal_queue.v` + `tetra_dl_signal_scheduler.v` (Refactor 2026-04-23) + `sched_active_sys` Bus für AACH-Override (2026-04-25) |
+| M2.5 SYSINFO Frame-Counter im RTL | ⚠️ Teilweise — `tx_frame_cnt_sys` läuft frei, aber Frame-Nummer wird aus SW geschrieben (siehe §5) |
+| M2.6 DL-Signal-Queue/Scheduler | ✅ Lock-Spec validiert + AACH dynamic Unalloc/Unalloc + 1-Frame Pre-Reply→Accept-Gap |
+| M2.7 UL-Parser bluestation-aligned | ✅ 2-bit addr_type + 24-bit ISSI (Commit `eeabf1f`..`1f1ec3a`) |
+| M2.8 MLE-FSM mm_type=2 als U-LOC-UPDATE-DEMAND | ✅ Commit `545cc50` — `MmPduTypeUl` ist UL-PDU-Type-Authority |
+| M2.9 MM-Body bit-exakter Gold-Ref-Replay | ✅ Commit `26191b4` — 102-bit, GILA mit GSSI=0x2F4D61 |
 
-**Offener Blocker (2026-04-25):** Two-Phase-Attach-Flow + 24-Bit-ISSI-Adressierung deployed. Gold-Reference-Capture einer fremden BS (`docs/references/captures_external_bs_2026-04-25/`) als Bit-genaue Vorlage gesichert. Restliche Lücken sind die LMAC-Strukturen (NR/NS-Tracking, UL-BL-ACK-Pfad, Retransmit-Loop, Subscriber-Shadow) — siehe `PROTOCOL.md §9.1`.
+**Verifikation (2026-04-25 12:18 ZULU, Build `26191b4`):** `tetra_ul_mon.log`
+zeigt 1 Demand-Fragment vom MTP3550, dann Stille. AXI-Counter
+`0x190 = 0x0001_0001` (1:1 Demand→Accept), `0x198 = 0x0000_0002` (Pre-Reply
++ Accept on-air). Vorher (Build `b994e5d`): 8+ Demand-Retries pro 90 s,
+Re-Demand-Loop. Siehe `PROTOCOL.md §9` für komplette Wegfindung.
 
 ### 4.3 M3 — Gruppenruf ⏳ (Plan)
 
@@ -391,17 +398,27 @@ Eintrag-Format (16 bit):
 | 2026-04-25 | 24-bit ISSI nicht durch CDC propagiert | `rtl/tetra_zynq_top.v` | `26035a9` |
 | 2026-04-25 | MLE-FSM adressierte mit short_ssi statt 24-bit ISSI | `rtl/lmac/tetra_mle_registration_fsm.v` | `4ccbed8` — `lat_ssi[23:0]` + `lat_accept_info_bits[251:228]` carry full ISSI |
 | 2026-04-25 | TB-Coverage für ISSI-Pfad | `tb/tb_ul_mac_access_parser.v` + `tb/tb_mle_registration_fsm.v` | `1f1ec3a` — externe-BS- + MTP3550-on-air-Vektoren, 31/31 + 6/6 PASS |
+| 2026-04-25 | UL-MM-Type-Filter mismatch | `rtl/tetra_zynq_top.v` | `545cc50` — mm_type=2 (= U-LOC-UPDATE-DEMAND per `MmPduTypeUl`) als Trigger akzeptiert (DL-Tabelle hatte =4 erwartet) |
+| 2026-04-25 | AACH statisch + Pre-Reply→Accept Gap fehlte | `rtl/tx/tetra_aach_encoder.v`, `rtl/lmac/tetra_dl_signal_scheduler.v`, `rtl/lmac/tetra_mle_registration_fsm.v` | `b994e5d` — dynamic AACH Unalloc/Unalloc + 1-Frame Gap S_WAIT_GAP_FRAME |
+| 2026-04-25 | MM-Body-Inhalt nicht bit-exakt zur Gold-Ref | `rtl/lmac/tetra_d_location_update_encoder.v` + `rtl/lmac/tetra_mle_registration_fsm.v` | `26191b4` — 102-bit MM body bit-exakt, GILA mit GSSI=0x2F4D61, ra_flag=0 im Accept → **MTP3550 attached** |
 
-### 7.1 Offene Blocker (Stand 2026-04-25)
+### 7.1 M2 erreicht (2026-04-25 12:18 ZULU)
 
-Siehe `PROTOCOL.md §9.1` — verbleibende Lücken sind die LMAC-Strukturen:
-- MM-Body-Größe LI=11 statt LI=21 (address_extension=MNI, subscriber_class, energy_saving_info=StayAlive fehlen)
-- `tetra_subscriber_shadow.v` fehlt (kein permit/LA/home-cell-Lookup)
-- Kein NR/NS-Tracking pro MS
-- Kein UL-BL-ACK-Empfangspfad
-- Kein Retransmit-Loop
+MTP3550 ITSI-Attach erfolgreich auf Build `26191b4`. Counter-Beweis direkt
+nach Deploy: `0x190 = 0x0001_0001` (1 Demand → 1 Accept, 1:1), kein Retry-Loop.
 
-**Verifikation der 2026-04-25-Fixes ist im laufenden Build+Deploy** — MS-Verhalten wird beobachtet, um zu sehen, ob das Accept jetzt mit der echten ISSI 2 633 617 statt Artefakt 523 angenommen wird.
+Details + Bit-Walk: `PROTOCOL.md §9` und
+`docs/references/captures_external_bs_2026-04-25/`.
+
+### 7.2 Offene Lücken zu M3 (Group Call/Voice)
+
+Diese sind für M2 nicht relevant gewesen, werden aber für M3 gebraucht:
+- `tetra_subscriber_shadow.v` fehlt (kein permit/LA/home-cell-Lookup pro ISSI)
+- Kein NR/NS-Tracking pro MS (Dialog-PDUs)
+- UL-BL-ACK wird parsed, MLE-FSM ignoriert noch
+- Kein Retransmit-Loop für verlorene DL-PDUs
+- Group-Identity-Attach (echter Path mit dynamischer GILA aus Subscriber-DB)
+- Voice-Pfad (CMCE D-SETUP/D-CONNECT, ACELP)
 
 ---
 
@@ -422,7 +439,7 @@ Woche 16-19: M4 — Einzelrufe + Paging
 
 | # | Risiko | Impact | Mitigation |
 |---|--------|--------|------------|
-| 1 | **MS-Registration-Blocker** — historisch unklar; seit 2026-04-25 Gold-Ref-Capture (fremde BS @ 392.9875 MHz) als bit-genaue Vorlage; ISSI-Adressierungs-Bug behoben (Parser-Layout); offen: LI=21 Body + LMAC-Strukturen | Blockiert M2-Abschluss | Gold-Ref + bluestation als parallele Referenzen, MM-Body auf LI=21 erweitern |
+| 1 | ~~MS-Registration-Blocker~~ ✅ **gelöst 2026-04-25 12:18** durch bit-exakten Gold-Ref MM-Body-Replay (Build `26191b4`) | M2 abgeschlossen | — |
 | 2 | FDD RF-Isolation — TX desensibilisiert RX bei Single-Antenna | Reduzierte RX-Empfindlichkeit | Duplexer oder 2 Antennen mit Abstand (Lab: 2 Antennen 10 cm) |
 | 3 | UL Timing Advance — MS sendet Burst zu früh/spät | Sync-Fenster-Miss | Sync-Fenster breit (±2 Symbole), bereits implementiert |
 | 4 | CUB-Erkennung — kurzer Burst (127 sym), 2 sym Guard | RA-Miss | NTS-Threshold angepasst, Holdoff kurz (verifiziert 41/42) |

@@ -1,7 +1,7 @@
 # OPERATIONS — Deploy, Test, Troubleshooting
 
 **Projekt:** tetra-zynq-phy (LibreSDR, Zynq-7020 + AD9361)
-**Zuletzt aktualisiert:** 2026-04-25
+**Zuletzt aktualisiert:** 2026-04-25 (M2 erreicht)
 
 Ersetzt: `deployment_guide.md`, `deploy_workflow.md`, `test_results.md`,
 `sim_results.txt`, `test_results_raw.txt`.
@@ -281,9 +281,12 @@ Bisherige Builds mit WNS bis −0.3 ns hatten on-air keinen Impact. Für Product
 | 2026-04-23 22:15 | `a37e818b…` | Bug #8 (LocAccType echoed) | ✅ decode_dl zeigt `LocAccType=3 ITSI attach` |
 | 2026-04-23 22:44 | `c656c9b5…` | Bug #9 (FCS osmo-style TL-SDU-only + pre-shift) | ✅ on-air FCS=0xB0A53869 matched osmo |
 | 2026-04-24 | `2c8ad4a` | Two-Phase-Attach (SCH/HD AL-SETUP LI=7 + SCH/F BL-ADATA LI=21) | ✅ matcht Gold-Ref Burst #727+#735 strukturell |
-| 2026-04-25 | `eeabf1f`..`1f1ec3a` (6 Commits) | 24-bit ISSI Pfad — Parser + AXI + CDC + MLE-FSM + SW + TBs | ⏳ Build+Deploy läuft, MS-Verhalten zu beobachten |
+| 2026-04-25 02:34 | `eeabf1f`..`1f1ec3a` | 24-bit ISSI Pfad — Parser + AXI + CDC + MLE-FSM + SW + TBs | ✅ on-air ISSI 0x282F91 sichtbar, kein 523 mehr |
+| 2026-04-25 03:17 | `545cc50` | MLE trigger: mm_type=2 (= U-LOC-UPDATE-DEMAND per `MmPduTypeUl`) | ✅ accept_cnt 0→53, Accepts on-air |
+| 2026-04-25 05:10 | `b994e5d` | AACH dynamic Unalloc/Unalloc + 1-Frame Pre-Reply→Accept Gap | ✅ AACH SCH/F bit-exakt zur Gold-Ref, 1× BL-ACK NR=0 vom MS |
+| 2026-04-25 12:18 | `26191b4` | MM-Body bit-exakte Gold-Ref-Replik (102 bit, GILA GSSI=0x2F4D61) + ra_flag=0 im Accept | ✅ **MTP3550 ITSI-Attach erfolgreich** — 1:1 Demand→Accept, kein Retry-Loop |
 
-Offen: MTP3550-Registration. Erwartung 2026-04-25-Build: Accept landet auf-Air mit ISSI 2 633 617 statt Artefakt 523. Nächste Iteration: MM-Body LI=21 erweitern (siehe `PROTOCOL.md §9.4`).
+**Status: M2 erreicht.** Counter-Beweis nach Deploy `26191b4`: `0x190 = 0x0001_0001` (1 Demand → 1 Accept), keine erneuten Demands. Nächste Iteration: M3 (Group Call/Voice).
 
 ### Gold-Reference-Capture (2026-04-25)
 

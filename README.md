@@ -19,11 +19,17 @@ Referenz-Standard: **ETSI EN 300 392-2** (TETRA V+D Air Interface).
 | Meilenstein | Ziel | Status |
 |-------------|------|--------|
 | **M1** | MS sieht BS, RACH sichtbar | ✅ HW-verifiziert (MTP3550, 41/42 CRC-OK) |
-| **M2** | MS bucht sich ein | 🟡 Gold-Reference-Capture einer fremden TETRA-BS + erfolgreichem Attach gesichert (`docs/references/captures_external_bs_2026-04-25/`); Two-Phase-Attach-Flow (AL-SETUP SCH/HD + BL-ADATA SCH/F, Commit 2c8ad4a) + 24-Bit-ISSI-Parser-Fix (6 Commits eeabf1f→1f1ec3a) deployed — Erwartung: MS sieht Accept jetzt adressiert zu ihrer realen ISSI statt Parser-Artefakt 523 |
+| **M2** | MS bucht sich ein | ✅ **HW-verifiziert 2026-04-25 12:18 ZULU** (MTP3550 ITSI-Attach erfolgreich, Build `26191b4`, 1:1 Demand→Accept ohne Retry-Loop) |
 | **M3** | Gruppenruf mit Voice-Relay | ⏳ Plan (RTL-basiert) |
 | **M4** | Einzelrufe + Paging | ⏳ Plan |
 
-**Aktueller Hauptblocker gelockert (2026-04-25):** Gold-Capture @ 392.9875 MHz zeigt, dass die Real-BS das Accept an die **echte 24-bit-ISSI** aus der MAC-ACCESS-RA adressiert (bluestation-Layout: 2-bit addr_type + 24-bit SSI). Unser UL-Parser las stattdessen 10 bits ab falscher Offset → auf-Air landete 523 statt 2 633 617. Fix durch den gesamten Stack (Parser → AXI → CDC → MLE-FSM → SW-Monitor) deployed. Build+Deploy laufen, MS-Verhalten als nächstes zu beobachten. Details in `docs/PROTOCOL.md` §9.
+**M2 erreicht (2026-04-25 12:18):** Bit-exakte Replik des D-LOCATION-UPDATE-ACCEPT MM-Body aus dem 2026-04-25 Gold-Reference-Capture einer fremden BS bei 392.9875 MHz (`docs/references/captures_external_bs_2026-04-25/`) hat den Re-Demand-Loop gebrochen. Schlüssel-Fixes (Build `26191b4`):
+- 102-bit MM body: `p_ssi=0`, `p_ae=0`, `p_sc=0`, `p_esi=1` (ESI=StayAlive), Type-3 GroupIdentityLocationAccept (id=5, length=58) mit der bit-exakten Gold-Ref-GILA (GSSI=0x2F4D61, attach_lifetime=1, class_of_usage=4)
+- `random_access_flag=0` im SCH/F Accept (Pre-Reply behält RA=1)
+
+Counter-Beweis nach Deploy: `0x190 = 0x0001_0001` (1 Demand → 1 Accept, 1:1), `0x198 = 0x0000_0002` (Pre-Reply + Accept on-air), keine Drops, kein erneutes Demand. Vorher: 72 Demands → 53 Accepts → endlose Retries.
+
+Details in `docs/PROTOCOL.md §9` und `docs/references/captures_external_bs_2026-04-25/README.md`.
 
 ---
 
