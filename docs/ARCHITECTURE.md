@@ -451,7 +451,161 @@ Woche 16-19: M4 — Einzelrufe + Paging
 
 ---
 
-## 9. Referenzen
+## 9. Subscriber-DB / Active Sessions / Profile-Architektur (Phase 6, post-M2)
+
+Für M2-Hardening und M3-Vorbereitung. Trennt persistente Subscriber-/Group-
+Whitelist (geändert vom Operator) von volatiler Session-State (geändert
+von BS-FSMs).
+
+### 9.1 Datenmodell — drei Tabellen
+
+| Tabelle | Größe | BRAM | Wer schreibt | Inhalt |
+|---------|-------|------|--------------|--------|
+| **Entity Table** | 256 × 64 bit | 1 BRAM18k | ARM (AXI indirect window 0x180..0x18C) | Persistente Liste aller bekannten ISSI/GSSI mit `profile_id` |
+| **Profile Table** | 6 × 32 bit | LUT-RAM | ARM (AXI) | Berechtigungs-Sets (permit/priority/timing) |
+| **AST + Group-Cache** | 64 × 256 bit | 1 BRAM18k | MLE-FSM (volatile) | Aktive Sessions: ISSI + last_seen + bis 8 akzeptierte GSSIs + state |
+
+Total: **2 BRAM18k** von 140 verfügbar auf Zynq-7020.
+
+### 9.2 Record-Layouts
+
+**Entity Table (64 bit):**
+
+```
+[63:40]  entity_id     24    ISSI ODER GSSI
+[39]     entity_type    1    0=ISSI, 1=GSSI
+[38:35]  profile_id     4    Index in Profile Table (0..5)
+[34: 1]  reserved      34
+[ 0]     valid          1
+```
+
+**Profile Table (32 bit, 6 Slots):**
+
+```
+[31:24]  max_call_duration  8    Sekunden, 0=unlimited, max 255 s
+[23:16]  hangtime           8    × 100 ms, max 25.5 s
+[15:12]  priority           4
+[11: 4]  reserved           8    (encryption_class, dispatcher_allowed später)
+[ 3]     permit_voice       1
+[ 2]     permit_data        1
+[ 1]     permit_reg         1
+[ 0]     valid              1
+```
+
+Profile 0 = "minimal-permit" (`permit_reg=1`, alles andere 0) — Default
+für Auto-Enrollment unbekannter ISSIs/GSSIs.
+
+**AST (256 bit, 64 Slots):**
+
+```
+[255:232]  ISSI                  24
+[231:208]  last_seen_multiframe  24    24-bit-Counter, rollover ≈ 197 Tage
+[207:200]  shadow_idx             8    Backref Entity Table
+[199:196]  state                  4    0=FREE, 1=REG, 2=CALL_SETUP, 3=VOICE, 4=PAGING
+[195:192]  group_count            4    0..8 gültige GSSIs
+[191:  0]  group_list[8]        192    8 × 24 bit GSSI
+```
+
+### 9.3 Datenfluss
+
+**Attach (UL `U-LOC-UPDATE-DEMAND`):**
+
+```
+1. Entity.query(ISSI, type=ISSI) → record + profile_id
+   Profile.lookup(profile_id) → permit_reg?
+     ├─ permit_reg=0 → REJECT (D-LOC-UPDATE-REJECT)
+     └─ permit_reg=1 → continue
+2. Falls miss UND REG_DB_POLICY[0] (accept_unknown)=1:
+     Entity.alloc → write {ISSI, profile_id=0, valid=1}
+3. (Optional) MS sendet GSSI-Liste über LocUpdate-Demand-IE
+   `group_identity_location_demand` ODER separates
+   `U-ATTACH-DETACH-GROUP-IDENTITY`.
+   Pro vom MS gewünschter GSSI:
+     Entity.query(GSSI, type=GSSI) → profile_id
+     Profile.lookup(profile_id) → permit_voice/data → accept_or_reject
+4. AST.query(ISSI):
+     hit  → reuse slot, update last_seen, group_list
+     miss → AST.alloc → AST.write {ISSI, last_seen=now, state=REG, groups[]}
+5. Build D-LOC-UPDATE-ACCEPT mit GILA aus AST-group_list (nicht hardcoded)
+6. Send AL-SETUP (SCH/HD) + Accept (SCH/F) two-phase (wie M2)
+```
+
+**Detach (UL `U-ITSI-DETACH`, mm_type=1):**
+
+```
+AST.query(ISSI):
+  hit  → AST.write(slot, valid=0)  + counter mle_detach_cnt++
+  miss → ignore (MS detached without ever attached)
+Kein DL-ACK (ETSI: ITSI-DETACH ist one-way).
+Entity Table NICHT angefasst — Subscriber bleibt berechtigt.
+```
+
+**TTL-Sweep (jede Multiframe = 1.02 s, neue FSM `tetra_ast_ttl_sweeper.v`):**
+
+```
+Free-running 24-bit Multiframe-Counter `now`.
+For each AST slot where valid=1:
+  if (now - last_seen) > REG_AST_TTL_MULTIFRAMES (default 84706 ≈ 24h):
+    AST.write(slot, valid=0)
+```
+
+`last_seen` wird bei JEDER UL-Aktivität dieser ISSI aktualisiert (Demand,
+BL-ACK, MAC-U-BLCK, U-RELEASE, U-DETACH selbst), nicht nur beim Attach.
+
+### 9.4 Empirie zur TTL-Wahl (2026-04-25 Beobachtung)
+
+MTP3550 sendet **keine periodischen Updates** im Idle. Beobachtungs-Session
+12:18..14:22 zeigte:
+- 5 Demands bei 5 Power-Cycles
+- ~1.5 h Stille zwischen den Cycles
+- keine spontanen Re-Registrations
+
+→ TTL=24h als Default ist deutlich konservativer als "MS wirklich verloren",
+und passt zu ETSI `T354 REGISTRATION_TIMER` (auch 24h-default).
+
+### 9.5 AXI-Lite Konfiguration (neue Regs)
+
+| Reg | Felder | Default | Funktion |
+|-----|--------|---------|----------|
+| `0x180..0x18C` | bestehend | — | Entity Table indirect window |
+| (neu) Profile Table indirect window | im 0x18x-Block | — | ARM schreibt Profile |
+| `0x1A4` | `[15:0]` mle_detach_cnt | 0 | Diagnose |
+| `0x1A8` | `[31:0]` ast_ttl_multiframes | 84706 (≈24h) | TTL-Schwelle |
+| `0x1AC` | `[0]` accept_unknown<br>`[1]` auto_enroll_default_profile | 1, 0 | Policy |
+
+### 9.6 Operator-Schnittstelle
+
+**ARM-Daemon `tetra_web`** (mongoose-basierter Mini-HTTP-Server):
+
+| Endpoint | Funktion |
+|----------|----------|
+| `GET /api/entities` | Dump aller Subscriber/Groups |
+| `POST /api/entities` | Add/Update mit `{entity_id, type, profile_id}` |
+| `DELETE /api/entities/{ID}` | Entry invalidieren |
+| `GET /api/profiles` | Profile-Liste |
+| `POST /api/profiles/{ID}` | Profile-Update |
+| `GET /api/sessions` | Live-AST-Dump (über AXI) |
+| `GET /` | statisches `index.html` mit JS-Frontend |
+
+Persistenz: `/var/lib/tetra/entities.tsv`, `/var/lib/tetra/profiles.tsv`.
+`inotify`-Watcher → bei Datei-Änderung sofortiger BRAM-Sync (z.B. SSH-Edit
+schreibt sofort durch).
+
+### 9.7 Roadmap (Phasen)
+
+| Phase | Inhalt | Aufwand |
+|-------|--------|---------|
+| **A** | Shadow-Lookup-Pfad in MLE-FSM, Permit-Check, Auto-Enroll | ~1 Tag |
+| **B** | Detach-Pfad + AST-Erweiterung last_seen 8→24 bit | ~½ Tag |
+| **C** | TTL-Sweep FSM (`tetra_ast_ttl_sweeper.v`) | ~½ Tag |
+| **D** | GILA-Encoder mit GSSI/lifetime/class aus Lookup statt hardcoded | ~1 Tag |
+| **E** | WebUI + inotify-Watcher | ~1 Tag SW |
+
+Total ~3–4 Tage RTL+SW.
+
+---
+
+## 10. Referenzen
 
 - `docs/HARDWARE.md` — Plattform, AD9361, AXI-Regs, CDC, Timing
 - `docs/PROTOCOL.md` — TETRA-Protokoll, ETSI-Referenz, bluestation-Vergleich
