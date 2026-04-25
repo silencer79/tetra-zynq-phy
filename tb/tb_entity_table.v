@@ -28,6 +28,7 @@ module tb_entity_table;
     reg                       q_type  = 1'b0;
     reg                       q_match_type        = 1'b0;
     reg                       q_default_gssi_scan = 1'b0;
+    reg                       q_alloc             = 1'b0;
     wire                      q_busy;
     wire                      q_done;
     wire                      q_hit;
@@ -52,6 +53,7 @@ module tb_entity_table;
         .q_type  (q_type),
         .q_match_type        (q_match_type),
         .q_default_gssi_scan (q_default_gssi_scan),
+        .q_alloc             (q_alloc),
         .q_busy  (q_busy),
         .q_done  (q_done),
         .q_hit   (q_hit),
@@ -101,9 +103,25 @@ module tb_entity_table;
             q_type              <= etype;
             q_match_type        <= match_type;
             q_default_gssi_scan <= default_gssi;
+            q_alloc             <= 1'b0;
             q_start             <= 1'b1;
             @(posedge clk);
             q_start             <= 1'b0;
+        end
+    endtask
+
+    task automatic do_alloc;
+        begin
+            @(posedge clk);
+            q_id                <= 24'd0;
+            q_type              <= 1'b0;
+            q_match_type        <= 1'b0;
+            q_default_gssi_scan <= 1'b0;
+            q_alloc             <= 1'b1;
+            q_start             <= 1'b1;
+            @(posedge clk);
+            q_start             <= 1'b0;
+            q_alloc             <= 1'b0;
         end
     endtask
 
@@ -267,6 +285,20 @@ module tb_entity_table;
             $display("[T%0d reserved_zero] PASS reserved bits all zero",
                      test_count);
         end
+
+        // ----- T17: alloc mode finds first free slot (slot 1, after T11
+        //            invalidated it).  Slot 0/2/17/200 still occupied; we
+        //            verify alloc returns slot 1 (not 100, since T13 cleared
+        //            slot 100 too — actually slot 1 was cleared first).
+        do_alloc; wait_done;
+        check("alloc_finds_first_free", 1'b1, 8'd1);
+
+        // ----- T18: write the alloc'd slot, alloc again finds NEXT free -----
+        write_rec(8'd1, pack_rec(24'h111111, 1'b0, 4'd0, 1'b1));
+        do_alloc; wait_done;
+        // Slot 0/1/2/17/200 all valid now. Slot 100 was invalidated in T13.
+        // Alloc should return slot 3 (lowest free index).
+        check("alloc_finds_next_free_after_write", 1'b1, 8'd3);
 
         // ----- Summary -----
         $display("=============================================");

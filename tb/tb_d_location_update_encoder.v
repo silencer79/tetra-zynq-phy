@@ -16,6 +16,11 @@ module tb_d_location_update_encoder;
     reg  [23:0] address_extension = 24'h000000;
     reg  [13:0] energy_saving_info = 14'h0000;
     reg  [2:0]  loc_acc_type = 3'd0;  // Bug #8 — dynamic accept type
+    // Phase 6 D-rev — dynamic GILA inputs (default M2 values).
+    reg  [23:0] gila_gssi     = 24'h2F4D61;
+    reg  [2:0]  gila_class    = 3'b100;  // = 4
+    reg  [1:0]  gila_lifetime = 2'b01;   // = 1
+    reg         gila_present  = 1'b1;
     wire [123:0] pdu_bits;
     wire [127:0] pdu_bits_mm;
     wire [7:0]   pdu_len_bits;
@@ -32,6 +37,10 @@ module tb_d_location_update_encoder;
         .address_extension (address_extension),
         .energy_saving_info(energy_saving_info),
         .loc_acc_type      (loc_acc_type),
+        .gila_gssi         (gila_gssi),
+        .gila_class        (gila_class),
+        .gila_lifetime     (gila_lifetime),
+        .gila_present      (gila_present),
         .pdu_bits          (pdu_bits),
         .pdu_bits_mm       (pdu_bits_mm),
         .pdu_len_bits      (pdu_len_bits)

@@ -69,6 +69,28 @@ module tetra_d_location_update_encoder (
     // Location-update-type the MS sent in U-LOC-UPDATE-DEMAND (§16.10.37).
     input  wire [2:0]   loc_acc_type,
 
+    // ----------------------------------------------------------------------
+    // Phase 6 D-rev — dynamic GILA inputs (§9.3 Multi-Lookup attach flow).
+    //   gila_gssi      24-bit GSSI emitted into the GroupIdentityDownlink
+    //                   entry.  Sourced from EntityTable default-GSSI scan
+    //                   when AST.group_count==0 (which is always the case
+    //                   in Phase D — RX IE parser is M3 scope).
+    //   gila_class      3-bit class_of_usage (M2-default = 4 = 3'b100).
+    //   gila_lifetime   2-bit lifetime field (M2-default = 1 = 2'b01).
+    //   gila_present    1 = include GILA Type-3 element (default M2 path),
+    //                   0 = omit GILA entirely (no default GSSI in cell;
+    //                       MM body shrinks from 102 to 36 bits).
+    //
+    // For M2 bit-identity guard (Profile 0 + GSSI 0x2F4D61 + class=4 +
+    // lifetime=1) the encoder must produce the SAME 102-bit MM body as the
+    // pre-D constant — verified bit-for-bit in tb_mle_registration_fsm
+    // (profile0_m2_guard test case).
+    // ----------------------------------------------------------------------
+    input  wire [23:0]  gila_gssi,
+    input  wire [2:0]   gila_class,
+    input  wire [1:0]   gila_lifetime,
+    input  wire         gila_present,
+
     // Legacy output — 124-bit PDU, [123] first bit on air.  Retained for the
     // loopback TB.
     output wire [123:0] pdu_bits,
@@ -100,44 +122,112 @@ module tetra_d_location_update_encoder (
     //
     //   accept_reject(1)  reserved(1)  obit(1)
     //     m-bit(1)+id=7(4)+length=38(11)+num_elems=1(6)
-    //       attach_type=0(1) lifetime=01(2) class=100(3) addr_type=00(2)
-    //       gssi=0x2F4D61(24)
+    //       attach_type=0(1) lifetime(2) class(3) addr_type=00(2) gssi(24)
     //   trailing m-bit(1)
     //
-    //   Bit pattern: 0011011100000100110000001001100000010111101001101011000010
+    // Phase 6 D-rev — payload is now constructed from `gila_gssi`,
+    // `gila_class`, `gila_lifetime` inputs (driven by the MLE-FSM from
+    // EntityTable+ProfileTable lookup results).  M2 bit-identity guard:
+    // for {gssi=0x2F4D61, class=4, lifetime=1} the constructed payload is
+    // bit-identical to the pre-D constant
+    //   58'b0011011100000100110000001001100000010111101001101011000010.
     //
-    // The external BS used GSSI=0x2F4D61 + lifetime=1 + class=4 for the
-    // attached MS in this capture.  We replay it verbatim — see
-    // ~/.claude/.../memory/reference_gold_attach_bitexact.md for the spec.
+    // See ~/.claude/.../memory/reference_gold_attach_bitexact.md for the
+    // gold-ref bit pattern.
     // -------------------------------------------------------------------------
-    localparam [57:0] GILA_PAYLOAD =
-        58'b0011011100000100110000001001100000010111101001101011000010;
+    wire [57:0] GILA_PAYLOAD_W = {
+        // accept_reject(0) + reserved(0) + o-bit(1)
+        3'b001,
+        // m-bit(1) + elem_id=7(4) + length=38(11)
+        1'b1,
+        T4_ID_GROUP_IDENTITY_DOWNLINK,             // 4 bit (= 7)
+        11'd38,                                    // length
+        // num_elems = 1 (6 bit)
+        6'd1,
+        // GroupIdentityDownlink entry (32 bit):
+        //   attach_detach_type_id (1) + lifetime (2) + class (3) +
+        //   address_type (2) + GSSI (24)
+        1'b0,                                      // attach_detach_type_id
+        gila_lifetime,                             // 2 bit
+        gila_class,                                // 3 bit
+        2'b00,                                     // address_type = gssi only
+        gila_gssi,                                 // 24 bit
+        // trailing m-bit (GILA itself)
+        1'b0
+    };
     localparam [10:0] GILA_LENGTH = 11'd58;
 
     // -------------------------------------------------------------------------
-    // 102-bit MM body, MSB-aligned in [127:26].  Bits [25:0] are padding
-    // (zeroed out for cleanliness; the wrapper looks at pdu_len_bits anyway).
+    // MM body — variable length depending on `gila_present`:
+    //   GILA present  (default): 102 bit  — Type-3 GILA emitted, M2-compat.
+    //   GILA absent:               36 bit  — Type-3 m-bit clears, no GILA.
+    //
+    // Both forms are MSB-aligned in [127].  pdu_len_bits gates how many
+    // bits the MAC-RESOURCE wrapper embeds; the trailing zeros are
+    // padding.
+    //
+    // Bit positions when GILA present (verbatim §16.10.x layout):
+    //   [127:124]  PDU type        4
+    //   [123:121]  loc_acc_type    3
+    //   [120]      o-bit           1   = 1
+    //   [119:117]  p-bits SSI/AE/SC each = 0 (3 bit)
+    //   [116]      p-bit ESI       1   = 1
+    //   [115:102]  ESI            14
+    //   [101]      p-bit SCCH-info 1   = 0
+    //   [100]      m-bit T3        1   = 1 (GILA follows)
+    //   [ 99: 96]  T3 elem_id      4   = 5
+    //   [ 95: 85]  T3 length      11   = 58
+    //   [ 84: 27]  GILA payload   58
+    //   [ 26]      trailing m-bit  1   = 0
+    //   [ 25:  0]  padding        26
+    //
+    // Bit positions when GILA absent:
+    //   [127:124]  PDU type        4
+    //   [123:121]  loc_acc_type    3
+    //   [120]      o-bit           1   = 1
+    //   [119:117]  p-bits SSI/AE/SC each = 0 (3 bit)
+    //   [116]      p-bit ESI       1   = 1
+    //   [115:102]  ESI            14
+    //   [101]      p-bit SCCH-info 1   = 0
+    //   [100]      m-bit T3        1   = 0 (no GILA)
+    //   [ 99]      trailing m-bit  1   = 0
+    //   [ 98:  0]  padding        99
     // -------------------------------------------------------------------------
-    localparam [7:0] MM_PDU_LEN = 8'd102;
-
-    assign pdu_bits_mm = {
-        pdu_type_w,                                // [127:124]   4   PDU type
-        loc_acc_type,                              // [123:121]   3   accept type
-        1'b1,                                      // [120]       o-bit
-        1'b0,                                      // [119]       p_ssi             = 0
-        1'b0,                                      // [118]       p_address_extension = 0
-        1'b0,                                      // [117]       p_subscriber_class  = 0
-        1'b1,                                      // [116]       p_energy_saving_info = 1
-        energy_saving_info,                        // [115:102]  14   ESI (StayAlive default)
-        1'b0,                                      // [101]       p_scch_info        = 0
-        1'b1,                                      // [100]       m-bit (T3 follows)
-        T3_ID_GROUP_IDENTITY_LOCATION_ACCEPT,      // [ 99: 96]   4   id = 5 (GILA)
-        GILA_LENGTH,                               // [ 95: 85]  11   length = 58
-        GILA_PAYLOAD,                              // [ 84: 27]  58   gold-ref GILA payload
-        1'b0,                                      // [ 26]       trailing m-bit (D-LOC-UPD-ACCEPT)
+    wire [127:0] mm_with_gila_w = {
+        pdu_type_w,                                // [127:124]   4
+        loc_acc_type,                              // [123:121]   3
+        1'b1,                                      // [120]
+        1'b0,                                      // [119] p_ssi
+        1'b0,                                      // [118] p_address_extension
+        1'b0,                                      // [117] p_subscriber_class
+        1'b1,                                      // [116] p_energy_saving_info
+        energy_saving_info,                        // [115:102]  14
+        1'b0,                                      // [101] p_scch_info
+        1'b1,                                      // [100] m-bit T3 follows
+        T3_ID_GROUP_IDENTITY_LOCATION_ACCEPT,      // [ 99: 96]   4
+        GILA_LENGTH,                               // [ 95: 85]  11
+        GILA_PAYLOAD_W,                            // [ 84: 27]  58
+        1'b0,                                      // [ 26] trailing m-bit
         26'b0                                      // [ 25:  0]  padding
     };
-    assign pdu_len_bits = MM_PDU_LEN;
+
+    wire [127:0] mm_without_gila_w = {
+        pdu_type_w,                                // [127:124]   4
+        loc_acc_type,                              // [123:121]   3
+        1'b1,                                      // [120]
+        1'b0,                                      // [119] p_ssi
+        1'b0,                                      // [118] p_address_extension
+        1'b0,                                      // [117] p_subscriber_class
+        1'b1,                                      // [116] p_energy_saving_info
+        energy_saving_info,                        // [115:102]  14
+        1'b0,                                      // [101] p_scch_info
+        1'b0,                                      // [100] m-bit T3 = 0 (no GILA)
+        1'b0,                                      // [ 99] trailing m-bit
+        99'b0                                      // [ 98:  0]  padding
+    };
+
+    assign pdu_bits_mm  = gila_present ? mm_with_gila_w  : mm_without_gila_w;
+    assign pdu_len_bits = gila_present ? 8'd102          : 8'd36;
 
     // -------------------------------------------------------------------------
     // Legacy 124-bit PDU — unchanged layout, used by the loopback TB only.

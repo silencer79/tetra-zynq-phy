@@ -1695,9 +1695,9 @@ tetra_axi_lite_regs u_axi_regs (
 // the BRAM still infers.  clk_axi == clk_sys in this design so direct
 // connect is safe.
 // =============================================================================
-// Phase 6 A: Shadow-Lookup-Port wires (MLE-FSM ↔ Shadow)
-wire        mle_shadow_q_start_w;
-wire [23:0] mle_shadow_q_issi_w;
+// Phase 6 D-rev: EntityTable + ProfileTable lookup-port wires
+// (MLE-FSM ↔ EntityTable / ProfileTable).
+wire [2:0]  mle_profile_rd_idx_w;
 
 // Phase 6 B — free-running 24-bit multiframe counter for AST `last_seen`
 // and TTL-Sweep (Phase C).  Increments once per multiframe (~1.02 s),
@@ -1722,19 +1722,46 @@ wire ul_itsi_detach_sys =
     ul_llc_is_mle_mm_w &&
     (ul_llc_mm_pdu_type_w == 4'h1);
 
-tetra_subscriber_shadow #(
-    .DEPTH      (256),
-    .IDX_WIDTH  (8),
-    .REC_WIDTH  (64),
-    .ISSI_WIDTH (24)
-) u_subscriber_shadow (
+// Phase 6 D-rev — EntityTable (replaces Subscriber-Shadow per §9.2).
+// Same AXI-Lite indirect window 0x180..0x18C wires through; the FSM-side
+// `q_*` semantics changed (id+type+match_type+default_gssi_scan+alloc).
+// MLE-FSM lookup-port wires:
+wire        mle_entity_q_start_w;
+wire [23:0] mle_entity_q_id_w;
+wire        mle_entity_q_type_w;
+wire        mle_entity_q_match_type_w;
+wire        mle_entity_q_default_gssi_scan_w;
+wire        mle_entity_q_alloc_w;
+wire        mle_entity_wr_en_w;
+wire [7:0]  mle_entity_wr_idx_w;
+wire [63:0] mle_entity_wr_data_w;
+
+// Mux external (AXI) and internal (MLE Auto-Enroll) write ports onto the
+// EntityTable single write port.  External AXI writes always win on
+// concurrent assertion (operator override).
+wire        et_wr_en_w   = shadow_wr_en_w | mle_entity_wr_en_w;
+wire [7:0]  et_wr_idx_w  = shadow_wr_en_w ? shadow_wr_idx_w
+                                          : mle_entity_wr_idx_w;
+wire [63:0] et_wr_data_w = shadow_wr_en_w ? shadow_wr_data_w
+                                          : mle_entity_wr_data_w;
+
+tetra_entity_table #(
+    .DEPTH    (256),
+    .IDX_WIDTH(8),
+    .REC_WIDTH(64),
+    .ID_WIDTH (24)
+) u_entity_table (
     .clk      (clk_sys),
     .rst_n    (rst_n_sys),
-    .wr_idx   (shadow_wr_idx_w),
-    .wr_data  (shadow_wr_data_w),
-    .wr_en    (shadow_wr_en_w),
-    .q_start  (mle_shadow_q_start_w),
-    .q_issi   (mle_shadow_q_issi_w),
+    .wr_idx   (et_wr_idx_w),
+    .wr_data  (et_wr_data_w),
+    .wr_en    (et_wr_en_w),
+    .q_start  (mle_entity_q_start_w),
+    .q_id     (mle_entity_q_id_w),
+    .q_type   (mle_entity_q_type_w),
+    .q_match_type        (mle_entity_q_match_type_w),
+    .q_default_gssi_scan (mle_entity_q_default_gssi_scan_w),
+    .q_alloc             (mle_entity_q_alloc_w),
     .q_busy   (shadow_q_busy_w),
     .q_done   (shadow_q_done_w),
     .q_hit    (shadow_q_hit_w),
@@ -1762,7 +1789,7 @@ tetra_profile_table #(
     .wr_idx  (profile_wr_idx_w),
     .wr_data (profile_wr_data_w),
     .wr_en   (profile_wr_en_w),
-    .rd_idx  (3'd0),                  // tied to slot 0 until D.4
+    .rd_idx  (mle_profile_rd_idx_w),  // Phase 6 D-rev — wired to MLE-FSM
     .rd_data (profile_rd_data_w)
 );
 
@@ -1939,13 +1966,23 @@ tetra_mle_registration_fsm #(
     .cfg_address_extension ({cell_cfg_mcc_sys_r1, cell_cfg_mnc_sys_r1}),
     .cfg_subscriber_class  (16'hFFFF),
     .cfg_energy_saving_info(14'h0000),
-    // Phase 6 A — Subscriber-Shadow lookup + permit policy
-    .shadow_q_start   (mle_shadow_q_start_w),
-    .shadow_q_issi    (mle_shadow_q_issi_w),
-    .shadow_q_busy    (shadow_q_busy_w),
-    .shadow_q_done    (shadow_q_done_w),
-    .shadow_q_hit     (shadow_q_hit_w),
-    .shadow_q_record  (shadow_q_record_w),
+    // Phase 6 D-rev — EntityTable Multi-Lookup + ProfileTable + accept_unknown
+    .entity_q_start              (mle_entity_q_start_w),
+    .entity_q_id                 (mle_entity_q_id_w),
+    .entity_q_type               (mle_entity_q_type_w),
+    .entity_q_match_type         (mle_entity_q_match_type_w),
+    .entity_q_default_gssi_scan  (mle_entity_q_default_gssi_scan_w),
+    .entity_q_alloc              (mle_entity_q_alloc_w),
+    .entity_q_busy               (shadow_q_busy_w),
+    .entity_q_done               (shadow_q_done_w),
+    .entity_q_hit                (shadow_q_hit_w),
+    .entity_q_slot               (shadow_q_slot_w),
+    .entity_q_record             (shadow_q_record_w),
+    .entity_wr_en                (mle_entity_wr_en_w),
+    .entity_wr_idx               (mle_entity_wr_idx_w),
+    .entity_wr_data              (mle_entity_wr_data_w),
+    .profile_rd_idx              (mle_profile_rd_idx_w),
+    .profile_rd_data             (profile_rd_data_w),
     .accept_unknown   (db_policy_accept_unknown_sys_r1),
     // Phase 6 B — Detach pulse + multiframe counter for AST last_seen
     .ul_detach_valid  (ul_itsi_detach_sys),

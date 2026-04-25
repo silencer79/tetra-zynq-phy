@@ -112,20 +112,47 @@ module tetra_mle_registration_fsm #(
     input  wire [AST_REC_WIDTH-1:0]    ast_q_record,
 
     // -----------------------------------------------------------------
-    // Subscriber-Shadow lookup port (Phase 6 A — permit-check).
-    // FSM scans the 256×64-bit BRAM for the incoming ISSI before
-    // accepting the registration.  Record layout per
-    // `rtl/lmac/tetra_subscriber_shadow.v`:
-    //     [63:40] ISSI / [39:26] LA / [25:8] reserved
-    //     [7] permit_voice / [6] permit_data
-    //     [5] permit_reg / [4:1] priority / [0] valid
+    // EntityTable lookup port (Phase 6 D-rev — §9.2/§9.3 Multi-Lookup).
+    // FSM scans the 256×64-bit BRAM for the incoming ISSI/GSSI before
+    // accepting the registration.  Three lookup modes:
+    //   match_type=1, default_gssi_scan=0 → strict (id, type) match
+    //   match_type=0, default_gssi_scan=0 → id-only match (legacy path)
+    //   default_gssi_scan=1               → first valid entity_type=1
+    //
+    // Record layout per rtl/lmac/tetra_entity_table.v:
+    //   [63:40] entity_id  [39] entity_type  [38:35] profile_id
+    //   [34:1]  reserved=0 [0]  valid
     // -----------------------------------------------------------------
-    output reg                         shadow_q_start,
-    output reg  [23:0]                 shadow_q_issi,
-    input  wire                        shadow_q_busy,
-    input  wire                        shadow_q_done,
-    input  wire                        shadow_q_hit,
-    input  wire [63:0]                 shadow_q_record,
+    output reg                         entity_q_start,
+    output reg  [23:0]                 entity_q_id,
+    output reg                         entity_q_type,
+    output reg                         entity_q_match_type,
+    output reg                         entity_q_default_gssi_scan,
+    output reg                         entity_q_alloc,
+    input  wire                        entity_q_busy,
+    input  wire                        entity_q_done,
+    input  wire                        entity_q_hit,
+    input  wire [7:0]                  entity_q_slot,
+    input  wire [63:0]                 entity_q_record,
+
+    // -----------------------------------------------------------------
+    // ProfileTable read port (Phase 6 D-rev).
+    //   profile_rd_idx → drive 3-bit Profile-Table slot index.
+    //   profile_rd_data ← 32-bit profile record (read latency 1 cycle).
+    // Record layout per rtl/lmac/tetra_profile_table.v:
+    //   [31:24] max_call_duration  [23:16] hangtime  [15:12] priority
+    //   [11:9]  gila_class         [8:7]   gila_lifetime
+    //   [6:4]   reserved           [3]     permit_voice
+    //   [2]     permit_data        [1]     permit_reg     [0] valid
+    // -----------------------------------------------------------------
+    output reg  [2:0]                  profile_rd_idx,
+    input  wire [31:0]                 profile_rd_data,
+    // Alloc + write port for entity table — used for Auto-Enroll on
+    // EntityTable-miss when accept_unknown=1.  Writes a fresh ISSI slot
+    // with profile_id=0, valid=1.
+    output reg                         entity_wr_en,
+    output reg  [7:0]                  entity_wr_idx,
+    output reg  [63:0]                 entity_wr_data,
 
     // -----------------------------------------------------------------
     // DB policy (REG_DB_POLICY @ 0x1AC):
@@ -183,6 +210,15 @@ module tetra_mle_registration_fsm #(
     reg                         lat_existing;
     reg [267:0]                 lat_accept_info_bits;
     reg [123:0]                 lat_short_info_bits;
+    // Phase 6 D-rev — latched lookup results driving the GILA encoder.
+    // Reset defaults reproduce the M2 gold-ref bit pattern when no DB
+    // entry is found (Auto-Enroll path with Profile 0).
+    reg [3:0]                   lat_profile_id;     // EntityTable→Profile slot
+    reg [23:0]                  lat_gila_gssi;
+    reg [2:0]                   lat_gila_class;
+    reg [1:0]                   lat_gila_lifetime;
+    reg                         lat_gila_present;
+    reg [7:0]                   lat_alloc_idx;      // EntityTable alloc target
 
     // -------------------------------------------------------------------------
     // D-LOCATION-UPDATE builder — combinational, always watching the latched
@@ -208,6 +244,13 @@ module tetra_mle_registration_fsm #(
         .address_extension (cfg_address_extension),
         .energy_saving_info(cfg_energy_saving_info),
         .loc_acc_type      (lat_loc_upd_type),     // echo MS demand type
+        // Phase 6 D-rev — dynamic GILA inputs from EntityTable/ProfileTable
+        // multi-lookup (latched in lat_gila_*).  M2 default values reproduce
+        // the gold-ref bit pattern when Profile 0 + GSSI 0x2F4D61 are in DB.
+        .gila_gssi         (lat_gila_gssi),
+        .gila_class        (lat_gila_class),
+        .gila_lifetime     (lat_gila_lifetime),
+        .gila_present      (lat_gila_present),
         .pdu_bits          (dloc_legacy_pdu_w),
         .pdu_bits_mm       (dloc_mm_bits_w),
         .pdu_len_bits      (dloc_mm_len_w)
@@ -450,7 +493,8 @@ module tetra_mle_registration_fsm #(
     wire [AST_REC_WIDTH-1:0] detach_zero_record_w = {AST_REC_WIDTH{1'b0}};
 
     // -------------------------------------------------------------------------
-    // FSM
+    // FSM — Phase 6 D-rev Multi-Lookup attach flow per §9.3:
+    //   Entity(ISSI) → Profile → (Default-GSSI scan when group_count==0) → AST.
     // -------------------------------------------------------------------------
     localparam [4:0] S_IDLE                = 5'd0;
     localparam [4:0] S_CHECK_START         = 5'd1;
@@ -469,17 +513,31 @@ module tetra_mle_registration_fsm #(
     localparam [4:0] S_DELIVER_ACCEPT      = 5'd14;
     localparam [4:0] S_DROP                = 5'd15;
     localparam [4:0] S_WAIT_GAP_FRAME      = 5'd16;
-    // Phase 6 A: subscriber-shadow lookup before AST query
-    localparam [4:0] S_SHADOW_QUERY        = 5'd17;
-    localparam [4:0] S_SHADOW_WAIT         = 5'd18;
-    localparam [4:0] S_PERMIT_DECIDE       = 5'd19;
+    // Phase 6 D-rev Multi-Lookup attach flow:
+    //   ENTITY_QUERY_ISSI[_DONE] → PROFILE_QUERY[_WAIT][_DECIDE]
+    //                            → DEFAULT_GSSI[_DONE] → AST (S_CHECK_START).
+    //   On ENTITY-miss + accept_unknown=1: ENTITY_ALLOC[_WAIT] → write fresh
+    //   entry with profile_id=0 → PROFILE_QUERY (slot 0).
+    localparam [4:0] S_ENTITY_QUERY_ISSI       = 5'd17;
+    localparam [4:0] S_ENTITY_QUERY_ISSI_DONE  = 5'd18;
+    localparam [4:0] S_ENTITY_ALLOC_ISSI       = 5'd19;
+    localparam [4:0] S_ENTITY_ALLOC_WAIT       = 5'd20;
+    localparam [4:0] S_PROFILE_QUERY           = 5'd21;
+    localparam [4:0] S_PROFILE_WAIT            = 5'd22;
+    localparam [4:0] S_PROFILE_DECIDE          = 5'd23;
+    localparam [4:0] S_GSSI_QUERY_DEFAULT      = 5'd24;
+    localparam [4:0] S_GSSI_QUERY_DEFAULT_DONE = 5'd25;
     // Phase 6 B: U-ITSI-DETACH path — clear AST entry for ISSI
-    localparam [4:0] S_DETACH_QUERY        = 5'd20;
-    localparam [4:0] S_DETACH_WAIT         = 5'd21;
-    localparam [4:0] S_DETACH_CLEAR        = 5'd22;
+    localparam [4:0] S_DETACH_QUERY        = 5'd26;
+    localparam [4:0] S_DETACH_WAIT         = 5'd27;
+    localparam [4:0] S_DETACH_CLEAR        = 5'd28;
     reg [23:0] lat_detach_ssi;
     reg [4:0] state;
     reg [2:0] gap_slot_count;
+    // Profile-Table read latency = 1 cycle (registered output); we drive
+    // profile_rd_idx in S_PROFILE_QUERY and consume profile_rd_data 2
+    // cycles later via S_PROFILE_WAIT.
+    reg [1:0] profile_wait_cnt;
 
     // Synchronous reset — Xilinx DRC (REQP-1839) flags async resets on
     // registers feeding BRAM control pins (WEBWE, ADDRBWRADDR) as memory-
@@ -503,8 +561,29 @@ module tetra_mle_registration_fsm #(
             ast_q_start       <= 1'b0;
             ast_q_mode        <= 1'b0;
             ast_q_issi        <= 24'd0;
-            shadow_q_start    <= 1'b0;
-            shadow_q_issi     <= 24'd0;
+            // Phase 6 D-rev — entity table & profile table FSM ports
+            entity_q_start              <= 1'b0;
+            entity_q_id                 <= 24'd0;
+            entity_q_type               <= 1'b0;
+            entity_q_match_type         <= 1'b0;
+            entity_q_default_gssi_scan  <= 1'b0;
+            entity_q_alloc              <= 1'b0;
+            entity_wr_en                <= 1'b0;
+            entity_wr_idx               <= 8'd0;
+            entity_wr_data              <= 64'd0;
+            profile_rd_idx              <= 3'd0;
+            profile_wait_cnt            <= 2'd0;
+            // GILA defaults — Profile 0 / Default-GSSI lookup result.
+            // Reset values are the M2 gold-ref bit-identity guard so that
+            // even if the DB is empty / unsynced, the encoder still
+            // produces the canonical Accept (modulo gila_present=0 path
+            // when no GSSI is in DB, which is also a valid behaviour).
+            lat_profile_id    <= 4'd0;
+            lat_gila_gssi     <= 24'h2F4D61;
+            lat_gila_class    <= 3'b100;
+            lat_gila_lifetime <= 2'b01;
+            lat_gila_present  <= 1'b1;
+            lat_alloc_idx     <= 8'd0;
             lat_is_reject     <= 1'b0;
             lat_reject_cause  <= 3'd0;
             lat_detach_ssi    <= 24'd0;
@@ -529,7 +608,9 @@ module tetra_mle_registration_fsm #(
             // Default strobes — every state may override
             ast_wr_en        <= 1'b0;
             ast_q_start      <= 1'b0;
-            shadow_q_start   <= 1'b0;
+            entity_q_start   <= 1'b0;
+            entity_q_alloc   <= 1'b0;
+            entity_wr_en     <= 1'b0;
             short_builder_start  <= 1'b0;
             accept_builder_start <= 1'b0;
             sch_encode_start <= 1'b0;
@@ -548,73 +629,189 @@ module tetra_mle_registration_fsm #(
                 busy          <= 1'b0;
                 lat_is_reject <= 1'b0;
                 // Phase 6 B — U-ITSI-DETACH takes priority over a new
-                // registration request (shouldn't happen on the same cycle
-                // anyway, but the explicit ordering avoids a race).
+                // registration request.
                 if (ul_detach_valid) begin
                     lat_detach_ssi <= ul_detach_ssi;
                     busy           <= 1'b1;
                     state          <= S_DETACH_QUERY;
                 end else if (ul_req_valid) begin
                     // D-LOCATION UPDATE ACCEPT is always addressed per SSI
-                    // (ETSI EN 300 392-2 §16.10.28).  ul_addr_type on the UL
-                    // request carries the MS-picked MAC addressing (often
-                    // Event Label = 2 for MAC-ACCESS), which is UL-only
-                    // (MS→BS, transient).  Latching it here and reusing it
-                    // in the DL ACCEPT wraps the PDU in the wrong address
-                    // type — the MS won't recognise its own reply.  Force
-                    // SSI (3'd1) for every registration accept.
+                    // (ETSI EN 300 392-2 §16.10.28).  Force SSI (3'd1)
+                    // for every registration accept regardless of the
+                    // MS-picked MAC addressing on the UL request.
                     lat_addr_type    <= 3'd1;
                     lat_ssi          <= ul_ssi;
                     lat_la           <= ul_la;
                     lat_loc_upd_type <= ul_loc_upd_type;
                     lat_use_l2sig    <= ul_use_l2sig;
                     busy             <= 1'b1;
-                    // Phase 6 A: query the subscriber-shadow first before
-                    // touching the AST.  Permit-check decides whether we
-                    // continue with ACCEPT or branch to REJECT.
-                    state            <= S_SHADOW_QUERY;
+                    // Phase 6 D-rev §9.3 step 1: EntityTable.query(ISSI).
+                    state            <= S_ENTITY_QUERY_ISSI;
                 end
             end
 
             // -----------------------------------------------------------------
-            // Phase 6 A — Subscriber-Shadow Permit-Check (before AST)
-            //   1. Kick off shadow scan keyed on lat_ssi.
-            //   2. Wait for shadow_q_done.
-            //   3. Branch on hit + record[5]=permit_reg, or on
-            //      accept_unknown policy if shadow miss.
+            // Phase 6 D-rev — §9.3 Multi-Lookup attach flow
+            //
+            // Step 1: Entity.query(issi=ul_issi, type=0).
+            //   hit  → profile_id = entity.profile_id
+            //          goto S_PROFILE_QUERY
+            //   miss + accept_unknown=0 → REJECT (cause "service profile not
+            //                                      subscribed")
+            //   miss + accept_unknown=1 → goto S_ENTITY_ALLOC_ISSI
             // -----------------------------------------------------------------
-            S_SHADOW_QUERY: begin
-                shadow_q_start <= 1'b1;
-                shadow_q_issi  <= lat_ssi;
-                state          <= S_SHADOW_WAIT;
+            S_ENTITY_QUERY_ISSI: begin
+                entity_q_start             <= 1'b1;
+                entity_q_id                <= lat_ssi;
+                entity_q_type              <= 1'b0;          // ISSI
+                entity_q_match_type        <= 1'b1;          // strict
+                entity_q_default_gssi_scan <= 1'b0;
+                state                      <= S_ENTITY_QUERY_ISSI_DONE;
             end
 
-            S_SHADOW_WAIT: begin
-                if (shadow_q_done) begin
-                    state <= S_PERMIT_DECIDE;
+            S_ENTITY_QUERY_ISSI_DONE: begin
+                if (entity_q_done) begin
+                    if (entity_q_hit) begin
+                        // Latch profile_id from EntityTable record [38:35].
+                        lat_profile_id <= entity_q_record[38:35];
+                        state          <= S_PROFILE_QUERY;
+                    end else if (accept_unknown) begin
+                        // Auto-Enroll: alloc free slot, write fresh entry
+                        // with profile_id=0.
+                        state <= S_ENTITY_ALLOC_ISSI;
+                    end else begin
+                        // Strict mode unknown → REJECT cause=0 (ITSI unknown
+                        // per ETSI §16.10.39 / "service profile not
+                        // subscribed").
+                        lat_is_reject    <= 1'b1;
+                        lat_reject_cause <= 3'd0;
+                        // Default GILA inputs to M2 values so the encoder
+                        // still emits a clean REJECT (GILA bits ignored on
+                        // REJECT path — len=8).
+                        lat_profile_id   <= 4'd0;
+                        // Skip Profile/GSSI lookups, go straight to AST so
+                        // the existing flow records the rejected attempt.
+                        state            <= S_CHECK_START;
+                    end
                 end
             end
 
-            S_PERMIT_DECIDE: begin
-                // shadow_q_record[5] = permit_reg per tetra_subscriber_shadow.v
-                if (shadow_q_hit && shadow_q_record[5]) begin
-                    // Permit granted → continue with ACCEPT path
-                    lat_is_reject <= 1'b0;
-                    state         <= S_CHECK_START;
-                end else if (!shadow_q_hit && accept_unknown) begin
-                    // Anonymous accept (test/permissive mode) → continue ACCEPT
-                    lat_is_reject <= 1'b0;
-                    state         <= S_CHECK_START;
-                end else if (shadow_q_hit && !shadow_q_record[5]) begin
-                    // Known but denied → REJECT, cause = service not authorised
+            S_ENTITY_ALLOC_ISSI: begin
+                // Issue alloc-mode scan to find first valid=0 slot.
+                entity_q_start             <= 1'b1;
+                entity_q_id                <= 24'd0;         // don't-care
+                entity_q_type              <= 1'b0;
+                entity_q_match_type        <= 1'b0;
+                entity_q_default_gssi_scan <= 1'b0;
+                entity_q_alloc             <= 1'b1;
+                state                      <= S_ENTITY_ALLOC_WAIT;
+            end
+
+            S_ENTITY_ALLOC_WAIT: begin
+                if (entity_q_done) begin
+                    if (entity_q_hit) begin
+                        // Found free slot — write fresh entry with
+                        // entity_id=lat_ssi, entity_type=0, profile_id=0,
+                        // valid=1.
+                        lat_alloc_idx  <= entity_q_slot;
+                        entity_wr_en   <= 1'b1;
+                        entity_wr_idx  <= entity_q_slot;
+                        entity_wr_data <= {lat_ssi,        // [63:40]
+                                           1'b0,           // [39] type=ISSI
+                                           4'd0,           // [38:35] profile=0
+                                           34'd0,          // [34:1] reserved
+                                           1'b1};          // [0] valid
+                        lat_profile_id <= 4'd0;
+                        state          <= S_PROFILE_QUERY;
+                    end else begin
+                        // EntityTable full — REJECT cause=0.
+                        lat_is_reject    <= 1'b1;
+                        lat_reject_cause <= 3'd0;
+                        state            <= S_CHECK_START;
+                    end
+                end
+            end
+
+            // -----------------------------------------------------------------
+            // Step 2: Profile.lookup(profile_id) → permit_reg?
+            //   permit_reg=0 → REJECT (cause "service profile not subscribed")
+            //   permit_reg=1 → continue, latch gila_class/lifetime
+            // -----------------------------------------------------------------
+            S_PROFILE_QUERY: begin
+                profile_rd_idx   <= lat_profile_id[2:0];
+                // Profile-Table read latency = 1 cycle (registered).
+                // We need at least 2 cycles between drive-rd_idx and
+                // sample-rd_data: cycle N drives rd_idx, cycle N+1 the
+                // BRAM/LUT-RAM internal read fires, cycle N+2 rd_data
+                // is stable.
+                profile_wait_cnt <= 2'd2;
+                state            <= S_PROFILE_WAIT;
+            end
+
+            S_PROFILE_WAIT: begin
+                if (profile_wait_cnt == 2'd0) begin
+                    state <= S_PROFILE_DECIDE;
+                end else begin
+                    profile_wait_cnt <= profile_wait_cnt - 2'd1;
+                end
+            end
+
+            S_PROFILE_DECIDE: begin
+                // profile_rd_data[1] = permit_reg per §9.2.
+                if (!profile_rd_data[0]) begin
+                    // valid=0 → profile slot is unconfigured → REJECT
+                    // cause=0 (ITSI unknown / profile not subscribed).
+                    // Profile 0 reset-default has valid=1, so this only
+                    // fires when an Auto-Enroll-with-Profile-N path is
+                    // wired in Phase E.5.
+                    lat_is_reject    <= 1'b1;
+                    lat_reject_cause <= 3'd0;
+                    state            <= S_CHECK_START;
+                end else if (!profile_rd_data[1]) begin
+                    // permit_reg=0 → REJECT cause=4 ("service not
+                    // authorised").
                     lat_is_reject    <= 1'b1;
                     lat_reject_cause <= 3'd4;
                     state            <= S_CHECK_START;
                 end else begin
-                    // Unknown + accept_unknown=0 → REJECT, cause = ITSI unknown
-                    lat_is_reject    <= 1'b1;
-                    lat_reject_cause <= 3'd0;
-                    state            <= S_CHECK_START;
+                    // Permit granted — latch gila_class/lifetime from
+                    // Profile record [11:9] / [8:7] per §9.2.
+                    lat_gila_class    <= profile_rd_data[11:9];
+                    lat_gila_lifetime <= profile_rd_data[8:7];
+                    lat_is_reject     <= 1'b0;
+                    state             <= S_GSSI_QUERY_DEFAULT;
+                end
+            end
+
+            // -----------------------------------------------------------------
+            // Step 3: Default-GSSI scan (§9.3 + fix_plan M2-Bit-Identity hack).
+            //   In Phase D the RX `group_identity_location_demand` IE is not
+            //   yet parsed (M3 scope), so AST.group_count == 0 unconditionally.
+            //   Per the fix_plan resolution, we scan EntityTable for the first
+            //   valid entity_type=1 slot ("Default-Group-of-the-Cell"); if
+            //   found, GILA goes out with that GSSI.  If no GSSI in DB, the
+            //   GILA Type-3 element is omitted (gila_present=0).
+            // -----------------------------------------------------------------
+            S_GSSI_QUERY_DEFAULT: begin
+                entity_q_start             <= 1'b1;
+                entity_q_id                <= 24'd0;
+                entity_q_type              <= 1'b0;
+                entity_q_match_type        <= 1'b0;
+                entity_q_default_gssi_scan <= 1'b1;
+                state                      <= S_GSSI_QUERY_DEFAULT_DONE;
+            end
+
+            S_GSSI_QUERY_DEFAULT_DONE: begin
+                if (entity_q_done) begin
+                    if (entity_q_hit) begin
+                        // GSSI found — latch it, GILA Type-3 emitted.
+                        lat_gila_gssi    <= entity_q_record[63:40];
+                        lat_gila_present <= 1'b1;
+                    end else begin
+                        // No GSSI in DB — omit GILA Type-3 element.
+                        lat_gila_present <= 1'b0;
+                    end
+                    state <= S_CHECK_START;
                 end
             end
 

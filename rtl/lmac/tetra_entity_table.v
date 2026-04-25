@@ -49,11 +49,14 @@ module tetra_entity_table #(
     //                  1 : match on (entity_id, entity_type)
     //   q_default_gssi_scan = 1 : ignore q_id, match first valid+entity_type=1
     //                              (used for fallback group lookup)
+    //   q_alloc             = 1 : ignore q_id, match first slot with valid=0
+    //                              (used for Auto-Enroll on EntityTable miss)
     input  wire                       q_start,
     input  wire [ID_WIDTH-1:0]        q_id,
     input  wire                       q_type,
     input  wire                       q_match_type,
     input  wire                       q_default_gssi_scan,
+    input  wire                       q_alloc,
     output reg                        q_busy,
     output reg                        q_done,
     output reg                        q_hit,
@@ -89,6 +92,7 @@ module tetra_entity_table #(
     reg                    type_key;
     reg                    match_type_key;
     reg                    default_gssi_scan_key;
+    reg                    alloc_key;
 
     // Field projections from rd_data
     wire                   rec_valid_w   = rd_data[0];
@@ -101,8 +105,11 @@ module tetra_entity_table #(
                              && (!match_type_key || type_match_w);
     wire default_gssi_match_w =
         scan_result && rec_valid_w && (rec_type_w == 1'b1);
+    wire alloc_match_w =
+        scan_result && !rec_valid_w;
 
-    wire match_w       = default_gssi_scan_key ? default_gssi_match_w
+    wire match_w       = alloc_key             ? alloc_match_w
+                       : default_gssi_scan_key ? default_gssi_match_w
                                                 : normal_match_w;
     wire end_of_scan_w = scan_result && (scan_result_addr == DEPTH-1);
 
@@ -121,6 +128,7 @@ module tetra_entity_table #(
             type_key              <= 1'b0;
             match_type_key        <= 1'b0;
             default_gssi_scan_key <= 1'b0;
+            alloc_key             <= 1'b0;
         end else begin
             q_done <= 1'b0;
 
@@ -132,6 +140,7 @@ module tetra_entity_table #(
                 type_key              <= q_type;
                 match_type_key        <= q_match_type;
                 default_gssi_scan_key <= q_default_gssi_scan;
+                alloc_key             <= q_alloc;
                 rd_addr_ext           <= {(IDX_WIDTH+1){1'b0}};
                 scan_issue            <= 1'b1;
                 scan_result           <= 1'b0;
