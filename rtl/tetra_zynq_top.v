@@ -425,10 +425,11 @@ wire [2:0]  profile_wr_idx_w;
 wire [31:0] profile_wr_data_w;
 wire        profile_wr_en_w;
 
-// Active-Session Table (Phase 6 M2.3b) — 64×64-bit BRAM, FSM-owned.
+// Active-Session Table (Phase 6 M2.3b) — 64×256-bit BRAM, FSM-owned.
+// Phase 6 D-rev: REC_WIDTH widened 128 → 256 bit per §9.2 (group_list[8]).
 wire        ast_wr_en_w;
 wire [5:0]  ast_wr_idx_w;
-wire [127:0] ast_wr_data_w;        // Phase B — widened 64→128
+wire [255:0] ast_wr_data_w;        // Phase D-rev — 128→256
 wire        ast_q_start_w;
 wire        ast_q_mode_w;
 wire [23:0] ast_q_issi_w;
@@ -436,7 +437,7 @@ wire        ast_q_busy_w;
 wire        ast_q_done_w;
 wire        ast_q_hit_w;
 wire [5:0]  ast_q_slot_w;
-wire [127:0] ast_q_record_w;       // Phase B — widened 64→128
+wire [255:0] ast_q_record_w;       // Phase D-rev — 128→256
 
 // MLE-registration FSM → DL-signalling-queue request port.  The MLE emits
 // the full 432-bit SCH/F codeword as a queue-request; the scheduler
@@ -1773,12 +1774,16 @@ tetra_profile_table #(
 // ARM).  Record layout is owned by the FSM — the table only interprets
 // [63:40]=ISSI (query match) and [0]=valid (alloc match).
 // =============================================================================
-// Phase 6 B — AST record widened 64 → 128 bit:
-//   [127:104] ISSI (24)
-//   [103: 80] last_seen_multiframe (24)  — TTL key (Phase C uses this)
-//   [ 79: 72] shadow_idx (8)
-//   [ 71: 68] state (4)  — 1=REG_ACCEPT_SENT
-//   [ 67:  1] reserved (Phase D: group_count + group_list[8])
+// Phase 6 D-rev — AST record widened 128 → 256 bit per §9.2:
+//   [255:232] ISSI (24)
+//   [231:208] last_seen_multiframe (24)  — TTL key (Phase C uses this)
+//   [207:200] shadow_idx (8)             — Backref EntityTable (Phase A)
+//   [199:196] state (4)                  — 1=REG_ACCEPT_SENT
+//   [195:192] group_count (4)            — 0..8 valid GSSIs
+//   [191:  1] group_list[8]              — 8 × 24 bit GSSI (group[7] LSB
+//                                          dual-purposed as valid bit;
+//                                          see active_session_table.v
+//                                          header).  Phase D writes 0 here.
 //   [  0]     valid (kept at bit 0 — alloc-scan signature unchanged)
 // Phase 6 C — TTL-Sweeper wires
 wire        ast_sweep_evict_pulse_w;
@@ -1797,10 +1802,10 @@ end
 tetra_active_session_table #(
     .DEPTH      (64),
     .IDX_WIDTH  (6),
-    .REC_WIDTH  (128),
+    .REC_WIDTH  (256),
     .ISSI_WIDTH (24),
     .LAST_SEEN_WIDTH (24),
-    .LAST_SEEN_LSB   (128 - 24 - 24)   // bits [103:80]
+    .LAST_SEEN_LSB   (256 - 24 - 24)   // bits [231:208]
 ) u_active_session_table (
     .clk      (clk_sys),
     .rst_n    (rst_n_sys),
@@ -1887,7 +1892,7 @@ wire [31:0] mle_dl_scramb_init_sys = {cell_cfg_mcc_sys_r1,
 
 tetra_mle_registration_fsm #(
     .AST_IDX_WIDTH(6),
-    .AST_REC_WIDTH(128)              // Phase 6 B — widened layout
+    .AST_REC_WIDTH(256)              // Phase 6 D-rev — §9.2 group_list[8]
 ) u_mle_registration_fsm (
     .clk              (clk_sys),
     .rst_n            (rst_n_sys),

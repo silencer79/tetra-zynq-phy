@@ -12,16 +12,33 @@
 //   [REC_WIDTH-1 : REC_WIDTH-ISSI_WIDTH]  issi         (for query match)
 //   [0]                                    valid        (for alloc match)
 //
-// Suggested higher-level layout (documented here for reference):
-//   [63:40] issi            24 bit — session owner
-//   [39:24] last_seen_tdma  16 bit — TDMA frame counter, updated by FSM
-//                                      on every activity, swept for TTL
-//   [23:13] reserved        11 bit
-//   [12:8]  alloc_tn_fn      5 bit — allocated air-slot fingerprint
-//   [7:5]   state            3 bit — 0=FREE 1=REG_PENDING 2=REGISTERED
-//                                    3=CALL_SETUP 4=VOICE_ACTIVE 5=PAGING
-//   [4:1]   reserved         4 bit
-//   [0]     valid            1 bit — 0 means slot is free/invalid
+// Phase 6 D-rev — REC_WIDTH=256 layout per docs/ARCHITECTURE.md §9.2:
+//   [255:232]  ISSI                  24
+//   [231:208]  last_seen_multiframe  24
+//   [207:200]  shadow_idx             8    Backref EntityTable (Phase A)
+//   [199:196]  state                  4    0=FREE 1=REG 2=CALL_SETUP
+//                                          3=VOICE 4=PAGING
+//   [195:192]  group_count            4    0..8 valid GSSIs in group_list
+//   [191:  1]  group_list[8]        191    (8 × 24 bit GSSI; group[7] LSB
+//                                          shares storage with valid — see
+//                                          note below.  group[0]=[191:168],
+//                                          group[1]=[167:144], …,
+//                                          group[7]=[24:1] effectively
+//                                          23-bit-wide for storage.)
+//   [  0]      valid                  1    Phase B/C convention (alloc match)
+//
+// Note on the §9.2 / valid-bit reconciliation:
+//   §9.2 specifies group_list at [191:0] = 192 bits.  Phase B/C established
+//   valid=[0] for the alloc/query path.  To respect both, the LSB of
+//   group[7] is reused as the valid flag; for any real attach the FSM
+//   writes `1` to [0] regardless of what GSSI bit pattern would otherwise
+//   land there.  Phase D itself never populates group_list (the RX IE
+//   parser is M3), so this overload is a forward-compat hook only.
+//
+// Legacy 64/128-bit layouts continue to work via parameter overrides
+// (REC_WIDTH=64 or 128); the only invariants are
+//   [REC_WIDTH-1 : REC_WIDTH-ISSI_WIDTH] = ISSI and
+//   [0] = valid.
 //
 // Ports
 //   Write port (clk):

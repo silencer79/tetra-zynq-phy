@@ -16,9 +16,11 @@
 module tb_mle_registration_fsm;
     localparam integer AST_DEPTH      = 64;
     localparam integer AST_IDX_WIDTH  = 6;
-    // Phase 6 B — AST widened from 64→128 bit to fit last_seen + shadow_idx
-    // + state + Phase D group cache.  See tetra_zynq_top.v.
-    localparam integer AST_REC_WIDTH  = 128;
+    // Phase 6 D-rev — AST widened from 128→256 bit per §9.2 (group_list[8]
+    // + group_count + state + shadow_idx + last_seen + ISSI).  See
+    // tetra_zynq_top.v for the in-design layout, and the header of
+    // tetra_active_session_table.v for the spec-vs-valid reconciliation.
+    localparam integer AST_REC_WIDTH  = 256;
     localparam integer AST_ISSI_WIDTH = 24;
 
     reg                         clk   = 1'b0;
@@ -439,9 +441,10 @@ module tb_mle_registration_fsm;
         begin
             test_count = test_count + 1;
             // capture pre-state: AST entry should still hold the registration
-            if (u_ast.mem[exp_slot][127:104] !== issi) begin
+            if (u_ast.mem[exp_slot][AST_REC_WIDTH-1 -: AST_ISSI_WIDTH] !== issi) begin
                 $display("[T%0d] FAIL %0s pre-condition: AST[%0d] ISSI=0x%06X exp=0x%06X",
-                         test_count, tag, exp_slot, u_ast.mem[exp_slot][127:104], issi);
+                         test_count, tag, exp_slot,
+                         u_ast.mem[exp_slot][AST_REC_WIDTH-1 -: AST_ISSI_WIDTH], issi);
                 fail_count = fail_count + 1;
             end
             detach_request(issi);
@@ -462,8 +465,9 @@ module tb_mle_registration_fsm;
                 // the zero record.
                 @(posedge clk);
                 if (u_ast.mem[exp_slot] !== {AST_REC_WIDTH{1'b0}}) begin
-                    $display("[T%0d] FAIL %0s AST[%0d] not cleared, top=0x%h",
-                             test_count, tag, exp_slot, u_ast.mem[exp_slot][127:64]);
+                    $display("[T%0d] FAIL %0s AST[%0d] not cleared, ISSI=0x%h",
+                             test_count, tag, exp_slot,
+                             u_ast.mem[exp_slot][AST_REC_WIDTH-1 -: AST_ISSI_WIDTH]);
                     fail_count = fail_count + 1;
                 end else begin
                     $display("[T%0d] PASS %0s AST slot %0d cleared (valid=0, ISSI=0)",

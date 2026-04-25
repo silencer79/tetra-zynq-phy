@@ -32,9 +32,10 @@
 
 module tetra_mle_registration_fsm #(
     parameter integer AST_IDX_WIDTH = 6,
-    // Phase B: AST record widened to 128 bit (last_seen 24 bit + shadow_idx +
-    // state).  Keep parameter so TB / older callers can still drive 64-bit.
-    parameter integer AST_REC_WIDTH = 128
+    // Phase D-rev: AST record widened to 256 bit per §9.2 (group_list[8]).
+    // Phase B kept it at 128.  Keep parameter so TB / older callers can
+    // still drive 64-bit / 128-bit during transitional builds.
+    parameter integer AST_REC_WIDTH = 256
 )(
     input  wire                        clk,
     input  wire                        rst_n,
@@ -403,21 +404,44 @@ module tetra_mle_registration_fsm #(
     );
 
     // -------------------------------------------------------------------------
-    // Session record packer (Phase B — 128 bit layout)
-    // [127:104]  ISSI               24    (visible to AST query scan)
-    // [103: 80]  last_seen_multiframe 24  (free-running counter, TTL key)
-    // [ 79: 72]  shadow_idx          8    (Phase A backref — 0 if unknown)
-    // [ 71: 68]  state               4    (1=REG_ACCEPT_SENT)
-    // [ 67:  1]  reserved           67    (Phase D: group_count + group_list)
+    // Session record packer (Phase D-rev — 256 bit layout per §9.2)
+    // [255:232]  ISSI               24    (visible to AST query scan)
+    // [231:208]  last_seen_multiframe 24  (free-running counter, TTL key)
+    // [207:200]  shadow_idx          8    (Phase A backref — 0 in D rev,
+    //                                       wired in D.4)
+    // [199:196]  state               4    (1=REG_ACCEPT_SENT)
+    // [195:192]  group_count         4    (Phase D writes 0 — RX IE parser
+    //                                       is M3 scope)
+    // [191:  1]  group_list[8]    191    (Phase D writes 0; MS-driven GSSI
+    //                                       lists land here in M3)
     // [  0]      valid               1    (visible to AST alloc scan)
+    //
+    // The legacy 128-bit and 64-bit paths still work via parameter override
+    // — record packing degrades gracefully at the lower widths (everything
+    // above [127] / [63] simply isn't emitted).  In the 256-bit path we
+    // re-use the SAME [0]=valid convention from Phase B/C (see header of
+    // tetra_active_session_table.v for the §9.2-vs-valid reconciliation).
     // -------------------------------------------------------------------------
-    wire [AST_REC_WIDTH-1:0] session_record_w = {
-        lat_ssi,                    // [127:104]  24  ISSI (top, alloc/query)
-        mf_global_cnt,              // [103: 80]  24  last_seen_multiframe
-        8'd0,                       // [ 79: 72]   8  shadow_idx (Phase D)
-        4'd1,                       // [ 71: 68]   4  state=REG_ACCEPT_SENT
+    wire [AST_REC_WIDTH-1:0] session_record_w = (AST_REC_WIDTH == 256) ? {
+        lat_ssi,                    // [255:232]  24  ISSI
+        mf_global_cnt,              // [231:208]  24  last_seen_multiframe
+        8'd0,                       // [207:200]   8  shadow_idx (D.4 wires)
+        4'd1,                       // [199:196]   4  state=REG_ACCEPT_SENT
+        4'd0,                       // [195:192]   4  group_count=0 (M3)
+        191'd0,                     // [191:  1] 191  group_list (M3)
+        1'b1                        // [  0]       1  valid
+    } : (AST_REC_WIDTH == 128) ? {
+        lat_ssi,                    // [127:104]  24  ISSI (legacy)
+        mf_global_cnt,              // [103: 80]  24  last_seen
+        8'd0,                       // [ 79: 72]   8  shadow_idx
+        4'd1,                       // [ 71: 68]   4  state
         67'd0,                      // [ 67:  1]  67  reserved
         1'b1                        // [  0]       1  valid
+    } : {
+        // 64-bit fallback for legacy TBs (shadow_idx/state collapsed)
+        lat_ssi,                    // [63:40]    24  ISSI
+        39'd0,                      // [39: 1]    39  reserved
+        1'b1                        // [ 0]        1  valid
     };
 
     // -------------------------------------------------------------------------
