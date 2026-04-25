@@ -418,6 +418,13 @@ wire        shadow_q_hit_w;
 wire [7:0]  shadow_q_slot_w;
 wire [63:0] shadow_q_record_w;
 
+// Profile Table (Phase 6 D-rev) — 6×32-bit distributed-LUT-RAM, ARM-written.
+// Read port wired into MLE-FSM in D.4; in D.2/D.3 the read port is tied
+// off so synthesis still infers the LUT-RAM cleanly.
+wire [2:0]  profile_wr_idx_w;
+wire [31:0] profile_wr_data_w;
+wire        profile_wr_en_w;
+
 // Active-Session Table (Phase 6 M2.3b) — 64×64-bit BRAM, FSM-owned.
 wire        ast_wr_en_w;
 wire [5:0]  ast_wr_idx_w;
@@ -1648,6 +1655,10 @@ tetra_axi_lite_regs u_axi_regs (
     .shadow_wr_idx_axi       (shadow_wr_idx_w),
     .shadow_wr_data_axi      (shadow_wr_data_w),
     .shadow_wr_en_axi        (shadow_wr_en_w),
+    // Profile-Table indirect write window (Phase 6 D-rev — 0x1C0..0x1CC)
+    .profile_wr_idx_axi      (profile_wr_idx_w),
+    .profile_wr_data_axi     (profile_wr_data_w),
+    .profile_wr_en_axi       (profile_wr_en_w),
     // MLE registration FSM debug counters (resynced below)
     .mle_ul_req_cnt_axi      (mle_ul_req_cnt_axi_r1),
     .mle_accept_cnt_axi      (mle_accept_cnt_axi_r1),
@@ -1728,6 +1739,30 @@ tetra_subscriber_shadow #(
     .q_hit    (shadow_q_hit_w),
     .q_slot   (shadow_q_slot_w),
     .q_record (shadow_q_record_w)
+);
+
+// =============================================================================
+// Profile Table (Phase 6 D-rev, §9.2)
+//
+// 6 × 32-bit distributed-LUT-RAM of authorisation/policy profiles.  Written
+// from the ARM via the AXI-Lite indirect window 0x1C0..0x1CC.  Read port
+// wired into the MLE-FSM in D.4 (multi-lookup attach flow); for now the
+// FSM does not consume profile records, so the read port sits idle with
+// `rd_idx=0`.  Slot 0 reset-default = 0x0000_088F (M2 bit-identity guard).
+// =============================================================================
+wire [31:0] profile_rd_data_w;
+tetra_profile_table #(
+    .DEPTH    (6),
+    .IDX_WIDTH(3),
+    .REC_WIDTH(32)
+) u_profile_table (
+    .clk     (clk_sys),
+    .rst_n   (rst_n_sys),
+    .wr_idx  (profile_wr_idx_w),
+    .wr_data (profile_wr_data_w),
+    .wr_en   (profile_wr_en_w),
+    .rd_idx  (3'd0),                  // tied to slot 0 until D.4
+    .rd_data (profile_rd_data_w)
 );
 
 // =============================================================================

@@ -307,6 +307,16 @@ module tetra_axi_lite_regs (
     output wire        shadow_wr_en_axi,
 
     // ------------------------------------------------------------------
+    // Profile-Table indirect write window (Phase 6 D-rev, §9.2)
+    // 0x1C0 INDEX, 0x1C4 DATA, 0x1CC CTRL (commit W1S).  Profile records
+    // are 32-bit; no DATA_HI.  Caller resyncs wr_en to clk_sys in top
+    // (same-clock project).
+    // ------------------------------------------------------------------
+    output wire [2:0]  profile_wr_idx_axi,
+    output wire [31:0] profile_wr_data_axi,
+    output wire        profile_wr_en_axi,
+
+    // ------------------------------------------------------------------
     // MLE registration FSM debug counters (clk_axi domain, 2-FF resynced
     // in top-level).  Read-only. 0x190 = {accept[15:0], ul_req[15:0]},
     // 0x194 = {15'b0, busy_sticky, drop[15:0]},
@@ -577,6 +587,13 @@ localparam [6:0] REG_AST_DETACH_CNT   = 7'h69; // 0x1A4 RO  {16'd0, mle_detach_c
 localparam [6:0] REG_AST_TTL_MFS      = 7'h6A; // 0x1A8 R/W TTL threshold in multiframes (Phase 6 C, default 84706 ≈ 24h)
 localparam [6:0] REG_DB_POLICY        = 7'h6B; // 0x1AC R/W {30'd0, reserved, accept_unknown}
 localparam [6:0] REG_AST_TTL_EVICT_CNT = 7'h6C; // 0x1B0 RO {16'd0, ast_ttl_evict_cnt[15:0]} Phase 6 C
+
+// Profile-Table indirect window (Phase 6 D-rev) — 0x1C0..0x1CC
+// 6 × 32-bit profile records (§9.2).  No DATA_HI — Profile is 32 bit, fits
+// in one register.  Slot 0 reset-default = 0x0000_088F (M2 bit-identity).
+localparam [6:0] REG_PROFILE_INDEX   = 7'h70; // 0x1C0  R/W slot index [2:0]
+localparam [6:0] REG_PROFILE_DATA    = 7'h71; // 0x1C4  R/W record [31:0]
+localparam [6:0] REG_PROFILE_CTRL    = 7'h73; // 0x1CC  W1S commit pulse
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -864,6 +881,10 @@ always @(*) begin
         REG_AST_TTL_MFS:   rdata_mux_axi = ast_ttl_multiframes_axi;
         REG_AST_TTL_EVICT_CNT: rdata_mux_axi = {16'b0, ast_ttl_evict_cnt_axi};
         REG_DB_POLICY:    rdata_mux_axi = db_policy_axi;
+        // Profile-Table indirect window (Phase 6 D-rev)
+        REG_PROFILE_INDEX: rdata_mux_axi = {29'b0, profile_index_axi};
+        REG_PROFILE_DATA:  rdata_mux_axi = profile_data_axi;
+        REG_PROFILE_CTRL:  rdata_mux_axi = 32'b0; // self-clearing
         default:          rdata_mux_axi = 32'b0;
     endcase
 end
@@ -1644,6 +1665,51 @@ end
 assign shadow_wr_idx_axi  = shadow_index_axi;
 assign shadow_wr_data_axi = {shadow_data_hi_axi, shadow_data_lo_axi};
 assign shadow_wr_en_axi   = shadow_commit_pulse_axi;
+
+// ---------------------------------------------------------------------------
+// Profile-Table BRAM indirect write window (Phase 6 D-rev, §9.2)
+// ---------------------------------------------------------------------------
+// Staging registers for the 32-bit record + 3-bit slot index.  Written
+// from AXI-Lite.  A write to REG_PROFILE_CTRL with wdata[0]=1 fires a
+// single-cycle profile_wr_en pulse that commits the staged values into
+// the Profile Table at the top level.
+// ---------------------------------------------------------------------------
+reg [2:0]  profile_index_axi;
+reg [31:0] profile_data_axi;
+reg        profile_commit_pulse_axi;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        profile_index_axi <= 3'd0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_PROFILE_INDEX) & wr_strb_axi[0])
+        profile_index_axi <= wr_data_axi[2:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        profile_data_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_PROFILE_DATA)) begin
+        if (wr_strb_axi[0]) profile_data_axi[7:0]   <= wr_data_axi[7:0];
+        if (wr_strb_axi[1]) profile_data_axi[15:8]  <= wr_data_axi[15:8];
+        if (wr_strb_axi[2]) profile_data_axi[23:16] <= wr_data_axi[23:16];
+        if (wr_strb_axi[3]) profile_data_axi[31:24] <= wr_data_axi[31:24];
+    end
+end
+
+// 1-cycle commit pulse on CTRL write with wdata[0]=1.
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        profile_commit_pulse_axi <= 1'b0;
+    else
+        profile_commit_pulse_axi <= wr_en_axi &
+                                    (wr_addr_axi[8:2] == REG_PROFILE_CTRL) &
+                                    wr_strb_axi[0] &
+                                    wr_data_axi[0];
+end
+
+assign profile_wr_idx_axi  = profile_index_axi;
+assign profile_wr_data_axi = profile_data_axi;
+assign profile_wr_en_axi   = profile_commit_pulse_axi;
 
 // ---------------------------------------------------------------------------
 // Cell-Config Registers (0x130 CELL_CFG_0, 0x134 CELL_CFG_1) — Plan Stufe 3.5
