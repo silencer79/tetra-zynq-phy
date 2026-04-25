@@ -184,8 +184,14 @@ td.num { text-align: right; }
 </table>
 <div class="kv">Last ISSI: <b id="li-dec">-</b> (<b id="li-hex">-</b>)
   &nbsp;&middot;&nbsp; TTL MFs: <b id="ttl-mfs">-</b>
-  &nbsp;&middot;&nbsp; Policy: accept_unknown=<b id="pol-acc">-</b>
   &nbsp;&middot;&nbsp; busy_sticky=<b id="busy-st">-</b>
+</div>
+<div class="kv" style="margin-top:6px">
+  Access policy:
+  <b id="pol-mode">-</b>
+  (accept_unknown=<b id="pol-acc">-</b>)
+  &nbsp;<button id="pol-btn" type="button" onclick="togglePolicy()">Toggle</button>
+  <span id="pol-msg" style="margin-left:8px;color:#888"></span>
 </div>
 <div id="mon-pre">(no log)</div>
 
@@ -310,6 +316,17 @@ function refreshSessions() {
       qs('#li-hex').textContent  = j.last_issi_hex || '-';
       qs('#ttl-mfs').textContent = j.ttl_mfs   == null ? '-' : j.ttl_mfs;
       qs('#pol-acc').textContent = j.policy_accept_unknown == null ? '-' : j.policy_accept_unknown;
+      var mode = qs('#pol-mode');
+      if (j.policy_accept_unknown == null) {
+        mode.textContent = '-';
+        mode.style.color = '';
+      } else if (j.policy_accept_unknown == 1) {
+        mode.textContent = 'OPEN (accept unknown ISSIs)';
+        mode.style.color = '#1a7f37';
+      } else {
+        mode.textContent = 'RESTRICTED (DB permit only)';
+        mode.style.color = '#b41c1c';
+      }
       qs('#busy-st').textContent = (c && c.busy_sticky != null) ? c.busy_sticky : '-';
       var mon = qs('#mon-pre');
       if (j.recent_ul_mon && j.recent_ul_mon.length) {
@@ -321,6 +338,36 @@ function refreshSessions() {
     .catch(function(e) {
       var mon = qs('#mon-pre');
       if (mon) mon.textContent = 'sessions.cgi error: ' + e;
+    });
+}
+
+/* -------- Subscribers tab: access policy toggle -------- */
+function togglePolicy() {
+  var cur = qs('#pol-acc').textContent;
+  var next = (cur === '1') ? '0' : '1';
+  var msg = qs('#pol-msg');
+  msg.textContent = 'switching…';
+  msg.style.color = '#888';
+  fetch('/cgi-bin/policy.cgi', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'op=set&accept_unknown=' + next
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(j) {
+      if (j.ok) {
+        msg.textContent = 'OK';
+        msg.style.color = '#1a7f37';
+        refreshCounters();
+      } else {
+        msg.textContent = 'FAILED: ' + (j.err || 'unknown');
+        msg.style.color = '#b41c1c';
+      }
+      setTimeout(function() { msg.textContent = ''; }, 2500);
+    })
+    .catch(function(e) {
+      msg.textContent = 'error: ' + e;
+      msg.style.color = '#b41c1c';
     });
 }
 
