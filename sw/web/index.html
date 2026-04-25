@@ -426,7 +426,7 @@ function togglePolicy() {
       if (j.ok) {
         msg.textContent = 'OK';
         msg.style.color = '#1a7f37';
-        refreshCounters();
+        refreshSessions();
       } else {
         msg.textContent = 'FAILED: ' + (j.err || 'unknown');
         msg.style.color = '#b41c1c';
