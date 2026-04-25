@@ -237,6 +237,26 @@ if $DO_SW; then
     echo "Uploading db.tsv.default..."
     scp_to "${SW_DIR}/db.tsv.default" "${REMOTE_BIN_DIR}/db.tsv.default"
     echo "sw binaries uploaded"
+
+    # WebUI: index.html → /www/, *.cgi (root + cgi-bin/) → /www/cgi-bin/
+    WEB_DIR="${SW_DIR}/web"
+    if [ -d "$WEB_DIR" ]; then
+        echo "Uploading WebUI..."
+        ssh_cmd "mkdir -p /www/cgi-bin"
+        scp_to "${WEB_DIR}/index.html" "/www/index.html"
+        for f in "${WEB_DIR}"/*.cgi; do
+            [ -f "$f" ] || continue
+            scp_to "$f" "/www/cgi-bin/$(basename "$f")"
+        done
+        if [ -d "${WEB_DIR}/cgi-bin" ]; then
+            for f in "${WEB_DIR}/cgi-bin"/*.cgi; do
+                [ -f "$f" ] || continue
+                scp_to "$f" "/www/cgi-bin/$(basename "$f")"
+            done
+        fi
+        ssh_cmd "chmod +x /www/cgi-bin/*.cgi 2>/dev/null || true"
+        echo "WebUI uploaded → /www/index.html + /www/cgi-bin/*.cgi"
+    fi
 fi
 
 # =============================================================================
