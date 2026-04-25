@@ -271,7 +271,42 @@ module tb_mle_registration_fsm;
         expect_two_phase_accept(24'd523, 6'd0);
         expect_two_phase_accept(24'd1000, 6'd1);
 
-        for (i = 2; i < AST_DEPTH; i = i + 1)
+        // Real on-air ISSIs from docs/references/captures_external_bs_2026-04-25/
+        //   external MS = 0x282FF4 (2 633 716)
+        //   our MTP3550 = 0x282F91 (2 633 617)
+        // Both share the Motorola 0x282xxx prefix.  The previous parser
+        // collapsed every 0x282xxx ISSI onto ssi=523 — these tests guard
+        // the 24-bit-end-to-end fix.
+        //
+        // The MAC-RESOURCE DL header (§21.4.3.1) packs the 24-bit SSI at
+        // bits [16..39] of the 268-bit info bus, MSB-first.  In the
+        // accept_builder output `lat_accept_info_bits` (268-bit, bit 267 =
+        // first on air), the SSI occupies bits [251:228].
+        expect_two_phase_accept(24'h282FF4, 6'd2);
+        if (dut.lat_ssi !== 24'h282FF4) begin
+            $display("FAIL external lat_ssi got=0x%06X exp=0x282FF4", dut.lat_ssi);
+            fail_count = fail_count + 1;
+        end else if (dut.lat_accept_info_bits[251:228] !== 24'h282FF4) begin
+            $display("FAIL external SSI@[251:228] got=0x%06X exp=0x282FF4",
+                     dut.lat_accept_info_bits[251:228]);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("PASS external 24-bit ISSI propagated to MAC-RESOURCE SSI@[251:228]=0x282FF4");
+        end
+
+        expect_two_phase_accept(24'h282F91, 6'd3);
+        if (dut.lat_ssi !== 24'h282F91) begin
+            $display("FAIL MTP3550 lat_ssi got=0x%06X exp=0x282F91", dut.lat_ssi);
+            fail_count = fail_count + 1;
+        end else if (dut.lat_accept_info_bits[251:228] !== 24'h282F91) begin
+            $display("FAIL MTP3550 SSI@[251:228] got=0x%06X exp=0x282F91",
+                     dut.lat_accept_info_bits[251:228]);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("PASS MTP3550 24-bit ISSI propagated to MAC-RESOURCE SSI@[251:228]=0x282F91");
+        end
+
+        for (i = 4; i < AST_DEPTH; i = i + 1)
             u_ast.mem[i] = {{(AST_REC_WIDTH - 1){1'b0}}, 1'b1};
         @(posedge clk);
 

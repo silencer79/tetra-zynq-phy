@@ -1805,8 +1805,8 @@ tetra_mle_registration_fsm #(
     // UL LLC BL-ACK — M1+M4 post-accept flow.  Parser pulses bl_ack_valid
     // when a MAC-ACCESS frame carries a BL-ACK (bl_pdu_type=11 at LLC
     // offset).  MLE FSM matches against lat_ssi + outstanding_ns to close
-    // the acknowledged BL-DATA transaction.  short_ssi feeds the low 10 bits
-    // of the per-session match; MTP3550 test-SSI 523 fits cleanly.
+    // the acknowledged BL-DATA transaction.  bl_ack_issi carries the full
+    // 24-bit ISSI from the BL-ACK frame for the per-session match.
     .bl_ack_valid     (ul_bl_ack_valid_sys),
     .bl_ack_nr        (ul_bl_ack_nr_sys),
     .bl_ack_issi      (ul_issi_sys),
