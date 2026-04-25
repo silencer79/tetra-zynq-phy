@@ -70,8 +70,9 @@ td.num { text-align: right; }
 <h1>TETRA Cell Config <span class="tag" id="cellState">--</span></h1>
 
 <div class="tabs">
-  <div class="tab active" id="tab-cfg"  onclick="showTab('cfg')">Cell Config</div>
-  <div class="tab"        id="tab-subs" onclick="showTab('subs')">Subscribers</div>
+  <div class="tab active" id="tab-cfg"      onclick="showTab('cfg')">Cell Config</div>
+  <div class="tab"        id="tab-subs"     onclick="showTab('subs')">Subscribers</div>
+  <div class="tab"        id="tab-profiles" onclick="showTab('profiles')">Profiles</div>
 </div>
 
 <!-- ========================= CELL CONFIG TAB ========================= -->
@@ -195,37 +196,41 @@ td.num { text-align: right; }
 </div>
 <div id="mon-pre">(no log)</div>
 
-<h2>Registered Subscribers</h2>
+<h2>Registered Entities (EntityTable §9.2)</h2>
 <table id="ent-tbl">
   <thead><tr>
-    <th>Slot</th><th>ISSI</th><th>LA</th><th>V/D/R</th><th>Prio</th><th></th>
+    <th>Slot</th><th>Entity ID</th><th>Type</th><th>Profile</th><th></th>
   </tr></thead>
   <tbody id="ent-tbody">
-    <tr><td colspan="6">(loading)</td></tr>
+    <tr><td colspan="5">(loading)</td></tr>
   </tbody>
 </table>
 
-<h2>Add Subscriber</h2>
+<h2>Add Entity</h2>
 <form id="add-form" class="add-form" onsubmit="return addSub(event)">
   <div class="grid">
     <label>Slot <span>0-255</span>
       <input name="slot" type="number" value="1" min="0" max="255" required>
     </label>
-    <label>ISSI <span>24-bit, e.g. 2633617</span>
-      <input name="issi" type="number" value="0" min="0" max="16777215" required>
+    <label>Entity ID <span>24-bit (ISSI or GSSI)</span>
+      <input name="entity_id" type="number" value="0" min="0" max="16777215" required>
     </label>
-    <label>Location Area <span>14-bit</span>
-      <input name="la" type="number" value="1" min="0" max="16383" required>
+    <label>Type
+      <select name="entity_type">
+        <option value="0" selected>0 = ISSI (subscriber)</option>
+        <option value="1">1 = GSSI (group)</option>
+      </select>
     </label>
-    <label>Priority <span>0-15</span>
-      <input name="prio" type="range" value="0" min="0" max="15" oninput="document.getElementById('prio-val').textContent=this.value">
-      <span style="color:#7eb8da;">Prio = <b id="prio-val">0</b></span>
+    <label>Profile <span>0..5</span>
+      <select name="profile_id">
+        <option value="0" selected>0 (M2 default)</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
     </label>
-  </div>
-  <div class="checks">
-    <label><input name="pv" type="checkbox" value="1" checked> permit_voice</label>
-    <label><input name="pd" type="checkbox" value="1" checked> permit_data</label>
-    <label><input name="pr" type="checkbox" value="1" checked> permit_reg</label>
   </div>
   <div class="actions">
     <button class="btn-add" type="submit">Add / Update</button>
@@ -235,27 +240,90 @@ td.num { text-align: right; }
 
 </div><!-- /view-subs -->
 
+<!-- ========================= PROFILES TAB ========================= -->
+<div class="view" id="view-profiles">
+<h2>Profile Table (§9.2 — 6 slots × 32 bit)</h2>
+<table id="prof-tbl">
+  <thead><tr>
+    <th>Slot</th><th>data (hex)</th>
+    <th>max_call_dur</th><th>hangtime</th><th>priority</th>
+    <th>gila_class</th><th>gila_lifetime</th>
+    <th>V</th><th>D</th><th>R</th><th>valid</th>
+    <th></th>
+  </tr></thead>
+  <tbody id="prof-tbody">
+    <tr><td colspan="12">(loading)</td></tr>
+  </tbody>
+</table>
+
+<h2>Edit Profile</h2>
+<form id="prof-form" class="add-form" onsubmit="return setProfile(event)">
+  <div class="grid">
+    <label>Slot <span>0..5</span>
+      <select name="slot">
+        <option value="0" selected>0 (M2 default = 0x0000088F)</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
+    </label>
+    <label>max_call_duration <span>0..255 sec, 0=unlimited</span>
+      <input name="max" type="number" value="0" min="0" max="255">
+    </label>
+    <label>hangtime <span>0..255 (×100 ms)</span>
+      <input name="hangtime" type="number" value="0" min="0" max="255">
+    </label>
+    <label>priority <span>0..15</span>
+      <input name="priority" type="number" value="0" min="0" max="15">
+    </label>
+    <label>gila_class <span>0..7 (M2=4)</span>
+      <input name="gila_class" type="number" value="4" min="0" max="7">
+    </label>
+    <label>gila_lifetime <span>0..3 (M2=1)</span>
+      <input name="gila_lifetime" type="number" value="1" min="0" max="3">
+    </label>
+  </div>
+  <div class="checks">
+    <label><input name="permit_voice" type="checkbox" value="1" checked> permit_voice</label>
+    <label><input name="permit_data"  type="checkbox" value="1" checked> permit_data</label>
+    <label><input name="permit_reg"   type="checkbox" value="1" checked> permit_reg</label>
+    <label><input name="valid"        type="checkbox" value="1" checked> valid</label>
+  </div>
+  <div class="actions">
+    <button class="btn-add" type="submit">Apply</button>
+  </div>
+</form>
+<div id="prof-msg" class="subs-msg"></div>
+
+</div><!-- /view-profiles -->
+
 <script>
 function qs(s) { return document.querySelector(s); }
 function showStatus(txt) { var el = qs('#status'); el.style.display = 'block'; el.textContent = txt; }
 
 /* -------- Tab switching -------- */
-var pollSessId = 0, pollEntId = 0;
+var pollSessId = 0, pollEntId = 0, pollProfId = 0;
 function showTab(name) {
-  var ids = ['cfg', 'subs'];
+  var ids = ['cfg', 'subs', 'profiles'];
   for (var i = 0; i < ids.length; i++) {
     var v = document.getElementById('view-' + ids[i]);
     var t = document.getElementById('tab-' + ids[i]);
     if (ids[i] === name) { v.classList.add('active'); t.classList.add('active'); }
     else                 { v.classList.remove('active'); t.classList.remove('active'); }
   }
+  // Stop all polls; restart whichever the active tab needs.
+  if (pollSessId) { clearInterval(pollSessId); pollSessId = 0; }
+  if (pollEntId)  { clearInterval(pollEntId);  pollEntId  = 0; }
+  if (pollProfId) { clearInterval(pollProfId); pollProfId = 0; }
   if (name === 'subs') {
     refreshSessions(); refreshEntities();
-    if (!pollSessId) pollSessId = setInterval(refreshSessions, 2000);
-    if (!pollEntId)  pollEntId  = setInterval(refreshEntities, 5000);
-  } else {
-    if (pollSessId) { clearInterval(pollSessId); pollSessId = 0; }
-    if (pollEntId)  { clearInterval(pollEntId);  pollEntId  = 0; }
+    pollSessId = setInterval(refreshSessions, 2000);
+    pollEntId  = setInterval(refreshEntities, 5000);
+  } else if (name === 'profiles') {
+    refreshProfiles();
+    pollProfId = setInterval(refreshProfiles, 5000);
   }
 }
 
@@ -382,7 +450,7 @@ function refreshEntities() {
       if (!arr || !arr.length) {
         var tr = document.createElement('tr');
         var td = document.createElement('td');
-        td.colSpan = 6; td.textContent = '(empty — no subscribers)';
+        td.colSpan = 5; td.textContent = '(empty — no entities)';
         tr.appendChild(td); tb.appendChild(tr);
         return;
       }
@@ -390,18 +458,17 @@ function refreshEntities() {
         var e = arr[i];
         var tr = document.createElement('tr');
         var c1 = document.createElement('td'); c1.className = 'num'; c1.textContent = e.slot;
-        var c2 = document.createElement('td'); c2.className = 'num'; c2.textContent = e.issi;
-        var c3 = document.createElement('td'); c3.className = 'num'; c3.textContent = e.la;
-        var c4 = document.createElement('td');
-        c4.textContent = (e.pv ? 'V' : '-') + (e.pd ? 'D' : '-') + (e.pr ? 'R' : '-');
-        var c5 = document.createElement('td'); c5.className = 'num'; c5.textContent = e.prio;
-        var c6 = document.createElement('td');
+        var c2 = document.createElement('td'); c2.className = 'num'; c2.textContent = e.entity_id;
+        var c3 = document.createElement('td');
+        c3.textContent = (e.entity_type ? 'GSSI' : 'ISSI');
+        var c4 = document.createElement('td'); c4.className = 'num'; c4.textContent = e.profile_id;
+        var c5 = document.createElement('td');
         var btn = document.createElement('button');
         btn.className = 'btn-del'; btn.type = 'button'; btn.textContent = 'Delete';
         (function(slot) { btn.onclick = function() { delSub(slot); }; })(e.slot);
-        c6.appendChild(btn);
+        c5.appendChild(btn);
         tr.appendChild(c1); tr.appendChild(c2); tr.appendChild(c3);
-        tr.appendChild(c4); tr.appendChild(c5); tr.appendChild(c6);
+        tr.appendChild(c4); tr.appendChild(c5);
         tb.appendChild(tr);
       }
     })
@@ -411,9 +478,107 @@ function refreshEntities() {
       while (tb.firstChild) tb.removeChild(tb.firstChild);
       var tr = document.createElement('tr');
       var td = document.createElement('td');
-      td.colSpan = 6; td.textContent = 'entities.cgi error: ' + e;
+      td.colSpan = 5; td.textContent = 'entities.cgi error: ' + e;
       tr.appendChild(td); tb.appendChild(tr);
     });
+}
+
+/* -------- Profiles tab: poll + edit -------- */
+function refreshProfiles() {
+  fetch('/cgi-bin/profiles.cgi')
+    .then(function(r) { return r.json(); })
+    .then(function(arr) {
+      var tb = qs('#prof-tbody');
+      if (!tb) return;
+      while (tb.firstChild) tb.removeChild(tb.firstChild);
+      for (var i = 0; i < arr.length; i++) {
+        var p = arr[i];
+        var tr = document.createElement('tr');
+        var cell = function(v, num) {
+          var td = document.createElement('td');
+          if (num) td.className = 'num';
+          td.textContent = v;
+          return td;
+        };
+        tr.appendChild(cell(p.slot, true));
+        tr.appendChild(cell(p.data, false));
+        tr.appendChild(cell(p.max, true));
+        tr.appendChild(cell(p.hangtime, true));
+        tr.appendChild(cell(p.priority, true));
+        tr.appendChild(cell(p.gila_class, true));
+        tr.appendChild(cell(p.gila_lifetime, true));
+        tr.appendChild(cell(p.permit_voice ? '1' : '0', true));
+        tr.appendChild(cell(p.permit_data ? '1' : '0', true));
+        tr.appendChild(cell(p.permit_reg ? '1' : '0', true));
+        tr.appendChild(cell(p.valid ? '1' : '0', true));
+        var c12 = document.createElement('td');
+        var btn = document.createElement('button');
+        btn.type = 'button'; btn.textContent = 'Load';
+        (function(pp) {
+          btn.onclick = function() { loadProfileForm(pp); };
+        })(p);
+        c12.appendChild(btn);
+        tr.appendChild(c12);
+        tb.appendChild(tr);
+      }
+    })
+    .catch(function(e) {
+      var tb = qs('#prof-tbody');
+      if (!tb) return;
+      while (tb.firstChild) tb.removeChild(tb.firstChild);
+      var tr = document.createElement('tr');
+      var td = document.createElement('td');
+      td.colSpan = 12; td.textContent = 'profiles.cgi error: ' + e;
+      tr.appendChild(td); tb.appendChild(tr);
+    });
+}
+
+function loadProfileForm(p) {
+  var f = qs('#prof-form');
+  f.slot.value          = p.slot;
+  f.max.value           = p.max;
+  f.hangtime.value      = p.hangtime;
+  f.priority.value      = p.priority;
+  f.gila_class.value    = p.gila_class;
+  f.gila_lifetime.value = p.gila_lifetime;
+  f.permit_voice.checked = !!p.permit_voice;
+  f.permit_data.checked  = !!p.permit_data;
+  f.permit_reg.checked   = !!p.permit_reg;
+  f.valid.checked        = !!p.valid;
+}
+
+function showProfMsg(ok, txt) {
+  var m = qs('#prof-msg');
+  m.textContent = txt;
+  m.className = 'subs-msg ' + (ok ? 'ok' : 'err');
+  setTimeout(function() { m.className = 'subs-msg'; }, 4000);
+}
+
+function setProfile(ev) {
+  ev.preventDefault();
+  var f = qs('#prof-form');
+  var body = 'op=set'
+    + '&slot='          + encodeURIComponent(f.slot.value)
+    + '&max='           + encodeURIComponent(f.max.value)
+    + '&hangtime='      + encodeURIComponent(f.hangtime.value)
+    + '&priority='      + encodeURIComponent(f.priority.value)
+    + '&gila_class='    + encodeURIComponent(f.gila_class.value)
+    + '&gila_lifetime=' + encodeURIComponent(f.gila_lifetime.value)
+    + '&permit_voice='  + (f.permit_voice.checked ? 1 : 0)
+    + '&permit_data='   + (f.permit_data.checked  ? 1 : 0)
+    + '&permit_reg='    + (f.permit_reg.checked   ? 1 : 0)
+    + '&valid='         + (f.valid.checked        ? 1 : 0);
+  fetch('/cgi-bin/profiles.cgi', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body
+  }).then(function(r) { return r.json(); })
+    .then(function(j) {
+      if (j && j.ok) { showProfMsg(true, 'OK — slot ' + j.slot + ' = ' + j.data); refreshProfiles(); }
+      else           { showProfMsg(false, 'ERR: ' + (j && j.err ? j.err : 'unknown')); }
+    })
+    .catch(function(e) { showProfMsg(false, 'fetch error: ' + e); });
+  return false;
 }
 
 function showSubsMsg(ok, txt) {
@@ -434,18 +599,15 @@ function postEntities(body) {
 function addSub(ev) {
   ev.preventDefault();
   var f = qs('#add-form');
-  var slot = f.slot.value, issi = f.issi.value, la = f.la.value, prio = f.prio.value;
-  var pv = f.pv.checked ? 1 : 0;
-  var pd = f.pd.checked ? 1 : 0;
-  var pr = f.pr.checked ? 1 : 0;
+  var slot       = f.slot.value;
+  var entity_id  = f.entity_id.value;
+  var entity_type= f.entity_type.value;
+  var profile_id = f.profile_id.value;
   var body = 'op=add'
-    + '&slot=' + encodeURIComponent(slot)
-    + '&issi=' + encodeURIComponent(issi)
-    + '&la='   + encodeURIComponent(la)
-    + '&pv='   + pv
-    + '&pd='   + pd
-    + '&pr='   + pr
-    + '&prio=' + encodeURIComponent(prio);
+    + '&slot='        + encodeURIComponent(slot)
+    + '&entity_id='   + encodeURIComponent(entity_id)
+    + '&entity_type=' + encodeURIComponent(entity_type)
+    + '&profile_id='  + encodeURIComponent(profile_id);
   postEntities(body)
     .then(function(j) {
       if (j && j.ok) { showSubsMsg(true, 'OK — added/updated slot ' + slot); refreshEntities(); }
@@ -456,7 +618,7 @@ function addSub(ev) {
 }
 
 function delSub(slot) {
-  if (!confirm('Delete subscriber slot ' + slot + '?')) return;
+  if (!confirm('Delete entity slot ' + slot + '?')) return;
   postEntities('op=del&slot=' + encodeURIComponent(slot))
     .then(function(j) {
       if (j && j.ok) { showSubsMsg(true, 'OK — deleted slot ' + slot); refreshEntities(); }

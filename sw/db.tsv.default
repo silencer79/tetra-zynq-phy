@@ -1,2 +1,12 @@
-# tetra subscriber DB — slot issi la permit_voice permit_data permit_reg priority
-0	2633617	1	1	1	1	0
+# tetra entity DB (Phase 6 D-rev §9.2) — slot entity_id entity_type profile_id
+# entity_type: 0=ISSI, 1=GSSI
+#
+# Slot 0: MTP3550 ISSI (0x282F91 = 2 633 617), Profile 0 (M2 default).
+# Slot 1: Default-Group GSSI (0x2F4D61 = 3 100 001), Profile 0 (M2 default).
+# Together these reproduce the gold-ref D-LOC-UPDATE-ACCEPT GILA bit pattern
+# when the MS attaches with a Profile-0 binding.
+#
+# Profile 0 reset-default (32-bit record 0x0000_088F):
+#   gila_class=4, gila_lifetime=1, permit_voice/data/reg=1, valid=1
+0	2633617	0	0
+1	3100001	1	0

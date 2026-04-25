@@ -1,11 +1,18 @@
 #!/bin/sh
-# entities.cgi — Phase E.1 Subscriber-DB endpoint
-#   GET                       -> JSON array of all entities
-#   POST op=add slot=... issi=... la=... pv=... pd=... pr=... prio=...
+# entities.cgi — Phase 6 D-rev EntityTable endpoint
+#   GET                                     -> JSON array of all entities
+#   POST op=add slot=... entity_id=...
+#                entity_type=... profile_id=...
 #   POST op=del slot=...
 #
 # Backed by /root/tetra_db_mgr (TSV in /var/lib/tetra/db.tsv +
-# AXI indirect window 0x180..0x18C to FPGA shadow BRAM).
+# AXI indirect window 0x180..0x18C to FPGA EntityTable BRAM).
+#
+# Record layout per docs/ARCHITECTURE.md §9.2:
+#   entity_id   24 bit (ISSI ODER GSSI)
+#   entity_type  1 bit (0=ISSI, 1=GSSI)
+#   profile_id   4 bit (index into ProfileTable, 0..5)
+#   valid        1 bit
 
 DBMGR=/root/tetra_db_mgr
 
@@ -17,29 +24,22 @@ emit_json() {
 }
 
 emit_err() {
-    # $1 = error message
     echo "Content-Type: application/json"
     echo "Status: 400 Bad Request"
     echo ""
-    # crude escaping: drop quotes and backslashes
     msg=$(echo "$1" | tr -d '"\\')
     printf '{"ok":false,"err":"%s"}\n' "$msg"
 }
 
-# ---- input sanitizer (alnum + . _ -) ----
 san() {
     echo "$1" | sed 's/[^a-zA-Z0-9._-]//g'
 }
 
-# ---- parse form-encoded body (GET QUERY_STRING or POST stdin) ----
 parse_kv() {
-    # $1 = raw body  (key=val&key=val&...)
-    # emits eval-safe k=sanitized_v lines on stdout
     echo "$1" | tr '&' '\n' | while read kv; do
         [ -z "$kv" ] && continue
         k=$(echo "$kv" | cut -d= -f1)
         v=$(echo "$kv" | cut -d= -f2-)
-        # only allow alnum keys
         k_clean=$(echo "$k" | sed 's/[^a-zA-Z0-9_]//g')
         [ -z "$k_clean" ] && continue
         v_clean=$(echo "$v" | sed 's/[^a-zA-Z0-9._-]//g')
@@ -50,7 +50,6 @@ parse_kv() {
 method="${REQUEST_METHOD:-GET}"
 
 if [ "$method" = "POST" ]; then
-    # read POST body
     len="${CONTENT_LENGTH:-0}"
     case "$len" in
         ''|*[!0-9]*) len=0 ;;
@@ -67,17 +66,14 @@ if [ "$method" = "POST" ]; then
     case "$op" in
     add)
         slot=$(san "${slot:-}")
-        issi=$(san "${issi:-}")
-        la=$(san "${la:-}")
-        pv=$(san "${pv:-1}")
-        pd=$(san "${pd:-1}")
-        pr=$(san "${pr:-1}")
-        prio=$(san "${prio:-0}")
-        if [ -z "$slot" ] || [ -z "$issi" ] || [ -z "$la" ]; then
-            emit_err "missing slot/issi/la"
+        entity_id=$(san "${entity_id:-}")
+        entity_type=$(san "${entity_type:-0}")
+        profile_id=$(san "${profile_id:-0}")
+        if [ -z "$slot" ] || [ -z "$entity_id" ]; then
+            emit_err "missing slot/entity_id"
             exit 0
         fi
-        out=$("$DBMGR" add "$slot" "$issi" "$la" "$pv" "$pd" "$pr" "$prio" 2>&1)
+        out=$("$DBMGR" add "$slot" "$entity_id" "$entity_type" "$profile_id" 2>&1)
         rc=$?
         if [ "$rc" -ne 0 ]; then
             emit_err "tetra_db_mgr add failed: $out"
@@ -122,9 +118,9 @@ fi
 
 # ---- GET: list all entities as JSON array ----
 # tetra_db_mgr list output:
-#   slot  issi    la  v d r prio
-#     0 2633617    1  1 1 1    0
-#   -- 1 record(s)
+#   slot  entity_id  type profile
+#     0   2633617    0    0
+#   -- 2 record(s)
 list=$("$DBMGR" list 2>/dev/null)
 
 echo "Content-Type: application/json"
@@ -132,13 +128,11 @@ echo ""
 
 printf '['
 first=1
-echo "$list" | while read slot issi la pv pd pr prio rest; do
-    # skip header / footer / blanks
+echo "$list" | while read slot entity_id etype prof rest; do
     case "$slot" in
         ''|slot|--) continue ;;
     esac
-    # require all 7 fields numeric
-    case "$slot$issi$la$pv$pd$pr$prio" in
+    case "$slot$entity_id$etype$prof" in
         ''|*[!0-9]*) continue ;;
     esac
     if [ "$first" = "1" ]; then
@@ -146,7 +140,7 @@ echo "$list" | while read slot issi la pv pd pr prio rest; do
     else
         printf ','
     fi
-    printf '{"slot":%s,"issi":%s,"la":%s,"pv":%s,"pd":%s,"pr":%s,"prio":%s}' \
-        "$slot" "$issi" "$la" "$pv" "$pd" "$pr" "$prio"
+    printf '{"slot":%s,"entity_id":%s,"entity_type":%s,"profile_id":%s,"valid":1}' \
+        "$slot" "$entity_id" "$etype" "$prof"
 done
 printf ']\n'

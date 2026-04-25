@@ -1,25 +1,30 @@
 /*
- * tetra_db_mgr.c — Subscriber database manager (Phase 6 M2.3)
+ * tetra_db_mgr.c — EntityTable database manager (Phase 6 D-rev)
  *
- * ARM-side maintenance tool for the subscriber-shadow BRAM (256 × 64 bit).
+ * ARM-side maintenance tool for the EntityTable BRAM (256 × 64 bit).
  * The FPGA MLE registration FSM reads the BRAM at air-interface rate; this
  * tool is the write path: it pushes records via the AXI-Lite indirect
- * window (REG_SHADOW_INDEX / DATA_LO / DATA_HI / CTRL).
+ * window (REG_SHADOW_INDEX / DATA_LO / DATA_HI / CTRL — same window, new
+ * record interpretation per docs/ARCHITECTURE.md §9.2).
  *
- * Record layout (must match rtl/lmac/tetra_subscriber_shadow.v):
- *   [63:40] issi            24 bit — TETRA short subscriber identity
- *   [39:26] la              14 bit — location area
- *   [25:8]  reserved        18 bit — 0 for now
- *   [7]     permit_voice    1 bit
- *   [6]     permit_data     1 bit
- *   [5]     permit_reg      1 bit
- *   [4:1]   priority        4 bit
- *   [0]     valid           1 bit
+ * Record layout (must match rtl/lmac/tetra_entity_table.v):
+ *   [63:40] entity_id     24 bit — ISSI ODER GSSI
+ *   [39]    entity_type    1 bit — 0=ISSI, 1=GSSI
+ *   [38:35] profile_id     4 bit — index into ProfileTable
+ *   [34: 1] reserved      34 bit — 0
+ *   [ 0]    valid          1 bit
+ *
+ * Permits, LA, priority etc. live in the ProfileTable now (see
+ * sw/tetra_profile_mgr or the WebUI profiles.cgi).  This tool only manages
+ * the persistent identity → profile binding.
  *
  * The ARM-local "authoritative" database lives in /var/lib/tetra/db.tsv
- * (TSV, one record per line).  Every commit re-pushes the full table so
- * the BRAM is always a mirror; slots not mentioned in the file are
- * invalidated (valid=0).
+ * (TSV, one record per line).  Format (4 columns, tab-separated):
+ *   slot<TAB>entity_id<TAB>entity_type<TAB>profile_id
+ *
+ * Old 7-column format (slot issi la pv pd pr prio) is detected and
+ * rejected with a hard error so legacy DB files cannot accidentally
+ * roll back the schema.
  *
  * Target: LibreSDR (Zynq-7020), armv7l
  * License: GPL v2
@@ -58,28 +63,22 @@ void tetra_hal_close(tetra_hal_t *hal)
 }
 
 typedef struct {
-    uint32_t issi;          /* 24 bit */
-    uint16_t la;            /* 14 bit */
-    uint8_t  permit_voice;
-    uint8_t  permit_data;
-    uint8_t  permit_reg;
-    uint8_t  priority;      /*  4 bit */
+    uint32_t entity_id;     /* 24 bit (ISSI or GSSI) */
+    uint8_t  entity_type;   /*  1 bit (0=ISSI, 1=GSSI) */
+    uint8_t  profile_id;    /*  4 bit (0..5) */
     uint8_t  valid;
-} subs_rec_t;
+} ent_rec_t;
 
-static subs_rec_t g_db[DB_DEPTH];
+static ent_rec_t g_db[DB_DEPTH];
 
-static uint64_t pack_record(const subs_rec_t *r)
+static uint64_t pack_record(const ent_rec_t *r)
 {
     uint64_t w = 0;
-    w |= ((uint64_t)(r->issi         & 0xFFFFFFu)) << 40;
-    w |= ((uint64_t)(r->la           & 0x3FFFu))   << 26;
-    /* [25:8] reserved = 0 */
-    w |= ((uint64_t)(r->permit_voice & 0x1u))      << 7;
-    w |= ((uint64_t)(r->permit_data  & 0x1u))      << 6;
-    w |= ((uint64_t)(r->permit_reg   & 0x1u))      << 5;
-    w |= ((uint64_t)(r->priority     & 0xFu))      << 1;
-    w |= ((uint64_t)(r->valid        & 0x1u));
+    w |= ((uint64_t)(r->entity_id   & 0xFFFFFFu)) << 40;
+    w |= ((uint64_t)(r->entity_type & 0x1u))      << 39;
+    w |= ((uint64_t)(r->profile_id  & 0xFu))      << 35;
+    /* [34: 1] reserved = 0 */
+    w |= ((uint64_t)(r->valid       & 0x1u));
     return w;
 }
 
@@ -92,8 +91,11 @@ static void push_slot(tetra_hal_t *hal, uint8_t idx, uint64_t rec)
 }
 
 /* ------------------------------------------------------------------------
- * File I/O — TSV with header comments (# prefix)
- *   slot<TAB>issi<TAB>la<TAB>pv<TAB>pd<TAB>pr<TAB>prio
+ * File I/O — TSV with header comments (# prefix).  4 columns:
+ *   slot<TAB>entity_id<TAB>entity_type<TAB>profile_id
+ *
+ * Old 7-column format ("slot issi la pv pd pr prio") is rejected with
+ * a hard error pointing the operator at the migration path.
  * ------------------------------------------------------------------------ */
 static int db_load(const char *path)
 {
@@ -111,21 +113,34 @@ static int db_load(const char *path)
         while (*s == ' ' || *s == '\t') s++;
         if (*s == '#' || *s == '\n' || *s == '\0') continue;
 
-        unsigned slot, issi, la, pv, pd, pr, prio;
+        unsigned slot, entity_id, entity_type, profile_id;
+        unsigned extra[3];
         int n = sscanf(s, "%u %u %u %u %u %u %u",
-                       &slot, &issi, &la, &pv, &pd, &pr, &prio);
-        if (n != 7 || slot >= DB_DEPTH) {
-            fprintf(stderr, "%s:%d: parse error\n", path, lineno);
+                       &slot, &entity_id, &entity_type, &profile_id,
+                       &extra[0], &extra[1], &extra[2]);
+        if (n == 7) {
+            /* Legacy 7-column TSV — reject hard. */
+            fprintf(stderr,
+                "%s:%d: legacy 7-column TSV format detected.\n"
+                "  Phase 6 D-rev EntityTable uses 4 columns:\n"
+                "    slot<TAB>entity_id<TAB>entity_type<TAB>profile_id\n"
+                "  Permits/LA/priority moved to ProfileTable.\n"
+                "  Regenerate db.tsv from sw/db.tsv.default or via WebUI.\n",
+                path, lineno);
             fclose(f);
             return -1;
         }
-        g_db[slot].issi         = issi & 0xFFFFFFu;
-        g_db[slot].la           = (uint16_t)(la & 0x3FFFu);
-        g_db[slot].permit_voice = pv ? 1 : 0;
-        g_db[slot].permit_data  = pd ? 1 : 0;
-        g_db[slot].permit_reg   = pr ? 1 : 0;
-        g_db[slot].priority     = (uint8_t)(prio & 0xFu);
-        g_db[slot].valid        = 1;
+        if (n != 4 || slot >= DB_DEPTH ||
+            entity_id > 0xFFFFFFu || entity_type > 1u || profile_id > 5u) {
+            fprintf(stderr, "%s:%d: parse error (need 4 cols)\n",
+                    path, lineno);
+            fclose(f);
+            return -1;
+        }
+        g_db[slot].entity_id   = entity_id & 0xFFFFFFu;
+        g_db[slot].entity_type = (uint8_t)(entity_type & 0x1u);
+        g_db[slot].profile_id  = (uint8_t)(profile_id  & 0xFu);
+        g_db[slot].valid       = 1;
     }
     fclose(f);
     return 0;
@@ -145,13 +160,12 @@ static int db_save(const char *path)
 
     FILE *f = fopen(path, "w");
     if (!f) { perror(path); return -1; }
-    fprintf(f, "# tetra subscriber DB — slot issi la permit_voice permit_data permit_reg priority\n");
+    fprintf(f, "# tetra entity DB (Phase 6 D-rev §9.2) — slot entity_id entity_type profile_id\n");
+    fprintf(f, "# entity_type: 0=ISSI, 1=GSSI\n");
     for (int i = 0; i < DB_DEPTH; i++) {
         if (!g_db[i].valid) continue;
-        fprintf(f, "%d\t%u\t%u\t%u\t%u\t%u\t%u\n",
-                i, g_db[i].issi, g_db[i].la,
-                g_db[i].permit_voice, g_db[i].permit_data,
-                g_db[i].permit_reg,   g_db[i].priority);
+        fprintf(f, "%d\t%u\t%u\t%u\n",
+                i, g_db[i].entity_id, g_db[i].entity_type, g_db[i].profile_id);
     }
     fclose(f);
     return 0;
@@ -163,32 +177,35 @@ static int db_save(const char *path)
 static void cmd_list(void)
 {
     int n = 0;
-    printf("slot  issi    la  v d r prio\n");
+    printf("slot  entity_id  type profile\n");
     for (int i = 0; i < DB_DEPTH; i++) {
         if (!g_db[i].valid) continue;
-        printf("%3d %6u %4u  %u %u %u %4u\n",
-               i, g_db[i].issi, g_db[i].la,
-               g_db[i].permit_voice, g_db[i].permit_data,
-               g_db[i].permit_reg,   g_db[i].priority);
+        printf("%3d %9u    %u %4u\n",
+               i, g_db[i].entity_id, g_db[i].entity_type, g_db[i].profile_id);
         n++;
     }
     printf("-- %d record(s)\n", n);
 }
 
-static int cmd_add(int slot, uint32_t issi, uint16_t la,
-                   uint8_t pv, uint8_t pd, uint8_t pr, uint8_t prio)
+static int cmd_add(int slot, uint32_t entity_id, uint8_t entity_type,
+                   uint8_t profile_id)
 {
     if (slot < 0 || slot >= DB_DEPTH) {
         fprintf(stderr, "slot out of range (0..%d)\n", DB_DEPTH - 1);
         return -1;
     }
-    g_db[slot].issi         = issi & 0xFFFFFFu;
-    g_db[slot].la           = la   & 0x3FFFu;
-    g_db[slot].permit_voice = pv ? 1 : 0;
-    g_db[slot].permit_data  = pd ? 1 : 0;
-    g_db[slot].permit_reg   = pr ? 1 : 0;
-    g_db[slot].priority     = prio & 0xFu;
-    g_db[slot].valid        = 1;
+    if (entity_type > 1) {
+        fprintf(stderr, "entity_type must be 0 (ISSI) or 1 (GSSI)\n");
+        return -1;
+    }
+    if (profile_id > 5) {
+        fprintf(stderr, "profile_id must be in 0..5 (Phase 6 D ProfileTable depth)\n");
+        return -1;
+    }
+    g_db[slot].entity_id   = entity_id & 0xFFFFFFu;
+    g_db[slot].entity_type = entity_type & 0x1u;
+    g_db[slot].profile_id  = profile_id & 0xFu;
+    g_db[slot].valid       = 1;
     return 0;
 }
 
@@ -202,8 +219,8 @@ static int cmd_del(int slot)
     return 0;
 }
 
-/* Push the entire 256-entry table into shadow BRAM.  Empty slots go in
- * as all-zero (valid=0) so nothing stale lingers from a prior session. */
+/* Push the entire 256-entry table into EntityTable BRAM.  Empty slots go
+ * in as all-zero (valid=0) so nothing stale lingers from a prior session. */
 static void cmd_sync(tetra_hal_t *hal)
 {
     int n = 0;
@@ -212,7 +229,7 @@ static void cmd_sync(tetra_hal_t *hal)
         push_slot(hal, (uint8_t)i, rec);
         if (g_db[i].valid) n++;
     }
-    printf("tetra_db_mgr: pushed 256 slots (%d valid) → shadow BRAM\n", n);
+    printf("tetra_db_mgr: pushed 256 slots (%d valid) → EntityTable BRAM\n", n);
 }
 
 static void usage(const char *a0)
@@ -220,10 +237,13 @@ static void usage(const char *a0)
     fprintf(stderr,
         "Usage:\n"
         "  %s [--file PATH] list\n"
-        "  %s [--file PATH] add SLOT ISSI LA [PV] [PD] [PR] [PRIO]\n"
+        "  %s [--file PATH] add SLOT ENTITY_ID ENTITY_TYPE PROFILE_ID\n"
         "  %s [--file PATH] del SLOT\n"
         "  %s [--file PATH] sync            # push DB to FPGA\n"
-        "Defaults: PV=PD=PR=1 PRIO=0, file=%s\n",
+        "\n"
+        "  ENTITY_TYPE: 0 = ISSI, 1 = GSSI\n"
+        "  PROFILE_ID:  0..5 (index into ProfileTable, see profiles.cgi)\n"
+        "  Default file: %s\n",
         a0, a0, a0, a0, DB_DEFAULT_PATH);
 }
 
@@ -254,15 +274,12 @@ int main(int argc, char *argv[])
         return 0;
     }
     if (!strcmp(cmd, "add")) {
-        if (argc - optind < 3) { usage(argv[0]); return 1; }
-        int      slot = atoi(argv[optind++]);
-        uint32_t issi = (uint32_t)strtoul(argv[optind++], NULL, 0);
-        uint16_t la   = (uint16_t)strtoul(argv[optind++], NULL, 0);
-        uint8_t  pv   = (argc > optind) ? (uint8_t)atoi(argv[optind++]) : 1;
-        uint8_t  pd   = (argc > optind) ? (uint8_t)atoi(argv[optind++]) : 1;
-        uint8_t  pr   = (argc > optind) ? (uint8_t)atoi(argv[optind++]) : 1;
-        uint8_t  prio = (argc > optind) ? (uint8_t)atoi(argv[optind++]) : 0;
-        if (cmd_add(slot, issi, la, pv, pd, pr, prio) < 0) return 1;
+        if (argc - optind < 4) { usage(argv[0]); return 1; }
+        int      slot        = atoi(argv[optind++]);
+        uint32_t entity_id   = (uint32_t)strtoul(argv[optind++], NULL, 0);
+        uint8_t  entity_type = (uint8_t)atoi(argv[optind++]);
+        uint8_t  profile_id  = (uint8_t)atoi(argv[optind++]);
+        if (cmd_add(slot, entity_id, entity_type, profile_id) < 0) return 1;
         return db_save(path) < 0 ? 1 : 0;
     }
     if (!strcmp(cmd, "del")) {
