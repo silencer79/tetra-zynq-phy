@@ -302,18 +302,18 @@ if $DO_INIT; then
              ${REMOTE_BIN_DIR}/tetra_db_mgr sync"
     echo "Subscriber-DB synced to FPGA EntityTable BRAM"
 
-    ssh_cmd "nohup /root/tetra_sysinfo > /tmp/tetra_sysinfo.log 2>&1 &"
+    ssh_cmd "setsid /root/tetra_sysinfo < /dev/null > /tmp/tetra_sysinfo.log 2>&1 &"
     echo "tetra_sysinfo started in background → /tmp/tetra_sysinfo.log"
 
-    ssh_cmd "nohup /root/tetra_ul_mon  > /tmp/tetra_ul_mon.log  2>&1 &"
+    ssh_cmd "setsid /root/tetra_ul_mon  < /dev/null > /tmp/tetra_ul_mon.log  2>&1 &"
     echo "tetra_ul_mon  started in background → /tmp/tetra_ul_mon.log"
 
     # Phase 6 E.4 + E.5 — DB-sync watcher and auto-enroll daemon.
     # Kill any previous instances to avoid duplicates after re-deploy.
     ssh_cmd "pkill -f tetra_dbsync 2>/dev/null; pkill -f tetra_autoenroll 2>/dev/null; true"
-    ssh_cmd "nohup /root/tetra_dbsync.sh     > /tmp/tetra_dbsync.log     2>&1 &"
+    ssh_cmd "setsid /root/tetra_dbsync.sh     < /dev/null > /tmp/tetra_dbsync.log     2>&1 &"
     echo "tetra_dbsync     started in background → /tmp/tetra_dbsync.log"
-    ssh_cmd "nohup /root/tetra_autoenroll.sh > /tmp/tetra_autoenroll.log 2>&1 &"
+    ssh_cmd "setsid /root/tetra_autoenroll.sh < /dev/null > /tmp/tetra_autoenroll.log 2>&1 &"
     echo "tetra_autoenroll started in background → /tmp/tetra_autoenroll.log"
 fi
 
