@@ -11,7 +11,7 @@ echo ""
 
 # devmem helper — output a 32-bit hex word, default 0 on error
 rd() {
-    val=$(devmem "$1" 32 2>/dev/null)
+    val=$(busybox devmem "$1" 32 2>/dev/null)
     case "$val" in
         0x*) echo "$val" ;;
         *)   echo "0x0" ;;
