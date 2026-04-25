@@ -231,6 +231,11 @@ if $DO_SW; then
     echo "Uploading tetra_ul_mon..."
     scp_to "${SW_DIR}/tetra_ul_mon" "${REMOTE_BIN_DIR}/tetra_ul_mon"
     ssh_cmd "chmod +x ${REMOTE_BIN_DIR}/tetra_ul_mon"
+    echo "Uploading tetra_db_mgr..."
+    scp_to "${SW_DIR}/tetra_db_mgr" "${REMOTE_BIN_DIR}/tetra_db_mgr"
+    ssh_cmd "chmod +x ${REMOTE_BIN_DIR}/tetra_db_mgr"
+    echo "Uploading db.tsv.default..."
+    scp_to "${SW_DIR}/db.tsv.default" "${REMOTE_BIN_DIR}/db.tsv.default"
     echo "sw binaries uploaded"
 fi
 
@@ -239,9 +244,19 @@ fi
 # =============================================================================
 
 if $DO_INIT; then
-    step "Running full_init + tetra_sysinfo + tetra_ul_mon"
+    step "Running full_init + subscriber-DB sync + tetra_sysinfo + tetra_ul_mon"
 
     bash "${SCRIPT_DIR}/tetra_ctrl.sh" full_init
+
+    # Subscriber-DB boot-sync: ensure /var/lib/tetra/db.tsv exists (seed from
+    # default if missing), then push to FPGA shadow BRAM via tetra_db_mgr.
+    ssh_cmd "mkdir -p /var/lib/tetra && \
+             if [ ! -f /var/lib/tetra/db.tsv ] && [ -f ${REMOTE_BIN_DIR}/db.tsv.default ]; then \
+                 cp ${REMOTE_BIN_DIR}/db.tsv.default /var/lib/tetra/db.tsv; \
+                 echo 'Seeded /var/lib/tetra/db.tsv from db.tsv.default'; \
+             fi && \
+             ${REMOTE_BIN_DIR}/tetra_db_mgr sync"
+    echo "Subscriber-DB synced to FPGA shadow BRAM"
 
     ssh_cmd "nohup /root/tetra_sysinfo > /tmp/tetra_sysinfo.log 2>&1 &"
     echo "tetra_sysinfo started in background → /tmp/tetra_sysinfo.log"
