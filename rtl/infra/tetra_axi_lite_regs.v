@@ -16,7 +16,7 @@
 //   0x04  STATUS        RO   [0] SYNC_LOCKED [1] PLL_LOCKED
 //                            [2] FIFO_EMPTY  [3] FIFO_FULL  [7:4] SLOT_STATUS
 //   0x08  VERSION       RO   0x0001_0000 (v1.0)
-//   0x0C  SYNC_THRESH   R/W  [7:0]  default 0x14 (20; STS max=38)
+//   0x0C  SYNC_THRESH   R/W  [7:0]  default 0x0D (13; UL-OS4 sweet-spot, ≤19 for STS, ≤11 for NTS)
 //   0x10  COLOUR_CODE   R/W  [5:0]  default 1
 //   0x14  FRAME_NUM     RO   [4:0]  live from frame_counter
 //   0x18  SLOT_NUM      RO   [1:0]  live from frame_counter
@@ -950,7 +950,9 @@ assign ctrl_reset_counters_axi = ctrl_reg_axi[3];
 // ---- SYNC_THRESH register (0x0C) ----
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
-        sync_thresh_axi <= 8'h0F; // default 15; must be ≤19 for STS (19 symbols), ≤11 for NTS
+        sync_thresh_axi <= 8'h0D; // default 13 — UL-OS4 4-bit corr saturates at 15, 13 is sweet-spot;
+                                  // DL-sync is RX-loopback diagnostic only (no TX impact).
+                                  // Must be ≤19 for STS (19 symbols), ≤11 for NTS.
     else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SYNC_THRESH) & wr_strb_axi[0])
         sync_thresh_axi <= wr_data_axi[7:0];
 end
