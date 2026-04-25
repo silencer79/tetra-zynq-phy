@@ -820,6 +820,37 @@ Vollständiger Bit-Walk, Reference-Capture-Verweis: siehe
 `reference_gold_attach_bitexact.md` im Memory-System bzw.
 `docs/references/captures_external_bs_2026-04-25/README.md`.
 
+### 9.1.1 Live-Validierung (2026-04-25 ~12:40, 4 MS-Power-Cycles)
+
+Counter direkt vom Board (`tetra_ctrl.sh read 0x190/0x194/0x198`):
+
+| Reg | Wert | Bedeutung |
+|-----|------|-----------|
+| `0x190` | `0x0004_0004` | ul_req_cnt=4, accept_cnt=4 (4:4 perfect) |
+| `0x194` | `0x0001_0000` | drop_cnt=0, busy_sticky=1 |
+| `0x198` | `0x0000_0008` | sig_override_cnt=8 (4× pre-reply + 4× accept on-air) |
+
+Im UL-Log live beobachtet: nicht nur Stille, sondern **MS-Lifecycle-PDUs
+die ausschließlich von einer voll-registrierten Subscriber-Einheit gesendet
+werden**:
+
+| Zeit | UL PDU | Decoded | Bedeutung |
+|------|--------|---------|-----------|
+| 12:39:50/51 | `0xA00000200400716113E8282` | LLC=BL-DATA NS=1, MLE=CMCE, CMCE_type=7 | **U-RELEASE** (Resource-Release) |
+| 12:40:38 | `0x0313E828002898E313E8282` | LLC=BL-DATA NS=1, MLE=MM, MM_type=1 | **U-ITSI-DETACH** (aktive Abmeldung beim Power-off) |
+
+Schlüsselbeobachtungen:
+- Beide PDUs sind **keine** Demand-Retry-Form. Eine nicht-registrierte MS
+  sendet diese Typen schlichtweg nicht.
+- **N(S)=1** — der MS-LLC-Stack hat unser DL Accept (`N(S)=0`) verarbeitet
+  und seinen `V(S)` hochgezählt. Bestätigt LLC-Round-Trip-OK.
+- `U-ITSI-DETACH` ist das ETSI-konforme Pendant zu `U-LOC-UPDATE-DEMAND` —
+  die MS verabschiedet sich aktiv vor dem Ausschalten.
+
+→ M2 ist damit nicht nur „MS sendet keine Demands mehr" sondern **voll-
+funktional registriert aus MS-Sicht**, mit korrekt synchronisiertem
+LLC-Sequence-State.
+
 ### 9.2 Lessons Learned
 
 - **TETRA-V+D-Spec ist nicht eindeutig genug** für jeden Hersteller. ETSI
