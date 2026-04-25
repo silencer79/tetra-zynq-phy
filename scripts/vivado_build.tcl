@@ -150,7 +150,8 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_crc16.v \
  $PROJ_DIR/rtl/lmac/tetra_steal_detect.v \
  $PROJ_DIR/rtl/lmac/tetra_ul_mac_access_parser.v \
- $PROJ_DIR/rtl/lmac/tetra_subscriber_shadow.v \
+ $PROJ_DIR/rtl/lmac/tetra_entity_table.v \
+ $PROJ_DIR/rtl/lmac/tetra_profile_table.v \
  $PROJ_DIR/rtl/lmac/tetra_active_session_table.v \
  $PROJ_DIR/rtl/lmac/tetra_d_location_update_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_d_location_update_reject_encoder.v \

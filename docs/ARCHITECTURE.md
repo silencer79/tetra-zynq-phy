@@ -579,11 +579,12 @@ und passt zu ETSI `T354 REGISTRATION_TIMER` (auch 24h-default).
 
 | Reg | Felder | Default | Funktion |
 |-----|--------|---------|----------|
-| `0x180..0x18C` | bestehend | — | Entity Table indirect window |
-| (neu) Profile Table indirect window | im 0x18x-Block | — | ARM schreibt Profile |
+| `0x180..0x18C` | INDEX/DATA_LO/DATA_HI/CTRL | — | EntityTable indirect window (Phase 6 D-rev §9.2) |
 | `0x1A4` | `[15:0]` mle_detach_cnt | 0 | Diagnose |
 | `0x1A8` | `[31:0]` ast_ttl_multiframes | 84706 (≈24h) | TTL-Schwelle |
 | `0x1AC` | `[0]` accept_unknown<br>`[1]` auto_enroll_default_profile | 1, 0 | Policy |
+| `0x1B0` | `[15:0]` ast_ttl_evict_cnt | 0 | Phase C TTL-evictions |
+| `0x1C0..0x1CC` | INDEX/DATA/CTRL | — | ProfileTable indirect window (Phase 6 D-rev §9.2; 32-bit record, no DATA_HI) |
 
 ### 9.6 Operator-Schnittstelle
 
@@ -610,7 +611,7 @@ schreibt sofort durch).
 | **A** | Shadow-Lookup-Pfad in MLE-FSM, Permit-Check, REJECT-Encoder | ✅ 2026-04-25 (Commit `2af8e8c`, TBs 10/10) |
 | **B** | Detach-Pfad + AST 64→128 bit (last_seen 24 bit + shadow_idx + state) | ✅ 2026-04-25 (Commit `cae0ebc`, TBs 12/12). Profile-Table → Phase D. |
 | **C** | TTL-Sweep FSM (intern in AST, true dual-port BRAM) | ✅ 2026-04-25 (Commit `e51cc6c`, TBs 16/16). REG_AST_TTL_MULTIFRAMES @ 0x1A8 + REG_AST_TTL_EVICT_CNT @ 0x1B0. |
-| **D** | GILA-Encoder mit GSSI/lifetime/class aus Lookup statt hardcoded | ⏳ Plan |
+| **D-rev** | EntityTable 256 × 64 bit (§9.2 statt Subscriber-Shadow); ProfileTable 6 × 32 bit + AXI 0x1C0; AST 128→256 bit; Multi-Lookup MLE-FSM (Entity→Profile→Default-GSSI→AST per §9.3); GILA-Encoder dynamisch aus Lookup; tetra_db_mgr CLI auf 4-Spalten-TSV; `entities.cgi` JSON-Shape; `profiles.cgi` neu; WebUI 3-Tab + Profile-Editor | ✅ 2026-04-26 (Branch `refactor/phase-d-spec`; Commits `c204c6d`/`7166844`/`ae37d05`/`e1f8f80`/`8185b7f`. TBs: tb_entity_table 18/18, tb_profile_table 13/13, tb_active_session_table 16/16, tb_d_location_update_encoder 34/34, tb_mle_registration_fsm 18/18 mit allen 6 neuen D-rev-Cases incl. profile0_m2_guard). M2 bit-identity bewahrt: Profile 0 reset-default `0x0000_088F` + GSSI 0x2F4D61 reproduziert die MTP3550-Accept-GILA bit-genau. Drift-Vorgänger `refactor/phase-d-profiles` bleibt als Audit-Trail im git-Verlauf, wird aber NICHT in `main` gemergt. |
 | **E.1+E.2+E.3** | WebUI Subscriber-DB (busybox-CGI) — `entities.cgi`, `sessions.cgi`, `policy.cgi` + 2-Tab `index.html` + Boot-Sync `db.tsv.default` → Shadow-BRAM | ✅ 2026-04-25 (Commits `e951871`, `2a7f98d`, `5e23a7e`, `42bcd10`, `ed4707d`, `3a8728f`); on-air verifiziert: WebUI-Delete → MS bleibt mit RESTRICTED-Mode draußen |
 | **E.4** | inotify-Watcher (`tetra_dbsync` Daemon, `db.tsv` → BRAM autosync) | ⏳ Plan |
 | **E.5** | Auto-Enroll (UL-mon-Watcher → unknown ISSI → tsv-Append + Default-Profile) | ⏳ Plan |

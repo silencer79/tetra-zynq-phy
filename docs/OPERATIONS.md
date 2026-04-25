@@ -255,25 +255,39 @@ Für auto-offset-Failure (korrelation < 0.9): manuell Offset setzen —
 
 `scripts/wav_to_tkbits.py` konvertiert unsere WAVs in tetra-kit-kompatibles Input-Format. tetra-kit (externes Tool) lockt unabhängig auf unsere DL (0 Sync-Loss in 35 s, Ref 2026-04-20) und kann als zweiter Decoder dienen wenn `decode_dl.py` zu streng ist.
 
-### 7.5 WebUI — Subscriber-DB + Live-Counter (Phase 6 E.1+E.2+E.3)
+### 7.5 WebUI — Subscriber-DB + Profiles + Live-Counter (Phase 6 E + D-rev)
 
 `http://192.168.2.180/` → busybox httpd liefert `index.html` + CGI.
-Tabs: **Cell Config** (Frequenz/CC/SYSINFO via `apply.cgi`) und
-**Subscribers** (DB + Sessions).
+Tabs: **Cell Config** (Frequenz/CC/SYSINFO via `apply.cgi`),
+**Subscribers** (EntityTable + Sessions) und **Profiles** (ProfileTable
+6-Slot-Editor).
 
 | Endpoint | Methode | Zweck |
 |----------|---------|-------|
-| `/cgi-bin/entities.cgi` | GET | JSON-Liste der Subscriber-Slots aus `db.tsv` |
-| `/cgi-bin/entities.cgi` | POST `op=add&slot=&issi=&la=&pv=&pd=&pr=&prio=` | Hinzufügen + sofort `tetra_db_mgr sync` zur BRAM |
+| `/cgi-bin/entities.cgi` | GET | JSON-Liste der EntityTable-Slots aus `db.tsv`. Felder: `slot, entity_id, entity_type (0=ISSI,1=GSSI), profile_id, valid` |
+| `/cgi-bin/entities.cgi` | POST `op=add&slot=&entity_id=&entity_type=&profile_id=` | Hinzufügen + sofort `tetra_db_mgr sync` zur BRAM |
 | `/cgi-bin/entities.cgi` | POST `op=del&slot=N` | Löschen + sync |
+| `/cgi-bin/profiles.cgi` | GET | JSON-Liste aller 6 ProfileTable-Slots (max_call_dur/hangtime/priority/gila_class/gila_lifetime/permits/valid + raw 32-bit hex) |
+| `/cgi-bin/profiles.cgi` | POST `op=set&slot=&max=&hangtime=&priority=&gila_class=&gila_lifetime=&permit_voice=&permit_data=&permit_reg=&valid=` | Profile schreiben (AXI 0x1C0..0x1CC + Persistenz `/var/lib/tetra/profiles.tsv`) |
 | `/cgi-bin/sessions.cgi` | GET | Live-Counter via `busybox devmem` (0x190/0x194/0x198/0x1A4/0x1A8/0x1AC/0x1B0/0x168) + `tail /tmp/tetra_ul_mon.log` |
 | `/cgi-bin/policy.cgi`   | POST `op=set&accept_unknown=0|1` | OPEN ↔ RESTRICTED Toggle (RMW auf REG_DB_POLICY @ 0x1AC) |
 
 Boot-Sync: `deploy.sh --init` legt `/var/lib/tetra/db.tsv` aus
 `sw/db.tsv.default` an (falls noch nicht vorhanden) und ruft
-`tetra_db_mgr sync` — Shadow-BRAM ist nach Reboot vorgeladen, kein
-manueller `add`-Schritt nötig. Default enthält MTP3550 (ISSI 2633617)
-auf Slot 0.
+`tetra_db_mgr sync` — EntityTable-BRAM ist nach Reboot vorgeladen,
+kein manueller `add`-Schritt nötig. Default-TSV (4-Spalten-Format,
+slot/entity_id/entity_type/profile_id) enthält:
+- Slot 0: ISSI 2633617 (0x282F91, MTP3550), profile_id=0
+- Slot 1: GSSI 3100001 (0x2F4D61, Default-Group), profile_id=0
+
+Profile 0 ist hardware-default (Reset-Wert) `0x0000_088F` (gila_class=4,
+gila_lifetime=1, permit_voice/data/reg=1, valid=1) — bit-genau zur
+M2-Gold-Ref-D-LOC-UPDATE-ACCEPT-GILA. Operator-Edits via Profiles-Tab
+verändern on-air-GILA-Bits sofort beim nächsten Attach.
+
+**Migration-Hinweis:** Legacy-DB-TSV (7 Spalten, vor 2026-04-26) wird
+von `tetra_db_mgr` als "format obsolete" abgelehnt. Vor Phase-D-rev-
+Build alte TSV löschen und aus `sw/db.tsv.default` regenerieren.
 
 ### 7.6 UL-Sync-Threshold (Phase B Detach-Diagnose)
 
