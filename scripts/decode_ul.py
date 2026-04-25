@@ -300,19 +300,22 @@ UL_MLE_PDU_NAMES = {
 }
 
 UL_MM_NAMES = {
-    0: 'U-OTAR',
-    1: 'U-AUTH',
-    2: 'U-CK-CHG-ANSWER',
-    3: 'U-ENABLE',
-    4: 'U-LOC-UPD-DEMAND',
-    5: 'Reserved',
-    6: 'Reserved',
-    7: 'Reserved',
-    8: 'Reserved',
-    9: 'Reserved',
-    10: 'U-ATTACH-DETACH-GRP-ID',
-    11: 'Reserved',
-    12: 'U-MM-STATUS',
+    0:  'U-AUTHENTICATION',
+    1:  'U-ITSI-DETACH',
+    2:  'U-LOC-UPD-DEMAND',
+    3:  'U-MM-STATUS',
+    4:  'U-CK-CHG-RESULT',
+    5:  'U-OTAR',
+    6:  'U-INFO-PROVIDE',
+    7:  'U-ATTACH-DETACH-GRP-ID',
+    8:  'U-ATTACH-DETACH-GRP-ID-ACK',
+    9:  'U-TEI-PROVIDE',
+    10: 'Reserved',
+    11: 'U-DISABLE-STATUS',
+    12: 'Reserved',
+    13: 'Reserved',
+    14: 'Reserved',
+    15: 'MM-PDU-FUNC-NOT-SUPPORTED',
 }
 
 UL_LOC_UPD_TYPE_NAMES = {
@@ -327,7 +330,23 @@ UL_LOC_UPD_TYPE_NAMES = {
 def parse_ul_mm(bits, pos, mm_type):
     r = {}
 
-    if mm_type == 4:  # U-LOCATION UPDATE DEMAND
+    if mm_type == 1:  # U-ITSI-DETACH (Clause 16.9.3.3, MmPduTypeUl::UItsiDetach)
+        # Layout (after the 4-bit pdu_type already consumed by caller):
+        #   1 bit obit (presence of any further fields)
+        #   if obit: optional 24-bit address_extension (with type2-presence bit)
+        if pos + 1 <= len(bits):
+            obit = extract_bits(bits, pos, 1); pos += 1
+            r['optional_fields_present'] = obit
+            if obit == 1:
+                if pos + 1 <= len(bits):
+                    p_ae = extract_bits(bits, pos, 1); pos += 1
+                    r['address_extension_present'] = p_ae
+                    if p_ae == 1 and pos + 24 <= len(bits):
+                        r['address_extension'] = extract_bits(bits, pos, 24); pos += 24
+        r['payload_end'] = pos
+        return r
+
+    if mm_type == 2:  # U-LOCATION UPDATE DEMAND (per MmPduTypeUl)
         if pos + 3 <= len(bits):
             upd_type = extract_bits(bits, pos, 3); pos += 3
             r['location_update_type'] = upd_type
@@ -370,7 +389,7 @@ def parse_ul_mm(bits, pos, mm_type):
         r['payload_end'] = pos
         return r
 
-    if mm_type == 10:  # U-ATTACH/DETACH GROUP ID
+    if mm_type == 7:  # U-ATTACH/DETACH GROUP ID (per MmPduTypeUl)
         if pos + 1 <= len(bits):
             r['group_identity_report'] = extract_bits(bits, pos, 1); pos += 1
         if pos + 1 <= len(bits):
@@ -378,7 +397,7 @@ def parse_ul_mm(bits, pos, mm_type):
         r['payload_end'] = pos
         return r
 
-    if mm_type == 12:  # U-MM-STATUS
+    if mm_type == 3:  # U-MM-STATUS (per MmPduTypeUl)
         if pos + 5 <= len(bits):
             r['status_value'] = extract_bits(bits, pos, 5); pos += 5
         r['payload_end'] = pos
