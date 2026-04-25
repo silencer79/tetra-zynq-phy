@@ -1,0 +1,26 @@
+---
+description: AXI-Diagnose-Counter live vom Board lesen
+---
+
+Lese die aktuellen MLE/Scheduler-Counter vom Board:
+
+```bash
+./scripts/tetra_ctrl.sh read 0x190 2>&1 | tail -1
+./scripts/tetra_ctrl.sh read 0x194 2>&1 | tail -1
+./scripts/tetra_ctrl.sh read 0x198 2>&1 | tail -1
+./scripts/tetra_ctrl.sh read 0x19C 2>&1 | tail -1
+./scripts/tetra_ctrl.sh read 0x1A0 2>&1 | tail -1
+```
+
+Werte interpretieren:
+
+- **0x190** = `{accept_cnt[15:0], ul_req_cnt[15:0]}` — perfekt 1:1
+  Demand→Accept Quote zeigt erfolgreichen Attach
+- **0x194** = `{busy_sticky, drop_cnt[15:0]}` — drop_cnt > 0 ist
+  schlecht, busy_sticky = MLE-FSM aktiv
+- **0x198** = `{clear_cnt[15:0], sig_override_cnt[15:0]}` — zeigt
+  wieviele Bursts on-air gegangen sind
+- **0x19C** = `REG_SIGNAL_TARGET_TN` (default 0)
+- **0x1A0** = `REG_CELL_LA` (default 1)
+
+Output kompakt als Tabelle melden, mit Bedeutung wenn ungewöhnlich.
