@@ -41,9 +41,7 @@ module tetra_aach_encoder (
 
     // Variable: FN (0-based, 0..17). FN_ETSI=18 is fn_sys == 5'd17.
     input  wire [4:0]  fn_sys,
-    // Variable: TN (0-based, 0..3).  TN=0 is the NDB2 NULL-PDU slot in
-    // the Gold-mimic schedule; it needs AACH=DL/UL-Assign so MS sees
-    // "MCCH active, random access permitted" and can register.
+    // Variable: TN (0-based, 0..3).  TN=0 is the signalling slot.
     input  wire [1:0]  tn_sys,
     // Variable: MN%4 (0..3). Used to distinguish F18 TN=0 MN%4=2 (BSCH anchor
     // slot, AACH=Unalloc/Random) from MN%4∈{0,1,3} (NDB2 slots, AACH=Common/Random).
@@ -53,6 +51,10 @@ module tetra_aach_encoder (
     input  wire [5:0]  colour_code_sys,
     input  wire [9:0]  mcc_sys,
     input  wire [13:0] mnc_sys,
+    // 1 when the slot being encoded carries an addressed signalling reply.
+    // On those slots the gold reference uses DL/UL-Assign Unalloc/Unalloc.
+    // Idle TN0 slots stay DL/UL-Assign Common/Random.
+    input  wire        signalling_active_sys,
 
     // Trigger — 1-cycle pulse, start new encoding
     input  wire        encode_start_sys,
@@ -141,14 +143,15 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         S_IDLE: begin
             if (encode_start_sys) begin
                 // Per-slot AACH info (Gold-mimic, EN 300 392-2 §21.5.2):
-                //   TN=0 → DL/UL-Assign DL=Unalloc(0) UL=Unalloc(0) CC=9
-                //          (info=0x0049) — addressed signalling slot as seen
-                //          in the external BS attach reference (#727/#735)
-                //   FN=18 → DL/UL-Assign DL=Unalloc(0) UL=Random(1) CC=0
-                //           (info=0x040)  — hyperframe sync frame
-                //   else  → CapAlloc f1=0 f2=0 (info=0x3000) — SB slots
+                //   TN=0 + addressed signalling → DL/UL-Assign Unalloc/Unalloc
+                //                                (0x0049)
+                //   TN=0 + idle signalling      → DL/UL-Assign Common/Random
+                //                                (0x0249)
+                //   FN=18, TN!=0                → DL/UL-Assign Unalloc/Random
+                //                                (0x040)
+                //   else                        → Capacity Allocation (0x3000)
                 if (tn_sys == 2'd0)
-                    info_sys <= 14'h0049;
+                    info_sys <= signalling_active_sys ? 14'h0049 : 14'h0249;
                 else if (fn_sys == 5'd17)
                     info_sys <= 14'h040;
                 else

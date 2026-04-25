@@ -93,6 +93,7 @@ module tetra_dl_signal_scheduler (
     output reg  [215:0] sched_blk1_tn3_sys,
     output reg  [215:0] sched_blk2_tn3_sys,
     output reg  [3:0]   sched_ndb2_sys,
+    output reg  [3:0]   sched_active_sys,
 
     // -------------------------------------------------------------------------
     // Stats (to AXI regs)
@@ -187,6 +188,17 @@ module tetra_dl_signal_scheduler (
         else if (pop_trigger)
             sched_ndb2_sys <= {next_ndb2_tn3, next_ndb2_tn2,
                                next_ndb2_tn1, next_ndb2_tn0};
+    end
+
+    // One-hot "real signalling PDU present in this frame" marker.  Used by
+    // the AACH encoder so TN0 advertises Unalloc/Unalloc only on addressed
+    // reply slots, while idle signalling slots keep Common/Random.
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)
+            sched_active_sys <= 4'b0000;
+        else if (pop_trigger)
+            sched_active_sys <= have_pdu ? {tgt_tn3, tgt_tn2, tgt_tn1, tgt_tn0}
+                                         : 4'b0000;
     end
 
     // -------------------------------------------------------------------------

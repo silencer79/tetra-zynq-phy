@@ -1869,6 +1869,8 @@ tetra_mle_registration_fsm #(
 // Drop-newest on overflow; losers on same-cycle producer collisions count
 // toward drop_cnt.  Consumer is tetra_dl_signal_scheduler (one pop per frame).
 // =============================================================================
+wire [3:0] sched_active_sys_w;
+
 tetra_dl_signal_queue #(
     .DEPTH(4)
 ) u_dl_signal_queue (
@@ -1947,6 +1949,7 @@ tetra_dl_signal_scheduler u_dl_signal_scheduler (
     .sched_blk1_tn3_sys     (sched_blk1_tn3_sys_w),
     .sched_blk2_tn3_sys     (sched_blk2_tn3_sys_w),
     .sched_ndb2_sys         (sched_ndb2_sys_w),
+    .sched_active_sys       (sched_active_sys_w),
     // Stats
     .override_cnt_sys       (sig_override_cnt_w),
     .pop_cnt_sys            (sig_pop_cnt_w)
@@ -1977,7 +1980,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         mle_drop_cnt_sys    <= 16'd0;
         mle_busy_sticky_sys <= 1'b0;
     end else begin
-        if (ul_pdu_valid_sys)    mle_ul_req_cnt_sys <= mle_ul_req_cnt_sys + 16'd1;
+        if (mle_ul_req_valid_w)  mle_ul_req_cnt_sys <= mle_ul_req_cnt_sys + 16'd1;
         if (mle_accept_pulse_w)  mle_accept_cnt_sys <= mle_accept_cnt_sys + 16'd1;
         if (mle_drop_pulse_w)    mle_drop_cnt_sys   <= mle_drop_cnt_sys   + 16'd1;
         if (mle_busy_w)          mle_busy_sticky_sys <= 1'b1;
@@ -2339,6 +2342,7 @@ tetra_aach_encoder u_aach_encoder (
     .colour_code_sys  (colour_code_sys_r1),
     .mcc_sys          (cell_cfg_mcc_sys_r1),
     .mnc_sys          (cell_cfg_mnc_sys_r1),
+    .signalling_active_sys (sched_active_sys_w[tx_tn_next_sys]),
     .encode_start_sys (tx_tdma_state_slot_pulse_sys),
     .aach_coded_sys   (aach_coded_sys_w),
     .aach_valid_sys   (aach_valid_sys_w)
