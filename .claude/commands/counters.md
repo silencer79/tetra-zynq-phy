@@ -11,7 +11,9 @@ Lese die aktuellen MLE/Scheduler-Counter vom Board:
 ./scripts/tetra_ctrl.sh read 0x19C 2>&1 | tail -1
 ./scripts/tetra_ctrl.sh read 0x1A0 2>&1 | tail -1
 ./scripts/tetra_ctrl.sh read 0x1A4 2>&1 | tail -1
+./scripts/tetra_ctrl.sh read 0x1A8 2>&1 | tail -1
 ./scripts/tetra_ctrl.sh read 0x1AC 2>&1 | tail -1
+./scripts/tetra_ctrl.sh read 0x1B0 2>&1 | tail -1
 ```
 
 Werte interpretieren:
@@ -26,7 +28,11 @@ Werte interpretieren:
 - **0x1A0** = `REG_CELL_LA` (default 1)
 - **0x1A4** = `REG_AST_DETACH_CNT` Phase 6 B — `[15:0]`=mle_detach_cnt (Anzahl
   decoder U-ITSI-DETACH events seit Boot)
+- **0x1A8** = `REG_AST_TTL_MULTIFRAMES` Phase 6 C — TTL in Multiframes
+  (default 84706 ≈ 24h). 0 = TTL-Sweep deaktiviert.
 - **0x1AC** = `REG_DB_POLICY` Phase 6 A — bit[0]=accept_unknown (default 1).
   `1`: Shadow miss → ACCEPT (M2-Verhalten). `0`: strict permit-check.
+- **0x1B0** = `REG_AST_TTL_EVICT_CNT` Phase 6 C — `[15:0]`=ast_ttl_evict_cnt
+  (Anzahl Slots die der Sweeper geräumt hat seit Boot)
 
 Output kompakt als Tabelle melden, mit Bedeutung wenn ungewöhnlich.
