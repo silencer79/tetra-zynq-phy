@@ -140,6 +140,10 @@ module tetra_rx_chain #(
     output wire                  ul_llc_is_mle_mm_sys,
     output wire [3:0]            ul_llc_mm_pdu_type_sys,
     output wire [2:0]            ul_llc_mm_loc_upd_type_sys,
+    // Phase 7 F.3 — raw 4-bit LLC pdu_type + 3-bit MLE protocol disc.
+    // Routed up to AXI-Lite REG_UL_PDU_STATUS_2 for ul_mon visibility.
+    output wire [3:0]            ul_llc_pdu_type_sys,
+    output wire [2:0]            ul_mle_disc_sys,
 
     // -------------------------------------------------------------------------
     // Phase 7 F.1 — MAC-END-HU continuation (SCH/HU mac_pdu_type=1).
@@ -401,6 +405,9 @@ tetra_ul_mac_access_parser u_ul_mac_parser (
     .ul_llc_is_mle_mm_sys (ul_llc_is_mle_mm_sys),
     .ul_llc_mm_pdu_type_sys (ul_llc_mm_pdu_type_sys),
     .ul_llc_mm_loc_upd_type_sys (ul_llc_mm_loc_upd_type_sys),
+    // Phase 7 F.3 — raw decoded LLC/MLE type fields for ul_mon mailbox.
+    .ul_llc_pdu_type_sys  (ul_llc_pdu_type_sys),
+    .ul_mle_disc_sys      (ul_mle_disc_sys),
     // Phase 7 F.1 — MAC-END-HU continuation outputs (consumed by
     // tetra_ul_demand_reassembly at the top level).
     .ul_pdu_is_continuation_sys (ul_pdu_is_continuation_sys),

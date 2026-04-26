@@ -381,6 +381,10 @@ wire        ul_frag_flag_sys;
 wire [3:0]  ul_reservation_req_sys;
 wire [4:0]  ul_length_ind_sys;
 wire [3:0]  ul_mm_pdu_type_sys;
+// Phase 7 F.3 — raw decoded LLC pdu_type + MLE protocol discriminator,
+// fed by tetra_ul_mac_access_parser through tetra_rx_chain.
+wire [3:0]  ul_llc_pdu_type_sys;
+wire [2:0]  ul_mle_disc_sys;
 wire [2:0]  ul_loc_upd_type_sys;
 wire [91:0] ul_raw_info_bits_sys;
 // LLC BL-ACK (M4, 2026-04-24) — UL parser → MLE FSM wires
@@ -577,6 +581,9 @@ tetra_rx_chain #(
     .ul_llc_is_mle_mm_sys   (ul_llc_is_mle_mm_w),
     .ul_llc_mm_pdu_type_sys (ul_llc_mm_pdu_type_w),
     .ul_llc_mm_loc_upd_type_sys (ul_llc_mm_loc_upd_type_w),
+    // Phase 7 F.3 — raw LLC/MLE-disc fields for AXI mailbox + ul_mon
+    .ul_llc_pdu_type_sys    (ul_llc_pdu_type_sys),
+    .ul_mle_disc_sys        (ul_mle_disc_sys),
     // Phase 7 F.1 — MAC-END-HU continuation path → reassembly module
     .ul_pdu_is_continuation_sys (ul_pdu_is_continuation_sys),
     .ul_continuation_valid_sys  (ul_continuation_valid_sys),
@@ -624,8 +631,22 @@ generate
     end
 endgenerate
 
-// T0 register from AXI (Phase F.3 will route).  0 → use module default.
-wire [3:0] reass_t0_frames_axi_sys = 4'd0;
+// T0 register from AXI (Phase 7 F.3 — REG_REASSEMBLY_T0 @ 0x1DC).
+// 0 → reassembly module substitutes its T0_FRAMES_DEFAULT (=2 frames).
+// CDC: 2-FF resync clk_axi → clk_sys (slow-changing operator config).
+wire [3:0] reass_t0_frames_axi_w;
+(* ASYNC_REG = "TRUE" *) reg [3:0] reass_t0_frames_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0] reass_t0_frames_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        reass_t0_frames_sys_r0 <= 4'd0;
+        reass_t0_frames_sys_r1 <= 4'd0;
+    end else begin
+        reass_t0_frames_sys_r0 <= reass_t0_frames_axi_w;
+        reass_t0_frames_sys_r1 <= reass_t0_frames_sys_r0;
+    end
+end
+wire [3:0] reass_t0_frames_axi_sys = reass_t0_frames_sys_r1;
 
 tetra_ul_demand_reassembly #(
     .T0_FRAMES_DEFAULT(2)
@@ -1473,6 +1494,18 @@ wire ul_pdu_valid_axi_pulse = ul_pdu_tgl_axi_r1 ^ ul_pdu_tgl_axi_r2;
 (* ASYNC_REG = "TRUE" *) reg [91:0] ul_raw_info_bits_axi_r1;
 (* ASYNC_REG = "TRUE" *) reg [15:0] ul_pdu_count_axi_r0;
 (* ASYNC_REG = "TRUE" *) reg [15:0] ul_pdu_count_axi_r1;
+// Phase 7 F.3 — decoded LLC/MLE/MM type fields, resynced clk_sys → clk_axi
+(* ASYNC_REG = "TRUE" *) reg [3:0]  ul_llc_pdu_type_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0]  ul_llc_pdu_type_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [2:0]  ul_mle_disc_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [2:0]  ul_mle_disc_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [3:0]  ul_mm_pdu_type_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0]  ul_mm_pdu_type_axi_r1;
+// Phase 7 F.3 — reassembly counters, resynced clk_sys → clk_axi
+(* ASYNC_REG = "TRUE" *) reg [15:0] reass_reassembled_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] reass_reassembled_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] reass_drop_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] reass_drop_cnt_axi_r1;
 
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     if (!rst_n_axi) begin
@@ -1496,6 +1529,16 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         ul_raw_info_bits_axi_r1       <= 92'd0;
         ul_pdu_count_axi_r0           <= 16'd0;
         ul_pdu_count_axi_r1           <= 16'd0;
+        ul_llc_pdu_type_axi_r0        <= 4'd0;
+        ul_llc_pdu_type_axi_r1        <= 4'd0;
+        ul_mle_disc_axi_r0            <= 3'd0;
+        ul_mle_disc_axi_r1            <= 3'd0;
+        ul_mm_pdu_type_axi_r0         <= 4'd0;
+        ul_mm_pdu_type_axi_r1         <= 4'd0;
+        reass_reassembled_cnt_axi_r0  <= 16'd0;
+        reass_reassembled_cnt_axi_r1  <= 16'd0;
+        reass_drop_cnt_axi_r0         <= 16'd0;
+        reass_drop_cnt_axi_r1         <= 16'd0;
     end else begin
         ul_pdu_type_axi_r0            <= ul_pdu_type_sys;
         ul_pdu_type_axi_r1            <= ul_pdu_type_axi_r0;
@@ -1517,6 +1560,17 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         ul_raw_info_bits_axi_r1       <= ul_raw_info_bits_axi_r0;
         ul_pdu_count_axi_r0           <= ul_pdu_count_sys;
         ul_pdu_count_axi_r1           <= ul_pdu_count_axi_r0;
+        ul_llc_pdu_type_axi_r0        <= ul_llc_pdu_type_sys;
+        ul_llc_pdu_type_axi_r1        <= ul_llc_pdu_type_axi_r0;
+        ul_mle_disc_axi_r0            <= ul_mle_disc_sys;
+        ul_mle_disc_axi_r1            <= ul_mle_disc_axi_r0;
+        ul_mm_pdu_type_axi_r0         <= ul_mm_pdu_type_sys;
+        ul_mm_pdu_type_axi_r1         <= ul_mm_pdu_type_axi_r0;
+        // Phase 7 F.3 — reassembly counters; clk_sys → clk_axi
+        reass_reassembled_cnt_axi_r0  <= reass_cnt_sys;
+        reass_reassembled_cnt_axi_r1  <= reass_reassembled_cnt_axi_r0;
+        reass_drop_cnt_axi_r0         <= reass_drop_cnt_sys;
+        reass_drop_cnt_axi_r1         <= reass_drop_cnt_axi_r0;
     end
 end
 
@@ -1802,6 +1856,10 @@ tetra_axi_lite_regs u_axi_regs (
     .ul_reservation_req_axi       (ul_reservation_req_axi_r1),
     .ul_raw_info_bits_axi         (ul_raw_info_bits_axi_r1),
     .ul_pdu_count_axi             (ul_pdu_count_axi_r1),
+    // Phase 7 F.3 — decoded LLC/MLE/MM type fields (CDC'd above)
+    .ul_llc_pdu_type_axi          (ul_llc_pdu_type_axi_r1),
+    .ul_mle_disc_axi              (ul_mle_disc_axi_r1),
+    .ul_mm_pdu_type_axi           (ul_mm_pdu_type_axi_r1),
     .ul_scramb_init_axi           (ul_scramb_init_axi_w),
     // Subscriber-Shadow indirect write window (Phase 6 M2.3 — 0x180..0x18C)
     .shadow_wr_idx_axi       (shadow_wr_idx_w),
@@ -1826,6 +1884,10 @@ tetra_axi_lite_regs u_axi_regs (
     .db_policy_axi           (db_policy_axi_w),
     .ast_ttl_multiframes_axi (ast_ttl_multiframes_axi_w),
     .ast_ttl_evict_cnt_axi   (ast_ttl_evict_cnt_axi_r1),
+    // Phase 7 F.3 — UL-Demand reassembly counters + T0 config
+    .reass_reassembled_cnt_axi (reass_reassembled_cnt_axi_r1),
+    .reass_drop_cnt_axi        (reass_drop_cnt_axi_r1),
+    .reass_t0_frames_axi       (reass_t0_frames_axi_w),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),

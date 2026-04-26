@@ -121,6 +121,13 @@ module tetra_ul_mac_access_parser #(
     output reg                       ul_llc_is_mle_mm_sys,
     output reg  [3:0]                ul_llc_mm_pdu_type_sys,
     output reg  [2:0]                ul_llc_mm_loc_upd_type_sys,
+    // Phase 7 F.3 — raw 4-bit LLC pdu_type (= TL-SDU bits 0..3) +
+    // 3-bit MLE protocol discriminator at TL-SDU's LLC payload start.
+    // Both registered on the same cycle as pdu_valid_sys.  Used by the
+    // AXI-Lite UL_PDU_STATUS_2 register so tetra_ul_mon can pretty-print
+    // the decoded MAC/LLC/MLE/MM type triple per PDU.
+    output reg  [3:0]                ul_llc_pdu_type_sys,
+    output reg  [2:0]                ul_mle_disc_sys,
     // -------- Phase 7 F.1 — MAC-END-HU continuation path --------
     // When mac_pdu_type==1 (MAC-END-HU) on SCH/HU the parser does NOT fire
     // pdu_valid_sys/llc_*; instead the dedicated continuation outputs below
@@ -298,6 +305,8 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         ul_llc_is_mle_mm_sys      <= 1'b0;
         ul_llc_mm_pdu_type_sys    <= 4'd0;
         ul_llc_mm_loc_upd_type_sys<= 3'd0;
+        ul_llc_pdu_type_sys       <= 4'd0;
+        ul_mle_disc_sys           <= 3'd0;
         ul_pdu_is_continuation_sys<= 1'b0;
         ul_continuation_valid_sys <= 1'b0;
         ul_continuation_bits_sys  <= 85'd0;
@@ -349,6 +358,11 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
                 ul_llc_is_mle_mm_sys      <= (f_is_bl_data | f_is_bl_adata) && f_is_mle_mm;
                 ul_llc_mm_pdu_type_sys    <= f_llc_mm_pdu_type;
                 ul_llc_mm_loc_upd_type_sys<= f_llc_loc_upd_type;
+                // Phase 7 F.3 — raw 4-bit LLC pdu_type (TL-SDU bits 0..3)
+                // and 3-bit MLE protocol discriminator (LLC payload start).
+                ul_llc_pdu_type_sys       <= {f_llc_link_type, f_llc_has_fcs,
+                                              f_llc_bl_pdu_type};
+                ul_mle_disc_sys           <= f_llc_mle_pd;
                 // Latch SSI of every fragmented MAC-ACCESS so the next
                 // MAC-END-HU on this slot can be tagged with it.  We only
                 // latch when frag=1 AND addr_type ∈ {0,2,3} (Ssi/Ussi/Smi).

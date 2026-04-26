@@ -40,6 +40,12 @@ localparam [7:0] ADDR_DMA_BLK_CNT = 8'h2C;
 localparam [7:0] ADDR_CRC_ERR_CNT = 8'h30;
 localparam [7:0] ADDR_SYNC_LST_CNT= 8'h34;
 localparam [7:0] ADDR_SCRATCH      = 8'h3C;
+// Phase 7 F.3 — UL-Demand decoded fields + reassembly mailbox
+localparam [9:0] ADDR_UL_PDU_STATUS_2  = 10'h1B4;
+localparam [9:0] ADDR_REASSEMBLY_T0    = 10'h1DC;
+localparam [9:0] ADDR_REASSEMBLY_STATS = 10'h1E0;
+// Plus the existing UL_PDU mailbox we'll drive through (UL_PDU_STATUS at 0x164).
+localparam [9:0] ADDR_UL_PDU_STATUS_F3 = 10'h164;
 
 // ---------------------------------------------------------------------------
 // DUT Signals
@@ -86,6 +92,15 @@ reg        irq_rx_fifo_full;
 reg [15:0] dma_block_count;
 reg [15:0] crc_error_count;
 reg [15:0] sync_lost_count;
+
+// Phase 7 F.3 — UL-Demand decoded fields + reassembly counters
+reg        tb_ul_pdu_valid       = 1'b0;
+reg [3:0]  tb_ul_llc_pdu_type    = 4'd0;
+reg [2:0]  tb_ul_mle_disc        = 3'd0;
+reg [3:0]  tb_ul_mm_pdu_type     = 4'd0;
+reg [15:0] tb_reass_reassembled_cnt = 16'd0;
+reg [15:0] tb_reass_drop_cnt        = 16'd0;
+wire [3:0] tb_reass_t0_frames;
 
 // Control outputs
 wire        ctrl_rx_enable;
@@ -146,7 +161,16 @@ tetra_axi_lite_regs dut (
     .rx_gain_axi            (rx_gain),
     .tx_att_axi             (tx_att),
     .irq_enable_axi         (irq_enable),
-    .irq_out_axi            (irq_out)
+    .irq_out_axi            (irq_out),
+    // Phase 7 F.3 — drive only the inputs we test below; remaining
+    // floats (already 39 dangling input ports — TB convention).
+    .ul_pdu_valid_axi          (tb_ul_pdu_valid),
+    .ul_llc_pdu_type_axi       (tb_ul_llc_pdu_type),
+    .ul_mle_disc_axi           (tb_ul_mle_disc),
+    .ul_mm_pdu_type_axi        (tb_ul_mm_pdu_type),
+    .reass_reassembled_cnt_axi (tb_reass_reassembled_cnt),
+    .reass_drop_cnt_axi        (tb_reass_drop_cnt),
+    .reass_t0_frames_axi       (tb_reass_t0_frames)
 );
 
 // ---------------------------------------------------------------------------
@@ -197,6 +221,54 @@ task axi_write;
         // Wait for BVALID
         while (!bvalid) @(posedge clk_axi);
         @(posedge clk_axi); #1; bready <= 1'b0;
+    end
+endtask
+
+// ---------------------------------------------------------------------------
+// Phase 7 F.3 — wider 16-bit address variants for 0x1xx-range registers.
+// ---------------------------------------------------------------------------
+task axi_write16;
+    input [15:0] addr;
+    input [31:0] data;
+    input [3:0]  strb;
+    begin
+        @(posedge clk_axi);
+        #1;
+        awaddr  <= {16'd0, addr};
+        awvalid <= 1'b1;
+        wdata   <= data;
+        wstrb   <= strb;
+        wvalid  <= 1'b1;
+        bready  <= 1'b1;
+        fork
+            begin : wait_aw16
+                while (!awready) @(posedge clk_axi);
+                @(posedge clk_axi); #1; awvalid <= 1'b0;
+            end
+            begin : wait_w16
+                while (!wready) @(posedge clk_axi);
+                @(posedge clk_axi); #1; wvalid <= 1'b0;
+            end
+        join
+        while (!bvalid) @(posedge clk_axi);
+        @(posedge clk_axi); #1; bready <= 1'b0;
+    end
+endtask
+
+task axi_read16;
+    input  [15:0] addr;
+    output [31:0] data;
+    begin
+        @(posedge clk_axi);
+        #1;
+        araddr  <= {16'd0, addr};
+        arvalid <= 1'b1;
+        rready  <= 1'b1;
+        while (!arready) @(posedge clk_axi);
+        @(posedge clk_axi); #1; arvalid <= 1'b0;
+        while (!rvalid) @(posedge clk_axi);
+        data = rdata;
+        @(posedge clk_axi); #1; rready <= 1'b0;
     end
 endtask
 
@@ -480,11 +552,69 @@ initial begin
     $display("PASS TC%0d: DMA_BLOCK_COUNT=1234, CRC_ERR=56, SYNC_LOST=7", tc);
 
     // -----------------------------------------------------------------------
+    // TC11: Phase 7 F.3 — REG_REASSEMBLY_T0 R/W (0x1DC)
+    // Default 0; write 5 → read 5; write 0xFF (overflow into 4-bit) → read 0xF.
+    // -----------------------------------------------------------------------
+    tc = 11;
+    axi_read16(ADDR_REASSEMBLY_T0, rd);
+    if (rd[3:0] !== 4'd0)
+        $fatal(1,"FAIL TC%0d: T0 reset = 0x%01X, expected 0", tc, rd[3:0]);
+    axi_write16(ADDR_REASSEMBLY_T0, 32'h0000_0005, 4'hF);
+    axi_read16(ADDR_REASSEMBLY_T0, rd);
+    if (rd[3:0] !== 4'd5)
+        $fatal(1,"FAIL TC%0d: T0=5 readback got 0x%01X", tc, rd[3:0]);
+    axi_write16(ADDR_REASSEMBLY_T0, 32'h0000_00FF, 4'hF);
+    axi_read16(ADDR_REASSEMBLY_T0, rd);
+    if (rd[3:0] !== 4'hF)
+        $fatal(1,"FAIL TC%0d: T0=F readback got 0x%01X", tc, rd[3:0]);
+    if (tb_reass_t0_frames !== 4'hF)
+        $fatal(1,"FAIL TC%0d: T0 output port got 0x%01X", tc, tb_reass_t0_frames);
+    $display("PASS TC%0d: REG_REASSEMBLY_T0 R/W (4-bit, default 0)", tc);
+
+    // -----------------------------------------------------------------------
+    // TC12: Phase 7 F.3 — REG_REASSEMBLY_STATS RO (0x1E0)
+    // Drive reass_reassembled_cnt=0x1234, reass_drop_cnt=0x5678 →
+    // read {drop[15:0], reassembled[15:0]} = 0x5678_1234
+    // -----------------------------------------------------------------------
+    tc = 12;
+    tb_reass_reassembled_cnt = 16'h1234;
+    tb_reass_drop_cnt        = 16'h5678;
+    @(posedge clk_axi); @(posedge clk_axi);
+    axi_read16(ADDR_REASSEMBLY_STATS, rd);
+    if (rd !== 32'h5678_1234)
+        $fatal(1,"FAIL TC%0d: REASSEMBLY_STATS got=0x%08X exp=0x5678_1234", tc, rd);
+    $display("PASS TC%0d: REG_REASSEMBLY_STATS = 0x5678_1234", tc);
+
+    // -----------------------------------------------------------------------
+    // TC13: Phase 7 F.3 — REG_UL_PDU_STATUS_2 RO (0x1B4)
+    // Pulse ul_pdu_valid with llc=0xA, mle_disc=5, mm_pdu_type=0xC →
+    // read {20'd0, llc[3:0], 1'd0, mle_disc[2:0], mm_pdu_type[3:0]} =
+    //   {20'd0, 4'hA, 1'b0, 3'd5, 4'hC} = (0xA << 8) | (5 << 4) | 0xC
+    //                                    = 0x000_0000 | 0xA00 | 0x50 | 0xC
+    //                                    = 0x0000_0A5C  (20'd0=top 20 bits)
+    // -----------------------------------------------------------------------
+    tc = 13;
+    @(posedge clk_axi);
+    tb_ul_llc_pdu_type = 4'hA;
+    tb_ul_mle_disc     = 3'd5;
+    tb_ul_mm_pdu_type  = 4'hC;
+    tb_ul_pdu_valid    = 1'b1;
+    @(posedge clk_axi);
+    tb_ul_pdu_valid    = 1'b0;
+    @(posedge clk_axi); @(posedge clk_axi);
+    axi_read16(ADDR_UL_PDU_STATUS_2, rd);
+    // Expected: 4'hA at [11:8], 3'd5 at [6:4], 4'hC at [3:0], rest 0.
+    // → (0xA<<8) | (5<<4) | 0xC = 0x0A00 | 0x50 | 0xC = 0x0A5C
+    if (rd !== 32'h0000_0A5C)
+        $fatal(1,"FAIL TC%0d: UL_PDU_STATUS_2 got=0x%08X exp=0x0000_0A5C", tc, rd);
+    $display("PASS TC%0d: REG_UL_PDU_STATUS_2 llc=A mle=5 mm=C", tc);
+
+    // -----------------------------------------------------------------------
     // All tests passed
     // -----------------------------------------------------------------------
     repeat(4) @(posedge clk_axi);
     $display("=========================================");
-    $display("tb_tetra_axi_lite_regs: ALL 10 TCs PASS");
+    $display("tb_tetra_axi_lite_regs: ALL 13 TCs PASS");
     $display("=========================================");
     $finish;
 end

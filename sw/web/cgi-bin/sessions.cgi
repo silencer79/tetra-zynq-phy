@@ -34,6 +34,8 @@ W_1B0=$(rd 0x43C001B0)   # {0, evict[15:0]}
 W_1A8=$(rd 0x43C001A8)   # ttl_multiframes
 W_1AC=$(rd 0x43C001AC)   # {..., accept_unknown[0]}
 W_168=$(rd 0x43C00168)   # last MTP3550 mailbox ISSI (24-bit)
+# Phase 7 F.3 — UL-Demand reassembly counters
+W_1E0=$(rd 0x43C001E0)   # {drop[31:16], reassembled[15:0]}
 
 ul_req=$(hex_lo16 "$W_190")
 accept=$(hex_hi16 "$W_190")
@@ -47,6 +49,8 @@ ttl_mfs=$(hex_full "$W_1A8")
 policy_acc_unknown=$(hex_bit0 "$W_1AC")
 last_issi=$(hex_lo24 "$W_168")
 last_issi_hex=$(printf '0x%06X' "$last_issi")
+reassembled_cnt=$(hex_lo16 "$W_1E0")
+reassembly_drop_cnt=$(hex_hi16 "$W_1E0")
 
 # tail recent UL-mon log lines as a JSON string array
 log=/tmp/tetra_ul_mon.log
@@ -70,5 +74,5 @@ if [ -r "$log" ]; then
 fi
 
 cat <<EOF
-{"counters":{"ul_req":${ul_req},"accept":${accept},"drop":${drop},"detach":${detach},"evict":${evict},"sig_override":${sig_override},"clear":${clear},"busy_sticky":${busy}},"last_issi":${last_issi},"last_issi_hex":"${last_issi_hex}","ttl_mfs":${ttl_mfs},"policy_accept_unknown":${policy_acc_unknown},"recent_ul_mon":${recent_ul_mon}}
+{"counters":{"ul_req":${ul_req},"accept":${accept},"drop":${drop},"detach":${detach},"evict":${evict},"sig_override":${sig_override},"clear":${clear},"busy_sticky":${busy},"reassembled_cnt":${reassembled_cnt},"reassembly_drop_cnt":${reassembly_drop_cnt}},"last_issi":${last_issi},"last_issi_hex":"${last_issi_hex}","ttl_mfs":${ttl_mfs},"policy_accept_unknown":${policy_acc_unknown},"recent_ul_mon":${recent_ul_mon}}
 EOF

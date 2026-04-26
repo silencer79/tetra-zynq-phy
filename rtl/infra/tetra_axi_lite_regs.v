@@ -288,6 +288,12 @@ module tetra_axi_lite_regs (
     input  wire [3:0]  ul_reservation_req_axi,
     input  wire [91:0] ul_raw_info_bits_axi,
     input  wire [15:0] ul_pdu_count_axi,
+    // Phase 7 F.3 — decoded LLC/MLE/MM type fields exposed via
+    // REG_UL_PDU_STATUS_2 (0x1B4).  Latched alongside the rest of the
+    // UL_PDU mailbox snapshot on each ul_pdu_valid_axi pulse.
+    input  wire [3:0]  ul_llc_pdu_type_axi,
+    input  wire [2:0]  ul_mle_disc_axi,
+    input  wire [3:0]  ul_mm_pdu_type_axi,
 
     // UL scrambler seed — MCU programs once at boot.  Caller 2-FF-resyncs
     // axi→sys in top-level before feeding tetra_ul_sch_hu_decoder.
@@ -331,6 +337,19 @@ module tetra_axi_lite_regs (
     input  wire [15:0] mle_detach_cnt_axi,    // Phase 6 B (REG_AST_DETACH_CNT @ 0x1A4 [15:0])
     input  wire [15:0] ast_ttl_evict_cnt_axi, // Phase 6 C (REG_AST_TTL_EVICT_CNT @ 0x1B0 [15:0])
     output reg  [31:0] ast_ttl_multiframes_axi,// Phase 6 C (REG_AST_TTL_MFS @ 0x1A8, default 84706)
+
+    // ------------------------------------------------------------------
+    // Phase 7 F.3 — UL-Demand-Reassembly counters + T0 timer config.
+    //   reass_reassembled_cnt_axi : 16-bit counter, # successful
+    //                                two-burst joins
+    //   reass_drop_cnt_axi        : 16-bit counter, # T0 timeouts
+    //   reass_t0_frames_axi       : RW 4-bit T0 in TDMA frames; 0 → use
+    //                                module default (=2 frames ≈ 113 ms)
+    // CDC: 2-FF resync in top-level on the clk_sys → clk_axi side.
+    // ------------------------------------------------------------------
+    input  wire [15:0] reass_reassembled_cnt_axi,
+    input  wire [15:0] reass_drop_cnt_axi,
+    output reg  [3:0]  reass_t0_frames_axi,
 
     // ------------------------------------------------------------------
     // DL-signalling scheduler config — cfg_signal_target_tn_axi
@@ -587,6 +606,10 @@ localparam [6:0] REG_AST_DETACH_CNT   = 7'h69; // 0x1A4 RO  {16'd0, mle_detach_c
 localparam [6:0] REG_AST_TTL_MFS      = 7'h6A; // 0x1A8 R/W TTL threshold in multiframes (Phase 6 C, default 84706 ≈ 24h)
 localparam [6:0] REG_DB_POLICY        = 7'h6B; // 0x1AC R/W {30'd0, reserved, accept_unknown}
 localparam [6:0] REG_AST_TTL_EVICT_CNT = 7'h6C; // 0x1B0 RO {16'd0, ast_ttl_evict_cnt[15:0]} Phase 6 C
+// Phase 7 F.3 — UL-Demand decoded-fields mailbox + reassembly mailbox
+localparam [6:0] REG_UL_PDU_STATUS_2  = 7'h6D; // 0x1B4 RO {decoded LLC/MLE/MM fields}
+localparam [6:0] REG_REASSEMBLY_T0    = 7'h77; // 0x1DC R/W [3:0] T0 in TDMA frames (0=default 2)
+localparam [6:0] REG_REASSEMBLY_STATS = 7'h78; // 0x1E0 RO  {drop_cnt[15:0], reassembled_cnt[15:0]}
 
 // Profile-Table indirect window (Phase 6 D-rev) — 0x1C0..0x1CC
 // 6 × 32-bit profile records (§9.2).  No DATA_HI — Profile is 32 bit, fits
@@ -881,6 +904,14 @@ always @(*) begin
         REG_AST_TTL_MFS:   rdata_mux_axi = ast_ttl_multiframes_axi;
         REG_AST_TTL_EVICT_CNT: rdata_mux_axi = {16'b0, ast_ttl_evict_cnt_axi};
         REG_DB_POLICY:    rdata_mux_axi = db_policy_axi;
+        // Phase 7 F.3 — UL-Demand decoded fields + reassembly mailbox
+        REG_UL_PDU_STATUS_2:  rdata_mux_axi = {20'b0,
+                                                ul_llc_pdu_type_lat_axi,
+                                                1'b0, ul_mle_disc_lat_axi,
+                                                ul_mm_pdu_type_lat_axi};
+        REG_REASSEMBLY_T0:    rdata_mux_axi = {28'b0, reass_t0_frames_axi};
+        REG_REASSEMBLY_STATS: rdata_mux_axi = {reass_drop_cnt_axi,
+                                                reass_reassembled_cnt_axi};
         // Profile-Table indirect window (Phase 6 D-rev)
         REG_PROFILE_INDEX: rdata_mux_axi = {29'b0, profile_index_axi};
         REG_PROFILE_DATA:  rdata_mux_axi = profile_data_axi;
@@ -1024,6 +1055,18 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         if (wr_strb_axi[1]) ast_ttl_multiframes_axi[15: 8] <= wr_data_axi[15: 8];
         if (wr_strb_axi[2]) ast_ttl_multiframes_axi[23:16] <= wr_data_axi[23:16];
         if (wr_strb_axi[3]) ast_ttl_multiframes_axi[31:24] <= wr_data_axi[31:24];
+    end
+end
+
+// ---- REASSEMBLY_T0 register (0x1DC) — Phase 7 F.3 ----
+// 4-bit RW, default 0 → reassembly module substitutes its own
+// T0_FRAMES_DEFAULT (=2 frames, ≈ 113 ms).  Operator can override to a
+// larger window for marginal MS that take >2 frames between UL#0/UL#1.
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        reass_t0_frames_axi <= 4'd0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_REASSEMBLY_T0)) begin
+        if (wr_strb_axi[0]) reass_t0_frames_axi <= wr_data_axi[3:0];
     end
 end
 
@@ -1537,6 +1580,10 @@ reg        ul_frag_flag_lat_axi;
 reg [3:0]  ul_reservation_req_lat_axi;
 reg [91:0] ul_raw_info_bits_lat_axi;
 reg [15:0] ul_pdu_count_lat_axi;
+// Phase 7 F.3 — decoded LLC/MLE/MM type latches.
+reg [3:0]  ul_llc_pdu_type_lat_axi;
+reg [2:0]  ul_mle_disc_lat_axi;
+reg [3:0]  ul_mm_pdu_type_lat_axi;
 
 wire ul_pdu_ctrl_wr_axi = wr_en_axi & (wr_addr_axi[8:2] == REG_UL_PDU_CTRL);
 wire ul_pdu_sw_clear_axi = ul_pdu_ctrl_wr_axi & wr_strb_axi[0] & wr_data_axi[0];
@@ -1562,6 +1609,9 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         ul_reservation_req_lat_axi      <= 4'd0;
         ul_raw_info_bits_lat_axi        <= 92'd0;
         ul_pdu_count_lat_axi            <= 16'd0;
+        ul_llc_pdu_type_lat_axi         <= 4'd0;
+        ul_mle_disc_lat_axi             <= 3'd0;
+        ul_mm_pdu_type_lat_axi          <= 4'd0;
     end else if (ul_pdu_valid_axi) begin
         ul_pdu_type_lat_axi             <= ul_pdu_type_axi;
         ul_fill_bit_lat_axi             <= ul_fill_bit_axi;
@@ -1573,6 +1623,9 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         ul_reservation_req_lat_axi      <= ul_reservation_req_axi;
         ul_raw_info_bits_lat_axi        <= ul_raw_info_bits_axi;
         ul_pdu_count_lat_axi            <= ul_pdu_count_axi;
+        ul_llc_pdu_type_lat_axi         <= ul_llc_pdu_type_axi;
+        ul_mle_disc_lat_axi             <= ul_mle_disc_axi;
+        ul_mm_pdu_type_lat_axi          <= ul_mm_pdu_type_axi;
     end
 end
 

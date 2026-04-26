@@ -156,6 +156,28 @@ int main(int argc, char *argv[])
             if (!first && count != (uint16_t)(last_count + 1))
                 printf("  [gap last=%u]", last_count);
             printf("\n");
+
+            /* Phase 7 F.3 — second pretty-print line: decoded LLC/MLE/MM
+             * type triple + current reassembly counters.  These are
+             * snapshotted by the AXI-Lite mailbox on the same ul_pdu_valid
+             * pulse so the values correspond to the PDU printed above. */
+            uint32_t status2 = tetra_reg_read(&hal, REG_UL_PDU_STATUS_2);
+            uint32_t rstats  = tetra_reg_read(&hal, REG_REASSEMBLY_STATS);
+            uint32_t llc_t   = UL_STATUS2_LLC_TYPE(status2);
+            uint32_t mle_d   = UL_STATUS2_MLE_DISC(status2);
+            uint32_t mm_pt   = UL_STATUS2_MM_PDU_TYPE(status2);
+            uint32_t r_ok    = REASSEMBLY_STATS_REASS(rstats);
+            uint32_t r_drop  = REASSEMBLY_STATS_DROP(rstats);
+            const char *llc_s = (llc_t == 0x0) ? "BL-ADATA" :
+                                (llc_t == 0x1) ? "BL-DATA"  :
+                                (llc_t == 0x2) ? "BL-UDATA" :
+                                (llc_t == 0x3) ? "BL-ACK"   : "?";
+            const char *mle_s = (mle_d == 1) ? "MM"  :
+                                (mle_d == 2) ? "CMCE":
+                                (mle_d == 4) ? "SNDCP/Pad" : "?";
+            printf("        llc=%u(%s) mle_disc=%u(%s) mm_pdu_type=%u  "
+                   "reass_ok=%u drop=%u\n",
+                   llc_t, llc_s, mle_d, mle_s, mm_pt, r_ok, r_drop);
             fflush(stdout);
 
             last_count = count;

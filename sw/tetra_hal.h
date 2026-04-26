@@ -180,6 +180,28 @@
 #define REG_UL_PDU_CTRL      0x178
 #define REG_UL_SCRAMB_INIT   0x17C
 
+/* Phase 7 F.3 — UL-Demand decoded fields (mirrored to user-space for
+ * tetra_ul_mon pretty-print) and reassembly counters / T0 config.
+ *
+ *   UL_PDU_STATUS_2 (0x1B4, RO):
+ *     [11:8]  mm_pdu_type   (4 bit, MM PDU type from LLC TL-SDU)
+ *     [6:4]   mle_disc       (3 bit, MLE protocol discriminator)
+ *     [3:0]   llc_pdu_type   (4 bit, raw LLC header — link_type/has_fcs/
+ *                              bl_pdu_type)
+ *   REASSEMBLY_T0  (0x1DC, R/W):
+ *     [3:0]   T0 in TDMA frames; 0 → use module default (=2 frames)
+ *   REASSEMBLY_STATS (0x1E0, RO):
+ *     [31:16] drop_cnt          (2-burst T0 timeouts)
+ *     [15: 0] reassembled_cnt   (successful 2-burst joins) */
+#define REG_UL_PDU_STATUS_2  0x1B4
+#define REG_REASSEMBLY_T0    0x1DC
+#define REG_REASSEMBLY_STATS 0x1E0
+#define UL_STATUS2_MM_PDU_TYPE(x)  (((x) >> 8)  & 0xFu)
+#define UL_STATUS2_MLE_DISC(x)     (((x) >> 4)  & 0x7u)
+#define UL_STATUS2_LLC_TYPE(x)     ( (x)        & 0xFu)
+#define REASSEMBLY_STATS_REASS(x)  ( (x)        & 0xFFFFu)
+#define REASSEMBLY_STATS_DROP(x)   (((x) >> 16) & 0xFFFFu)
+
 /* Subscriber-Shadow BRAM indirect write window (Phase 6 M2.3)
  *   INDEX    : [7:0] slot index 0..255
  *   DATA_LO  : bits [31:0]  of 64-bit shadow record
