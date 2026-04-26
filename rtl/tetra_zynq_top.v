@@ -715,7 +715,6 @@ tetra_ul_demand_ie_parser u_ul_demand_ie_parser (
     .start_sys                    (reass_valid_sys),
     .body_sys                     (reass_body_sys),
     .ssi_sys                      (reass_ssi_sys),
-    .body_kind_sys                (1'b0),
     .location_update_type_sys     (iep_loc_upd_type_sys),
     .request_to_append_la_sys     (iep_req_to_append_la_sys),
     .cipher_control_sys           (iep_cipher_control_sys),
@@ -733,17 +732,6 @@ tetra_ul_demand_ie_parser u_ul_demand_ie_parser (
     .gild_gssi_sys                (iep_gild_gssi_sys),
     .gild_class_of_usage_sys      (iep_gild_class_sys),
     .gild_address_type_sys        (iep_gild_at_sys),
-    // Phase 7 F.7.1 GAD outputs (mm=7) — left unconnected; the mm=7 path
-    // moves to ARM SW per the FPGA+SW split (Phase H ARCH-Pivot
-    // 2026-04-26).  Parser still exposes them in the Phase H.0.1 commit;
-    // H.0.4 strips the outputs from the parser entirely (mm=2 GILD-only).
-    .gad_valid_sys                (),
-    .gad_attach_detach_mode_sys   (),
-    .gad_count_sys                (),
-    .gad_attach_array_sys         (),
-    .gad_class_array_sys          (),
-    .gad_at_array_sys             (),
-    .gad_gssi_array_sys           (),
     .pdu_ssi_sys                  (iep_pdu_ssi_sys),
     .parse_done_sys               (iep_parse_done_sys),
     .parse_ok_sys                 (iep_parse_ok_sys)
