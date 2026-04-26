@@ -348,7 +348,7 @@ effektiv immer 24-bit-ISSI sobald die MS ihre ITSI kennt (nach erstem Attach).
 
 ### 6.4a UL-Demand-Reassembly + Group-Identity-Location-Demand (§16.10.21)
 
-**Befund 2026-04-26 (Bit-Forensik gegen Gold-Ref-Capture, MTP3550 + Sepura SC20):**
+**Befund 2026-04-26 (Bit-Forensik gegen Gold-Ref-Capture: MTP3550 + externe-BS-Capture mit MS unbekannten Vendors):**
 
 Die MS schickt ihre gewünschte primary-GSSI im U-LOC-UPDATE-DEMAND mit
 — aber **nicht im ersten Burst**. Der Demand-MM-Body ist 132 Bit lang

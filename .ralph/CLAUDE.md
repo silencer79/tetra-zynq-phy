@@ -8,17 +8,35 @@
 
 ## 1. Projektziel
 
-Implementierung einer **vollständigen TETRA Base Station** im PL (Programmable Logic) des Zynq-7020. Das FPGA übernimmt die gesamte Echtzeit-Protokoll-Arbeit: Physical Layer, Lower MAC, **Upper MAC, MLE, CMCE und Paging als RTL-FSMs**. Aktive Sessions/Gruppen liegen in BRAM (Hot-State).
+Implementierung einer **vollständigen TETRA Base Station** auf dem Zynq-7020. Aufgaben sind zwischen PL (FPGA) und PS (ARM Cortex-A9) **gesplittet**:
 
-Das PS (ARM Cortex-A9) spielt eine reine **Management-Rolle**:
-- Subscriber-DB (ISSI → permit, LA, home-cell)
-- Group-DB (GSSI → Memberlist)
-- Admin-UI, Provisioning, Log-Aggregation
-- DB-Shadow-Write über AXI-Lite in ein FPGA-BRAM-Fenster
+### FPGA (PL):
+- **Physical Layer**: Mod/Demod, Coding, Sync, Burst-Capture
+- **Lower MAC**: TDMA-Frame-Timing, Slot-Burst-Mux, AACH, SB1, NULL-PDU, Channel-Coding
+- **MAC-Parser RX** (Header inkl. MAC-END-HU)
+- **2-Burst-Reassembly** (mm-type-agnostisch)
+- **IE-Parser** GroupIdentityLocationDemand-Walker (mm=2)
+- **MLE-FSM M2-Pfad**: Registration-Demand → EntityTable+Profile-Lookup → AST-Push → D-LOC-UPDATE-ACCEPT-Build → Detach
+- **Subscriber-DB Hot-Cache**: EntityTable + ProfileTable + AST in BRAM
+- Aktive Sessions in BRAM (für M2-Anmeldung)
 
-**Architekturentscheidung 2026-04-22:** Response-Latenz ist damit deterministisch
-innerhalb eines TDMA-Slots (14.17 ms). ARM ist kein Echtzeit-Pfad mehr. Details siehe
-`docs/ARCHITECTURE.md` §5 (Phase-5/6-Plan) und `docs/PROTOCOL.md` §8 (Registrations-Flow).
+### PS (ARM):
+- **Group-Switch (mm=7)**: Reassembly-Output lesen, GroupIdentityUplink-IE parsen, D-ATTACH-DETACH-GRP-ID-ACK bauen, via TX-Mailbox transmittieren
+- **CMCE / Group-Call** (Phase G+)
+- **Voice-Routing / SDS** (Phase K+)
+- **Authentication** (gestubt, später)
+- **Admin-UI, Subscriber-DB-Master, Provisioning, Log-Aggregation**
+- **DB-Sync** über AXI-Lite Shadow-Window
+
+### PS↔PL-Schnittstelle:
+- **TX-PDU-Submit-Mailbox** (BRAM): SW schreibt Reply-PDU-Bytes + Slot-Hint
+- **RX-Burst-Stream-FIFO** (BRAM): PL pusht jeden empfangenen Burst (Header + Body + Metadata)
+- **AACH-Override-Hint**: SW kann pro Frame AACH-Pattern setzen
+- **IRQ**: per-Burst, per-Frame-Boundary, Reassembly-Done
+
+**Architekturentscheidung 2026-04-26 (verbindlich):** FPGA + SW Split — siehe Memory `project_arch_fpga_sw_split.md`. Löst die alte Entscheidung 2026-04-22 ("MAC/MLE/CMCE komplett in RTL", siehe `project_arch_fpga_heavy.md` archiviert) ab.
+
+**Auslöser des Pivots:** FPGA-Slice-Auslastung 97.82%, MLE-FSM allein 10172 LUTs (24% Total), Phase G/Voice/SDS würde +20000 LUTs brauchen — passt nicht.
 
 **Langfristige Vision:** Dual-Protokoll-Baseband-Engine (DMR Tier II + TETRA V+D) mit umschaltbarem Modulations-/Demodulationsmodus über AXI-Lite Register.
 
@@ -535,12 +553,29 @@ Basisadresse: 0x43C0_0000 (tetra_axi_lite_regs.v)
 3. UL-RA-Burst-Kette komplett in RTL (hardware-verifiziert mit MTP3550, 2026-04-22)
 4. Performance-Optimierung (Viterbi-Timing-Fix, WNS 0.000 ns auf clk_fpga_0)
 
-### Phase 5: MAC/MLE/CMCE als RTL-FSMs (ab 2026-04-22, 12–15 Wochen)
-1. Subscriber-Shadow-BRAM + ARM `sw/tetra_db_mgr.c` (DB-Pflege + AXI-Writes)
-2. Registration-FSM: RX_UREG → BRAM-Lookup → D-LOC-UPDATE-ACCEPT → DL-TX
-3. Per-Slot Slot-Content-Mux (Alloc-Tabelle statt Static-Filler)
-4. Group-Call-FSM + Voice-Relay-FIFO (bit-transparent UL-TCH → DL-TCH, kein Codec im Pfad)
-5. Individual-Call-FSM + Paging-FSM
+### Phase 5/6: MAC/MLE/Subscriber-DB als RTL-FSMs (2026-04-22 bis 2026-04-26, abgeschlossen)
+1. ✅ Subscriber-Shadow-BRAM + ARM `sw/tetra_db_mgr.c` (DB-Pflege + AXI-Writes)
+2. ✅ Registration-FSM (M2-Pfad) + EntityTable + ProfileTable + AST
+3. ✅ Per-Slot Slot-Content-Mux + WebUI
+
+### Phase 7 ARCH-Pivot (2026-04-26): FPGA + SW Split
+**Phase 7 F (Group-Switch in RTL) wurde NICHT live verifiziert** — Air-Test 2026-04-26 NOK, Slice-Druck 97.82%. Der Phase-7-F-Stack wird in Phase H rückgebaut.
+
+### Phase H: FPGA-Refactor + PS↔PL-Schnittstelle (aktuelle Phase)
+- **H.0** Slice-Cleanup — F.7-Output-Pfad raus, Group-Code aus MLE-FSM/IE-Parser/Top-Wiring
+- **H.1** Bug-1-Diagnose-Counter (3 AXI-Reads für MAC-END-HU-Pfad-Tracing)
+- **H.2** Bug-1-Fix (MAC-END-HU klassifiziert nicht — RTL-Bruchstelle nach H.1-Diagnose)
+- **H.3** MLE-Trigger korrigieren — Single-Burst-Bypass-Hack ersetzen durch echten Reassembly-Trigger
+- **H.4** PS↔PL-Schnittstelle (TX-PDU-Submit-Mailbox + RX-Burst-Stream-FIFO + AACH-Override + IRQ)
+- **H.5** Air-Test M2 final mit korrekter MS-Wunsch-GSSI in Accept-Reply
+
+### Phase J: SW-Implementation (nach H.5-PASS, separater Branch)
+1. UL-Reassembly-Reader + Group-Switch-Logik (`sw/tetra_mle_groupswitch.c`)
+2. D-ATTACH-DETACH-GRP-ID-ACK-PDU-Builder
+3. TX-PDU-Submit-Driver
+4. RX-Burst-Stream-Driver
+
+### Phase K+: CMCE / Group-Call / Voice / SDS in SW
 
 ### Phase 5 (optional): Dual-Protokoll DMR+TETRA
 1. Multiplexer-Layer für umschaltbare Modulation (4FSK ↔ π/4-DQPSK)
@@ -602,7 +637,7 @@ source scripts/vivado_build.tcl
 
 - [x] **Soft vs. Hard Decision Viterbi:** Soft-Decision implementiert (5-bit UL, BER/MER 0% in HW).
 - [x] **RRC-Filter Taps:** implementiert, validiert on-air gegen MTP3550.
-- [x] **MAC/MLE/CMCE Platzierung:** 2026-04-22 entschieden → **RTL-FSMs im FPGA**, ARM nur DB + Admin. Siehe `docs/ARCHITECTURE.md` §5 und `docs/PROTOCOL.md` §8.
+- [x] **MAC/MLE/CMCE Platzierung:** **REVIDIERT 2026-04-26** — FPGA+SW-Split. FPGA = PHY + komplette M2-Anmeldung (Reassembly + IE-Parser GILD + MLE-FSM M2-Pfad + Subscriber-DB-Hot-Cache). SW = Group-Switch (mm=7) + CMCE + Voice + SDS + Phase G+. Auslöser: Slice-Druck 97.82%. Memory `project_arch_fpga_sw_split.md` ist verbindlich; alte Entscheidung 2026-04-22 (`project_arch_fpga_heavy.md`) ist archiviert.
 - [x] **DB-Transport ARM ↔ FPGA:** Variante A gewählt — ARM pusht Subscriber/Group-Table per AXI-Lite in Shadow-BRAM (256 Einträge × 64 bit = 1 BRAM36).
 - [ ] **ACELP Codec:** Für Voice-Relay *nicht* benötigt (bit-transparentes Pass-Through UL-TCH → DL-TCH). Erst relevant für BS-as-Talker oder Recording-Gateway — dann erneut prüfen.
 - [ ] **TEA-Verschlüsselung:** Nicht im initialen Scope. Als separates RTL-Modul ergänzbar.
