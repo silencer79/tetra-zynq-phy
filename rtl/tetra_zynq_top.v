@@ -705,9 +705,37 @@ wire         iep_gild_valid_sys;
 wire [23:0]  iep_gild_gssi_sys;
 wire [2:0]   iep_gild_class_sys;
 wire [1:0]   iep_gild_at_sys;
+// Phase 7 F.7.1 — GAD (group attach-detach, mm=7) outputs.
+wire         iep_gad_valid_sys;
+wire         iep_gad_atd_mode_sys;
+wire [2:0]   iep_gad_count_sys;
+wire [2:0]   iep_gad_attach_array_sys;
+wire [8:0]   iep_gad_class_array_sys;
+wire [5:0]   iep_gad_at_array_sys;
+wire [71:0]  iep_gad_gssi_array_sys;
 wire [23:0]  iep_pdu_ssi_sys;
 wire         iep_parse_done_sys;
 wire         iep_parse_ok_sys;
+
+// Body-kind selector — captured at frag1 (mm_pdu_type) and held until the
+// matching reassembled-valid pulse, then consumed by the IE parser.  The
+// frag1 path latches the same mm_pdu_type the parser exposes; for the
+// gold-ref Phase 7 F.7 capture this is mm_pdu_type=7 (UAttachDetachGroup-
+// Identity).  Default 0 keeps Phase F.2 wiring (mm=2 path) bit-for-bit
+// unchanged.
+reg [3:0] reass_mm_type_sys_r;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        reass_mm_type_sys_r <= 4'd0;
+    end else if (frag1_pulse_w) begin
+        // ul_llc_mm_pdu_type_w is the captured mm_pdu_type at the moment
+        // of frag1 (per UL MAC-ACCESS parser).  Latch and hold until the
+        // next frag1; reassembled_valid_sys consumes the value while
+        // it's stable.
+        reass_mm_type_sys_r <= ul_llc_mm_pdu_type_w;
+    end
+end
+wire iep_body_kind_w = (reass_mm_type_sys_r == 4'd7);
 
 tetra_ul_demand_ie_parser u_ul_demand_ie_parser (
     .clk_sys                      (clk_sys),
@@ -715,6 +743,7 @@ tetra_ul_demand_ie_parser u_ul_demand_ie_parser (
     .start_sys                    (reass_valid_sys),
     .body_sys                     (reass_body_sys),
     .ssi_sys                      (reass_ssi_sys),
+    .body_kind_sys                (iep_body_kind_w),
     .location_update_type_sys     (iep_loc_upd_type_sys),
     .request_to_append_la_sys     (iep_req_to_append_la_sys),
     .cipher_control_sys           (iep_cipher_control_sys),
@@ -732,6 +761,14 @@ tetra_ul_demand_ie_parser u_ul_demand_ie_parser (
     .gild_gssi_sys                (iep_gild_gssi_sys),
     .gild_class_of_usage_sys      (iep_gild_class_sys),
     .gild_address_type_sys        (iep_gild_at_sys),
+    // Phase 7 F.7.1 — GAD outputs
+    .gad_valid_sys                (iep_gad_valid_sys),
+    .gad_attach_detach_mode_sys   (iep_gad_atd_mode_sys),
+    .gad_count_sys                (iep_gad_count_sys),
+    .gad_attach_array_sys         (iep_gad_attach_array_sys),
+    .gad_class_array_sys          (iep_gad_class_array_sys),
+    .gad_at_array_sys             (iep_gad_at_array_sys),
+    .gad_gssi_array_sys           (iep_gad_gssi_array_sys),
     .pdu_ssi_sys                  (iep_pdu_ssi_sys),
     .parse_done_sys               (iep_parse_done_sys),
     .parse_ok_sys                 (iep_parse_ok_sys)

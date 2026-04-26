@@ -34,6 +34,7 @@ module tb_ul_demand_ie_parser;
     reg          start;
     reg [128:0]  body;
     reg [23:0]   pdu_ssi;
+    reg          body_kind;
 
     wire [2:0]   loc_upd_type_w;
     wire         req_to_append_la_w;
@@ -52,6 +53,13 @@ module tb_ul_demand_ie_parser;
     wire [23:0]  gild_gssi_w;
     wire [2:0]   gild_class_w;
     wire [1:0]   gild_at_w;
+    wire         gad_valid_w;
+    wire         gad_atd_mode_w;
+    wire [2:0]   gad_count_w;
+    wire [2:0]   gad_attach_array_w;
+    wire [8:0]   gad_class_array_w;
+    wire [5:0]   gad_at_array_w;
+    wire [71:0]  gad_gssi_array_w;
     wire [23:0]  pdu_ssi_w;
     wire         parse_done_w;
     wire         parse_ok_w;
@@ -62,6 +70,7 @@ module tb_ul_demand_ie_parser;
         .start_sys                    (start),
         .body_sys                     (body),
         .ssi_sys                      (pdu_ssi),
+        .body_kind_sys                (body_kind),
         .location_update_type_sys     (loc_upd_type_w),
         .request_to_append_la_sys     (req_to_append_la_w),
         .cipher_control_sys           (cipher_control_w),
@@ -79,6 +88,13 @@ module tb_ul_demand_ie_parser;
         .gild_gssi_sys                (gild_gssi_w),
         .gild_class_of_usage_sys      (gild_class_w),
         .gild_address_type_sys        (gild_at_w),
+        .gad_valid_sys                (gad_valid_w),
+        .gad_attach_detach_mode_sys   (gad_atd_mode_w),
+        .gad_count_sys                (gad_count_w),
+        .gad_attach_array_sys         (gad_attach_array_w),
+        .gad_class_array_sys          (gad_class_array_w),
+        .gad_at_array_sys             (gad_at_array_w),
+        .gad_gssi_array_sys           (gad_gssi_array_w),
         .pdu_ssi_sys                  (pdu_ssi_w),
         .parse_done_sys               (parse_done_w),
         .parse_ok_sys                 (parse_ok_w)
@@ -173,6 +189,118 @@ module tb_ul_demand_ie_parser;
     endfunction
 
     // -------------------------------------------------------------------
+    // Phase 7 F.7.1 — U-ATTACH-DETACH-GROUP-IDENTITY body builder.
+    // Reassembled body layout (mm_pdu_type stripped at parser-level):
+    //
+    //   bit[0]   group_identity_report
+    //   bit[1]   attach_detach_mode
+    //   bit[2]   o-bit
+    //   bits[3..3+5+11-1]  GIU header: m=1 + id=8(4) + length(11)
+    //   bits[3+16..]       GIU payload (num_elem(6) + records)
+    //   trailing m-bit = 0
+    //
+    // build_gad_body() composes a body with N attach records (addr_t=0,
+    // GSSI only, class_of_usage=4) at given GSSI values.  All bits beyond
+    // the trailing m-bit are 0 fill.
+    //
+    // For the gold-ref Phase 7 F.7 capture (`reference_group_attach_
+    // bitexact.md` UL fragment 1+2 reassembled): 2 records, ENT[0]=attach
+    // GSSI, ENT[1]=detach GSSI.  Modeled here via build_gad_attach_detach.
+    // -------------------------------------------------------------------
+    function [128:0] build_gad_body_3attach;
+        input [23:0] g0;
+        input [23:0] g1;
+        input [23:0] g2;
+        reg [10:0]   length;
+        reg [128:0]  out;
+        begin
+            // payload: num_elem(6) + 3 × (1+3+2+24) = 6 + 90 = 96 bits
+            length = 11'd96;
+            out = {
+                1'b0,                       // group_identity_report
+                1'b0,                       // attach_detach_mode (amend)
+                1'b1,                       // o-bit
+                1'b1, 4'd8, length,         // m=1 id=8 length=96
+                6'd3,                       // num_elem
+                1'b0, 3'd4, 2'b00, g0,      // ENT0: attach class=4 at=0 gssi
+                1'b0, 3'd4, 2'b00, g1,
+                1'b0, 3'd4, 2'b00, g2,
+                1'b0,                       // trailing m-bit
+                {(129 - 3 - 16 - 96 - 1){1'b0}}
+            };
+            build_gad_body_3attach = out;
+        end
+    endfunction
+
+    function [128:0] build_gad_body_replace_all;
+        input [23:0] g0;
+        reg [10:0]   length;
+        reg [128:0]  out;
+        begin
+            // payload: num_elem(6) + 1 × (1+3+2+24) = 6 + 30 = 36 bits
+            length = 11'd36;
+            out = {
+                1'b0,                       // group_identity_report
+                1'b1,                       // attach_detach_mode (replace_all)
+                1'b1,                       // o-bit
+                1'b1, 4'd8, length,         // m=1 id=8 length=36
+                6'd1,                       // num_elem
+                1'b0, 3'd4, 2'b00, g0,
+                1'b0,
+                {(129 - 3 - 16 - 36 - 1){1'b0}}
+            };
+            build_gad_body_replace_all = out;
+        end
+    endfunction
+
+    function [128:0] build_gad_body_detach;
+        input [23:0] g0;
+        reg [10:0]   length;
+        reg [128:0]  out;
+        begin
+            // payload: num_elem(6) + 1 × (1+2+2+24) = 6 + 29 = 35 bits
+            length = 11'd35;
+            out = {
+                1'b0,                       // group_identity_report
+                1'b0,                       // attach_detach_mode
+                1'b1,                       // o-bit
+                1'b1, 4'd8, length,         // m=1 id=8 length=35
+                6'd1,                       // num_elem
+                1'b1, 2'd0, 2'b00, g0,      // ENT0: detach gid=0 at=0 gssi
+                1'b0,
+                {(129 - 3 - 16 - 35 - 1){1'b0}}
+            };
+            build_gad_body_detach = out;
+        end
+    endfunction
+
+    // Gold-ref-style attach + detach (matches `reference_group_attach_
+    // bitexact.md` UL#0+UL#1 v1: ENT0=attach GSSI=0x2F4D63 class=4,
+    // ENT1=detach GSSI=0x2F4D62 gid=2, addr_t=0).
+    function [128:0] build_gad_body_attach_detach;
+        input [23:0] g_attach;
+        input [23:0] g_detach;
+        reg [10:0]   length;
+        reg [128:0]  out;
+        begin
+            // payload: num_elem(6) + (1+3+2+24)=30 + (1+2+2+24)=29 = 65 bits
+            length = 11'd65;
+            out = {
+                1'b0,                       // group_identity_report
+                1'b0,                       // attach_detach_mode (amend)
+                1'b1,                       // o-bit
+                1'b1, 4'd8, length,         // m=1 id=8 length=65
+                6'd2,                       // num_elem
+                1'b0, 3'd4, 2'b00, g_attach,
+                1'b1, 2'd2, 2'b00, g_detach,
+                1'b0,
+                {(129 - 3 - 16 - 65 - 1){1'b0}}
+            };
+            build_gad_body_attach_detach = out;
+        end
+    endfunction
+
+    // -------------------------------------------------------------------
     // o-bit=1 but no Type-3 elements (m-bit=0 immediately after Type-2
     // flags).  All optional Type-2 fields absent.
     //   3 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 = 12 bits used; pad to 129.
@@ -222,11 +350,37 @@ module tb_ul_demand_ie_parser;
         integer t;
         begin
             @(posedge clk); #1;
-            body    = body_in;
-            pdu_ssi = ssi_in;
-            start   = 1'b1;
+            body      = body_in;
+            pdu_ssi   = ssi_in;
+            body_kind = 1'b0;       // mm=2 LOC-UPDATE-DEMAND
+            start     = 1'b1;
             @(posedge clk); #1;
-            start   = 1'b0;
+            start     = 1'b0;
+            t = 0;
+            while (!parse_done_w && t < 200) begin
+                @(posedge clk); #1;
+                t = t + 1;
+            end
+            if (!parse_done_w) begin
+                $display("FAIL: parse never finished (timeout)");
+                fail_cnt = fail_cnt + 1;
+            end
+        end
+    endtask
+
+    // Phase 7 F.7.1 — body_kind=1 (mm=7 ATTACH-DETACH) variant.
+    task drive_parse_gad;
+        input [23:0]  ssi_in;
+        input [128:0] body_in;
+        integer t;
+        begin
+            @(posedge clk); #1;
+            body      = body_in;
+            pdu_ssi   = ssi_in;
+            body_kind = 1'b1;       // mm=7 ATTACH-DETACH-GROUP-IDENTITY
+            start     = 1'b1;
+            @(posedge clk); #1;
+            start     = 1'b0;
             t = 0;
             while (!parse_done_w && t < 200) begin
                 @(posedge clk); #1;
@@ -264,6 +418,7 @@ module tb_ul_demand_ie_parser;
         start     = 1'b0;
         body      = 129'd0;
         pdu_ssi   = 24'd0;
+        body_kind = 1'b0;
         pass_cnt  = 0;
         fail_cnt  = 0;
 
@@ -312,6 +467,65 @@ module tb_ul_demand_ie_parser;
         expect_eq32("T4 loc_upd_type",    {29'd0, loc_upd_type_w}, 32'd3);
         expect_eq32("T4 gild_v",          {31'd0, gild_valid_w}, 32'd0);
         expect_eq32("T4 class_of_ms_v",   {31'd0, class_of_ms_valid_w}, 32'd0);
+
+        // ---------------------------------------------------------------
+        // Phase 7 F.7.1 — U-ATTACH-DETACH-GROUP-IDENTITY (mm=7)
+        // ---------------------------------------------------------------
+        $display("\n[T5] gad_attach_3_groups — atd_mode=0, 3× attach");
+        drive_parse_gad(24'h282FF4,
+                        build_gad_body_3attach(24'h2F4D61, 24'h2F4D62, 24'h2F4D63));
+        expect_eq32("T5 parse_ok",        {31'd0, parse_ok_w}, 32'd1);
+        expect_eq32("T5 gad_v",           {31'd0, gad_valid_w}, 32'd1);
+        expect_eq32("T5 atd_mode",        {31'd0, gad_atd_mode_w}, 32'd0);
+        expect_eq32("T5 count",           {29'd0, gad_count_w}, 32'd3);
+        expect_eq32("T5 attach[2:0]",     {29'd0, gad_attach_array_w}, 32'd0);
+        expect_eq32("T5 class_array",     {23'd0, gad_class_array_w},  // {4,4,4}
+                                          {23'd0, 9'b100_100_100});
+        expect_eq32("T5 gssi[0]",         {8'd0, gad_gssi_array_w[23:0]}, 32'h002F4D61);
+        expect_eq32("T5 gssi[1]",         {8'd0, gad_gssi_array_w[47:24]}, 32'h002F4D62);
+        expect_eq32("T5 gssi[2]",         {8'd0, gad_gssi_array_w[71:48]}, 32'h002F4D63);
+        expect_eq32("T5 pdu_ssi",         {8'd0, pdu_ssi_w}, 32'h00282FF4);
+
+        // ---------------------------------------------------------------
+        $display("\n[T6] gad_attach_replace_all — atd_mode=1, 1× attach");
+        drive_parse_gad(24'h282FF4, build_gad_body_replace_all(24'hABCDEF));
+        expect_eq32("T6 parse_ok",        {31'd0, parse_ok_w}, 32'd1);
+        expect_eq32("T6 gad_v",           {31'd0, gad_valid_w}, 32'd1);
+        expect_eq32("T6 atd_mode",        {31'd0, gad_atd_mode_w}, 32'd1);
+        expect_eq32("T6 count",           {29'd0, gad_count_w}, 32'd1);
+        expect_eq32("T6 gssi[0]",         {8'd0, gad_gssi_array_w[23:0]}, 32'h00ABCDEF);
+
+        // ---------------------------------------------------------------
+        $display("\n[T7] gad_detach — 1× detach");
+        drive_parse_gad(24'h282FF4, build_gad_body_detach(24'h123456));
+        expect_eq32("T7 parse_ok",        {31'd0, parse_ok_w}, 32'd1);
+        expect_eq32("T7 gad_v",           {31'd0, gad_valid_w}, 32'd1);
+        expect_eq32("T7 count",           {29'd0, gad_count_w}, 32'd1);
+        expect_eq32("T7 attach[0]",       {31'd0, gad_attach_array_w[0]}, 32'd1);
+        expect_eq32("T7 gssi[0]",         {8'd0, gad_gssi_array_w[23:0]}, 32'h00123456);
+
+        // ---------------------------------------------------------------
+        $display("\n[T8] gad_attach_detach (gold-ref-style) — 1 attach + 1 detach");
+        drive_parse_gad(24'h282FF4,
+                        build_gad_body_attach_detach(24'h2F4D63, 24'h2F4D62));
+        expect_eq32("T8 parse_ok",        {31'd0, parse_ok_w}, 32'd1);
+        expect_eq32("T8 gad_v",           {31'd0, gad_valid_w}, 32'd1);
+        expect_eq32("T8 count",           {29'd0, gad_count_w}, 32'd2);
+        expect_eq32("T8 attach[0]",       {31'd0, gad_attach_array_w[0]}, 32'd0);
+        expect_eq32("T8 attach[1]",       {31'd0, gad_attach_array_w[1]}, 32'd1);
+        expect_eq32("T8 gssi[0]",         {8'd0, gad_gssi_array_w[23:0]}, 32'h002F4D63);
+        expect_eq32("T8 gssi[1]",         {8'd0, gad_gssi_array_w[47:24]}, 32'h002F4D62);
+
+        // ---------------------------------------------------------------
+        // T9 — profile0_m2_guard regression: re-run T1 (gold-ref body) and
+        // verify the GAD outputs stay 0 (mm=2 path) so no leakage occurs.
+        // ---------------------------------------------------------------
+        $display("\n[T9] regression: mm=2 leaves GAD outputs zero");
+        drive_parse(24'h282FF4, build_body_with_gssi(24'h2F4D61));
+        expect_eq32("T9 parse_ok",        {31'd0, parse_ok_w}, 32'd1);
+        expect_eq32("T9 gild_v",          {31'd0, gild_valid_w}, 32'd1);
+        expect_eq32("T9 gad_v",           {31'd0, gad_valid_w}, 32'd0);
+        expect_eq32("T9 gad_count",       {29'd0, gad_count_w}, 32'd0);
 
         // ---------------------------------------------------------------
         $display("\n========================================================");
