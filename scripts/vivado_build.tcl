@@ -119,6 +119,7 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/rx/tetra_ul_viterbi_r14.v \
  $PROJ_DIR/rtl/rx/tetra_burst_demux.v \
  $PROJ_DIR/rtl/rx/tetra_frame_counter.v \
+ $PROJ_DIR/rtl/rx/tetra_ul_demand_reassembly.v \
 ]
 
 # TX Chain
@@ -164,6 +165,7 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_mle_registration_fsm.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_signal_queue.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_signal_scheduler.v \
+ $PROJ_DIR/rtl/lmac/tetra_ul_demand_ie_parser.v \
 ]
 
 # Top-Level modules
