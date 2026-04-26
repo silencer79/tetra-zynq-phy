@@ -356,12 +356,12 @@ Die MS schickt ihre gewünschte primary-GSSI im U-LOC-UPDATE-DEMAND mit
 das MAC-ACCESS-PDU trägt aber nur 92 Bit on-air. Daher fragmentiert die
 MS den Demand auf **zwei Bursts**:
 
-| Burst | PDU-Type | Inhalt |
-|-------|----------|--------|
-| UL#0 | 00 (MAC-ACCESS, frag=1) | bits[48..91] = 44 Bit MM body Fragment 1 |
-| UL#1 | 01 (MAC-U-BLCK Continuation) | bits[4..91] = 88 Bit MM body Fragment 2 |
+| Burst | Channel | mac_pdu_type | Header | MM-Body |
+|-------|---------|--------------|--------|--------|
+| UL#0  | SCH/HU  | 0 (MAC-ACCESS, 1-bit, frag=1) | 36 bit (bis TL-SDU-Anfang) | bits[48..91] = 44 bit |
+| UL#1  | SCH/HU  | 1 (MAC-END-HU, 1-bit) | 7 bit (incl. length_ind) | bits[7..91] = 85 bit |
 
-**Reassembly:** `full_mm_body[0..131] = ul0_bits[48..91] ++ ul1_bits[4..91]`.
+**Reassembly:** `full_mm_body[0..128] = ul0_bits[48..91] ++ ul1_bits[7..91]` = **129 bit**.
 
 Position der GSSI im reassembled Body: ungefähr bei bit 88..111
 (direkt nach den Standard-Optional-Fields). In den Hex-Bytes von UL#1
