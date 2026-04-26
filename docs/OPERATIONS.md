@@ -90,7 +90,7 @@ Vivado Build → bootgen (.bit → .bit.bin) → Cross-Compile SW → SCP Upload
 | `/root/tetra_dbsync.sh` | Phase 6 E.4 — pollt db.tsv, ruft `tetra_db_mgr sync` |
 | `/root/tetra_autoenroll.sh` | Phase 6 E.5 — tail-F ul_mon.log, hängt unbekannte ISSIs an db.tsv (OPEN-mode only) |
 | `/var/lib/tetra/db.tsv` | EntityTable-Persistenz (4-Spalten: slot entity_id entity_type profile_id) |
-| `/var/lib/tetra/profiles.tsv` | ProfileTable-Mirror (für `profiles.cgi` GET, durch POST aktualisiert) |
+| `/var/lib/tetra/profiles.tsv` | ProfileTable-Persistenz (durch POST aktualisiert; Phase 7 F.4: `profiles.cgi` GET liest jetzt direkt aus AXI 0x1C8, TSV ist nur noch Boot-Sync) |
 | `/www/index.html` + `/www/cgi-bin/*.cgi` | WebUI (busybox httpd, 3 Tabs: Cell Config, Subscribers, Profiles) |
 | `/tmp/tetra_sysinfo.log` | Sysinfo-Log (TX-Daemon, beendet sich nach Init) |
 | `/tmp/tetra_ul_mon.log` | UL-mon Log (MAC-ACCESS-PDU-Stream, Quelle für E.5) |
@@ -272,8 +272,9 @@ Tabs: **Cell Config** (Frequenz/CC/SYSINFO via `apply.cgi`),
 | `/cgi-bin/entities.cgi` | GET | JSON-Liste der EntityTable-Slots aus `db.tsv`. Felder: `slot, entity_id, entity_type (0=ISSI,1=GSSI), profile_id, valid` |
 | `/cgi-bin/entities.cgi` | POST `op=add&slot=&entity_id=&entity_type=&profile_id=` | Hinzufügen + sofort `tetra_db_mgr sync` zur BRAM |
 | `/cgi-bin/entities.cgi` | POST `op=del&slot=N` | Löschen + sync |
-| `/cgi-bin/profiles.cgi` | GET | JSON-Liste aller 6 ProfileTable-Slots (max_call_dur/hangtime/priority/gila_class/gila_lifetime/permits/valid + raw 32-bit hex) |
+| `/cgi-bin/profiles.cgi` | GET | JSON-Liste aller 6 ProfileTable-Slots (Phase 7 F.4: liest direkt aus AXI 0x1C0/0x1C8 — drift-frei zur RTL Profile-Table; TSV nur Fallback) |
 | `/cgi-bin/profiles.cgi` | POST `op=set&slot=&max=&hangtime=&priority=&gila_class=&gila_lifetime=&permit_voice=&permit_data=&permit_reg=&valid=` | Profile schreiben (AXI 0x1C0..0x1CC + Persistenz `/var/lib/tetra/profiles.tsv`) |
+| `/cgi-bin/sessions.cgi` | GET | Live-Counter inkl. Phase 7 F.3 `reassembled_cnt` + `reassembly_drop_cnt` (UL-Demand-Reassembly @ 0x1E0) |
 | `/cgi-bin/sessions.cgi` | GET | Live-Counter via `busybox devmem` (0x190/0x194/0x198/0x1A4/0x1A8/0x1AC/0x1B0/0x168) + `tail /tmp/tetra_ul_mon.log` |
 | `/cgi-bin/policy.cgi`   | POST `op=set&accept_unknown=0|1` | OPEN ↔ RESTRICTED Toggle (RMW auf REG_DB_POLICY @ 0x1AC) |
 
