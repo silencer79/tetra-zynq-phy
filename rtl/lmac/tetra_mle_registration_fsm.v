@@ -996,7 +996,22 @@ module tetra_mle_registration_fsm #(
                     // Loop terminated — drop demand latch and proceed to
                     // the AST write step.
                     lat_demand_valid <= 1'b0;
-                    state            <= S_CHECK_START;
+                    // Phase 7 F.6 — GILA-Source-Multiplexer.  Wenn die
+                    // MS mindestens eine erlaubte GSSI angefragt hat
+                    // (lat_group_count > 0), antwortet der GILA-Block im
+                    // D-LOC-UPDATE-ACCEPT mit der ersten akzeptierten
+                    // Group statt der EntityTable-Default-GSSI.  Damit
+                    // sieht das MS-MMI seine eigene gewählte Gruppe
+                    // bestätigt — ohne Match → MS bleibt rot.
+                    // Wenn lat_group_count==0: lat_gila_gssi behält den
+                    // Wert vom Default-GSSI-Lookup (Phase D-rev-Verhalten),
+                    // damit profile0_m2_guard und einfache 1-Group-Setups
+                    // weiter bit-identisch zur Gold-Ref bleiben.
+                    if (lat_group_count != 4'd0) begin
+                        lat_gila_gssi    <= lat_group_list[191:168];
+                        lat_gila_present <= 1'b1;
+                    end
+                    state <= S_CHECK_START;
                 end else begin
                     // Issue Entity.query(gssi=cur_gssi_w, type=1, strict).
                     entity_q_start             <= 1'b1;
