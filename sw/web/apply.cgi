@@ -64,6 +64,7 @@ if [ -n "${ul_freq:-}" ] && [ "$ul_freq" -gt 0 ] 2>/dev/null; then
     rx_freq=$ul_freq
 else
     case "$duplex_spacing" in
+        0) rx_freq=$(( freq - 10000000 )) ;;   # test/dev convention: 0 = -10 MHz
         1) rx_freq=$(( freq - 7600000 )) ;;
         3) rx_freq=$(( freq - 10000000 )) ;;
         4) rx_freq=$(( freq + 10000000 )) ;;
