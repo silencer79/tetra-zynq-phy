@@ -58,14 +58,19 @@ sleep 0.3
 # Set AD9361 TX frequency and attenuation
 echo "$freq" > /sys/bus/iio/devices/iio:device1/out_altvoltage1_TX_LO_frequency 2>/dev/null
 
-# Calculate RX frequency based on duplex spacing
-case "$duplex_spacing" in
-    1) rx_freq=$(( freq - 7600000 )) ;;
-    3) rx_freq=$(( freq - 10000000 )) ;;
-    4) rx_freq=$(( freq + 10000000 )) ;;
-    7) rx_freq=$freq ;;
-    *) rx_freq=$(( freq - 10000000 )) ;;
-esac
+# RX (UL) frequency: if ul_freq form field is provided and non-empty,
+# use it directly; otherwise derive from duplex_spacing (legacy path).
+if [ -n "${ul_freq:-}" ] && [ "$ul_freq" -gt 0 ] 2>/dev/null; then
+    rx_freq=$ul_freq
+else
+    case "$duplex_spacing" in
+        1) rx_freq=$(( freq - 7600000 )) ;;
+        3) rx_freq=$(( freq - 10000000 )) ;;
+        4) rx_freq=$(( freq + 10000000 )) ;;
+        7) rx_freq=$freq ;;
+        *) rx_freq=$(( freq - 10000000 )) ;;
+    esac
+fi
 echo "$rx_freq" > /sys/bus/iio/devices/iio:device1/out_altvoltage0_RX_LO_frequency 2>/dev/null
 
 # TX attenuation (driver needs float format e.g. "-10.000000")
