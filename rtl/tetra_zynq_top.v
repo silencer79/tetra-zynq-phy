@@ -2266,29 +2266,9 @@ tetra_mle_registration_fsm #(
     .demand_pdu_ssi      (mle_demand_pdu_ssi_sys),
     .demand_gssi_count   (mle_demand_gssi_count_sys),
     .demand_gssi_array   (mle_demand_gssi_array_sys),
-    .demand_class_array  (mle_demand_class_array_sys),
-    // Phase H.0.1 — mm=7 group-attach trigger wiring removed.  Inputs
-    // tied off to constants; outputs left unconnected.  Ports themselves
-    // are stripped from tetra_mle_registration_fsm in Phase H.0.2.
-    .ul_group_attach_valid     (1'b0),
-    .ul_group_attach_ssi       (24'd0),
-    .gad_attach_detach_mode    (1'b0),
-    .gad_count_in              (3'd0),
-    .gad_attach_array_in       (3'd0),
-    .gad_class_array_in        (9'd0),
-    .gad_at_array_in           (6'd0),
-    .gad_gssi_array_in         (72'd0),
-    .gad_ack_build_pulse       (),
-    .gad_ack_ssi               (),
-    .gad_ack_accept_reject     (),
-    .gad_ack_nr                (),
-    .gad_ack_ns                (),
-    .gad_ack_count             (),
-    .gad_ack_attach_array      (),
-    .gad_ack_lifetime_array    (),
-    .gad_ack_class_array       (),
-    .gad_ack_at_array          (),
-    .gad_ack_gssi_array        ()
+    .demand_class_array  (mle_demand_class_array_sys)
+    // Phase H.0.2 — mm=7 group-attach FSM ports stripped (Group-Switch
+    // moved to ARM SW per the FPGA+SW split).
 );
 
 // =============================================================================
