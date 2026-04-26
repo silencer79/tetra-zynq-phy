@@ -637,11 +637,17 @@ module tetra_mle_registration_fsm #(
     wire [431:0] sch_coded_bits_w;
     wire         sch_coded_valid_w;
 
+    // Mux: legacy ACCEPT path (mm=2) drives lat_accept_info_bits; the
+    // F.7.4 GAD-ACK path (mm=7) drives lat_gad_info_bits.  The FSM
+    // toggles lat_use_gad_path so only one source is active at a time.
+    wire [267:0] sch_f_info_bits_w =
+        lat_use_gad_path ? lat_gad_info_bits : lat_accept_info_bits;
+
     tetra_sch_f_encoder u_sch_f (
         .clk          (clk),
         .rst_n        (rst_n),
         .encode_start (sch_encode_start),
-        .info_bits    (lat_accept_info_bits),
+        .info_bits    (sch_f_info_bits_w),
         .scramble_init(cfg_scramble_init),
         .coded_bits   (sch_coded_bits_w),
         .coded_valid  (sch_coded_valid_w)
@@ -659,6 +665,79 @@ module tetra_mle_registration_fsm #(
         .scramble_init(cfg_scramble_init),
         .coded_bits   (sch_hd_coded_bits_w),
         .coded_valid  (sch_hd_coded_valid_w)
+    );
+
+    // -------------------------------------------------------------------------
+    // Phase 7 F.7.4 — D-ATTACH-DETACH-GRP-ID-ACK encoder + dedicated
+    // MAC-RESOURCE DL builder + SCH/F encoder.
+    //
+    // Wired in parallel to the legacy ACCEPT/REJECT path; the FSM
+    // selects which 268-bit info bus feeds u_sch_f via lat_use_gad_path.
+    // For the legacy attach (mm=2) flow the FSM keeps lat_use_gad_path=0
+    // → u_sch_f sees lat_accept_info_bits (the original gold-ref M2
+    // path).  For the GAD-ACK (mm=7) flow, S_GROUP_BUILD_ACK_BUILD sets
+    // lat_use_gad_path=1 and feeds lat_gad_info_bits.
+    // -------------------------------------------------------------------------
+    wire [127:0] gad_ack_mm_bits_w;
+    wire [7:0]   gad_ack_mm_len_w;
+
+    tetra_d_attach_detach_group_identity_ack_encoder u_gad_ack_enc (
+        .accept_reject  (gad_ack_accept_reject),
+        .count          (gad_ack_count),
+        .attach_array   (gad_ack_attach_array),
+        .lifetime_array (gad_ack_lifetime_array),
+        .class_array    (gad_ack_class_array),
+        .at_array       (gad_ack_at_array),
+        .gssi_array     (gad_ack_gssi_array),
+        .pdu_bits_mm    (gad_ack_mm_bits_w),
+        .pdu_len_bits   (gad_ack_mm_len_w)
+    );
+
+    reg          gad_builder_start;
+    wire [267:0] gad_builder_pdu_bits_w;
+    wire         gad_builder_valid_w;
+    reg [267:0]  lat_gad_info_bits;
+    reg          lat_use_gad_path;
+
+    tetra_mac_resource_dl_builder #(
+        .PDU_BITS(268)
+    ) u_gad_ack_builder (
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .start             (gad_builder_start),
+        .ssi               (gad_ack_ssi),
+        .addr_type         (3'd1),                 // SSI
+        .ns                (gad_ack_ns),
+        .nr                (gad_ack_nr),
+        .llc_pdu_type      (4'd0),                 // BL-ADATA
+        .random_access_flag(1'b0),                 // gold-ref RAF=0
+        .power_control_flag       (1'b0),
+        .power_control_element    (4'd0),
+        // Slot-grant flag = 1 with all-zero element matches gold-ref
+        // slice byte 5 = 0x80 = sg_flag=1, sg_elem=0x00.
+        .slot_granting_flag       (1'b1),
+        .slot_granting_element    (8'd0),
+        .chan_alloc_flag          (1'b0),
+        .chan_alloc_element       (32'd0),
+        .chan_alloc_element_len   (5'd0),
+        .second_pdu_valid              (1'b0),
+        .second_pdu_length_ind         (6'd0),
+        .second_pdu_random_access_flag (1'b0),
+        .second_pdu_addr_type          (3'd0),
+        .second_pdu_ssi                (24'd0),
+        .second_pdu_tl_sdu             (80'd0),
+        .second_pdu_tl_sdu_len         (7'd0),
+        .second_pdu_pc_flag            (1'b0),
+        .second_pdu_pc_element         (4'd0),
+        .second_pdu_sg_flag            (1'b0),
+        .second_pdu_sg_element         (8'd0),
+        .second_pdu_ca_flag            (1'b0),
+        .second_pdu_ca_element         (32'd0),
+        .second_pdu_ca_element_len     (5'd0),
+        .mm_pdu_bits       (gad_ack_mm_bits_w),
+        .mm_pdu_len_bits   (gad_ack_mm_len_w),
+        .pdu_bits          (gad_builder_pdu_bits_w),
+        .valid             (gad_builder_valid_w)
     );
 
     // -------------------------------------------------------------------------
@@ -777,6 +856,11 @@ module tetra_mle_registration_fsm #(
     localparam [5:0] S_GROUP_PROFILE_DECIDE   = 6'd41;
     localparam [5:0] S_GROUP_DETACH_APPLY     = 6'd42;
     localparam [5:0] S_GROUP_BUILD_ACK        = 6'd43;
+    // Phase 7 F.7.4 — single-burst SCH/F emit pipeline.
+    localparam [5:0] S_GROUP_BUILD_ACK_WAIT   = 6'd44;  // GAD MAC-RESOURCE builder
+    localparam [5:0] S_GROUP_ENCODE_F_START   = 6'd45;
+    localparam [5:0] S_GROUP_ENCODE_F_WAIT    = 6'd46;
+    localparam [5:0] S_GROUP_DELIVER          = 6'd47;
     reg [23:0] lat_detach_ssi;
     reg [5:0] state;
     // Profile-Table read latency for the per-GSSI Profile lookup loop.
@@ -874,6 +958,10 @@ module tetra_mle_registration_fsm #(
             gad_ack_class_array    <= 9'd0;
             gad_ack_at_array       <= 6'd0;
             gad_ack_gssi_array     <= 72'd0;
+            // Phase 7 F.7.4 — encode pipeline regs
+            gad_builder_start      <= 1'b0;
+            lat_gad_info_bits      <= 268'd0;
+            lat_use_gad_path       <= 1'b0;
             short_builder_start  <= 1'b0;
             accept_builder_start <= 1'b0;
             sch_encode_start  <= 1'b0;
@@ -909,6 +997,7 @@ module tetra_mle_registration_fsm #(
             lost_pulse       <= 1'b0;
             detach_pulse     <= 1'b0;
             gad_ack_build_pulse <= 1'b0;
+            gad_builder_start   <= 1'b0;
 
             // Phase 7 F.2 — latch demand-IE-parser outputs whenever a
             // parse-done pulse arrives.  This is independent of the FSM
@@ -1756,8 +1845,49 @@ module tetra_mle_registration_fsm #(
                     end
                 end
 
-                accept_pulse <= 1'b1;
-                state        <= S_IDLE;
+                // Kick the GAD-ACK MAC-RESOURCE builder.  The builder
+                // samples gad_ack_* outputs since they're driven by the
+                // same NBA-cycle as gad_ack_build_pulse — they're stable
+                // by the next clock edge when gad_builder_start triggers
+                // S_ASSEMBLE_INNER inside u_gad_ack_builder.
+                gad_builder_start <= 1'b1;
+                lat_use_gad_path  <= 1'b1;
+                state             <= S_GROUP_BUILD_ACK_WAIT;
+            end
+
+            // -----------------------------------------------------------------
+            // Phase 7 F.7.4 — Wait for the GAD-ACK MAC-RESOURCE builder to
+            // settle (`valid` pulse), then drive lat_gad_info_bits and
+            // kick the SCH/F encoder.
+            // -----------------------------------------------------------------
+            S_GROUP_BUILD_ACK_WAIT: begin
+                if (gad_builder_valid_w) begin
+                    lat_gad_info_bits <= gad_builder_pdu_bits_w;
+                    state             <= S_GROUP_ENCODE_F_START;
+                end
+            end
+
+            S_GROUP_ENCODE_F_START: begin
+                sch_encode_start <= 1'b1;
+                state            <= S_GROUP_ENCODE_F_WAIT;
+            end
+
+            S_GROUP_ENCODE_F_WAIT: begin
+                if (sch_coded_valid_w) begin
+                    req_coded_bits <= sch_coded_bits_w;
+                    req_pdu_type   <= 2'd0;            // SCH_F
+                    req_target_tn  <= cfg_mcch_tn;
+                    req_second_pdu_present <= 1'b0;
+                    req_second_pdu_nr      <= 1'b0;
+                    state          <= S_GROUP_DELIVER;
+                end
+            end
+
+            S_GROUP_DELIVER: begin
+                req_valid        <= 1'b1;
+                accept_pulse     <= 1'b1;
+                lat_use_gad_path <= 1'b0;
+                state            <= S_IDLE;
             end
 
             default: state <= S_IDLE;

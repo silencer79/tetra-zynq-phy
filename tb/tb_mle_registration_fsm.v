@@ -1106,7 +1106,7 @@ module tb_mle_registration_fsm;
             cap_reject = 1'b0;
             cap_nr     = 1'b0;
             cap_ns     = 1'b0;
-            while (wait_cycles < 1000 && ack_seen == 0) begin
+            while (wait_cycles < 2000 && ack_seen == 0) begin
                 @(posedge clk);
                 if (gad_ack_build_pulse) begin
                     ack_seen   = 1;
@@ -1117,8 +1117,13 @@ module tb_mle_registration_fsm;
                 end
                 wait_cycles = wait_cycles + 1;
             end
-            // Let the AST BRAM commit the write that was issued in the
-            // same cycle as the ack pulse.
+            // Phase 7 F.7.4 — let the SCH/F encode pipeline finish so
+            // the FSM returns to S_IDLE before the next test fires.
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && busy) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
             @(posedge clk); @(posedge clk);
             if (ack_seen == 0) begin
                 $display("[T%0d group_attach_3_gssi] FAIL no ack pulse",
@@ -1164,9 +1169,15 @@ module tb_mle_registration_fsm;
             ul_group_attach_valid <= 1'b0;
             wait_cycles = 0;
             ack_seen = 0;
-            while (wait_cycles < 1000 && ack_seen == 0) begin
+            while (wait_cycles < 2000 && ack_seen == 0) begin
                 @(posedge clk);
                 if (gad_ack_build_pulse) ack_seen = 1;
+                wait_cycles = wait_cycles + 1;
+            end
+            // F.7.4 — wait for SCH/F encode pipeline to finish.
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && busy) begin
+                @(posedge clk);
                 wait_cycles = wait_cycles + 1;
             end
             @(posedge clk); @(posedge clk);
@@ -1209,12 +1220,17 @@ module tb_mle_registration_fsm;
             wait_cycles = 0;
             ack_seen  = 0;
             cap_count = 3'd0;
-            while (wait_cycles < 1000 && ack_seen == 0) begin
+            while (wait_cycles < 2000 && ack_seen == 0) begin
                 @(posedge clk);
                 if (gad_ack_build_pulse) begin
                     ack_seen  = 1;
                     cap_count = gad_ack_count;
                 end
+                wait_cycles = wait_cycles + 1;
+            end
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && busy) begin
+                @(posedge clk);
                 wait_cycles = wait_cycles + 1;
             end
             @(posedge clk); @(posedge clk);
@@ -1264,13 +1280,19 @@ module tb_mle_registration_fsm;
             wait_cycles = 0;
             ack_seen   = 0;
             r1_nr = 1'b0; r1_ns = 1'b0;
-            while (wait_cycles < 1000 && ack_seen == 0) begin
+            while (wait_cycles < 2000 && ack_seen == 0) begin
                 @(posedge clk);
                 if (gad_ack_build_pulse) begin
                     ack_seen = 1;
                     r1_nr = gad_ack_nr;
                     r1_ns = gad_ack_ns;
                 end
+                wait_cycles = wait_cycles + 1;
+            end
+            // F.7.4 — drain SCH/F encode pipeline before round 2.
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && busy) begin
+                @(posedge clk);
                 wait_cycles = wait_cycles + 1;
             end
             repeat (10) @(posedge clk);
@@ -1282,13 +1304,19 @@ module tb_mle_registration_fsm;
             wait_cycles = 0;
             ack_seen   = 0;
             r2_nr = 1'b0; r2_ns = 1'b0;
-            while (wait_cycles < 1000 && ack_seen == 0) begin
+            while (wait_cycles < 2000 && ack_seen == 0) begin
                 @(posedge clk);
                 if (gad_ack_build_pulse) begin
                     ack_seen = 1;
                     r2_nr = gad_ack_nr;
                     r2_ns = gad_ack_ns;
                 end
+                wait_cycles = wait_cycles + 1;
+            end
+            // Drain again before T24.
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && busy) begin
+                @(posedge clk);
                 wait_cycles = wait_cycles + 1;
             end
             // Round 1 expected NR=0/NS=1 (per gold-ref slice #1, #3, #5)
