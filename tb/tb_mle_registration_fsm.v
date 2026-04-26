@@ -53,6 +53,28 @@ module tb_mle_registration_fsm;
     reg  [71:0] demand_gssi_array   = 72'd0;
     reg  [8:0]  demand_class_array  = 9'd0;
 
+    // Phase 7 F.7.2 — group-attach (mm=7) trigger inputs.
+    reg         ul_group_attach_valid = 1'b0;
+    reg  [23:0] ul_group_attach_ssi   = 24'd0;
+    reg         gad_atd_mode          = 1'b0;
+    reg  [2:0]  gad_count_in          = 3'd0;
+    reg  [2:0]  gad_attach_array_in   = 3'd0;
+    reg  [8:0]  gad_class_array_in    = 9'd0;
+    reg  [5:0]  gad_at_array_in       = 6'd0;
+    reg  [71:0] gad_gssi_array_in     = 72'd0;
+    // GAD-ACK staging outputs (driven by FSM, sampled by TB checks)
+    wire        gad_ack_build_pulse;
+    wire [23:0] gad_ack_ssi;
+    wire        gad_ack_accept_reject;
+    wire        gad_ack_nr;
+    wire        gad_ack_ns;
+    wire [2:0]  gad_ack_count;
+    wire [2:0]  gad_ack_attach_array;
+    wire [5:0]  gad_ack_lifetime_array;
+    wire [8:0]  gad_ack_class_array;
+    wire [5:0]  gad_ack_at_array;
+    wire [71:0] gad_ack_gssi_array;
+
     reg [13:0]  cfg_la            = 14'd36;
     reg [31:0]  cfg_scramble_init = 32'hE1670C03;
     reg [1:0]   cfg_mcch_tn       = 2'd1;
@@ -260,7 +282,29 @@ module tb_mle_registration_fsm;
         .demand_pdu_ssi      (demand_pdu_ssi),
         .demand_gssi_count   (demand_gssi_count),
         .demand_gssi_array   (demand_gssi_array),
-        .demand_class_array  (demand_class_array)
+        .demand_class_array  (demand_class_array),
+        // Phase 7 F.7.2 — group-attach trigger + GAD-ACK staging.  Cases
+        // T22..T25 below drive these stimuli; the regression cases T1..T21
+        // leave them at 0 and the FSM skips the group-attach path.
+        .ul_group_attach_valid     (ul_group_attach_valid),
+        .ul_group_attach_ssi       (ul_group_attach_ssi),
+        .gad_attach_detach_mode    (gad_atd_mode),
+        .gad_count_in              (gad_count_in),
+        .gad_attach_array_in       (gad_attach_array_in),
+        .gad_class_array_in        (gad_class_array_in),
+        .gad_at_array_in           (gad_at_array_in),
+        .gad_gssi_array_in         (gad_gssi_array_in),
+        .gad_ack_build_pulse       (gad_ack_build_pulse),
+        .gad_ack_ssi               (gad_ack_ssi),
+        .gad_ack_accept_reject     (gad_ack_accept_reject),
+        .gad_ack_nr                (gad_ack_nr),
+        .gad_ack_ns                (gad_ack_ns),
+        .gad_ack_count             (gad_ack_count),
+        .gad_ack_attach_array      (gad_ack_attach_array),
+        .gad_ack_lifetime_array    (gad_ack_lifetime_array),
+        .gad_ack_class_array       (gad_ack_class_array),
+        .gad_ack_at_array          (gad_ack_at_array),
+        .gad_ack_gssi_array        (gad_ack_gssi_array)
     );
 
     integer fail_count = 0;
@@ -1011,6 +1055,255 @@ module tb_mle_registration_fsm;
                     $display("[T%0d gssi_wish_ignored_old_path] PASS slot=%0d group_count=0 GILA=2F4D61",
                              test_count, found_slot);
                 end
+            end
+            repeat (10) @(posedge clk);
+        end
+
+        // -------------------------------------------------------------------
+        // Phase 7 F.7.2 — U-ATTACH-DETACH-GROUP-IDENTITY (mm=7) tests.
+        //
+        // T21 group_attach_3_gssi   : 3 attaches into existing AST slot
+        // T22 group_attach_replace_all : replace_all=1 + 1 attach
+        // T23 group_attach_unknown_gssi : Entity miss → record skipped
+        // T24 group_attach_nr_ns_alternation : 2 sequential rounds toggle NR/NS
+        // -------------------------------------------------------------------
+        @(posedge clk);
+        clear_ast();
+        // Seed AST slot 5 with ISSI 0x282F91 so the group-attach path
+        // finds an existing record.
+        u_ast.mem[5] = {24'h282F91, 24'd0, 8'd0, 4'd1, 4'd0, 191'd0, 1'b1};
+        // Seed Entity slots for the group GSSIs (type=1).
+        clear_entity();
+        seed_entity(8'd0, 24'h282F91, 1'b0, 4'd0);    // ISSI in slot 0
+        seed_entity(8'd1, 24'hAAAA01, 1'b1, 4'd0);    // GSSI #1
+        seed_entity(8'd2, 24'hBBBB02, 1'b1, 4'd0);    // GSSI #2
+        seed_entity(8'd3, 24'hCCCC03, 1'b1, 4'd0);    // GSSI #3
+        // Profile slot 0: max=0 hangtime=0 prio=0 gila_class=4 gila_lt=1
+        // permit_voice=1 permit_data=1 permit_reg=1 valid=1.
+        seed_profile(3'd0, 8'd0, 8'd0, 4'd0, 3'd4, 2'd1,
+                     1'b1, 1'b1, 1'b1, 1'b1);
+        @(posedge clk);
+
+        begin : group_attach_3_gssi_test
+            integer wait_cycles;
+            integer ack_seen;
+            reg [2:0] cap_count;
+            reg cap_reject, cap_nr, cap_ns;
+            test_count = test_count + 1;
+            ul_group_attach_ssi   <= 24'h282F91;
+            gad_atd_mode          <= 1'b0;       // amend
+            gad_count_in          <= 3'd3;
+            gad_attach_array_in   <= 3'b000;     // all attach
+            gad_class_array_in    <= 9'b100_100_100;
+            gad_at_array_in       <= 6'b00_00_00;
+            gad_gssi_array_in     <= {24'hCCCC03, 24'hBBBB02, 24'hAAAA01};
+            ul_group_attach_valid <= 1'b1;
+            @(posedge clk);
+            ul_group_attach_valid <= 1'b0;
+            wait_cycles = 0;
+            ack_seen   = 0;
+            cap_count  = 3'd0;
+            cap_reject = 1'b0;
+            cap_nr     = 1'b0;
+            cap_ns     = 1'b0;
+            while (wait_cycles < 1000 && ack_seen == 0) begin
+                @(posedge clk);
+                if (gad_ack_build_pulse) begin
+                    ack_seen   = 1;
+                    cap_count  = gad_ack_count;
+                    cap_reject = gad_ack_accept_reject;
+                    cap_nr     = gad_ack_nr;
+                    cap_ns     = gad_ack_ns;
+                end
+                wait_cycles = wait_cycles + 1;
+            end
+            // Let the AST BRAM commit the write that was issued in the
+            // same cycle as the ack pulse.
+            @(posedge clk); @(posedge clk);
+            if (ack_seen == 0) begin
+                $display("[T%0d group_attach_3_gssi] FAIL no ack pulse",
+                         test_count);
+                fail_count = fail_count + 1;
+            end else if (cap_reject !== 1'b0) begin
+                $display("[T%0d group_attach_3_gssi] FAIL ack_reject=%0b",
+                         test_count, cap_reject);
+                fail_count = fail_count + 1;
+            end else if (cap_count !== 3'd3) begin
+                $display("[T%0d group_attach_3_gssi] FAIL ack_count=%0d exp=3",
+                         test_count, cap_count);
+                fail_count = fail_count + 1;
+            end else if (u_ast.mem[5][195:192] !== 4'd3) begin
+                $display("[T%0d group_attach_3_gssi] FAIL AST.group_count=%0d exp=3",
+                         test_count, u_ast.mem[5][195:192]);
+                fail_count = fail_count + 1;
+            end else if (u_ast.mem[5][191:168] !== 24'hAAAA01) begin
+                $display("[T%0d group_attach_3_gssi] FAIL AST.group_list[0]=%06X exp=AAAA01",
+                         test_count, u_ast.mem[5][191:168]);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d group_attach_3_gssi] PASS ack_count=3 NR=%0b NS=%0b AST.group_count=3",
+                         test_count, cap_nr, cap_ns);
+            end
+            repeat (10) @(posedge clk);
+        end
+
+        // -------------------------------------------------------------------
+        begin : group_attach_replace_all_test
+            integer wait_cycles;
+            integer ack_seen;
+            test_count = test_count + 1;
+            ul_group_attach_ssi   <= 24'h282F91;
+            gad_atd_mode          <= 1'b1;       // replace-all
+            gad_count_in          <= 3'd1;
+            gad_attach_array_in   <= 3'b000;
+            gad_class_array_in    <= 9'b000_000_100;
+            gad_at_array_in       <= 6'b00_00_00;
+            gad_gssi_array_in     <= {48'd0, 24'hAAAA01};
+            ul_group_attach_valid <= 1'b1;
+            @(posedge clk);
+            ul_group_attach_valid <= 1'b0;
+            wait_cycles = 0;
+            ack_seen = 0;
+            while (wait_cycles < 1000 && ack_seen == 0) begin
+                @(posedge clk);
+                if (gad_ack_build_pulse) ack_seen = 1;
+                wait_cycles = wait_cycles + 1;
+            end
+            @(posedge clk); @(posedge clk);
+            if (ack_seen == 0) begin
+                $display("[T%0d replace_all] FAIL no ack pulse", test_count);
+                fail_count = fail_count + 1;
+            end else if (u_ast.mem[5][195:192] !== 4'd1) begin
+                $display("[T%0d replace_all] FAIL AST.group_count=%0d exp=1",
+                         test_count, u_ast.mem[5][195:192]);
+                fail_count = fail_count + 1;
+            end else if (u_ast.mem[5][191:168] !== 24'hAAAA01) begin
+                $display("[T%0d replace_all] FAIL AST.group_list[0]=%06X",
+                         test_count, u_ast.mem[5][191:168]);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d replace_all] PASS group_list cleared+repopulated",
+                         test_count);
+            end
+            repeat (10) @(posedge clk);
+        end
+
+        // -------------------------------------------------------------------
+        begin : group_attach_unknown_gssi_test
+            integer wait_cycles;
+            integer ack_seen;
+            reg [2:0] cap_count;
+            test_count = test_count + 1;
+            // Unknown GSSI 0xDEAD01 — Entity.query misses → skip without
+            // populating AST or ack list.
+            ul_group_attach_ssi   <= 24'h282F91;
+            gad_atd_mode          <= 1'b1;       // replace-all to make AST empty first
+            gad_count_in          <= 3'd1;
+            gad_attach_array_in   <= 3'b000;
+            gad_class_array_in    <= 9'b000_000_100;
+            gad_at_array_in       <= 6'b00_00_00;
+            gad_gssi_array_in     <= {48'd0, 24'hDEAD01};
+            ul_group_attach_valid <= 1'b1;
+            @(posedge clk);
+            ul_group_attach_valid <= 1'b0;
+            wait_cycles = 0;
+            ack_seen  = 0;
+            cap_count = 3'd0;
+            while (wait_cycles < 1000 && ack_seen == 0) begin
+                @(posedge clk);
+                if (gad_ack_build_pulse) begin
+                    ack_seen  = 1;
+                    cap_count = gad_ack_count;
+                end
+                wait_cycles = wait_cycles + 1;
+            end
+            @(posedge clk); @(posedge clk);
+            if (ack_seen == 0) begin
+                $display("[T%0d unknown_gssi] FAIL no ack pulse", test_count);
+                fail_count = fail_count + 1;
+            end else if (cap_count !== 3'd0) begin
+                $display("[T%0d unknown_gssi] FAIL ack_count=%0d exp=0",
+                         test_count, cap_count);
+                fail_count = fail_count + 1;
+            end else if (u_ast.mem[5][195:192] !== 4'd0) begin
+                $display("[T%0d unknown_gssi] FAIL AST.group_count=%0d exp=0",
+                         test_count, u_ast.mem[5][195:192]);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d unknown_gssi] PASS unknown GSSI skipped",
+                         test_count);
+            end
+            repeat (10) @(posedge clk);
+        end
+
+        // -------------------------------------------------------------------
+        // T24 NR/NS alternation across two attach rounds.  Round 1 emits
+        // NR=0/NS=1 (per gold-ref slice #1).  Round 2 emits NR=1/NS=0
+        // (slice #2 layout).
+        // -------------------------------------------------------------------
+        begin : group_attach_nr_ns_alt_test
+            integer wait_cycles;
+            integer ack_seen;
+            reg     r1_nr, r1_ns, r2_nr, r2_ns;
+            test_count = test_count + 1;
+            // Reset slot 5's NR/NS to {0,0} so round 1 emits NR=0/NS=1.
+            // Prior tests T20..T22 toggled the table; force a fresh state.
+            dut.lat_ast_nr_ns[{6'd5, 1'b1}] = 1'b0;  // NR
+            dut.lat_ast_nr_ns[{6'd5, 1'b0}] = 1'b0;  // NS
+            // Round 1
+            ul_group_attach_ssi   <= 24'h282F91;
+            gad_atd_mode          <= 1'b1;
+            gad_count_in          <= 3'd1;
+            gad_attach_array_in   <= 3'b000;
+            gad_class_array_in    <= 9'b000_000_100;
+            gad_at_array_in       <= 6'b00_00_00;
+            gad_gssi_array_in     <= {48'd0, 24'hAAAA01};
+            ul_group_attach_valid <= 1'b1;
+            @(posedge clk);
+            ul_group_attach_valid <= 1'b0;
+            wait_cycles = 0;
+            ack_seen   = 0;
+            r1_nr = 1'b0; r1_ns = 1'b0;
+            while (wait_cycles < 1000 && ack_seen == 0) begin
+                @(posedge clk);
+                if (gad_ack_build_pulse) begin
+                    ack_seen = 1;
+                    r1_nr = gad_ack_nr;
+                    r1_ns = gad_ack_ns;
+                end
+                wait_cycles = wait_cycles + 1;
+            end
+            repeat (10) @(posedge clk);
+            // Round 2
+            gad_gssi_array_in     <= {48'd0, 24'hBBBB02};
+            ul_group_attach_valid <= 1'b1;
+            @(posedge clk);
+            ul_group_attach_valid <= 1'b0;
+            wait_cycles = 0;
+            ack_seen   = 0;
+            r2_nr = 1'b0; r2_ns = 1'b0;
+            while (wait_cycles < 1000 && ack_seen == 0) begin
+                @(posedge clk);
+                if (gad_ack_build_pulse) begin
+                    ack_seen = 1;
+                    r2_nr = gad_ack_nr;
+                    r2_ns = gad_ack_ns;
+                end
+                wait_cycles = wait_cycles + 1;
+            end
+            // Round 1 expected NR=0/NS=1 (per gold-ref slice #1, #3, #5)
+            // Round 2 expected NR=1/NS=0 (per slice #2, #4)
+            if (r1_nr !== 1'b0 || r1_ns !== 1'b1) begin
+                $display("[T%0d nr_ns_alt] FAIL round1 NR/NS=%0b/%0b exp=0/1",
+                         test_count, r1_nr, r1_ns);
+                fail_count = fail_count + 1;
+            end else if (r2_nr !== 1'b1 || r2_ns !== 1'b0) begin
+                $display("[T%0d nr_ns_alt] FAIL round2 NR/NS=%0b/%0b exp=1/0",
+                         test_count, r2_nr, r2_ns);
+                fail_count = fail_count + 1;
+            end else begin
+                $display("[T%0d nr_ns_alt] PASS round1=0/1 round2=1/0",
+                         test_count);
             end
             repeat (10) @(posedge clk);
         end

@@ -784,6 +784,31 @@ wire [2:0]  mle_demand_gssi_count_sys   = iep_gild_valid_sys ? 3'd1 : 3'd0;
 wire [71:0] mle_demand_gssi_array_sys   = {48'd0, iep_gild_gssi_sys};
 wire [8:0]  mle_demand_class_array_sys  = {6'd0, iep_gild_class_sys};
 
+// Phase 7 F.7.2 — Group-Attach (mm=7) trigger composition.  Tied off
+// in F.7.2 (no hardware path activated yet); F.7.5 wires the IE-parser
+// GAD outputs into these latches so the MLE-FSM only sees a pulse when
+// a real mm=7 demand was successfully reassembled + parsed.
+wire        mle_ul_group_attach_valid_w = 1'b0;
+wire [23:0] mle_ul_group_attach_ssi_w   = 24'd0;
+wire        mle_gad_atd_mode_w          = 1'b0;
+wire [2:0]  mle_gad_count_w             = 3'd0;
+wire [2:0]  mle_gad_attach_array_w      = 3'd0;
+wire [8:0]  mle_gad_class_array_w       = 9'd0;
+wire [5:0]  mle_gad_at_array_w          = 6'd0;
+wire [71:0] mle_gad_gssi_array_w        = 72'd0;
+// GAD-ACK output staging — wired to encoder in F.7.4.
+wire        mle_gad_ack_build_pulse_w;
+wire [23:0] mle_gad_ack_ssi_w;
+wire        mle_gad_ack_accept_reject_w;
+wire        mle_gad_ack_nr_w;
+wire        mle_gad_ack_ns_w;
+wire [2:0]  mle_gad_ack_count_w;
+wire [2:0]  mle_gad_ack_attach_array_w;
+wire [5:0]  mle_gad_ack_lifetime_array_w;
+wire [8:0]  mle_gad_ack_class_array_w;
+wire [5:0]  mle_gad_ack_at_array_w;
+wire [71:0] mle_gad_ack_gssi_array_w;
+
 // =============================================================================
 // LMAC — Lower MAC Channel Coding (RX: descramble/deinterleave/viterbi/CRC)
 //         Lower MAC Channel Coding (TX: CRC/encode/interleave/scramble)
@@ -2286,7 +2311,32 @@ tetra_mle_registration_fsm #(
     .demand_pdu_ssi      (mle_demand_pdu_ssi_sys),
     .demand_gssi_count   (mle_demand_gssi_count_sys),
     .demand_gssi_array   (mle_demand_gssi_array_sys),
-    .demand_class_array  (mle_demand_class_array_sys)
+    .demand_class_array  (mle_demand_class_array_sys),
+    // Phase 7 F.7.2 — U-ATTACH-DETACH-GROUP-IDENTITY (mm=7) trigger.
+    // F.7.5 wires this from a top-level latch off the IE-parser GAD
+    // outputs; for the F.7.2 commit we tie the trigger off so the new
+    // FSM path stays unreachable on hardware until the wiring lands.
+    .ul_group_attach_valid     (mle_ul_group_attach_valid_w),
+    .ul_group_attach_ssi       (mle_ul_group_attach_ssi_w),
+    .gad_attach_detach_mode    (mle_gad_atd_mode_w),
+    .gad_count_in              (mle_gad_count_w),
+    .gad_attach_array_in       (mle_gad_attach_array_w),
+    .gad_class_array_in        (mle_gad_class_array_w),
+    .gad_at_array_in           (mle_gad_at_array_w),
+    .gad_gssi_array_in         (mle_gad_gssi_array_w),
+    // Phase 7 F.7.2 — GAD-ACK staging outputs (consumed by F.7.4 encoder
+    // and DL-builder pair).  Tied off in F.7.2 / F.7.5 wires through.
+    .gad_ack_build_pulse       (mle_gad_ack_build_pulse_w),
+    .gad_ack_ssi               (mle_gad_ack_ssi_w),
+    .gad_ack_accept_reject     (mle_gad_ack_accept_reject_w),
+    .gad_ack_nr                (mle_gad_ack_nr_w),
+    .gad_ack_ns                (mle_gad_ack_ns_w),
+    .gad_ack_count             (mle_gad_ack_count_w),
+    .gad_ack_attach_array      (mle_gad_ack_attach_array_w),
+    .gad_ack_lifetime_array    (mle_gad_ack_lifetime_array_w),
+    .gad_ack_class_array       (mle_gad_ack_class_array_w),
+    .gad_ack_at_array          (mle_gad_ack_at_array_w),
+    .gad_ack_gssi_array        (mle_gad_ack_gssi_array_w)
 );
 
 // =============================================================================

@@ -200,6 +200,59 @@ module tetra_mle_registration_fsm #(
     input  wire [8:0]                  demand_class_array,   // {c2,c1,c0}
 
     // -----------------------------------------------------------------
+    // Phase 7 F.7.2 — U-ATTACH-DETACH-GROUP-IDENTITY (mm=7) trigger.
+    //
+    // Fired by tetra_zynq_top when the IE-parser finishes a body_kind=1
+    // walk (mm_pdu_type=7) and at least one GroupIdentityUplink record is
+    // present.  The MLE-FSM diverts into a separate group-attach/detach
+    // flow that:
+    //   1. AST.query(ssi) — must hit (MS already attached)
+    //   2. If gad_replace_all=1: clear the AST slot's group_list
+    //   3. Per requested GSSI:
+    //      attach: Entity.query(gssi, type=1) → Profile.permit_voice/data
+    //              → append to AST.group_list  (also into ack list)
+    //      detach: scan AST.group_list, drop matching entry
+    //              → append to ack list with attach_detach_type_id=1
+    //   4. Build GAD-ACK with NR/NS toggled from lat_ast_nr_ns[slot]
+    //
+    // gad_count[2:0] = number of GIU records (1..3 in Phase 7 scope; the
+    // IE parser caps at 3; F.7.5 may widen to 8 once the DL builder is
+    // sized for it).  gad_*_array fields are sliced per slot.
+    // -----------------------------------------------------------------
+    input  wire                        ul_group_attach_valid,
+    input  wire [23:0]                 ul_group_attach_ssi,
+    input  wire                        gad_attach_detach_mode,
+    input  wire [2:0]                  gad_count_in,
+    input  wire [2:0]                  gad_attach_array_in,
+    input  wire [8:0]                  gad_class_array_in,
+    input  wire [5:0]                  gad_at_array_in,
+    input  wire [71:0]                 gad_gssi_array_in,
+
+    // -----------------------------------------------------------------
+    // Phase 7 F.7.2 — GAD-ACK driver outputs (consumed by the
+    // tetra_d_attach_detach_group_identity_ack_encoder + DL builder
+    // wiring in F.7.4).  All registered, stable from the
+    // gad_ack_build_pulse for one cycle until the next group-attach
+    // request lands.
+    //
+    // gad_ack_count_w echoes lat_ack_count (number of accepted GIUs;
+    // detached entries also flow through the ack list with
+    // attach_detach_type_id=1 to mirror the request).  The ack list is
+    // a parallel structure to the request list.
+    // -----------------------------------------------------------------
+    output reg                         gad_ack_build_pulse,
+    output reg  [23:0]                 gad_ack_ssi,
+    output reg                         gad_ack_accept_reject,
+    output reg                         gad_ack_nr,
+    output reg                         gad_ack_ns,
+    output reg  [2:0]                  gad_ack_count,
+    output reg  [2:0]                  gad_ack_attach_array,
+    output reg  [5:0]                  gad_ack_lifetime_array,
+    output reg  [8:0]                  gad_ack_class_array,
+    output reg  [5:0]                  gad_ack_at_array,
+    output reg  [71:0]                 gad_ack_gssi_array,
+
+    // -----------------------------------------------------------------
     // DL signalling-queue request — 1-cycle pulse carrying the full 432-bit
     // SCH/F coded PDU plus type/target metadata.  The queue assembles it
     // into an entry; a downstream scheduler decides when it goes on air.
@@ -276,6 +329,83 @@ module tetra_mle_registration_fsm #(
     reg [3:0]                   lat_group_count;
     reg [191:0]                 lat_group_list;
     reg [1:0]                   group_idx;       // 0..MAX_DEMAND_GSSIS-1
+
+    // -------------------------------------------------------------------------
+    // Phase 7 F.7.2 — Group-attach/detach (mm=7) latches.
+    //
+    // gad_request_*  : copy of the input vectors at the time of trigger
+    // gad_loop_idx   : 0..2 (request slot we're currently processing)
+    // gad_ast_slot   : AST slot we'll re-write (looked up from ssi)
+    // gad_ack_*      : staged outputs (registered into the gad_ack_*
+    //                  module ports at S_GROUP_BUILD_ACK).
+    //
+    // The per-AST-slot NR/NS toggling state lives in lat_ast_nr_ns:
+    // bit[2*k + 1] = NR(k), bit[2*k + 0] = NS(k) for AST slot k.  On the
+    // first group-attach for slot k both are 0; subsequent rounds toggle
+    // them together (both flip).  We bake the prior values into the ack
+    // (NR_prev, NS_prev) and toggle after emit.  Stop-and-wait
+    // alternation per gold-ref capture (slices #1=NR=0 NS=1, #2=NR=1 NS=0,
+    // alternating).  Reset = all 0 (round 0 = NR=0 NS=0 → emit 0/1, then
+    // toggle → 1/0 next round).
+    //
+    // Bluestation-MS expectation: GAD-ACK NR/NS pair must follow this
+    // pattern; M2 attach itself uses NR=NS=0 fixed (legacy path
+    // unchanged).
+    // -------------------------------------------------------------------------
+    reg                         lat_gad_replace_all;
+    reg [2:0]                   lat_gad_count;
+    reg [2:0]                   lat_gad_attach_array;
+    reg [8:0]                   lat_gad_class_array;
+    reg [5:0]                   lat_gad_at_array;
+    reg [71:0]                  lat_gad_gssi_array;
+    reg [1:0]                   gad_loop_idx;       // 0..2
+    reg [AST_IDX_WIDTH-1:0]     gad_ast_slot;
+    reg                         gad_ast_hit;        // AST.query result
+    // ack staging
+    reg [2:0]                   lat_ack_count;
+    reg [2:0]                   lat_ack_attach_array;
+    reg [5:0]                   lat_ack_lifetime_array;
+    reg [8:0]                   lat_ack_class_array;
+    reg [5:0]                   lat_ack_at_array;
+    reg [71:0]                  lat_ack_gssi_array;
+    // Per-AST-slot NR/NS table — 64 slots × 2 bits = 128 bits.  Indexed
+    // by gad_ast_slot[5:0].  flat reg array (no Verilog-2001 array of
+    // reg → all on one big register).
+    reg [127:0]                 lat_ast_nr_ns;
+
+    // Combinational accessor for the current GAD-request slot tuple.
+    reg                         gad_cur_attach_w;
+    reg [2:0]                   gad_cur_class_w;
+    reg [1:0]                   gad_cur_at_w;
+    reg [23:0]                  gad_cur_gssi_w;
+    always @* begin
+        case (gad_loop_idx)
+            2'd0: begin
+                gad_cur_attach_w = lat_gad_attach_array[0];
+                gad_cur_class_w  = lat_gad_class_array[2:0];
+                gad_cur_at_w     = lat_gad_at_array[1:0];
+                gad_cur_gssi_w   = lat_gad_gssi_array[23:0];
+            end
+            2'd1: begin
+                gad_cur_attach_w = lat_gad_attach_array[1];
+                gad_cur_class_w  = lat_gad_class_array[5:3];
+                gad_cur_at_w     = lat_gad_at_array[3:2];
+                gad_cur_gssi_w   = lat_gad_gssi_array[47:24];
+            end
+            2'd2: begin
+                gad_cur_attach_w = lat_gad_attach_array[2];
+                gad_cur_class_w  = lat_gad_class_array[8:6];
+                gad_cur_at_w     = lat_gad_at_array[5:4];
+                gad_cur_gssi_w   = lat_gad_gssi_array[71:48];
+            end
+            default: begin
+                gad_cur_attach_w = 1'b0;
+                gad_cur_class_w  = 3'd0;
+                gad_cur_at_w     = 2'd0;
+                gad_cur_gssi_w   = 24'd0;
+            end
+        endcase
+    end
 
     // Combinational accessors for the GSSI/class triple at index group_idx.
     reg [23:0]                  cur_gssi_w;
@@ -633,6 +763,20 @@ module tetra_mle_registration_fsm #(
     localparam [5:0] S_GSSI_PROFILE_QUERY  = 6'd32;
     localparam [5:0] S_GSSI_PROFILE_WAIT   = 6'd33;
     localparam [5:0] S_GSSI_PROFILE_DECIDE = 6'd34;
+    // Phase 7 F.7.2 — U-ATTACH-DETACH-GROUP-IDENTITY (mm=7) flow:
+    //   GROUP_AST_QUERY → GROUP_AST_WAIT → GROUP_LOOP_NEXT
+    //   per attach: GROUP_ATTACH_ENTITY_DONE → PROFILE_QUERY/WAIT/DECIDE
+    //   per detach: GROUP_DETACH_APPLY (sweep group_list, no Entity lookup)
+    //   on terminate: GROUP_BUILD_ACK (assemble outputs + nr/ns toggle)
+    localparam [5:0] S_GROUP_AST_QUERY        = 6'd35;
+    localparam [5:0] S_GROUP_AST_WAIT         = 6'd36;
+    localparam [5:0] S_GROUP_LOOP_NEXT        = 6'd37;
+    localparam [5:0] S_GROUP_ENTITY_DONE      = 6'd38;
+    localparam [5:0] S_GROUP_PROFILE_QUERY    = 6'd39;
+    localparam [5:0] S_GROUP_PROFILE_WAIT     = 6'd40;
+    localparam [5:0] S_GROUP_PROFILE_DECIDE   = 6'd41;
+    localparam [5:0] S_GROUP_DETACH_APPLY     = 6'd42;
+    localparam [5:0] S_GROUP_BUILD_ACK        = 6'd43;
     reg [23:0] lat_detach_ssi;
     reg [5:0] state;
     // Profile-Table read latency for the per-GSSI Profile lookup loop.
@@ -702,6 +846,34 @@ module tetra_mle_registration_fsm #(
             lat_group_list         <= 192'd0;
             group_idx              <= 2'd0;
             lat_gssi_profile_id    <= 4'd0;
+            // Phase 7 F.7.2 — GAD/group-attach state
+            lat_gad_replace_all    <= 1'b0;
+            lat_gad_count          <= 3'd0;
+            lat_gad_attach_array   <= 3'd0;
+            lat_gad_class_array    <= 9'd0;
+            lat_gad_at_array       <= 6'd0;
+            lat_gad_gssi_array     <= 72'd0;
+            gad_loop_idx           <= 2'd0;
+            gad_ast_slot           <= {AST_IDX_WIDTH{1'b0}};
+            gad_ast_hit            <= 1'b0;
+            lat_ack_count          <= 3'd0;
+            lat_ack_attach_array   <= 3'd0;
+            lat_ack_lifetime_array <= 6'd0;
+            lat_ack_class_array    <= 9'd0;
+            lat_ack_at_array       <= 6'd0;
+            lat_ack_gssi_array     <= 72'd0;
+            lat_ast_nr_ns          <= 128'd0;
+            gad_ack_build_pulse    <= 1'b0;
+            gad_ack_ssi            <= 24'd0;
+            gad_ack_accept_reject  <= 1'b0;
+            gad_ack_nr             <= 1'b0;
+            gad_ack_ns             <= 1'b0;
+            gad_ack_count          <= 3'd0;
+            gad_ack_attach_array   <= 3'd0;
+            gad_ack_lifetime_array <= 6'd0;
+            gad_ack_class_array    <= 9'd0;
+            gad_ack_at_array       <= 6'd0;
+            gad_ack_gssi_array     <= 72'd0;
             short_builder_start  <= 1'b0;
             accept_builder_start <= 1'b0;
             sch_encode_start  <= 1'b0;
@@ -736,6 +908,7 @@ module tetra_mle_registration_fsm #(
             retransmit_pulse <= 1'b0;
             lost_pulse       <= 1'b0;
             detach_pulse     <= 1'b0;
+            gad_ack_build_pulse <= 1'b0;
 
             // Phase 7 F.2 — latch demand-IE-parser outputs whenever a
             // parse-done pulse arrives.  This is independent of the FSM
@@ -761,11 +934,31 @@ module tetra_mle_registration_fsm #(
                 busy          <= 1'b0;
                 lat_is_reject <= 1'b0;
                 // Phase 6 B — U-ITSI-DETACH takes priority over a new
-                // registration request.
+                // registration request.  Phase 7 F.7.2 adds U-ATTACH-
+                // DETACH-GROUP-IDENTITY (mm=7) ahead of registration too,
+                // so legitimate group-switches don't get crowded out by a
+                // simultaneous re-attach burst.
                 if (ul_detach_valid) begin
                     lat_detach_ssi <= ul_detach_ssi;
                     busy           <= 1'b1;
                     state          <= S_DETACH_QUERY;
+                end else if (ul_group_attach_valid) begin
+                    lat_ssi              <= ul_group_attach_ssi;
+                    lat_gad_replace_all  <= gad_attach_detach_mode;
+                    lat_gad_count        <= gad_count_in;
+                    lat_gad_attach_array <= gad_attach_array_in;
+                    lat_gad_class_array  <= gad_class_array_in;
+                    lat_gad_at_array     <= gad_at_array_in;
+                    lat_gad_gssi_array   <= gad_gssi_array_in;
+                    gad_loop_idx         <= 2'd0;
+                    lat_ack_count        <= 3'd0;
+                    lat_ack_attach_array <= 3'd0;
+                    lat_ack_lifetime_array <= 6'd0;
+                    lat_ack_class_array  <= 9'd0;
+                    lat_ack_at_array     <= 6'd0;
+                    lat_ack_gssi_array   <= 72'd0;
+                    busy                 <= 1'b1;
+                    state                <= S_GROUP_AST_QUERY;
                 end else if (ul_req_valid) begin
                     // D-LOCATION UPDATE ACCEPT is always addressed per SSI
                     // (ETSI EN 300 392-2 §16.10.28).  Force SSI (3'd1)
@@ -1270,6 +1463,301 @@ module tetra_mle_registration_fsm #(
             S_DROP: begin
                 drop_pulse <= 1'b1;
                 state      <= S_IDLE;
+            end
+
+            // -----------------------------------------------------------------
+            // Phase 7 F.7.2 — U-ATTACH-DETACH-GROUP-IDENTITY (mm=7) flow.
+            //
+            // S_GROUP_AST_QUERY → AST.query(lat_ssi)
+            // S_GROUP_AST_WAIT  → on hit: latch slot + record; on miss:
+            //                     skip to BUILD_ACK with accept_reject=1.
+            // S_GROUP_LOOP_NEXT → per request slot, dispatch attach/detach.
+            // S_GROUP_ENTITY_DONE / PROFILE_QUERY/WAIT/DECIDE — same as
+            //                     mm=2 multi-GSSI loop, but per-record
+            //                     accept/reject feeds the ack list (also
+            //                     update AST.group_list).
+            // S_GROUP_DETACH_APPLY → scan AST.group_list for matching
+            //                     GSSI, clear it, append to ack list with
+            //                     attach_detach_type_id=1.
+            // S_GROUP_BUILD_ACK → toggle NR/NS, drive gad_ack_* outputs,
+            //                     write back AST.
+            //
+            // For F.7.2 the encoder hookup is deferred to F.7.4; this
+            // state machine only stages the staging registers.  F.7.4
+            // hooks gad_ack_build_pulse into the new
+            // tetra_d_attach_detach_group_identity_ack_encoder + DL
+            // builder pair.
+            // -----------------------------------------------------------------
+            S_GROUP_AST_QUERY: begin
+                ast_q_start <= 1'b1;
+                ast_q_mode  <= 1'b0;          // query existing
+                ast_q_issi  <= lat_ssi;
+                state       <= S_GROUP_AST_WAIT;
+            end
+
+            S_GROUP_AST_WAIT: begin
+                if (ast_q_done) begin
+                    if (ast_q_hit) begin
+                        gad_ast_slot <= ast_q_slot;
+                        gad_ast_hit  <= 1'b1;
+                        // If replace-all is set, blow away the existing
+                        // group_list before the per-request loop appends
+                        // the new entries.  Detach-only requests still
+                        // honour replace_all=0 (selective drop).
+                        // (Use the LATCHED replace-all flag since the
+                        // input port pulse is only held for 1 cycle by
+                        // the top-level GAD trigger latch.)
+                        if (lat_gad_replace_all == 1'b1) begin
+                            lat_group_list  <= 192'd0;
+                            lat_group_count <= 4'd0;
+                        end else begin
+                            // Inherit prior group_list/count from AST so
+                            // detach-sweeping can match against existing
+                            // entries.  AST record layout per top-level
+                            // session_record_w packing.
+                            if (AST_REC_WIDTH == 256) begin
+                                lat_group_count <= ast_q_record[195:192];
+                                lat_group_list  <= {ast_q_record[191:1], 1'b0};
+                            end else begin
+                                lat_group_count <= 4'd0;
+                                lat_group_list  <= 192'd0;
+                            end
+                        end
+                        gad_loop_idx <= 2'd0;
+                        state        <= S_GROUP_LOOP_NEXT;
+                    end else begin
+                        // MS not in AST — emit ACK with accept_reject=1
+                        // (cause: ITSI not registered).  Detach-side
+                        // ETSI clause is the same.
+                        gad_ast_hit  <= 1'b0;
+                        gad_ast_slot <= {AST_IDX_WIDTH{1'b0}};
+                        state        <= S_GROUP_BUILD_ACK;
+                    end
+                end
+            end
+
+            S_GROUP_LOOP_NEXT: begin
+                if ({1'b0, gad_loop_idx} >= {1'b0, lat_gad_count}) begin
+                    state <= S_GROUP_BUILD_ACK;
+                end else if (gad_cur_attach_w == 1'b0) begin
+                    // attach: Entity.query(gssi, type=1, strict)
+                    entity_q_start             <= 1'b1;
+                    entity_q_id                <= gad_cur_gssi_w;
+                    entity_q_type              <= 1'b1;     // GSSI
+                    entity_q_match_type        <= 1'b1;     // strict
+                    entity_q_default_gssi_scan <= 1'b0;
+                    entity_q_alloc             <= 1'b0;
+                    state                      <= S_GROUP_ENTITY_DONE;
+                end else begin
+                    // detach: skip Entity/Profile, sweep AST.group_list
+                    state <= S_GROUP_DETACH_APPLY;
+                end
+            end
+
+            S_GROUP_ENTITY_DONE: begin
+                if (entity_q_done) begin
+                    if (entity_q_hit) begin
+                        lat_gssi_profile_id <= entity_q_record[38:35];
+                        state               <= S_GROUP_PROFILE_QUERY;
+                    end else begin
+                        // Unknown GSSI — skip without appending.  The
+                        // GAD-ACK still emits accept_reject=0 because
+                        // ETSI requires per-element response, not whole-
+                        // PDU reject.  Per-element reject would land in
+                        // a future ETSI 16.10.x clause; for Phase 7 we
+                        // keep the bluestation behaviour (omit).
+                        gad_loop_idx <= gad_loop_idx + 2'd1;
+                        state        <= S_GROUP_LOOP_NEXT;
+                    end
+                end
+            end
+
+            S_GROUP_PROFILE_QUERY: begin
+                profile_rd_idx   <= lat_gssi_profile_id[2:0];
+                profile_wait_cnt <= 2'd2;
+                state            <= S_GROUP_PROFILE_WAIT;
+            end
+
+            S_GROUP_PROFILE_WAIT: begin
+                if (profile_wait_cnt == 2'd0) begin
+                    state <= S_GROUP_PROFILE_DECIDE;
+                end else begin
+                    profile_wait_cnt <= profile_wait_cnt - 2'd1;
+                end
+            end
+
+            S_GROUP_PROFILE_DECIDE: begin
+                if (profile_rd_data[0] &&
+                    (profile_rd_data[3] || profile_rd_data[2])) begin
+                    // Permit granted — append GSSI to lat_group_list at
+                    // the next free slot, AND append to the ack list with
+                    // class/lifetime from the Profile.
+                    case (lat_group_count)
+                        4'd0: lat_group_list[191:168] <= gad_cur_gssi_w;
+                        4'd1: lat_group_list[167:144] <= gad_cur_gssi_w;
+                        4'd2: lat_group_list[143:120] <= gad_cur_gssi_w;
+                        4'd3: lat_group_list[119: 96] <= gad_cur_gssi_w;
+                        4'd4: lat_group_list[ 95: 72] <= gad_cur_gssi_w;
+                        4'd5: lat_group_list[ 71: 48] <= gad_cur_gssi_w;
+                        4'd6: lat_group_list[ 47: 24] <= gad_cur_gssi_w;
+                        4'd7: lat_group_list[ 24:  1] <= gad_cur_gssi_w[23:0];
+                        default: ;
+                    endcase
+                    lat_group_count <= lat_group_count + 4'd1;
+                    // Append to ack list (lat_ack_count slot).
+                    case (lat_ack_count)
+                        3'd0: begin
+                            lat_ack_attach_array[0]      <= 1'b0;
+                            lat_ack_lifetime_array[1:0]  <= profile_rd_data[8:7];
+                            lat_ack_class_array[2:0]     <= profile_rd_data[11:9];
+                            lat_ack_at_array[1:0]        <= 2'b00;
+                            lat_ack_gssi_array[23:0]     <= gad_cur_gssi_w;
+                        end
+                        3'd1: begin
+                            lat_ack_attach_array[1]      <= 1'b0;
+                            lat_ack_lifetime_array[3:2]  <= profile_rd_data[8:7];
+                            lat_ack_class_array[5:3]     <= profile_rd_data[11:9];
+                            lat_ack_at_array[3:2]        <= 2'b00;
+                            lat_ack_gssi_array[47:24]    <= gad_cur_gssi_w;
+                        end
+                        3'd2: begin
+                            lat_ack_attach_array[2]      <= 1'b0;
+                            lat_ack_lifetime_array[5:4]  <= profile_rd_data[8:7];
+                            lat_ack_class_array[8:6]     <= profile_rd_data[11:9];
+                            lat_ack_at_array[5:4]        <= 2'b00;
+                            lat_ack_gssi_array[71:48]    <= gad_cur_gssi_w;
+                        end
+                        default: ;
+                    endcase
+                    if (lat_ack_count != 3'd7)
+                        lat_ack_count <= lat_ack_count + 3'd1;
+                end
+                gad_loop_idx <= gad_loop_idx + 2'd1;
+                state        <= S_GROUP_LOOP_NEXT;
+            end
+
+            S_GROUP_DETACH_APPLY: begin : group_detach_apply
+                // Sweep AST.group_list for the matching GSSI.  When
+                // found, zero the slot.  Phase 7 scope: we do NOT compact
+                // the list (open holes are tolerated for the M3 routing
+                // logic).  Append to the ack list with
+                // attach_detach_type_id=1.
+                reg matched;
+                matched = 1'b0;
+                if (lat_group_list[191:168] == gad_cur_gssi_w) begin
+                    lat_group_list[191:168] <= 24'd0;
+                    matched = 1'b1;
+                end else if (lat_group_list[167:144] == gad_cur_gssi_w) begin
+                    lat_group_list[167:144] <= 24'd0;
+                    matched = 1'b1;
+                end else if (lat_group_list[143:120] == gad_cur_gssi_w) begin
+                    lat_group_list[143:120] <= 24'd0;
+                    matched = 1'b1;
+                end else if (lat_group_list[119: 96] == gad_cur_gssi_w) begin
+                    lat_group_list[119: 96] <= 24'd0;
+                    matched = 1'b1;
+                end else if (lat_group_list[ 95: 72] == gad_cur_gssi_w) begin
+                    lat_group_list[ 95: 72] <= 24'd0;
+                    matched = 1'b1;
+                end else if (lat_group_list[ 71: 48] == gad_cur_gssi_w) begin
+                    lat_group_list[ 71: 48] <= 24'd0;
+                    matched = 1'b1;
+                end else if (lat_group_list[ 47: 24] == gad_cur_gssi_w) begin
+                    lat_group_list[ 47: 24] <= 24'd0;
+                    matched = 1'b1;
+                end else if (lat_group_list[24:1] == gad_cur_gssi_w[23:0]) begin
+                    lat_group_list[24:1] <= 24'd0;
+                    matched = 1'b1;
+                end
+
+                // Whether or not matched, ack list still gets the detach
+                // entry (mirrors the MS request).  group_count stays put;
+                // we don't decrement to keep slot slots stable for the
+                // next attach.
+                case (lat_ack_count)
+                    3'd0: begin
+                        lat_ack_attach_array[0]      <= 1'b1;
+                        lat_ack_lifetime_array[1:0]  <= 2'b00;
+                        lat_ack_class_array[2:0]     <= {1'b0, gad_cur_class_w[1:0]};
+                        lat_ack_at_array[1:0]        <= gad_cur_at_w;
+                        lat_ack_gssi_array[23:0]     <= gad_cur_gssi_w;
+                    end
+                    3'd1: begin
+                        lat_ack_attach_array[1]      <= 1'b1;
+                        lat_ack_lifetime_array[3:2]  <= 2'b00;
+                        lat_ack_class_array[5:3]     <= {1'b0, gad_cur_class_w[1:0]};
+                        lat_ack_at_array[3:2]        <= gad_cur_at_w;
+                        lat_ack_gssi_array[47:24]    <= gad_cur_gssi_w;
+                    end
+                    3'd2: begin
+                        lat_ack_attach_array[2]      <= 1'b1;
+                        lat_ack_lifetime_array[5:4]  <= 2'b00;
+                        lat_ack_class_array[8:6]     <= {1'b0, gad_cur_class_w[1:0]};
+                        lat_ack_at_array[5:4]        <= gad_cur_at_w;
+                        lat_ack_gssi_array[71:48]    <= gad_cur_gssi_w;
+                    end
+                    default: ;
+                endcase
+                if (lat_ack_count != 3'd7)
+                    lat_ack_count <= lat_ack_count + 3'd1;
+                gad_loop_idx <= gad_loop_idx + 2'd1;
+                state        <= S_GROUP_LOOP_NEXT;
+                if (matched) begin /* sim hint, no-op */ end
+            end
+
+            S_GROUP_BUILD_ACK: begin : group_build_ack
+                // Toggle the per-AST-slot NR/NS pair.  Initial round
+                // (both=0) emits NR=0/NS=1 in the ACK (post-toggle would
+                // wrap).  Per gold-ref capture (#1=NR=0/NS=1, #2=NR=1/NS=0):
+                // emit prev NR + ~prev NS, then store {prev_NR^1, prev_NS^1}
+                // for next round.
+                reg prev_nr;
+                reg prev_ns;
+                prev_nr = lat_ast_nr_ns[{gad_ast_slot, 1'b1}];
+                prev_ns = lat_ast_nr_ns[{gad_ast_slot, 1'b0}];
+
+                gad_ack_build_pulse   <= 1'b1;
+                gad_ack_ssi           <= lat_ssi;
+                gad_ack_accept_reject <= ~gad_ast_hit;       // 1=reject if no AST hit
+                // Gold-ref capture pattern for round 1 (post-attach):
+                // NR=0, NS=1.  We store prev=00 at reset, so emit NR=0
+                // NS=1 here, then toggle prev to 11.  Round 2: emit NR=1
+                // NS=0, toggle to 00.  Etc.
+                gad_ack_nr            <= prev_nr;
+                gad_ack_ns            <= ~prev_ns;
+                gad_ack_count         <= lat_ack_count;
+                gad_ack_attach_array  <= lat_ack_attach_array;
+                gad_ack_lifetime_array<= lat_ack_lifetime_array;
+                gad_ack_class_array   <= lat_ack_class_array;
+                gad_ack_at_array      <= lat_ack_at_array;
+                gad_ack_gssi_array    <= lat_ack_gssi_array;
+
+                // Toggle the table for the next round.  Skip if AST
+                // miss (no slot to update, ack already accept_reject=1).
+                if (gad_ast_hit) begin
+                    lat_ast_nr_ns[{gad_ast_slot, 1'b1}] <= ~prev_nr;
+                    lat_ast_nr_ns[{gad_ast_slot, 1'b0}] <= ~prev_ns;
+                    // Also write the updated AST record (group_list +
+                    // group_count + last_seen).  The AST.q_record path
+                    // already has the prior fields; we only freshen
+                    // group_list/count/last_seen.
+                    if (AST_REC_WIDTH == 256) begin
+                        ast_wr_en   <= 1'b1;
+                        ast_wr_idx  <= gad_ast_slot;
+                        ast_wr_data <= {
+                            ast_q_record[255:232],   // ISSI unchanged
+                            mf_global_cnt,           // refresh last_seen
+                            ast_q_record[207:200],   // shadow_idx
+                            4'd1,                    // state=REG
+                            lat_group_count,
+                            lat_group_list[191:1],
+                            1'b1                     // valid
+                        };
+                    end
+                end
+
+                accept_pulse <= 1'b1;
+                state        <= S_IDLE;
             end
 
             default: state <= S_IDLE;
