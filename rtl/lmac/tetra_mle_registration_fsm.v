@@ -174,6 +174,32 @@ module tetra_mle_registration_fsm #(
     input  wire [23:0]                 mf_global_cnt,
 
     // -----------------------------------------------------------------
+    // Phase 7 F.2 — Demand IE-parser hand-off.
+    //
+    // demand_parsed_valid_sys is a 1-cycle pulse when the IE parser has
+    // finished walking the 129-bit reassembled demand body.  The FSM
+    // latches the GSSI list in this cycle.  When the matching ul_req is
+    // already active, the FSM re-enters S_PARSE_FULL_DEMAND on the next
+    // S_GSSI_QUERY_DEFAULT_DONE entry to validate each MS-requested
+    // GSSI against EntityTable + ProfileTable.permit_voice/data.
+    //
+    // For Phase 7 sprint scope the IE parser only fills slot 0 from the
+    // single GroupIdentityLocationDemand IE; the FSM scaffolding loops
+    // up to MAX_DEMAND_GSSIS (3) so multi-GSSI lookups can be exercised
+    // in TB without changes to the IE parser.  Multi-IE parsing arrives
+    // in M4.
+    //
+    // demand_pdu_ssi_sys must equal the latched lat_ssi for the IE
+    // parser data to be consumed; otherwise the FSM falls back to the
+    // legacy default-GSSI path (same behaviour as Phase D-rev).
+    // -----------------------------------------------------------------
+    input  wire                        demand_parsed_valid,
+    input  wire [23:0]                 demand_pdu_ssi,
+    input  wire [2:0]                  demand_gssi_count,    // 0..MAX
+    input  wire [71:0]                 demand_gssi_array,    // {g2,g1,g0}
+    input  wire [8:0]                  demand_class_array,   // {c2,c1,c0}
+
+    // -----------------------------------------------------------------
     // DL signalling-queue request — 1-cycle pulse carrying the full 432-bit
     // SCH/F coded PDU plus type/target metadata.  The queue assembles it
     // into an entry; a downstream scheduler decides when it goes on air.
@@ -219,6 +245,65 @@ module tetra_mle_registration_fsm #(
     reg [1:0]                   lat_gila_lifetime;
     reg                         lat_gila_present;
     reg [7:0]                   lat_alloc_idx;      // EntityTable alloc target
+
+    // -------------------------------------------------------------------------
+    // Phase 7 F.2 — Demand-IE-parser latches.
+    //
+    // The IE parser produces its outputs ~5–10 cycles after a reassembled
+    // demand body lands.  We latch them on demand_parsed_valid so the FSM
+    // can consume them whenever it reaches S_PARSE_FULL_DEMAND, regardless
+    // of how the EntityTable/ProfileTable scans have progressed for the
+    // matching ul_req_valid pulse.
+    //
+    // demand_present_for_lat_ssi_w gates the multi-GSSI loop: only enter
+    // S_PARSE_FULL_DEMAND when the latched demand SSI matches lat_ssi
+    // (the FSM's current registration target).  This keeps profile0_m2_
+    // guard green — the legacy TB never asserts demand_parsed_valid, so
+    // demand_present_for_lat_ssi_w is 0 and the FSM falls through the
+    // S_GSSI_QUERY_DEFAULT_DONE → S_CHECK_START path unchanged.
+    //
+    // group_count[3:0] tracks how many GSSIs were appended to AST.group_
+    // list in the current registration.  group_idx[1:0] is the loop
+    // index 0..MAX_DEMAND_GSSIS-1.
+    // -------------------------------------------------------------------------
+    localparam integer MAX_DEMAND_GSSIS = 3;
+    reg                         lat_demand_valid;
+    reg [23:0]                  lat_demand_ssi;
+    reg [2:0]                   lat_demand_count;
+    reg [71:0]                  lat_demand_gssi_array;
+    reg [8:0]                   lat_demand_class_array;
+
+    reg [3:0]                   lat_group_count;
+    reg [191:0]                 lat_group_list;
+    reg [1:0]                   group_idx;       // 0..MAX_DEMAND_GSSIS-1
+
+    // Combinational accessors for the GSSI/class triple at index group_idx.
+    reg [23:0]                  cur_gssi_w;
+    reg [2:0]                   cur_class_w;
+    always @* begin
+        case (group_idx)
+            2'd0: begin
+                cur_gssi_w  = lat_demand_gssi_array[23:0];
+                cur_class_w = lat_demand_class_array[2:0];
+            end
+            2'd1: begin
+                cur_gssi_w  = lat_demand_gssi_array[47:24];
+                cur_class_w = lat_demand_class_array[5:3];
+            end
+            2'd2: begin
+                cur_gssi_w  = lat_demand_gssi_array[71:48];
+                cur_class_w = lat_demand_class_array[8:6];
+            end
+            default: begin
+                cur_gssi_w  = 24'd0;
+                cur_class_w = 3'd0;
+            end
+        endcase
+    end
+
+    wire demand_present_for_lat_ssi_w = lat_demand_valid &&
+                                        (lat_demand_ssi == lat_ssi) &&
+                                        (lat_demand_count != 3'd0);
 
     // -------------------------------------------------------------------------
     // D-LOCATION-UPDATE builder — combinational, always watching the latched
@@ -470,8 +555,8 @@ module tetra_mle_registration_fsm #(
         mf_global_cnt,              // [231:208]  24  last_seen_multiframe
         8'd0,                       // [207:200]   8  shadow_idx (D.4 wires)
         4'd1,                       // [199:196]   4  state=REG_ACCEPT_SENT
-        4'd0,                       // [195:192]   4  group_count=0 (M3)
-        191'd0,                     // [191:  1] 191  group_list (M3)
+        lat_group_count,            // [195:192]   4  group_count (Phase 7 F.2)
+        lat_group_list[191:1],      // [191:  1] 191  group_list (Phase 7 F.2)
         1'b1                        // [  0]       1  valid
     } : (AST_REC_WIDTH == 128) ? {
         lat_ssi,                    // [127:104]  24  ISSI (legacy)
@@ -496,43 +581,62 @@ module tetra_mle_registration_fsm #(
     // FSM — Phase 6 D-rev Multi-Lookup attach flow per §9.3:
     //   Entity(ISSI) → Profile → (Default-GSSI scan when group_count==0) → AST.
     // -------------------------------------------------------------------------
-    localparam [4:0] S_IDLE                = 5'd0;
-    localparam [4:0] S_CHECK_START         = 5'd1;
-    localparam [4:0] S_CHECK_WAIT          = 5'd2;
-    localparam [4:0] S_ALLOC_START         = 5'd3;
-    localparam [4:0] S_ALLOC_WAIT          = 5'd4;
-    localparam [4:0] S_WRITE               = 5'd5;
-    localparam [4:0] S_BUILD_SHORT_START   = 5'd6;
-    localparam [4:0] S_BUILD_SHORT_WAIT    = 5'd7;
-    localparam [4:0] S_ENCODE_HD_START     = 5'd8;
-    localparam [4:0] S_ENCODE_HD_WAIT      = 5'd9;
-    localparam [4:0] S_BUILD_ACCEPT_START  = 5'd10;
-    localparam [4:0] S_BUILD_ACCEPT_WAIT   = 5'd11;
-    localparam [4:0] S_ENCODE_F_START      = 5'd12;
-    localparam [4:0] S_ENCODE_F_WAIT       = 5'd13;
-    localparam [4:0] S_DELIVER_ACCEPT      = 5'd14;
-    localparam [4:0] S_DROP                = 5'd15;
-    localparam [4:0] S_WAIT_GAP_FRAME      = 5'd16;
+    localparam [5:0] S_IDLE                = 5'd0;
+    localparam [5:0] S_CHECK_START         = 5'd1;
+    localparam [5:0] S_CHECK_WAIT          = 5'd2;
+    localparam [5:0] S_ALLOC_START         = 5'd3;
+    localparam [5:0] S_ALLOC_WAIT          = 5'd4;
+    localparam [5:0] S_WRITE               = 5'd5;
+    localparam [5:0] S_BUILD_SHORT_START   = 5'd6;
+    localparam [5:0] S_BUILD_SHORT_WAIT    = 5'd7;
+    localparam [5:0] S_ENCODE_HD_START     = 5'd8;
+    localparam [5:0] S_ENCODE_HD_WAIT      = 5'd9;
+    localparam [5:0] S_BUILD_ACCEPT_START  = 5'd10;
+    localparam [5:0] S_BUILD_ACCEPT_WAIT   = 5'd11;
+    localparam [5:0] S_ENCODE_F_START      = 5'd12;
+    localparam [5:0] S_ENCODE_F_WAIT       = 5'd13;
+    localparam [5:0] S_DELIVER_ACCEPT      = 5'd14;
+    localparam [5:0] S_DROP                = 5'd15;
+    localparam [5:0] S_WAIT_GAP_FRAME      = 5'd16;
     // Phase 6 D-rev Multi-Lookup attach flow:
     //   ENTITY_QUERY_ISSI[_DONE] → PROFILE_QUERY[_WAIT][_DECIDE]
     //                            → DEFAULT_GSSI[_DONE] → AST (S_CHECK_START).
     //   On ENTITY-miss + accept_unknown=1: ENTITY_ALLOC[_WAIT] → write fresh
     //   entry with profile_id=0 → PROFILE_QUERY (slot 0).
-    localparam [4:0] S_ENTITY_QUERY_ISSI       = 5'd17;
-    localparam [4:0] S_ENTITY_QUERY_ISSI_DONE  = 5'd18;
-    localparam [4:0] S_ENTITY_ALLOC_ISSI       = 5'd19;
-    localparam [4:0] S_ENTITY_ALLOC_WAIT       = 5'd20;
-    localparam [4:0] S_PROFILE_QUERY           = 5'd21;
-    localparam [4:0] S_PROFILE_WAIT            = 5'd22;
-    localparam [4:0] S_PROFILE_DECIDE          = 5'd23;
-    localparam [4:0] S_GSSI_QUERY_DEFAULT      = 5'd24;
-    localparam [4:0] S_GSSI_QUERY_DEFAULT_DONE = 5'd25;
+    localparam [5:0] S_ENTITY_QUERY_ISSI       = 5'd17;
+    localparam [5:0] S_ENTITY_QUERY_ISSI_DONE  = 5'd18;
+    localparam [5:0] S_ENTITY_ALLOC_ISSI       = 5'd19;
+    localparam [5:0] S_ENTITY_ALLOC_WAIT       = 5'd20;
+    localparam [5:0] S_PROFILE_QUERY           = 5'd21;
+    localparam [5:0] S_PROFILE_WAIT            = 5'd22;
+    localparam [5:0] S_PROFILE_DECIDE          = 5'd23;
+    localparam [5:0] S_GSSI_QUERY_DEFAULT      = 5'd24;
+    localparam [5:0] S_GSSI_QUERY_DEFAULT_DONE = 5'd25;
     // Phase 6 B: U-ITSI-DETACH path — clear AST entry for ISSI
-    localparam [4:0] S_DETACH_QUERY        = 5'd26;
-    localparam [4:0] S_DETACH_WAIT         = 5'd27;
-    localparam [4:0] S_DETACH_CLEAR        = 5'd28;
+    localparam [5:0] S_DETACH_QUERY        = 5'd26;
+    localparam [5:0] S_DETACH_WAIT         = 5'd27;
+    localparam [5:0] S_DETACH_CLEAR        = 5'd28;
+    // Phase 7 F.2 — Multi-GSSI lookup states (after default-GSSI scan).
+    //   PARSE_FULL_DEMAND  → entry: latch lat_group_count=0, group_idx=0
+    //   GSSI_LOOP_NEXT     → either kick off Entity.query for the next GSSI
+    //                        or, on group_idx == lat_demand_count, jump to
+    //                        S_CHECK_START.
+    //   GSSI_ENTITY_DONE   → consume Entity.query result; on hit + permit,
+    //                        append to lat_group_list.
+    //   GSSI_PROFILE_QUERY → drive profile_rd_idx for the gssi's owning
+    //                        EntityTable record.
+    //   GSSI_PROFILE_WAIT  → 2 cycle settle.
+    //   GSSI_PROFILE_DECIDE→ examine permit_voice / permit_data.
+    localparam [5:0] S_PARSE_FULL_DEMAND   = 6'd29;
+    localparam [5:0] S_GSSI_LOOP_NEXT      = 6'd30;
+    localparam [5:0] S_GSSI_ENTITY_DONE    = 6'd31;
+    localparam [5:0] S_GSSI_PROFILE_QUERY  = 6'd32;
+    localparam [5:0] S_GSSI_PROFILE_WAIT   = 6'd33;
+    localparam [5:0] S_GSSI_PROFILE_DECIDE = 6'd34;
     reg [23:0] lat_detach_ssi;
-    reg [4:0] state;
+    reg [5:0] state;
+    // Profile-Table read latency for the per-GSSI Profile lookup loop.
+    reg [3:0] lat_gssi_profile_id;
     reg [2:0] gap_slot_count;
     // Profile-Table read latency = 1 cycle (registered output); we drive
     // profile_rd_idx in S_PROFILE_QUERY and consume profile_rd_data 2
@@ -588,6 +692,16 @@ module tetra_mle_registration_fsm #(
             lat_reject_cause  <= 3'd0;
             lat_detach_ssi    <= 24'd0;
             detach_pulse      <= 1'b0;
+            // Phase 7 F.2 — demand IE-parser latches + group-list state
+            lat_demand_valid       <= 1'b0;
+            lat_demand_ssi         <= 24'd0;
+            lat_demand_count       <= 3'd0;
+            lat_demand_gssi_array  <= 72'd0;
+            lat_demand_class_array <= 9'd0;
+            lat_group_count        <= 4'd0;
+            lat_group_list         <= 192'd0;
+            group_idx              <= 2'd0;
+            lat_gssi_profile_id    <= 4'd0;
             short_builder_start  <= 1'b0;
             accept_builder_start <= 1'b0;
             sch_encode_start  <= 1'b0;
@@ -623,6 +737,24 @@ module tetra_mle_registration_fsm #(
             lost_pulse       <= 1'b0;
             detach_pulse     <= 1'b0;
 
+            // Phase 7 F.2 — latch demand-IE-parser outputs whenever a
+            // parse-done pulse arrives.  This is independent of the FSM
+            // state machine so the demand data is available regardless
+            // of where the FSM is in the registration flow.  The latches
+            // are consumed in S_GSSI_QUERY_DEFAULT_DONE (gated on the
+            // SSI matching lat_ssi).
+            //
+            // The latches stay live across multiple ul_req_valid pulses
+            // until either (a) consumed by a matching registration, or
+            // (b) overwritten by a fresh demand_parsed_valid pulse.
+            if (demand_parsed_valid) begin
+                lat_demand_valid       <= 1'b1;
+                lat_demand_ssi         <= demand_pdu_ssi;
+                lat_demand_count       <= demand_gssi_count;
+                lat_demand_gssi_array  <= demand_gssi_array;
+                lat_demand_class_array <= demand_class_array;
+            end
+
             case (state)
             // -----------------------------------------------------------------
             S_IDLE: begin
@@ -645,6 +777,15 @@ module tetra_mle_registration_fsm #(
                     lat_loc_upd_type <= ul_loc_upd_type;
                     lat_use_l2sig    <= ul_use_l2sig;
                     busy             <= 1'b1;
+                    // Phase 7 F.2 — clear group_list on each new request;
+                    // the multi-GSSI loop in S_PARSE_FULL_DEMAND will
+                    // populate it from the demand IE-parser (when the
+                    // demand was reassembled in time).  profile0_m2_
+                    // guard takes the legacy path (no demand pulse) and
+                    // ends up with group_count=0 — same as Phase D-rev.
+                    lat_group_count  <= 4'd0;
+                    lat_group_list   <= 192'd0;
+                    group_idx        <= 2'd0;
                     // Phase 6 D-rev §9.3 step 1: EntityTable.query(ISSI).
                     state            <= S_ENTITY_QUERY_ISSI;
                 end
@@ -811,8 +952,126 @@ module tetra_mle_registration_fsm #(
                         // No GSSI in DB — omit GILA Type-3 element.
                         lat_gila_present <= 1'b0;
                     end
-                    state <= S_CHECK_START;
+                    // Phase 7 F.2 — if a fresh demand IE-parse for this
+                    // ISSI is available, drop into the multi-GSSI loop
+                    // (S_PARSE_FULL_DEMAND) before writing the AST
+                    // record.  The default-GSSI scan above still runs so
+                    // the GILA payload mirrors Phase D-rev behaviour
+                    // (BS-dictated default group); the MS-requested
+                    // GSSIs are independently appended to AST.group_list
+                    // for routing decisions in M3 (CMCE call setup).
+                    if (demand_present_for_lat_ssi_w) begin
+                        state <= S_PARSE_FULL_DEMAND;
+                    end else begin
+                        state <= S_CHECK_START;
+                    end
                 end
+            end
+
+            // -----------------------------------------------------------------
+            // Phase 7 F.2 — Multi-GSSI lookup loop.  Per requested GSSI
+            // from the demand body:
+            //   1. Entity.query(gssi, type=1, match_type=1)
+            //   2. on hit: Profile.lookup(profile_id) → permit_voice/data
+            //   3. on permit: append gssi to lat_group_list[group_count]
+            //
+            // After looping over all lat_demand_count GSSIs we proceed to
+            // S_CHECK_START (legacy AST write path).  group_count is left
+            // populated and gets baked into the session_record_w packer.
+            //
+            // The IE-parser-cleared latches stay live until consumed.  We
+            // drop lat_demand_valid once the loop finishes so a stale
+            // demand can't be re-applied to a later ul_req_valid for a
+            // different MS.
+            // -----------------------------------------------------------------
+            S_PARSE_FULL_DEMAND: begin
+                group_idx       <= 2'd0;
+                lat_group_count <= 4'd0;
+                lat_group_list  <= 192'd0;
+                state           <= S_GSSI_LOOP_NEXT;
+            end
+
+            S_GSSI_LOOP_NEXT: begin
+                if ({1'b0, group_idx} >= {1'b0, lat_demand_count}) begin
+                    // Loop terminated — drop demand latch and proceed to
+                    // the AST write step.
+                    lat_demand_valid <= 1'b0;
+                    state            <= S_CHECK_START;
+                end else begin
+                    // Issue Entity.query(gssi=cur_gssi_w, type=1, strict).
+                    entity_q_start             <= 1'b1;
+                    entity_q_id                <= cur_gssi_w;
+                    entity_q_type              <= 1'b1;     // GSSI
+                    entity_q_match_type        <= 1'b1;     // strict match
+                    entity_q_default_gssi_scan <= 1'b0;
+                    entity_q_alloc             <= 1'b0;
+                    state                      <= S_GSSI_ENTITY_DONE;
+                end
+            end
+
+            S_GSSI_ENTITY_DONE: begin
+                if (entity_q_done) begin
+                    if (entity_q_hit) begin
+                        // Latch profile_id from EntityTable record [38:35]
+                        // and chain to Profile.lookup.
+                        lat_gssi_profile_id <= entity_q_record[38:35];
+                        state               <= S_GSSI_PROFILE_QUERY;
+                    end else begin
+                        // No EntityTable entry for this GSSI → reject.
+                        // Skip without appending; advance to the next.
+                        group_idx <= group_idx + 2'd1;
+                        state     <= S_GSSI_LOOP_NEXT;
+                    end
+                end
+            end
+
+            S_GSSI_PROFILE_QUERY: begin
+                profile_rd_idx   <= lat_gssi_profile_id[2:0];
+                profile_wait_cnt <= 2'd2;
+                state            <= S_GSSI_PROFILE_WAIT;
+            end
+
+            S_GSSI_PROFILE_WAIT: begin
+                if (profile_wait_cnt == 2'd0) begin
+                    state <= S_GSSI_PROFILE_DECIDE;
+                end else begin
+                    profile_wait_cnt <= profile_wait_cnt - 2'd1;
+                end
+            end
+
+            S_GSSI_PROFILE_DECIDE: begin
+                // permit_voice = profile_rd_data[3], permit_data =
+                // profile_rd_data[2], valid = profile_rd_data[0].
+                if (profile_rd_data[0] &&
+                    (profile_rd_data[3] || profile_rd_data[2])) begin
+                    // Append GSSI to lat_group_list at the current
+                    // group_count slot.  Slot 0 occupies bits [191:168]
+                    // (highest); slot 1 [167:144]; etc.  We use a
+                    // shift-register flavor: place the new GSSI at the
+                    // upper end of an "unused" zone.  Since lat_group_
+                    // count starts at 0 and increments, the slot for
+                    // entry N is bits [191 - N*24 : 168 - N*24].
+                    case (lat_group_count)
+                        4'd0: lat_group_list[191:168] <= cur_gssi_w;
+                        4'd1: lat_group_list[167:144] <= cur_gssi_w;
+                        4'd2: lat_group_list[143:120] <= cur_gssi_w;
+                        4'd3: lat_group_list[119: 96] <= cur_gssi_w;
+                        4'd4: lat_group_list[ 95: 72] <= cur_gssi_w;
+                        4'd5: lat_group_list[ 71: 48] <= cur_gssi_w;
+                        4'd6: lat_group_list[ 47: 24] <= cur_gssi_w;
+                        // Slot 7 lower 23 bits + valid bit at [0] —
+                        // truncate the LSB so the [0]=valid invariant
+                        // is preserved.  Phase 7 only fills up to slot
+                        // 2, so this branch is forward-compat.
+                        4'd7: lat_group_list[ 24:  1] <= cur_gssi_w[23:0];
+                        default: ;
+                    endcase
+                    lat_group_count <= lat_group_count + 4'd1;
+                end
+                // Whether we appended or rejected, advance to the next
+                // GSSI.
+                group_idx <= group_idx + 2'd1;
+                state     <= S_GSSI_LOOP_NEXT;
             end
 
             // -----------------------------------------------------------------

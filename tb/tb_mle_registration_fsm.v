@@ -45,6 +45,14 @@ module tb_mle_registration_fsm;
     reg  [23:0] ul_detach_ssi     = 24'd0;
     reg  [23:0] mf_global_cnt     = 24'd0;
 
+    // Phase 7 F.2 — demand IE-parser inputs (TB-driven directly to mimic
+    // multi-IE bodies before the IE parser supports them).
+    reg         demand_parsed_valid = 1'b0;
+    reg  [23:0] demand_pdu_ssi      = 24'd0;
+    reg  [2:0]  demand_gssi_count   = 3'd0;
+    reg  [71:0] demand_gssi_array   = 72'd0;
+    reg  [8:0]  demand_class_array  = 9'd0;
+
     reg [13:0]  cfg_la            = 14'd36;
     reg [31:0]  cfg_scramble_init = 32'hE1670C03;
     reg [1:0]   cfg_mcch_tn       = 2'd1;
@@ -246,7 +254,13 @@ module tb_mle_registration_fsm;
         .ul_detach_valid  (ul_detach_valid),
         .ul_detach_ssi    (ul_detach_ssi),
         .mf_global_cnt    (mf_global_cnt),
-        .detach_pulse     (detach_pulse)
+        .detach_pulse     (detach_pulse),
+        // Phase 7 F.2
+        .demand_parsed_valid (demand_parsed_valid),
+        .demand_pdu_ssi      (demand_pdu_ssi),
+        .demand_gssi_count   (demand_gssi_count),
+        .demand_gssi_array   (demand_gssi_array),
+        .demand_class_array  (demand_class_array)
     );
 
     integer fail_count = 0;
@@ -838,8 +852,171 @@ module tb_mle_registration_fsm;
         end
 
         // -------------------------------------------------------------------
+        // Phase 7 F.2 — Multi-GSSI attach tests
+        //
+        // Setup: clear AST so subsequent registrations get fresh slots.
+        // EntityTable already has slot 0 = MTP3550 ISSI 0x282F91 (Profile
+        // 0).  Profile 0 has permit_voice/data/reg=1 (from reset default
+        // 0x0000_088F).
+        //
+        // We explicitly seed three GSSI EntityTable entries:
+        //   slot 40: GSSI 0xAAAA01, profile 0 (permit_voice=1)
+        //   slot 41: GSSI 0xBBBB02, profile 1 (permit_voice=1, see T8/9)
+        //   slot 42: GSSI 0xCCCC03 — NOT seeded (lookup misses)
+        //
+        // multi_gssi_attach: drive demand_parsed_valid with 3 GSSIs
+        // (0xAAAA01, 0xBBBB02, 0xCCCC03).  BS accepts 2 (0xAAAA01 +
+        // 0xBBBB02), rejects 0xCCCC03.  AST.group_count = 2.
+        // -------------------------------------------------------------------
+        clear_ast();
+        @(posedge clk);
+        seed_entity(8'd40, 24'hAAAA01, 1'b1, 4'd0);  // GSSI Profile 0
+        seed_entity(8'd41, 24'hBBBB02, 1'b1, 4'd1);  // GSSI Profile 1
+        // Slot 42 deliberately not seeded → 0xCCCC03 lookup misses.
+        @(posedge clk);
+
+        accept_unknown = 1'b1;
+        // Push-style task driving demand_parsed_valid one cycle BEFORE
+        // ul_req_valid, so the latch is live by the time the FSM hits
+        // S_GSSI_QUERY_DEFAULT_DONE.
+        begin : multi_gssi_test
+            integer s_id;
+            integer found_slot;
+            integer wait_cycles;
+            test_count = test_count + 1;
+            // Drive demand parsed pulse first.  ssi=0x282F91 (MTP3550 in
+            // EntityTable slot 0).
+            @(posedge clk);
+            demand_pdu_ssi      <= 24'h282F91;
+            demand_gssi_count   <= 3'd3;
+            // Pack as {g2, g1, g0} → array[23:0]=g0, [47:24]=g1, [71:48]=g2.
+            demand_gssi_array   <= {24'hCCCC03, 24'hBBBB02, 24'hAAAA01};
+            demand_class_array  <= {3'd4, 3'd4, 3'd4};
+            demand_parsed_valid <= 1'b1;
+            @(posedge clk);
+            demand_parsed_valid <= 1'b0;
+            // Now drive ul_req_valid for the matching ISSI.
+            push_request(24'h282F91, 14'd36);
+            // Drain the FSM through the two-phase accept path.
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !req_valid) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
+            pulse_slots(4);
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !accept_pulse) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
+            if (!accept_pulse) begin
+                $display("[T%0d multi_gssi_attach] FAIL no accept", test_count);
+                fail_count = fail_count + 1;
+            end else begin
+                // Find the AST slot that holds 0x282F91 with valid=1.
+                found_slot = -1;
+                for (s_id = 0; s_id < AST_DEPTH; s_id = s_id + 1) begin
+                    if (u_ast.mem[s_id][AST_REC_WIDTH-1 -: AST_ISSI_WIDTH]
+                            == 24'h282F91 &&
+                        u_ast.mem[s_id][0] == 1'b1)
+                        found_slot = s_id;
+                end
+                if (found_slot < 0) begin
+                    $display("[T%0d multi_gssi_attach] FAIL ISSI not in AST",
+                             test_count);
+                    fail_count = fail_count + 1;
+                end else begin
+                    // group_count is at [195:192] of the 256-bit record.
+                    if (u_ast.mem[found_slot][195:192] !== 4'd2) begin
+                        $display("[T%0d multi_gssi_attach] FAIL group_count got=%0d exp=2",
+                                 test_count,
+                                 u_ast.mem[found_slot][195:192]);
+                        fail_count = fail_count + 1;
+                    end else if (u_ast.mem[found_slot][191:168] !== 24'hAAAA01) begin
+                        $display("[T%0d multi_gssi_attach] FAIL group_list[0] got=0x%06X exp=0xAAAA01",
+                                 test_count,
+                                 u_ast.mem[found_slot][191:168]);
+                        fail_count = fail_count + 1;
+                    end else if (u_ast.mem[found_slot][167:144] !== 24'hBBBB02) begin
+                        $display("[T%0d multi_gssi_attach] FAIL group_list[1] got=0x%06X exp=0xBBBB02",
+                                 test_count,
+                                 u_ast.mem[found_slot][167:144]);
+                        fail_count = fail_count + 1;
+                    end else begin
+                        $display("[T%0d multi_gssi_attach] PASS slot=%0d group_count=2 [AAAA01,BBBB02]",
+                                 test_count, found_slot);
+                    end
+                end
+            end
+            repeat (10) @(posedge clk);
+        end
+
+        // -------------------------------------------------------------------
+        // gssi_wish_ignored_old_path: feed a registration WITHOUT a demand
+        // IE pulse.  FSM must take the legacy Phase D-rev path —
+        // BS-dictated default GSSI from EntityTable Slot 1 (0x2F4D61).
+        // group_count must be 0 in AST.
+        // -------------------------------------------------------------------
+        // Re-seed slot 1 with the default GSSI (T9 had cleared u_entity.mem[1]).
+        @(posedge clk);
+        u_entity.mem[1] = 64'd0;
+        seed_entity(8'd1, 24'h2F4D61, 1'b1, 4'd0);
+        @(posedge clk);
+        clear_ast();
+        @(posedge clk);
+
+        begin : gssi_wish_ignored_test
+            integer s_id;
+            integer found_slot;
+            integer wait_cycles;
+            test_count = test_count + 1;
+            // No demand pulse — straight ul_req_valid.
+            push_request(24'h282F91, 14'd36);
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !req_valid) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
+            pulse_slots(4);
+            wait_cycles = 0;
+            while (wait_cycles < 4000 && !accept_pulse) begin
+                @(posedge clk);
+                wait_cycles = wait_cycles + 1;
+            end
+            if (!accept_pulse) begin
+                $display("[T%0d gssi_wish_ignored_old_path] FAIL no accept", test_count);
+                fail_count = fail_count + 1;
+            end else begin
+                // group_count must be 0; lat_gila_gssi must be 0x2F4D61.
+                found_slot = -1;
+                for (s_id = 0; s_id < AST_DEPTH; s_id = s_id + 1) begin
+                    if (u_ast.mem[s_id][AST_REC_WIDTH-1 -: AST_ISSI_WIDTH]
+                            == 24'h282F91 &&
+                        u_ast.mem[s_id][0] == 1'b1)
+                        found_slot = s_id;
+                end
+                if (found_slot < 0) begin
+                    $display("[T%0d gssi_wish_ignored_old_path] FAIL ISSI not in AST",
+                             test_count);
+                    fail_count = fail_count + 1;
+                end else if (u_ast.mem[found_slot][195:192] !== 4'd0) begin
+                    $display("[T%0d gssi_wish_ignored_old_path] FAIL group_count got=%0d exp=0",
+                             test_count, u_ast.mem[found_slot][195:192]);
+                    fail_count = fail_count + 1;
+                end else if (dut.lat_gila_gssi !== 24'h2F4D61) begin
+                    $display("[T%0d gssi_wish_ignored_old_path] FAIL gila_gssi got=0x%06X exp=0x2F4D61",
+                             test_count, dut.lat_gila_gssi);
+                    fail_count = fail_count + 1;
+                end else begin
+                    $display("[T%0d gssi_wish_ignored_old_path] PASS slot=%0d group_count=0 GILA=2F4D61",
+                             test_count, found_slot);
+                end
+            end
+            repeat (10) @(posedge clk);
+        end
+
+        // -------------------------------------------------------------------
         // Final test: AST full → drop (existing M2 behaviour)
-        // T11 detached slot 3, so we have to refill all 64 slots here.
         // -------------------------------------------------------------------
         accept_unknown <= 1'b1;
         for (i = 0; i < AST_DEPTH; i = i + 1)

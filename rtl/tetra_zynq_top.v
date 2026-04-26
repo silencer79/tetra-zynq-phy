@@ -649,6 +649,77 @@ tetra_ul_demand_reassembly #(
 );
 
 // =============================================================================
+// Phase 7 F.2 — UL-Demand-IE-Parser
+// =============================================================================
+// Walks the 129-bit reassembled MM body to extract the Type-1/2 fields
+// (location_update_type, p_class_of_ms, ...) and the optional
+// GroupIdentityLocationDemand IE (gild_gssi/class/at).  Output feeds the
+// MLE registration FSM through the demand_* port group.
+//
+// The IE parser only fills slot 0 of the FSM's GSSI array (single-IE per
+// Phase 7 sprint scope); slot 1/2 remain 0 — multi-IE bodies will land in
+// M4 alongside U-ATTACH-DETACH-GROUP-IDENTITY support.
+
+wire [2:0]   iep_loc_upd_type_sys;
+wire         iep_req_to_append_la_sys;
+wire         iep_cipher_control_sys;
+wire [23:0]  iep_class_of_ms_sys;
+wire         iep_class_of_ms_valid_sys;
+wire [2:0]   iep_esm_sys;
+wire         iep_esm_valid_sys;
+wire [13:0]  iep_la_info_sys;
+wire         iep_la_info_valid_sys;
+wire [23:0]  iep_ssi_field_sys;
+wire         iep_ssi_field_valid_sys;
+wire [23:0]  iep_address_ext_sys;
+wire         iep_address_ext_valid_sys;
+wire         iep_gild_valid_sys;
+wire [23:0]  iep_gild_gssi_sys;
+wire [2:0]   iep_gild_class_sys;
+wire [1:0]   iep_gild_at_sys;
+wire [23:0]  iep_pdu_ssi_sys;
+wire         iep_parse_done_sys;
+wire         iep_parse_ok_sys;
+
+tetra_ul_demand_ie_parser u_ul_demand_ie_parser (
+    .clk_sys                      (clk_sys),
+    .rst_n_sys                    (rst_n_sys),
+    .start_sys                    (reass_valid_sys),
+    .body_sys                     (reass_body_sys),
+    .ssi_sys                      (reass_ssi_sys),
+    .location_update_type_sys     (iep_loc_upd_type_sys),
+    .request_to_append_la_sys     (iep_req_to_append_la_sys),
+    .cipher_control_sys           (iep_cipher_control_sys),
+    .class_of_ms_sys              (iep_class_of_ms_sys),
+    .class_of_ms_valid_sys        (iep_class_of_ms_valid_sys),
+    .energy_saving_mode_sys       (iep_esm_sys),
+    .energy_saving_mode_valid_sys (iep_esm_valid_sys),
+    .la_information_sys           (iep_la_info_sys),
+    .la_information_valid_sys     (iep_la_info_valid_sys),
+    .ssi_field_sys                (iep_ssi_field_sys),
+    .ssi_field_valid_sys          (iep_ssi_field_valid_sys),
+    .address_ext_sys              (iep_address_ext_sys),
+    .address_ext_valid_sys        (iep_address_ext_valid_sys),
+    .gild_valid_sys               (iep_gild_valid_sys),
+    .gild_gssi_sys                (iep_gild_gssi_sys),
+    .gild_class_of_usage_sys      (iep_gild_class_sys),
+    .gild_address_type_sys        (iep_gild_at_sys),
+    .pdu_ssi_sys                  (iep_pdu_ssi_sys),
+    .parse_done_sys               (iep_parse_done_sys),
+    .parse_ok_sys                 (iep_parse_ok_sys)
+);
+
+// MLE-FSM demand port composition.  Only one GSSI carried for now.  The
+// demand_gssi_count goes to 1 when both the parser succeeded and a GILD
+// IE was present; otherwise 0 (MLE-FSM falls back to the legacy default-
+// GSSI path, identical to Phase D-rev).
+wire        mle_demand_parsed_valid_sys = iep_parse_done_sys & iep_parse_ok_sys;
+wire [23:0] mle_demand_pdu_ssi_sys      = iep_pdu_ssi_sys;
+wire [2:0]  mle_demand_gssi_count_sys   = iep_gild_valid_sys ? 3'd1 : 3'd0;
+wire [71:0] mle_demand_gssi_array_sys   = {48'd0, iep_gild_gssi_sys};
+wire [8:0]  mle_demand_class_array_sys  = {6'd0, iep_gild_class_sys};
+
+// =============================================================================
 // LMAC — Lower MAC Channel Coding (RX: descramble/deinterleave/viterbi/CRC)
 //         Lower MAC Channel Coding (TX: CRC/encode/interleave/scramble)
 // =============================================================================
@@ -2097,7 +2168,13 @@ tetra_mle_registration_fsm #(
     .ack_pulse        (mle_ack_pulse_w),
     .retransmit_pulse (mle_retransmit_pulse_w),
     .lost_pulse       (mle_lost_pulse_w),
-    .detach_pulse     (mle_detach_pulse_w)         // Phase 6 B
+    .detach_pulse     (mle_detach_pulse_w),        // Phase 6 B
+    // Phase 7 F.2 — UL-Demand-IE-Parser hand-off
+    .demand_parsed_valid (mle_demand_parsed_valid_sys),
+    .demand_pdu_ssi      (mle_demand_pdu_ssi_sys),
+    .demand_gssi_count   (mle_demand_gssi_count_sys),
+    .demand_gssi_array   (mle_demand_gssi_array_sys),
+    .demand_class_array  (mle_demand_class_array_sys)
 );
 
 // =============================================================================
