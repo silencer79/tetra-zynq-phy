@@ -705,37 +705,9 @@ wire         iep_gild_valid_sys;
 wire [23:0]  iep_gild_gssi_sys;
 wire [2:0]   iep_gild_class_sys;
 wire [1:0]   iep_gild_at_sys;
-// Phase 7 F.7.1 — GAD (group attach-detach, mm=7) outputs.
-wire         iep_gad_valid_sys;
-wire         iep_gad_atd_mode_sys;
-wire [2:0]   iep_gad_count_sys;
-wire [2:0]   iep_gad_attach_array_sys;
-wire [8:0]   iep_gad_class_array_sys;
-wire [5:0]   iep_gad_at_array_sys;
-wire [71:0]  iep_gad_gssi_array_sys;
 wire [23:0]  iep_pdu_ssi_sys;
 wire         iep_parse_done_sys;
 wire         iep_parse_ok_sys;
-
-// Body-kind selector — captured at frag1 (mm_pdu_type) and held until the
-// matching reassembled-valid pulse, then consumed by the IE parser.  The
-// frag1 path latches the same mm_pdu_type the parser exposes; for the
-// gold-ref Phase 7 F.7 capture this is mm_pdu_type=7 (UAttachDetachGroup-
-// Identity).  Default 0 keeps Phase F.2 wiring (mm=2 path) bit-for-bit
-// unchanged.
-reg [3:0] reass_mm_type_sys_r;
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) begin
-        reass_mm_type_sys_r <= 4'd0;
-    end else if (frag1_pulse_w) begin
-        // ul_llc_mm_pdu_type_w is the captured mm_pdu_type at the moment
-        // of frag1 (per UL MAC-ACCESS parser).  Latch and hold until the
-        // next frag1; reassembled_valid_sys consumes the value while
-        // it's stable.
-        reass_mm_type_sys_r <= ul_llc_mm_pdu_type_w;
-    end
-end
-wire iep_body_kind_w = (reass_mm_type_sys_r == 4'd7);
 
 tetra_ul_demand_ie_parser u_ul_demand_ie_parser (
     .clk_sys                      (clk_sys),
@@ -743,7 +715,7 @@ tetra_ul_demand_ie_parser u_ul_demand_ie_parser (
     .start_sys                    (reass_valid_sys),
     .body_sys                     (reass_body_sys),
     .ssi_sys                      (reass_ssi_sys),
-    .body_kind_sys                (iep_body_kind_w),
+    .body_kind_sys                (1'b0),
     .location_update_type_sys     (iep_loc_upd_type_sys),
     .request_to_append_la_sys     (iep_req_to_append_la_sys),
     .cipher_control_sys           (iep_cipher_control_sys),
@@ -761,14 +733,17 @@ tetra_ul_demand_ie_parser u_ul_demand_ie_parser (
     .gild_gssi_sys                (iep_gild_gssi_sys),
     .gild_class_of_usage_sys      (iep_gild_class_sys),
     .gild_address_type_sys        (iep_gild_at_sys),
-    // Phase 7 F.7.1 — GAD outputs
-    .gad_valid_sys                (iep_gad_valid_sys),
-    .gad_attach_detach_mode_sys   (iep_gad_atd_mode_sys),
-    .gad_count_sys                (iep_gad_count_sys),
-    .gad_attach_array_sys         (iep_gad_attach_array_sys),
-    .gad_class_array_sys          (iep_gad_class_array_sys),
-    .gad_at_array_sys             (iep_gad_at_array_sys),
-    .gad_gssi_array_sys           (iep_gad_gssi_array_sys),
+    // Phase 7 F.7.1 GAD outputs (mm=7) — left unconnected; the mm=7 path
+    // moves to ARM SW per the FPGA+SW split (Phase H ARCH-Pivot
+    // 2026-04-26).  Parser still exposes them in the Phase H.0.1 commit;
+    // H.0.4 strips the outputs from the parser entirely (mm=2 GILD-only).
+    .gad_valid_sys                (),
+    .gad_attach_detach_mode_sys   (),
+    .gad_count_sys                (),
+    .gad_attach_array_sys         (),
+    .gad_class_array_sys          (),
+    .gad_at_array_sys             (),
+    .gad_gssi_array_sys           (),
     .pdu_ssi_sys                  (iep_pdu_ssi_sys),
     .parse_done_sys               (iep_parse_done_sys),
     .parse_ok_sys                 (iep_parse_ok_sys)
@@ -784,34 +759,10 @@ wire [2:0]  mle_demand_gssi_count_sys   = iep_gild_valid_sys ? 3'd1 : 3'd0;
 wire [71:0] mle_demand_gssi_array_sys   = {48'd0, iep_gild_gssi_sys};
 wire [8:0]  mle_demand_class_array_sys  = {6'd0, iep_gild_class_sys};
 
-// Phase 7 F.7.5 — Group-Attach (mm=7) trigger composition.  The IE
-// parser fires iep_parse_done_sys 1 cycle when the mm=7 walker finishes;
-// gad_valid_sys==1 means the body parsed cleanly AND ≥1 GIU record
-// landed.  We trigger the MLE-FSM in this exact cycle.
-//
-// Body-kind selector (iep_body_kind_w) flagged the parser to take the
-// mm=7 path.  No need to re-check; iep_parse_ok_sys gates everything.
-wire        mle_ul_group_attach_valid_w =
-    iep_parse_done_sys & iep_parse_ok_sys & iep_gad_valid_sys;
-wire [23:0] mle_ul_group_attach_ssi_w   = iep_pdu_ssi_sys;
-wire        mle_gad_atd_mode_w          = iep_gad_atd_mode_sys;
-wire [2:0]  mle_gad_count_w             = iep_gad_count_sys;
-wire [2:0]  mle_gad_attach_array_w      = iep_gad_attach_array_sys;
-wire [8:0]  mle_gad_class_array_w       = iep_gad_class_array_sys;
-wire [5:0]  mle_gad_at_array_w          = iep_gad_at_array_sys;
-wire [71:0] mle_gad_gssi_array_w        = iep_gad_gssi_array_sys;
-// GAD-ACK output staging — wired to encoder in F.7.4.
-wire        mle_gad_ack_build_pulse_w;
-wire [23:0] mle_gad_ack_ssi_w;
-wire        mle_gad_ack_accept_reject_w;
-wire        mle_gad_ack_nr_w;
-wire        mle_gad_ack_ns_w;
-wire [2:0]  mle_gad_ack_count_w;
-wire [2:0]  mle_gad_ack_attach_array_w;
-wire [5:0]  mle_gad_ack_lifetime_array_w;
-wire [8:0]  mle_gad_ack_class_array_w;
-wire [5:0]  mle_gad_ack_at_array_w;
-wire [71:0] mle_gad_ack_gssi_array_w;
+// Phase H.0.1 — Group-Attach (mm=7) trigger composition removed.  The
+// mm=7 path moves to ARM SW per the FPGA+SW split (ARCH-Pivot
+// 2026-04-26).  MLE-FSM mm=7 input ports are tied off to constants
+// below and the FSM-side ports are stripped in H.0.2.
 
 // =============================================================================
 // LMAC — Lower MAC Channel Coding (RX: descramble/deinterleave/viterbi/CRC)
@@ -2316,31 +2267,28 @@ tetra_mle_registration_fsm #(
     .demand_gssi_count   (mle_demand_gssi_count_sys),
     .demand_gssi_array   (mle_demand_gssi_array_sys),
     .demand_class_array  (mle_demand_class_array_sys),
-    // Phase 7 F.7.2 — U-ATTACH-DETACH-GROUP-IDENTITY (mm=7) trigger.
-    // F.7.5 wires this from a top-level latch off the IE-parser GAD
-    // outputs; for the F.7.2 commit we tie the trigger off so the new
-    // FSM path stays unreachable on hardware until the wiring lands.
-    .ul_group_attach_valid     (mle_ul_group_attach_valid_w),
-    .ul_group_attach_ssi       (mle_ul_group_attach_ssi_w),
-    .gad_attach_detach_mode    (mle_gad_atd_mode_w),
-    .gad_count_in              (mle_gad_count_w),
-    .gad_attach_array_in       (mle_gad_attach_array_w),
-    .gad_class_array_in        (mle_gad_class_array_w),
-    .gad_at_array_in           (mle_gad_at_array_w),
-    .gad_gssi_array_in         (mle_gad_gssi_array_w),
-    // Phase 7 F.7.2 — GAD-ACK staging outputs (consumed by F.7.4 encoder
-    // and DL-builder pair).  Tied off in F.7.2 / F.7.5 wires through.
-    .gad_ack_build_pulse       (mle_gad_ack_build_pulse_w),
-    .gad_ack_ssi               (mle_gad_ack_ssi_w),
-    .gad_ack_accept_reject     (mle_gad_ack_accept_reject_w),
-    .gad_ack_nr                (mle_gad_ack_nr_w),
-    .gad_ack_ns                (mle_gad_ack_ns_w),
-    .gad_ack_count             (mle_gad_ack_count_w),
-    .gad_ack_attach_array      (mle_gad_ack_attach_array_w),
-    .gad_ack_lifetime_array    (mle_gad_ack_lifetime_array_w),
-    .gad_ack_class_array       (mle_gad_ack_class_array_w),
-    .gad_ack_at_array          (mle_gad_ack_at_array_w),
-    .gad_ack_gssi_array        (mle_gad_ack_gssi_array_w)
+    // Phase H.0.1 — mm=7 group-attach trigger wiring removed.  Inputs
+    // tied off to constants; outputs left unconnected.  Ports themselves
+    // are stripped from tetra_mle_registration_fsm in Phase H.0.2.
+    .ul_group_attach_valid     (1'b0),
+    .ul_group_attach_ssi       (24'd0),
+    .gad_attach_detach_mode    (1'b0),
+    .gad_count_in              (3'd0),
+    .gad_attach_array_in       (3'd0),
+    .gad_class_array_in        (9'd0),
+    .gad_at_array_in           (6'd0),
+    .gad_gssi_array_in         (72'd0),
+    .gad_ack_build_pulse       (),
+    .gad_ack_ssi               (),
+    .gad_ack_accept_reject     (),
+    .gad_ack_nr                (),
+    .gad_ack_ns                (),
+    .gad_ack_count             (),
+    .gad_ack_attach_array      (),
+    .gad_ack_lifetime_array    (),
+    .gad_ack_class_array       (),
+    .gad_ack_at_array          (),
+    .gad_ack_gssi_array        ()
 );
 
 // =============================================================================
