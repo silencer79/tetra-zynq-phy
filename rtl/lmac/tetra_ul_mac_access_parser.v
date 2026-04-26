@@ -11,7 +11,20 @@
 // Bit layout — bluestation `tetra-pdus/src/umac/pdus/mac_access.rs::from_bitbuf`
 // is the authority.  info_bits_sys[i] is bit `i` on air (MSB-first).
 //
-//   bit[0]:     mac_pdu_type         (1 bit, must be 0 for MAC-ACCESS)
+// SCH/HU dispatcher per bluestation `umac/pdus/umac_bs.rs` accepts ONLY two
+// MAC PDU types on this channel, distinguished by the 1-bit `mac_pdu_type`:
+//   bit[0]=0 → MAC-ACCESS  (this module's primary path)
+//   bit[0]=1 → MAC-END-HU  (continuation of a fragmented MAC-ACCESS PDU,
+//             consumed by tetra_ul_demand_reassembly).  Per
+//             `umac/pdus/mac_end_hu.rs`:
+//               [0]      mac_pdu_type           = 1
+//               [1]      fill_bits              = 1 bit
+//               [2]      length_ind_or_cap_req  = 1 bit
+//                          if 0 → [3..6] length_ind (4 bit, octets)
+//                          if 1 → [3..6] reservation_req (4 bit)
+//               [7..91]  MM body fragment 2     = 85 bit
+//
+//   bit[0]:     mac_pdu_type         (1 bit, 0 for MAC-ACCESS, 1 for MAC-END-HU)
 //   bit[1]:     fill_bits            (1 bit)
 //   bit[2]:     encrypted            (1 bit)
 //   bit[3..4]:  addr_type            (2 bits — 0=Ssi/ISSI, 1=EventLabel,
@@ -107,7 +120,19 @@ module tetra_ul_mac_access_parser #(
     // Wrapped MLE/MM decode for BL-DATA/BL-ADATA carrying MM TL-SDU.
     output reg                       ul_llc_is_mle_mm_sys,
     output reg  [3:0]                ul_llc_mm_pdu_type_sys,
-    output reg  [2:0]                ul_llc_mm_loc_upd_type_sys
+    output reg  [2:0]                ul_llc_mm_loc_upd_type_sys,
+    // -------- Phase 7 F.1 — MAC-END-HU continuation path --------
+    // When mac_pdu_type==1 (MAC-END-HU) on SCH/HU the parser does NOT fire
+    // pdu_valid_sys/llc_*; instead the dedicated continuation outputs below
+    // pulse with the 85-bit MM-body fragment 2 ready for the reassembly
+    // module.  The SSI tag is the most recent MAC-ACCESS frag=1 ISSI, which
+    // is latched the moment that pdu was parsed.  The reassembly module owns
+    // the T0 timer; the parser only forwards the latched SSI.
+    output reg                       ul_pdu_is_continuation_sys,
+    output reg                       ul_continuation_valid_sys,
+    output reg  [84:0]               ul_continuation_bits_sys,
+    output reg  [23:0]               ul_continuation_ssi_sys,
+    output reg  [15:0]               ul_continuation_count_sys
 );
 
 // =============================================================================
@@ -220,6 +245,27 @@ wire [2:0]  f_direct_loc_upd_type  = {info_bits_sys[tl_sdu_start + 6'd4],
                                        info_bits_sys[tl_sdu_start + 6'd6]};
 
 // =============================================================================
+// Phase 7 F.1 — MAC-END-HU continuation extraction
+// =============================================================================
+// info_bits_sys[7..91] = 85 bit MM body fragment 2.  Packed MSB-first into
+// the bus: ul_continuation_bits_sys[84] = info_bits_sys[7],
+//          ul_continuation_bits_sys[ 0] = info_bits_sys[91].
+// (Same MSB-first order the rest of the parser uses — first on-air bit lives
+// at the highest index of the bus.)
+
+wire        f_is_end_hu = (f_pdu_type == 1'b1);
+wire        f_is_mac_access = (f_pdu_type == 1'b0);
+
+wire [84:0] f_continuation_bits;
+genvar gci;
+generate
+    for (gci = 0; gci < 85; gci = gci + 1) begin : g_continuation_bits
+        // Bit position 7 in info_bits_sys → bus index 84 (MSB-first).
+        assign f_continuation_bits[84 - gci] = info_bits_sys[7 + gci];
+    end
+endgenerate
+
+// =============================================================================
 // Registers
 // =============================================================================
 always @(posedge clk_sys or negedge rst_n_sys) begin
@@ -252,6 +298,11 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         ul_llc_is_mle_mm_sys      <= 1'b0;
         ul_llc_mm_pdu_type_sys    <= 4'd0;
         ul_llc_mm_loc_upd_type_sys<= 3'd0;
+        ul_pdu_is_continuation_sys<= 1'b0;
+        ul_continuation_valid_sys <= 1'b0;
+        ul_continuation_bits_sys  <= 85'd0;
+        ul_continuation_ssi_sys   <= 24'd0;
+        ul_continuation_count_sys <= 16'd0;
     end else begin
         // Default strobes — overridden below on info_valid_sys & crc_ok_sys.
         pdu_valid_sys         <= 1'b0;
@@ -261,39 +312,60 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         ul_llc_ns_valid_sys   <= 1'b0;
         ul_llc_nr_valid_sys   <= 1'b0;
         ul_llc_is_mle_mm_sys  <= 1'b0;
+        ul_continuation_valid_sys <= 1'b0;
         if (info_valid_sys && crc_ok_sys) begin
-            pdu_type_sys            <= f_pdu_type;
-            fill_bit_sys            <= f_fill_bit;
-            encryption_mode_sys     <= f_encryption_mode;
-            ul_addr_type_sys        <= f_addr_type;
-            ul_issi_sys             <= f_issi;
-            ul_event_label_sys      <= f_event_label;
-            optional_field_flag_sys <= f_opt_flag;
-            ul_frag_flag_sys        <= f_opt_flag & f_length_or_cap & f_frag_flag;
-            ul_reservation_req_sys  <= (f_opt_flag & f_length_or_cap) ? f_reservation_req : 4'd0;
-            ul_length_ind_sys       <= (f_opt_flag & ~f_length_or_cap) ? f_length_ind : 5'd0;
-            mm_pdu_type_sys         <= f_direct_mm_pdu_type;
-            loc_upd_type_sys        <= f_direct_loc_upd_type;
-            raw_info_bits_sys       <= info_bits_sys;
-            pdu_valid_sys           <= 1'b1;
-            pdu_count_sys           <= pdu_count_sys + 16'd1;
-            // BL-ACK detection
-            if (f_is_bl_ack) begin
-                bl_ack_valid_sys <= 1'b1;
-                bl_ack_nr_sys    <= f_nr_bit;
-                bl_ack_count_sys <= bl_ack_count_sys + 16'd1;
+            pdu_type_sys                <= f_pdu_type;
+            ul_pdu_is_continuation_sys  <= f_is_end_hu;
+            raw_info_bits_sys           <= info_bits_sys;
+            if (f_is_mac_access) begin
+                // ===== MAC-ACCESS path (mac_pdu_type=0) =====
+                fill_bit_sys            <= f_fill_bit;
+                encryption_mode_sys     <= f_encryption_mode;
+                ul_addr_type_sys        <= f_addr_type;
+                ul_issi_sys             <= f_issi;
+                ul_event_label_sys      <= f_event_label;
+                optional_field_flag_sys <= f_opt_flag;
+                ul_frag_flag_sys        <= f_opt_flag & f_length_or_cap & f_frag_flag;
+                ul_reservation_req_sys  <= (f_opt_flag & f_length_or_cap) ? f_reservation_req : 4'd0;
+                ul_length_ind_sys       <= (f_opt_flag & ~f_length_or_cap) ? f_length_ind : 5'd0;
+                mm_pdu_type_sys         <= f_direct_mm_pdu_type;
+                loc_upd_type_sys        <= f_direct_loc_upd_type;
+                pdu_valid_sys           <= 1'b1;
+                pdu_count_sys           <= pdu_count_sys + 16'd1;
+                // BL-ACK detection
+                if (f_is_bl_ack) begin
+                    bl_ack_valid_sys <= 1'b1;
+                    bl_ack_nr_sys    <= f_nr_bit;
+                    bl_ack_count_sys <= bl_ack_count_sys + 16'd1;
+                end
+                // Per-LLC-type flags + ns/nr extraction
+                ul_llc_has_fcs_sys    <= f_llc_has_fcs;
+                ul_llc_is_bl_data_sys <= f_is_bl_data | f_is_bl_adata;
+                ul_llc_is_bl_ack_sys  <= f_is_bl_ack;
+                ul_llc_ns_valid_sys   <= f_ns_valid;
+                ul_llc_ns_sys         <= f_ns_bit;
+                ul_llc_nr_valid_sys   <= f_nr_valid;
+                ul_llc_nr_sys         <= f_nr_bit;
+                ul_llc_is_mle_mm_sys      <= (f_is_bl_data | f_is_bl_adata) && f_is_mle_mm;
+                ul_llc_mm_pdu_type_sys    <= f_llc_mm_pdu_type;
+                ul_llc_mm_loc_upd_type_sys<= f_llc_loc_upd_type;
+                // Latch SSI of every fragmented MAC-ACCESS so the next
+                // MAC-END-HU on this slot can be tagged with it.  We only
+                // latch when frag=1 AND addr_type ∈ {0,2,3} (Ssi/Ussi/Smi).
+                if ((f_opt_flag & f_length_or_cap & f_frag_flag) &&
+                    (f_addr_type != 2'b01)) begin
+                    ul_continuation_ssi_sys <= f_issi;
+                end
+            end else begin
+                // ===== MAC-END-HU path (mac_pdu_type=1) =====
+                // Pulse the continuation outputs.  Do NOT fire pdu_valid_sys
+                // and do NOT touch the MAC-ACCESS fields — they keep their
+                // last-MAC-ACCESS values so downstream consumers don't see
+                // bogus addr/LLC interpretations of an END-HU.
+                ul_continuation_valid_sys <= 1'b1;
+                ul_continuation_bits_sys  <= f_continuation_bits;
+                ul_continuation_count_sys <= ul_continuation_count_sys + 16'd1;
             end
-            // Per-LLC-type flags + ns/nr extraction
-            ul_llc_has_fcs_sys    <= f_llc_has_fcs;
-            ul_llc_is_bl_data_sys <= f_is_bl_data | f_is_bl_adata;
-            ul_llc_is_bl_ack_sys  <= f_is_bl_ack;
-            ul_llc_ns_valid_sys   <= f_ns_valid;
-            ul_llc_ns_sys         <= f_ns_bit;
-            ul_llc_nr_valid_sys   <= f_nr_valid;
-            ul_llc_nr_sys         <= f_nr_bit;
-            ul_llc_is_mle_mm_sys      <= (f_is_bl_data | f_is_bl_adata) && f_is_mle_mm;
-            ul_llc_mm_pdu_type_sys    <= f_llc_mm_pdu_type;
-            ul_llc_mm_loc_upd_type_sys<= f_llc_loc_upd_type;
         end
     end
 end

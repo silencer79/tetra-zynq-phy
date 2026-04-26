@@ -141,6 +141,17 @@ module tetra_rx_chain #(
     output wire [3:0]            ul_llc_mm_pdu_type_sys,
     output wire [2:0]            ul_llc_mm_loc_upd_type_sys,
 
+    // -------------------------------------------------------------------------
+    // Phase 7 F.1 — MAC-END-HU continuation (SCH/HU mac_pdu_type=1).
+    // Consumed by tetra_ul_demand_reassembly to splice with the buffered
+    // MAC-ACCESS frag=1 fragment and yield the full 129-bit MM body.
+    // -------------------------------------------------------------------------
+    output wire                  ul_pdu_is_continuation_sys,
+    output wire                  ul_continuation_valid_sys,
+    output wire [84:0]           ul_continuation_bits_sys,
+    output wire [23:0]           ul_continuation_ssi_sys,
+    output wire [15:0]           ul_continuation_count_sys,
+
   // -------------------------------------------------------------------------
   // Debug outputs (ILA probes)
   // -------------------------------------------------------------------------
@@ -389,7 +400,14 @@ tetra_ul_mac_access_parser u_ul_mac_parser (
     .ul_llc_nr_sys        (ul_llc_nr_sys),
     .ul_llc_is_mle_mm_sys (ul_llc_is_mle_mm_sys),
     .ul_llc_mm_pdu_type_sys (ul_llc_mm_pdu_type_sys),
-    .ul_llc_mm_loc_upd_type_sys (ul_llc_mm_loc_upd_type_sys)
+    .ul_llc_mm_loc_upd_type_sys (ul_llc_mm_loc_upd_type_sys),
+    // Phase 7 F.1 — MAC-END-HU continuation outputs (consumed by
+    // tetra_ul_demand_reassembly at the top level).
+    .ul_pdu_is_continuation_sys (ul_pdu_is_continuation_sys),
+    .ul_continuation_valid_sys  (ul_continuation_valid_sys),
+    .ul_continuation_bits_sys   (ul_continuation_bits_sys),
+    .ul_continuation_ssi_sys    (ul_continuation_ssi_sys),
+    .ul_continuation_count_sys  (ul_continuation_count_sys)
 );
 
 // =============================================================================

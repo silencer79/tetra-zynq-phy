@@ -399,6 +399,20 @@ wire        ul_llc_is_mle_mm_w;
 wire [3:0]  ul_llc_mm_pdu_type_w;
 wire [2:0]  ul_llc_mm_loc_upd_type_w;
 
+// Phase 7 F.1 — UL-Demand-Reassembly inputs/outputs.  Parser → reassembly
+// (MAC-END-HU continuation path), reassembly → MLE-FSM (Phase F.2 wiring).
+wire        ul_pdu_is_continuation_sys;
+wire        ul_continuation_valid_sys;
+wire [84:0] ul_continuation_bits_sys;
+wire [23:0] ul_continuation_ssi_sys;
+wire [15:0] ul_continuation_count_sys;
+wire        reass_valid_sys;
+wire [128:0] reass_body_sys;
+wire [23:0] reass_ssi_sys;
+wire [15:0] reass_cnt_sys;
+wire [15:0] reass_drop_cnt_sys;
+wire [1:0]  reass_busy_slots_sys;
+
 // Cell scrambler seed for UL SCH/HU decoder — comes from AXI reg,
 // resynced clk_axi → clk_sys (see CDC block further down).
 wire [31:0] ul_scramb_init_axi_w;
@@ -563,9 +577,75 @@ tetra_rx_chain #(
     .ul_llc_is_mle_mm_sys   (ul_llc_is_mle_mm_w),
     .ul_llc_mm_pdu_type_sys (ul_llc_mm_pdu_type_w),
     .ul_llc_mm_loc_upd_type_sys (ul_llc_mm_loc_upd_type_w),
+    // Phase 7 F.1 — MAC-END-HU continuation path → reassembly module
+    .ul_pdu_is_continuation_sys (ul_pdu_is_continuation_sys),
+    .ul_continuation_valid_sys  (ul_continuation_valid_sys),
+    .ul_continuation_bits_sys   (ul_continuation_bits_sys),
+    .ul_continuation_ssi_sys    (ul_continuation_ssi_sys),
+    .ul_continuation_count_sys  (ul_continuation_count_sys),
   .dbg_fe_valid_sys (dbg_fe_valid_sys),
   .dbg_tr_valid_sys (dbg_tr_valid_sys),
   .dbg_demod_valid_sys (dbg_demod_valid_sys)
+);
+
+// =============================================================================
+// Phase 7 F.1 — UL-Demand-Reassembly
+// =============================================================================
+// Joins the two-burst U-LOC-UPDATE-DEMAND fragments into a 129-bit MM body.
+// The output (reass_*_sys) is currently consumed only by debug paths /
+// AXI-mailbox extension (Phase F.3).  Phase F.2 will plug it into the
+// MLE-FSM IE-parser.
+
+// Frame-tick derivation: 1-cycle pulse on every change of frame_num_sys.
+// frame_num_sys advances roughly every 56.67 ms (≈5.67M clk_sys cycles).
+reg [4:0] frame_num_sys_q;
+reg       frame_tick_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        frame_num_sys_q <= 5'd0;
+        frame_tick_sys  <= 1'b0;
+    end else begin
+        frame_num_sys_q <= frame_num_sys;
+        frame_tick_sys  <= (frame_num_sys != frame_num_sys_q);
+    end
+end
+
+// MAC-ACCESS frag=1 trigger.  We pulse on the same cycle the parser fires
+// pdu_valid_sys with frag_flag_sys=1 AND addr_type ∈ {0,2,3}.  The 44-bit
+// fragment-1 bus is sliced from ul_raw_info_bits_sys[48..91], MSB-first
+// into the bus (bus[43] = info[48], bus[0] = info[91]).
+wire frag1_pulse_w = ul_pdu_valid_sys & ul_frag_flag_sys &
+                     (ul_addr_type_sys != 2'b01);
+wire [43:0] frag1_bits_w;
+genvar gfb;
+generate
+    for (gfb = 0; gfb < 44; gfb = gfb + 1) begin : g_frag1_bits
+        assign frag1_bits_w[43 - gfb] = ul_raw_info_bits_sys[48 + gfb];
+    end
+endgenerate
+
+// T0 register from AXI (Phase F.3 will route).  0 → use module default.
+wire [3:0] reass_t0_frames_axi_sys = 4'd0;
+
+tetra_ul_demand_reassembly #(
+    .T0_FRAMES_DEFAULT(2)
+) u_ul_demand_reassembly (
+    .clk_sys              (clk_sys),
+    .rst_n_sys            (rst_n_sys),
+    .t0_frames_sys        (reass_t0_frames_axi_sys),
+    .frame_tick_sys       (frame_tick_sys),
+    .frag1_pulse_sys      (frag1_pulse_w),
+    .frag1_ssi_sys        (ul_issi_sys),
+    .frag1_bits_sys       (frag1_bits_w),
+    .end_hu_pulse_sys     (ul_continuation_valid_sys),
+    .end_hu_ssi_sys       (ul_continuation_ssi_sys),
+    .end_hu_bits_sys      (ul_continuation_bits_sys),
+    .reassembled_valid_sys(reass_valid_sys),
+    .reassembled_body_sys (reass_body_sys),
+    .reassembled_ssi_sys  (reass_ssi_sys),
+    .reassembled_cnt_sys  (reass_cnt_sys),
+    .drop_cnt_sys         (reass_drop_cnt_sys),
+    .busy_slots_sys       (reass_busy_slots_sys)
 );
 
 // =============================================================================
