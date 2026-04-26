@@ -656,10 +656,14 @@ Spec-Anhang lebt dort, hier nur Architektur-Entscheidungen.
 
 ```
 tetra_ul_demand_reassembly.v   (NEU, sitzt zwischen ul_mac_access_parser und MLE-FSM)
-  - 184-bit-Buffer (für UL#0[48..91] ++ UL#1[4..91] = 132-bit MM body + Reserve)
+  - 144-bit-Buffer (für UL#0[48..91] (44) ++ UL#1[7..91] (85) = 129-bit MM body + Reserve)
   - SSI-Tag (24 bit) — pro MS in flight ein Slot
   - T0-Timer (Default 2 Frames = 113 ms, AXI-konfigurierbar)
   - 2 Slots simultan in flight (zwei MS attachen gleichzeitig — selten aber möglich)
+  - **WICHTIG (Korrektur 2026-04-26 nach F.1-Audit):** UL#1 ist MAC-END-HU
+    auf SCH/HU (mac_pdu_type=1, 1-bit), header 7 bit, payload 85 bit. NICHT
+    MAC-FRAG/MAC-U-BLCK auf SCH/F (das wurde initial fälschlich angenommen).
+    Channel/Layout-Lock per bluestation `umac/pdus/mac_end_hu.rs`.
 ```
 
 State-Maschine pro Slot:
