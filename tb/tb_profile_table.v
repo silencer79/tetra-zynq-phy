@@ -23,6 +23,9 @@ module tb_profile_table;
     reg                       wr_en   = 1'b0;
     reg  [IDX_WIDTH-1:0]      rd_idx  = 0;
     wire [REC_WIDTH-1:0]      rd_data;
+    // Phase 7 F.4 — second AXI-Lite read port for profiles.cgi GET.
+    reg  [IDX_WIDTH-1:0]      rd_idx_axi  = 0;
+    wire [REC_WIDTH-1:0]      rd_data_axi;
 
     always #5 clk = ~clk;
 
@@ -37,7 +40,9 @@ module tb_profile_table;
         .wr_data (wr_data),
         .wr_en   (wr_en),
         .rd_idx  (rd_idx),
-        .rd_data (rd_data)
+        .rd_data (rd_data),
+        .rd_idx_axi  (rd_idx_axi),
+        .rd_data_axi (rd_data_axi)
     );
 
     integer fail_count = 0;
@@ -216,6 +221,62 @@ module tb_profile_table;
         // Out-of-range index ≥ DEPTH should not write (silent)
         write_slot(3'd6, 32'hDEAD_BEEF);  // wr_idx=6 > DEPTH-1=5; no effect
         read_and_check(3'd5, 32'hAABB_CCDD, "slot5_unchanged_after_oob_write");
+
+        // ----- T14: Phase 7 F.4 — AXI read-port readback ---------------
+        // Drive rd_idx_axi → rd_data_axi must read the same record as the
+        // FSM port (single-cycle latency, identical mem source).
+        @(posedge clk);
+        rd_idx_axi <= 3'd5;
+        @(posedge clk);
+        @(posedge clk);
+        test_count = test_count + 1;
+        if (rd_data_axi !== 32'hAABB_CCDD) begin
+            $display("[T%0d axi_readback_after_write] FAIL got=0x%08X exp=0xAABBCCDD",
+                     test_count, rd_data_axi);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T%0d axi_readback_after_write] PASS slot=5 rd_data_axi=0x%08X",
+                     test_count, rd_data_axi);
+        end
+
+        // ----- T15: AXI port reads slot 1 (Profile 1 from T8) -----
+        @(posedge clk);
+        rd_idx_axi <= 3'd1;
+        @(posedge clk);
+        @(posedge clk);
+        test_count = test_count + 1;
+        if (rd_data_axi !== pack_profile(8'd30, 8'd10, 4'd2,
+                                          3'd3, 2'd2,
+                                          1'b1, 1'b0, 1'b1, 1'b1)) begin
+            $display("[T%0d axi_read_slot1] FAIL got=0x%08X",
+                     test_count, rd_data_axi);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T%0d axi_read_slot1] PASS got=0x%08X (profile 1)",
+                     test_count, rd_data_axi);
+        end
+
+        // ----- T16: FSM port and AXI port read independently -----
+        // Both ports drive different indices simultaneously; each gets
+        // its own slot's record.
+        @(posedge clk);
+        rd_idx     <= 3'd0;
+        rd_idx_axi <= 3'd5;
+        @(posedge clk);
+        @(posedge clk);
+        test_count = test_count + 1;
+        if (rd_data !== 32'h0000_088F) begin
+            $display("[T%0d dual_port_fsm] FAIL got=0x%08X exp=0x088F",
+                     test_count, rd_data);
+            fail_count = fail_count + 1;
+        end else if (rd_data_axi !== 32'hAABB_CCDD) begin
+            $display("[T%0d dual_port_axi] FAIL got=0x%08X exp=0xAABBCCDD",
+                     test_count, rd_data_axi);
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T%0d dual_port_independent] PASS fsm=0x%08X axi=0x%08X",
+                     test_count, rd_data, rd_data_axi);
+        end
 
         // ----- Summary -----
         $display("=============================================");

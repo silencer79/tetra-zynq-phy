@@ -22,6 +22,8 @@
 
 REG_PROFILE_INDEX=0x43C001C0
 REG_PROFILE_DATA=0x43C001C4
+# Phase 7 F.4 — drift-free read-back from RTL Profile-Table
+REG_PROFILE_DATA_RD=0x43C001C8
 REG_PROFILE_CTRL=0x43C001CC
 DEPTH=6
 
@@ -44,20 +46,32 @@ san() {
     echo "$1" | sed 's/[^a-zA-Z0-9._-]//g'
 }
 
-# ----- Address-table for the 6 ProfileTable slots is held only in BRAM;
-# we cannot read back the BRAM directly via AXI (the indirect window
-# is write-only in Phase D — readback would need a separate window).
-# For GET, we mirror an in-memory shadow file: /var/lib/tetra/profiles.tsv.
-# A POST updates BOTH the BRAM (live) and the TSV (persistence).
-# The TSV layout: slot<TAB>data_hex
+# ----- Phase 7 F.4 — read-back is now direct from the RTL Profile-Table
+# via the AXI read window at REG_PROFILE_DATA_RD (0x1C8).  POST writes
+# still also update the TSV mirror so the operator's persistent record
+# survives a board reboot (init scripts re-apply on startup).
 PROFILES_TSV=/var/lib/tetra/profiles.tsv
 
-# ---- helpers to manipulate the TSV ----
+# ---- read_slot: drift-free AXI read ----
+# Drives REG_PROFILE_INDEX with the slot, then reads REG_PROFILE_DATA_RD.
+# The 1-cycle BRAM read latency is hidden by the AXI handshake (≥2 axi
+# clocks between AR-accept and RVALID).  Falls back to TSV mirror if
+# devmem is unavailable (graceful degradation for non-board environments).
 read_slot() {
-    # $1 = slot index, prints the 32-bit hex value or "0" if unknown.
-    if [ -f "$PROFILES_TSV" ]; then
-        awk -v s="$1" '$1 == s { print $2; exit }' "$PROFILES_TSV"
-    fi
+    # $1 = slot index, prints the 32-bit hex value (e.g. "0x0000088f")
+    val_hex=""
+    busybox devmem "$REG_PROFILE_INDEX" 32 "$1" >/dev/null 2>&1
+    val=$(busybox devmem "$REG_PROFILE_DATA_RD" 32 2>/dev/null)
+    case "$val" in
+        0x*) val_hex="$val" ;;
+        *)
+            # AXI not available — fall back to TSV mirror.
+            if [ -f "$PROFILES_TSV" ]; then
+                val_hex=$(awk -v s="$1" '$1 == s { print $2; exit }' "$PROFILES_TSV")
+            fi
+            ;;
+    esac
+    [ -n "$val_hex" ] && echo "$val_hex"
 }
 
 write_slot_tsv() {

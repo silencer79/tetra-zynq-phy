@@ -56,7 +56,18 @@ module tetra_profile_table #(
 
     // FSM read port (registered, BRAM-style: drive rd_idx → rd_data next cycle).
     input  wire [IDX_WIDTH-1:0]       rd_idx,
-    output reg  [REC_WIDTH-1:0]       rd_data
+    output reg  [REC_WIDTH-1:0]       rd_data,
+
+    // Phase 7 F.4 — independent AXI-Lite read port for profiles.cgi GET.
+    // The MLE-FSM uses the `rd_idx`/`rd_data` pair above for inline
+    // permit-checks.  The CGI GET path uses this second port so it can
+    // observe live RTL state without contending for the FSM port and
+    // without risking a same-cycle race between FSM and SW reads.
+    //
+    // Drive rd_idx_axi → rd_data_axi available next cycle (single-cycle
+    // read latency, identical to the FSM port).
+    input  wire [IDX_WIDTH-1:0]       rd_idx_axi,
+    output reg  [REC_WIDTH-1:0]       rd_data_axi
 );
 
     // Distributed-LUT-RAM — small array, never inferred as BRAM.
@@ -77,12 +88,14 @@ module tetra_profile_table #(
             // (Vivado distributed-LUT-RAM rule).  Drive rd_data to slot-0
             // default during reset so a downstream consumer is never
             // exposed to undefined bits.
-            rd_data  <= 32'h0000_088F;
+            rd_data     <= 32'h0000_088F;
+            rd_data_axi <= 32'h0000_088F;
         end else begin
             if (wr_en && (wr_idx < DEPTH[IDX_WIDTH-1:0])) begin
                 mem[wr_idx] <= wr_data;
             end
-            rd_data <= mem[rd_idx];
+            rd_data     <= mem[rd_idx];
+            rd_data_axi <= mem[rd_idx_axi];
         end
     end
 

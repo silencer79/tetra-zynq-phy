@@ -441,6 +441,13 @@ wire [63:0] shadow_q_record_w;
 // off so synthesis still infers the LUT-RAM cleanly.
 wire [2:0]  profile_wr_idx_w;
 wire [31:0] profile_wr_data_w;
+// Phase 7 F.4 — drift-free AXI Profile-Table read port (clk_sys side).
+// AXI regs drives `profile_rd_idx_axi` (clk_axi); since clk_axi == clk_sys
+// in this design, no resync needed.  CGI GET reads REG_PROFILE_DATA_RD
+// (0x1C8) which AXI regs muxes from `profile_rd_data_axi`, sourced
+// directly from tetra_profile_table.rd_data_axi.
+wire [2:0]  profile_rd_idx_axi_sys_w;
+wire [31:0] profile_rd_data_axi_sys_w;
 wire        profile_wr_en_w;
 
 // Active-Session Table (Phase 6 M2.3b) — 64×256-bit BRAM, FSM-owned.
@@ -1869,6 +1876,9 @@ tetra_axi_lite_regs u_axi_regs (
     .profile_wr_idx_axi      (profile_wr_idx_w),
     .profile_wr_data_axi     (profile_wr_data_w),
     .profile_wr_en_axi       (profile_wr_en_w),
+    // Phase 7 F.4 — drift-free Profile-Table read port for CGI GET
+    .profile_rd_idx_axi      (profile_rd_idx_axi_sys_w),
+    .profile_rd_data_axi     (profile_rd_data_axi_sys_w),
     // MLE registration FSM debug counters (resynced below)
     .mle_ul_req_cnt_axi      (mle_ul_req_cnt_axi_r1),
     .mle_accept_cnt_axi      (mle_accept_cnt_axi_r1),
@@ -2003,7 +2013,10 @@ tetra_profile_table #(
     .wr_data (profile_wr_data_w),
     .wr_en   (profile_wr_en_w),
     .rd_idx  (mle_profile_rd_idx_w),  // Phase 6 D-rev — wired to MLE-FSM
-    .rd_data (profile_rd_data_w)
+    .rd_data (profile_rd_data_w),
+    // Phase 7 F.4 — independent AXI read port (drift-free CGI GET)
+    .rd_idx_axi  (profile_rd_idx_axi_sys_w),
+    .rd_data_axi (profile_rd_data_axi_sys_w)
 );
 
 // =============================================================================

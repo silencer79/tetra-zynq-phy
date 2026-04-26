@@ -322,6 +322,13 @@ module tetra_axi_lite_regs (
     output wire [31:0] profile_wr_data_axi,
     output wire        profile_wr_en_axi,
 
+    // Phase 7 F.4 — independent AXI read port for profiles.cgi GET.
+    // wr to REG_PROFILE_INDEX (0x1C0) drives profile_rd_idx_axi.  The
+    // next read of REG_PROFILE_DATA_RD (0x1C8) returns
+    // profile_rd_data_axi (live from rtl/lmac/tetra_profile_table.v).
+    output wire [2:0]  profile_rd_idx_axi,
+    input  wire [31:0] profile_rd_data_axi,
+
     // ------------------------------------------------------------------
     // MLE registration FSM debug counters (clk_axi domain, 2-FF resynced
     // in top-level).  Read-only. 0x190 = {accept[15:0], ul_req[15:0]},
@@ -616,6 +623,14 @@ localparam [6:0] REG_REASSEMBLY_STATS = 7'h78; // 0x1E0 RO  {drop_cnt[15:0], rea
 // in one register.  Slot 0 reset-default = 0x0000_088F (M2 bit-identity).
 localparam [6:0] REG_PROFILE_INDEX   = 7'h70; // 0x1C0  R/W slot index [2:0]
 localparam [6:0] REG_PROFILE_DATA    = 7'h71; // 0x1C4  R/W record [31:0]
+// Phase 7 F.4 — drift-free read-back from RTL Profile-Table.  Writing
+// REG_PROFILE_INDEX (0x1C0) drives `profile_rd_idx_axi`; the next AXI
+// read of REG_PROFILE_DATA_RD returns the live record directly from
+// rtl/lmac/tetra_profile_table.v (independent of the FSM read port).
+// CGI POST keeps using the staging register (REG_PROFILE_DATA + CTRL),
+// so writes are unchanged.  CGI GET now reads from this register
+// instead of the TSV mirror file.
+localparam [6:0] REG_PROFILE_DATA_RD = 7'h72; // 0x1C8  RO record [31:0]
 localparam [6:0] REG_PROFILE_CTRL    = 7'h73; // 0x1CC  W1S commit pulse
 
 // ---------------------------------------------------------------------------
@@ -915,6 +930,8 @@ always @(*) begin
         // Profile-Table indirect window (Phase 6 D-rev)
         REG_PROFILE_INDEX: rdata_mux_axi = {29'b0, profile_index_axi};
         REG_PROFILE_DATA:  rdata_mux_axi = profile_data_axi;
+        // Phase 7 F.4 — drift-free read-back from RTL Profile-Table
+        REG_PROFILE_DATA_RD: rdata_mux_axi = profile_rd_data_axi;
         REG_PROFILE_CTRL:  rdata_mux_axi = 32'b0; // self-clearing
         default:          rdata_mux_axi = 32'b0;
     endcase
@@ -1763,6 +1780,12 @@ end
 assign profile_wr_idx_axi  = profile_index_axi;
 assign profile_wr_data_axi = profile_data_axi;
 assign profile_wr_en_axi   = profile_commit_pulse_axi;
+// Phase 7 F.4 — same INDEX register also drives the AXI read port of
+// the Profile Table.  Read latency is 1 clk_sys cycle from index drive
+// to data ready; the AXI rdata pipeline already has ≥2 clk_axi cycles
+// of latency between AR accept and RVALID, so by the time we mux into
+// rdata_mux_axi the table has settled.
+assign profile_rd_idx_axi  = profile_index_axi;
 
 // ---------------------------------------------------------------------------
 // Cell-Config Registers (0x130 CELL_CFG_0, 0x134 CELL_CFG_1) — Plan Stufe 3.5
