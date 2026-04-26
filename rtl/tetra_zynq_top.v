@@ -784,18 +784,22 @@ wire [2:0]  mle_demand_gssi_count_sys   = iep_gild_valid_sys ? 3'd1 : 3'd0;
 wire [71:0] mle_demand_gssi_array_sys   = {48'd0, iep_gild_gssi_sys};
 wire [8:0]  mle_demand_class_array_sys  = {6'd0, iep_gild_class_sys};
 
-// Phase 7 F.7.2 — Group-Attach (mm=7) trigger composition.  Tied off
-// in F.7.2 (no hardware path activated yet); F.7.5 wires the IE-parser
-// GAD outputs into these latches so the MLE-FSM only sees a pulse when
-// a real mm=7 demand was successfully reassembled + parsed.
-wire        mle_ul_group_attach_valid_w = 1'b0;
-wire [23:0] mle_ul_group_attach_ssi_w   = 24'd0;
-wire        mle_gad_atd_mode_w          = 1'b0;
-wire [2:0]  mle_gad_count_w             = 3'd0;
-wire [2:0]  mle_gad_attach_array_w      = 3'd0;
-wire [8:0]  mle_gad_class_array_w       = 9'd0;
-wire [5:0]  mle_gad_at_array_w          = 6'd0;
-wire [71:0] mle_gad_gssi_array_w        = 72'd0;
+// Phase 7 F.7.5 — Group-Attach (mm=7) trigger composition.  The IE
+// parser fires iep_parse_done_sys 1 cycle when the mm=7 walker finishes;
+// gad_valid_sys==1 means the body parsed cleanly AND ≥1 GIU record
+// landed.  We trigger the MLE-FSM in this exact cycle.
+//
+// Body-kind selector (iep_body_kind_w) flagged the parser to take the
+// mm=7 path.  No need to re-check; iep_parse_ok_sys gates everything.
+wire        mle_ul_group_attach_valid_w =
+    iep_parse_done_sys & iep_parse_ok_sys & iep_gad_valid_sys;
+wire [23:0] mle_ul_group_attach_ssi_w   = iep_pdu_ssi_sys;
+wire        mle_gad_atd_mode_w          = iep_gad_atd_mode_sys;
+wire [2:0]  mle_gad_count_w             = iep_gad_count_sys;
+wire [2:0]  mle_gad_attach_array_w      = iep_gad_attach_array_sys;
+wire [8:0]  mle_gad_class_array_w       = iep_gad_class_array_sys;
+wire [5:0]  mle_gad_at_array_w          = iep_gad_at_array_sys;
+wire [71:0] mle_gad_gssi_array_w        = iep_gad_gssi_array_sys;
 // GAD-ACK output staging — wired to encoder in F.7.4.
 wire        mle_gad_ack_build_pulse_w;
 wire [23:0] mle_gad_ack_ssi_w;
