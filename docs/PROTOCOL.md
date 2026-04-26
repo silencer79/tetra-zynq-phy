@@ -346,6 +346,49 @@ AddrType-Codes pro bluestation `mac_access.rs`:
 Für UL ist bluestation hart `SsiType::Issi // Uplink, always ISSI`, d.h.
 effektiv immer 24-bit-ISSI sobald die MS ihre ITSI kennt (nach erstem Attach).
 
+### 6.4a UL-Demand-Reassembly + Group-Identity-Location-Demand (§16.10.21)
+
+**Befund 2026-04-26 (Bit-Forensik gegen Gold-Ref-Capture, MTP3550 + Sepura SC20):**
+
+Die MS schickt ihre gewünschte primary-GSSI im U-LOC-UPDATE-DEMAND mit
+— aber **nicht im ersten Burst**. Der Demand-MM-Body ist 132 Bit lang
+(typisch ITSI-Attach mit class_of_ms + ESM + GroupIdentityLocationDemand),
+das MAC-ACCESS-PDU trägt aber nur 92 Bit on-air. Daher fragmentiert die
+MS den Demand auf **zwei Bursts**:
+
+| Burst | PDU-Type | Inhalt |
+|-------|----------|--------|
+| UL#0 | 00 (MAC-ACCESS, frag=1) | bits[48..91] = 44 Bit MM body Fragment 1 |
+| UL#1 | 01 (MAC-U-BLCK Continuation) | bits[4..91] = 88 Bit MM body Fragment 2 |
+
+**Reassembly:** `full_mm_body[0..131] = ul0_bits[48..91] ++ ul1_bits[4..91]`.
+
+Position der GSSI im reassembled Body: ungefähr bei bit 88..111
+(direkt nach den Standard-Optional-Fields). In den Hex-Bytes von UL#1
+sitzt sie an Byte-Offset 6..8:
+
+```
+Gold-Ref UL#1: D4 1C 3C 02 40 50 [2F 4D 61] 20 00 00   ← GSSI=0x2F4D61
+MTP3550  UL#6: D4 1C 3C 02 40 50 [00 00 01] 20 00 00   ← GSSI=0x000001
+```
+
+Layout exakt identisch, nur der Wert variiert pro MS-Default-Konfig.
+
+**Aktueller Stand im RTL (Phase D-rev):** keine Reassembly. UL#0 wird
+korrekt als U-LOC-UPDATE-DEMAND geparst (44-bit-Fragment), UL#1 (PDU-
+Type 1) wird im MAC-Parser als "non-MAC-ACCESS" gefiltert. Die MS-GSSI-
+Wunschliste ist daher unsichtbar. Phase D-rev MLE-FSM diktiert die
+Default-GSSI über das `group_identity_downlink`-IE im D-LOC-UPDATE-
+ACCEPT — genauer: über den EntityTable-Default-GSSI-Lookup (Slot mit
+`entity_type=1`, M2-Default 0x2F4D61).
+
+**Konsequenz für M3:** wenn echte MS-Group-Verhandlung gewünscht
+ist (= Multi-Group-MS, nicht nur Operator-diktierte Default-Group),
+muss UL-Demand-Reassembly + IE-Parser als Sprint vor Group-Call
+implementiert werden. Operator-zentriertes Modell mit BS-diktiertem
+GILA funktioniert weiter ohne Reassembly. Memory:
+`project_ms_gssi_wish_in_demand.md`.
+
 ### 6.5 LLC PDU-Typen (§22.2)
 
 | Code | Typ | Header-Felder | Acknowledged | FCS | Verwendung |

@@ -535,6 +535,22 @@ für Auto-Enrollment unbekannter ISSIs/GSSIs.
    Pro vom MS gewünschter GSSI:
      Entity.query(GSSI, type=GSSI) → profile_id
      Profile.lookup(profile_id) → permit_voice/data → accept_or_reject
+
+   **WICHTIG (Bit-Forensik 2026-04-26):** der MS-seitige
+   `group_identity_location_demand`-IE liegt **nicht** im ersten Burst,
+   sondern im **2. Burst (MAC-U-BLCK Continuation)** des Demand-
+   Reassemblies. UL#0 trägt MAC-ACCESS frag=1 mit nur 44 Bit MM-Body-
+   Anfang; UL#1 trägt PDU-Type=1 (MAC-U-BLCK) mit 88 Bit Continuation.
+   BS reassembliert UL#0[48..91] + UL#1[4..91] zu einem 132-bit MM
+   body, der erst dann die GSSI-IE enthält. Aktuelle Implementation
+   (Phase D-rev) macht kein Reassembly — die MS-GSSI-Wunschliste wird
+   ignoriert, BS diktiert die GSSI über das `group_identity_downlink`-
+   IE im D-LOC-UPDATE-ACCEPT (EntityTable Default-GSSI-Lookup).
+   Memory: `project_ms_gssi_wish_in_demand.md`. Reassembly +
+   IE-Parser ist Sprint-Voraussetzung für M3 wenn echte
+   MS-Group-Verhandlung gewünscht ist (M2-Operator-zentriertes Modell
+   ohne Reassembly funktioniert weiter, nur die MS-Wunsch-GSSI ist
+   ignoriert).
 4. AST.query(ISSI):
      hit  → reuse slot, update last_seen, group_list
      miss → AST.alloc → AST.write {ISSI, last_seen=now, state=REG, groups[]}
