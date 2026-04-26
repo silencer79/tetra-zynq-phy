@@ -642,6 +642,164 @@ Phase E.1–E.3 deckt den Operator-Flow ab (DB editieren, Live-Counter
 sehen, OPEN/RESTRICTED toggeln). E.4 + E.5 ergänzen das um SSH-Edit-
 Autosync (TSV → BRAM) und ISSI-Auto-Enrollment (UL-mon → TSV → BRAM).
 
+### 9.8 Phase 7 — Group-Call-Architektur (M3-Vorbereitung)
+
+Phase 7 baut auf der Phase-6-Subscriber-DB auf und fügt:
+1. **UL-Demand-Reassembly** (Phase F) — MS-GSSI-Wunsch wird sichtbar.
+2. **CMCE-Sub-FSM + Voice-Relay** (Phase G) — Group-Call mit bit-transparentem UL→DL.
+
+Quellen verbindlich: Memory `reference_demand_reassembly_bitexact.md`,
+`reference_cmce_group_call_pdus.md`. Der vollständige bit-genaue
+Spec-Anhang lebt dort, hier nur Architektur-Entscheidungen.
+
+#### 9.8.1 Reassembly-Buffer
+
+```
+tetra_ul_demand_reassembly.v   (NEU, sitzt zwischen ul_mac_access_parser und MLE-FSM)
+  - 184-bit-Buffer (für UL#0[48..91] ++ UL#1[4..91] = 132-bit MM body + Reserve)
+  - SSI-Tag (24 bit) — pro MS in flight ein Slot
+  - T0-Timer (Default 2 Frames = 113 ms, AXI-konfigurierbar)
+  - 2 Slots simultan in flight (zwei MS attachen gleichzeitig — selten aber möglich)
+```
+
+State-Maschine pro Slot:
+```
+IDLE → MAC-ACCESS frag=1 + ssi=X arrival → BUFFERED (latch UL#0[48..91], start T0)
+BUFFERED → MAC-U-BLCK arrival within T0 (ssi=X)? → REASSEMBLED (132-bit body ready)
+                                       no → T0-expiry → IDLE, drop_cnt++
+```
+
+Output: `reassembled_body[131:0]` + `reassembled_valid` Pulse + `reassembled_ssi[23:0]`.
+Konsumiert von der MLE-FSM in einem neuen `S_PARSE_FULL_DEMAND`-State.
+
+#### 9.8.2 MLE-FSM-Erweiterung — CMCE-Sub-FSM neben MM
+
+Bisher (Phase D-rev): MLE-FSM hat MM-Pfad (S_ENTITY_QUERY_ISSI → S_PROFILE_QUERY → S_AST_QUERY → S_BUILD_ACCEPT).
+
+Phase G fügt parallelen **CMCE-Pfad** hinzu, dispatched anhand `MLE.disc`:
+
+```
+S_IDLE
+  ├── ul_req_valid (MM/U-LOC-UPD-DEMAND)        → S_ENTITY_QUERY_ISSI (Phase D-rev path)
+  ├── ul_cmce_setup (CMCE/U-SETUP)              → S_CC_SETUP_VALIDATE (Phase G NEU)
+  ├── ul_cmce_tx_demand (CMCE/U-TX-DEMAND)       → S_CC_TX_GRANT (Phase G NEU)
+  ├── ul_cmce_release (CMCE/U-RELEASE)           → S_CC_RELEASE (Phase G NEU)
+  └── ul_detach_valid (MM/U-ITSI-DETACH)         → S_DETACH_QUERY (Phase B path)
+```
+
+CMCE-Sub-States:
+```
+S_CC_SETUP_VALIDATE → AST.query(called_party_ssi=GSSI, type=group)
+                     hit + group is registered → alloc call_id (14 bit) + AST.state=2
+                     → S_BUILD_D_CALL_PROCEEDING → S_BUILD_D_CONNECT (mit transmission_grant=Granted)
+                     miss → REJECT mit D-RELEASE cause=UnknownTetraIdentity (=16)
+
+S_CC_TX_GRANT → if AST.state in {VOICE_TX_GRANTED, IDLE_OK} → S_BUILD_D_TX_GRANTED
+                else → S_BUILD_D_TX_WAIT (queue) or D-TX-GRANTED with grant=NotGranted
+
+S_CC_RELEASE → AST.state := REG (call_id freigeben), S_BUILD_D_RELEASE → AACH-Slot wieder Random
+```
+
+Output zur DL-Signalling-Queue (existing): D-CALL-PROCEEDING + D-CONNECT + D-TX-GRANTED + D-RELEASE im Two-Phase-Reply-Pattern (wie M2 Accept).
+
+#### 9.8.3 AST-Layout-Erweiterung
+
+Phase D-rev hat AST 256 bit:
+```
+[255:232] ISSI [231:208] last_seen [207:200] shadow_idx [199:196] state [195:193] group_count [192:1] group_list[8] [0] valid
+```
+
+Phase G erweitert auf **320 bit** (passt in 1 BRAM18k bei 64 Slots = 20 kbit):
+```
+[319:296] ISSI                       (24)  unverändert
+[295:272] last_seen_multiframe       (24)  unverändert
+[271:264] shadow_idx                  (8)  unverändert
+[263:260] state                       (4)  0=FREE 1=REG 2=CALL_SETUP 3=VOICE_RX 4=VOICE_TX_GRANTED 5=PAGING
+[259:246] call_id                    (14)  Phase G NEU — aktiv-Call-Allocation, 0 wenn idle
+[245:243] group_count                 (3)  0..7 — gleicher Wert wie Phase D-rev (group[0]=primary GSSI)
+[242:241] talker_dir                  (2)  Phase G NEU — 0=idle, 1=this MS is current talker (UL→DL relay), 2=this MS hört zu
+[240:217] active_gssi                (24)  Phase G NEU — die GSSI dieses Calls (= group[0] meistens)
+[216:  1] group_list[8]+padding     (216)  ↑ Achtung: Pos shifted vs Phase D-rev
+[  0]     valid                       (1)
+```
+
+**Migration:** AST-REC_WIDTH 256 → 320, alle 4 AST-Konsumenten (Sweeper, MLE-FSM-Pfade, AXI-Read in Phase G) müssen mit. group_list-Layout-Migration kostet 1 Sprint, wird Sprint G.0 vor allen anderen.
+
+#### 9.8.4 AACH-Slot-Grant-Logik
+
+Heute (Phase 6): AACH zeigt im Voice-Slot `Random` (für RA) oder `Common` (für MCCH). Phase G:
+
+Pro Slot pro Frame entscheidet die `tetra_aach_encoder.v`-Erweiterung:
+```
+if AST hat aktiven Call der diesen Slot belegt:
+    → AACH = Allocated, slot=N, ssi=GSSI (kein Random für andere MS)
+else:
+    → wie heute (Random/Common/CapAlloc)
+```
+
+Bei aktiver MS-Schedule kommt das pro-Slot aus einer neuen `tetra_call_slot_alloc.v`-Tabelle, die aus den AST-State-Bits ableitet welche Slots belegt sind. Die TX-TDMA-Pipeline muss in diesen Slots dann Voice statt SYSINFO/Filler senden.
+
+#### 9.8.5 Voice-Relay-Pfad
+
+```
+UL-NUB-Slot N  (UL-RX-Pfad: ul_pi4dqpsk_demod → ul_burst_capture → tetra_ul_nub_demod → tch_s_decoder)
+   ↓
+[1-Frame-FIFO]  (= 4 × 432 bit pro half-block × 2 half-blocks = ~4 kbit; reicht 1 BRAM18k)
+   ↓
+DL-NUB-Slot N  (TX-Pfad: tch_s_encoder → tetra_dl_nub_burst_builder → tetra_pi4dqpsk_mod)
+```
+
+**Bit-transparent**: UL-Voice-Bits werden NICHT decoded (kein ACELP), nur scrambled-descrambled-rescrambled und über RCPC/Interleaver konvertiert (UL→DL Code-Set ist gleich für TCH/S, daher quasi pass-through).
+
+Latenz: 1 TDMA-Frame (56.67 ms). Das ist die Standard-Repeater-Latenz für TETRA-Voice-Relay.
+
+#### 9.8.6 Voice-Burst (NUB) im RTL
+
+Neue RTL-Module:
+- `tetra_ul_nub_demod.v` — UL Normal-Burst (231 sym aktiv, andere Sync als RA-Burst). UL-OS4-sync_detect-Variante mit n-seq statt x-seq.
+- `tetra_ul_nub_burst_capture.v` — sammelt 2 × 108 sym = 216 sym IQ um den NUB-Anchor (vs 86 sym beim RA-Burst).
+- `tetra_tch_s_decoder.v` — TCH/S Channel-Decoder (rate-2/3 RCPC, half-block 432 bit).
+- `tetra_tch_s_encoder.v` — TX-side, identisches Code-Set rückwärts.
+- `tetra_dl_nub_burst_builder.v` — DL Normal-Burst-Layout (analog tetra_burst_builder.v aber für TCH/S).
+
+Reuse: AACH-Encoder (existing), SYSINFO-Pipeline (unverändert).
+
+#### 9.8.7 AXI-Lite Konfiguration (Phase G NEU)
+
+| Reg | Name | R/W | Inhalt |
+|-----|------|-----|--------|
+| 0x1D0 | REG_CALL_STATS_A | RO | `{cmce_release_cnt[15:0], cmce_setup_cnt[15:0]}` |
+| 0x1D4 | REG_CALL_STATS_B | RO | `{voice_relay_underrun[15:0], voice_relay_overrun[15:0]}` |
+| 0x1D8 | REG_CALL_ACTIVE | RO | `{active_call_cnt[7:0], active_caller_ssi[23:0]}` |
+| 0x1DC | REG_REASSEMBLY_T0 | RW | T0-Timeout in TDMA-Frames (default 2) |
+| 0x1E0 | REG_REASSEMBLY_STATS | RO | `{drop_cnt[15:0], reassembled_cnt[15:0]}` |
+
+Plus **AST-AXI-Read-Window** als Sub-Sprint (s. Reparatur-Backlog):
+| 0x1F0..0x1FC | AST_INDEX/DATA_LO/DATA_MID/DATA_HI/CTRL | indirect read aus AST.mem |
+
+#### 9.8.8 Resource-Schätzung Phase F+G
+
+| Resource | Phase 6 (heute) | + Phase F | + Phase G | Headroom (XC7Z020) |
+|----------|----------------|-----------|-----------|-------------------|
+| LUT | 68.6 % | +2 % (Reassembly-FSM) | +8–12 % (CMCE-FSM + Voice-Pipeline) | bis ~80 % OK, kritisch ab 85 % |
+| BRAM | 5.4 % | unverändert | +2–3 % (AST 256→320, Voice-Relay-FIFO, NUB-Buffer) | reichlich Reserve |
+| DSP | 13.6 % | unverändert | +5 % (TCH/S RCPC + Viterbi für UL-NUB) | reichlich Reserve |
+| WNS | -0.3 ns | unverändert | evtl. zusätzlicher Druck im UL-Viterbi | bei < -0.5 ns Pipeline-Stage einfügen |
+
+#### 9.8.9 Roadmap-Update
+
+Vorhandene Tabelle `§9.7` erweitern:
+
+| Phase | Inhalt | Status |
+|---|---|---|
+| **F** | UL-Demand-Reassembly (`tetra_ul_demand_reassembly.v` 184-bit-Buffer + T0-Timer); GroupIdentityLocationDemand-IE-Parser; MLE-FSM Multi-GSSI-Lookup (pro IE-Eintrag Entity.query+Profile.permit); AXI-Mailbox-Erweiterung (mm_pdu_type sichtbar); ul_mon-Daemon decoded LLC/MLE/MM. **Inkl. Reparatur**: profiles.cgi GET aus AXI-Read statt TSV-Mirror. | ⏳ Plan |
+| **G.0** | AST 256 → 320 bit (+ call_id, talker_dir, active_gssi); Sweeper + alle Konsumenten migrieren | ⏳ Plan |
+| **G.1** | UL-NUB-Demod + NUB-Burst-Capture + TCH/S-Decoder | ⏳ Plan |
+| **G.2** | DL-NUB-Burst-Builder + TCH/S-Encoder + Voice-Relay-FIFO | ⏳ Plan |
+| **G.3** | CMCE-Sub-FSM (Setup/TX-Grant/Release) in MLE-FSM; Encoder D-CALL-PROCEEDING/D-CONNECT/D-TX-GRANTED/D-RELEASE; AXI-Mailbox call_id + transmission_grant | ⏳ Plan |
+| **G.4** | AACH-Encoder-Erweiterung: Slot-Grant pro AST-Eintrag (Allocated statt Random für aktive Calls); `tetra_call_slot_alloc.v` | ⏳ Plan |
+| **G.5** | Build + Deploy + Air-Test mit zwei MTP3550 (oder 1 MS + Loopback). **Inkl. Reparatur**: AST-AXI-Read-Window für `/api/sessions` echte Live-Slots | ⏳ Plan |
+
 ---
 
 ## 10. Referenzen
