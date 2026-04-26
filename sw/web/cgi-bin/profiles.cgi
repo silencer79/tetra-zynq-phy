@@ -94,7 +94,7 @@ if [ "$method" = "POST" ]; then
     # Parse k=v pairs
     op="" slot="" data=""
     max="" hangtime="" priority="" gila_class="" gila_lifetime=""
-    permit_voice="" permit_data="" permit_reg="" valid=""
+    permit_voice="" permit_data="" permit_reg="" valid="" force=""
     for kv in $(echo "$body" | tr '&' ' '); do
         k=$(echo "$kv" | cut -d= -f1 | sed 's/[^a-zA-Z0-9_]//g')
         v=$(echo "$kv" | cut -d= -f2- | sed 's/[^a-zA-Z0-9._-]//g')
@@ -111,6 +111,7 @@ if [ "$method" = "POST" ]; then
             permit_data)   permit_data="$v" ;;
             permit_reg)    permit_reg="$v" ;;
             valid)         valid="$v" ;;
+            force)         force="$v" ;;
         esac
     done
 
@@ -163,6 +164,32 @@ if [ "$method" = "POST" ]; then
               (valid & 0x1) ))
         data=$(printf "0x%08x" "$v")
     fi
+
+    # Phase D-rev guard: Slot 0 is the M2 default profile that drives
+    # every default-route attach (incl. the bit-identical MTP3550 GILA
+    # reproduction). Reject writes that would silently break M2 attach.
+    # Operator can force-override by setting `force=1` in the POST body.
+    case "$slot" in
+        0)
+            # Decode the would-be field values out of the packed `data`
+            # so we catch both packed-hex POSTs and field-form POSTs.
+            n_check=$(printf '%d' "$data")
+            class_check=$(( (n_check >> 9) & 0x7 ))
+            lifetime_check=$(( (n_check >> 7) & 0x3 ))
+            voice_check=$(( (n_check >> 3) & 0x1 ))
+            reg_check=$((  (n_check >> 1) & 0x1 ))
+            valid_check=$(( n_check & 0x1 ))
+            if [ "${force:-0}" != "1" ]; then
+                if [ "$class_check"    -ne 4 ] || \
+                   [ "$lifetime_check" -ne 1 ] || \
+                   [ "$voice_check"    -ne 1 ] || \
+                   [ "$reg_check"      -ne 1 ] || \
+                   [ "$valid_check"    -ne 1 ]; then
+                    emit_err "Slot 0 must keep M2 defaults (gila_class=4 gila_lifetime=1 permit_voice=1 permit_reg=1 valid=1) — add force=1 to override and accept the M2 attach risk"
+                fi
+            fi
+            ;;
+    esac
 
     write_slot_axi "$slot" "$data" || emit_err "AXI write failed"
     write_slot_tsv "$slot" "$data"

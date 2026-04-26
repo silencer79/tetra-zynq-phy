@@ -261,10 +261,13 @@ td.num { text-align: right; }
 </table>
 
 <h2>Edit Profile</h2>
+<div id="prof-warn" style="display:none; background:#3d2510; color:#f0c060; padding:8px 12px; border-radius:4px; font-family:monospace; font-size:0.85em; margin-bottom:8px;">
+  ⚠ Slot 0 ist M2-Default. <code>gila_class=4, gila_lifetime=1, permits=1, valid=1</code> NICHT ändern — sonst bricht der MTP3550-Attach. Falls wirklich nötig: Force-Override per <code>curl ... -d "force=1&amp;..."</code>.
+</div>
 <form id="prof-form" class="add-form" onsubmit="return setProfile(event)">
   <div class="grid">
     <label>Slot <span>0..5</span>
-      <select name="slot">
+      <select name="slot" onchange="onProfSlotChange()">
         <option value="0" selected>0 (M2 default = 0x0000088F)</option>
         <option value="1">1</option>
         <option value="2">2</option>
@@ -549,6 +552,14 @@ function loadProfileForm(p) {
   f.permit_data.checked  = !!p.permit_data;
   f.permit_reg.checked   = !!p.permit_reg;
   f.valid.checked        = !!p.valid;
+  onProfSlotChange();
+}
+
+function onProfSlotChange() {
+  var f = qs('#prof-form');
+  var w = qs('#prof-warn');
+  if (!f || !w) return;
+  w.style.display = (f.slot.value === '0') ? 'block' : 'none';
 }
 
 function showProfMsg(ok, txt) {
