@@ -1,0 +1,791 @@
+**********************************************************************
+***                         NC Debug File                          ***
+**********************************************************************
+Copyright 1985-2023 Damm Cellular Systems A/S, Denmark
+
+Software version:  8.23 2024-01-11
+Hardware Type...:  BSC421
+Description.....:  DL5OP
+Node Ctrl. No...:  NC1
+Node No.........:  1
+Dongle Serial No:  12345678
+Dongle KeyRef No:  12345678
+Start Date/time.:  2008-02-10 19:09:36Z
+Save Date/time..:  2008-02-11 03:31:19Z / 2008-02-11 04:31:19
+
+********** Transceivers **********
+TR11:  7.83 2021-08-11 172.016.001.011
+
+************* Network adapters ************
+MAC: 00:E0:4B:19:54:FB, IP: 172.16.1.10,        LinkStatus=Up   (INT)
+                        IP: 127.0.0.1,          LinkStatus=Up  
+
+********************************** Nodes ***********************************
+Node:   Version         INT             DMZ             (HwType)  SeqErrCntr
+N001:   8.23 2024-01-11 172.016.001.010 255.255.255.255 (BSC421)  0/0
+                                                        LocalSum: 0
+
+********** Log Servers **********
+
+********** Timing Peak Values (M66) **********
+PeakHld HP Task delta [1ms]:    1.424
+PeakHld HP Task load [1ms].:    0.143
+PeakHld MP Task load [5ms].:  637.767
+PeakHld LP Task load [5ms].:   39.435
+PeakHld Main Task load.....:  121.876
+
+********** Debug Info **********
+ActInstances(Cur/Max)...........: 0/1
+RegisteredTetraMobiles(Cur/Max).: 1/1
+RegisteredDmrMobiles(Cur/Max)...: 0/0
+RegisteredApplications(Cur/Max).: 0/0
+RegisteredDialIns(Cur/Max)......: 0/0
+RegisteredTerminals(Cur/Max)....: 0/0
+GroupCallsInternal(Cur/Max)....: 0/0
+GroupCallsExternal(Cur/Max)....: 0/0
+IndivCallsInternal(Cur/Max)....: 0/0
+IndivCallsExternal(Cur/Max)....: 0/0
+PlatformInfo...................: 0/0/0/1
+PhysicalAvailableMemory........: 149752 / 1038772 kB
+OS Version Info (Registry).....: 2600.
+CompilationInfo................: 32 bit
+Extended Appl. features........: Yes
+
+********** Alarms **********
+Node...............:  Ok
+Common.............:  Ok
+ Redundant NC......:  Not configured
+Subscriber Register:  Ok
+TETRA Cell.........:  Ok
+DMR Cell...........:  Not configured
+DMR Tier2 Cell.....:  Not configured
+Analog Cell........:  Not configured
+Voice Gateway......:  Not configured
+ISI Gateway........:  Not configured
+Packet Data Gateway:  Not configured
+Application Gateway:  Not configured
+Terminal Gateway...:  Not configured
+External Alarms....:  0000h
+TR11 Cur/LatchAlarm: TR missing (from LocalMulticast)
+LocalMC Reliability NC.......: 0
+LocalMC Reliability TR11.....: 0
+
+********** System configuration **********
+Nodes:1-999
+    N001-1      
+--------------- 
+SeqErrCntr....: 0
+HwType........: BSC421
+NcSwVerNo.....:  8.23
+NcSwVerDate...: 2024-01-11
+Descr.........: DL5OP
+PosGpsFlag....: No 
+MultiVocoderFl: No 
+SnmpMode......: 0
+ActDateTime...: 2008-02-10 19:09:40
+VoiceBuffer...: 2
+DongleApplDate: 2099-01-01
+IntIpAddr.....: 172.016.001.010
+DmzIpAddr.....: 255.255.255.255
+DynamicIntIpAd: No 
+DynamicDmzIpAd: Yes
+RedNcCnfgFlag.: No 
+DynamicRedIpAd: Yes
+RedIntIpAddr..: 000.000.000.000
+LogIpAddr.....: 224.239.017.001
+LogUdpPort....: 42402
+SubscrIpAddr..: 172.028.000.000
+SubscrIpMask..: 16
+NodeTimeout...: 500
+MCC...........: 262
+MNC...........: 1010
+ShareName.....: TetraFlex
+UserName......: TetraFlex
+EmergencyTOMin: 0
+NcActiveFlag..: Yes
+AlarmFlags....: 0000h
+ExternalAlarms: 0000h
+ManIndivCalls.: 0
+ManGroupCalls.: 0
+NodeCount.....: 1
+LogServerCount: 0
+Latitude......: 00:00:00.00N
+Longitude.....: 000:00:00.00E
+SumOfNcSeqECnt: 0
+NetSyncFlag...: No 
+ -------------- 
+ TR11         :     N001-1      
+ TrType.......: TR421
+ HotSpareFlag.: No 
+ RxFrequency..: 382987500
+ TxFrequency..: 392987500
+ PowerMaxNorm.: 35
+ PowerMaxRed..: 30
+ TrOpCnfgTrIx.: 0
+ CurAlFlags...: 00000000h
+ LatchAlFlags.: 00000000h
+  ------------- 
+  CAR11.1     :     N001-1      
+  CarMod......: TETRA 25kHz
+  RxFreqOfset.: +0Hz
+  TxFreqOfset.: +0Hz
+  RxAbsolute..: 382987500Hz
+  TxAbsolute..: 392987500Hz
+  Tetra.CarNo.: 3719
+  Tetra.FreqBd: 300MHz
+  Tetra.DuplSp: 10MHz
+  Tetra.Offset: +12.5kHz
+  Tetra.RevOp.: No 
+  Tetra.Match.: Yes
+  Flags.......: 80h
+  CurAlFlags..: 00h
+  LatchAlFlags: 00h
+--------------- 
+KeyRegFlag....: No 
+SubRegMode....: Master
+--------------- 
+TetraCell     :     N001-1      
+ SimulcEnabled: No 
+ SimulcArea...: 1
+ SimulcOffset.: 1
+ TxPowerDbm...: 27dBm
+ BsServDet Mig: -
+ NbCellTable..: No 
+ FallbackMode.: 0
+ BsServDet AIE: -
+ NcSyncForced.: No 
+ NcSyncForcdOn: No 
+ AccessParam..: 8
+ MaxMsTxPwr...: 7
+ DownlinkTO...: 3
+ MinRxAccLev..: 2
+ Scch1CarCount: 0
+ ScchCount....: 0
+ ForwardRegist: 1
+ PdchMin......: 0
+ SlowReslThrAF: 5
+ FastReselThr.: 6
+ SlowReselHyst: 5
+ FastReselHyst: 5
+ MaxCellRadius: 0km
+ RxNoisDetMode: 0
+ RxNoisRssiDbm: -70dBm
+ LocationArea.: 0
+ SubscrClass..: FFFFh
+ ConnTimeout..: Disabled
+ AutoConvFlag.: +
+ AirIfEncrFlag: No 
+ CellServLevel: 0
+ RegMsCount...: 1
+ TsCountMCCH..: 1
+ TsCountSCCH..: 0
+ TsCountITCH..: 0
+ TsCountGTCH..: 0
+ TsCountPDCH..: 0
+ TsCountIdle..: 3
+ TsCountSlave.: 0
+ TsCountBlock.: 0
+ TsCountTotal.: 4
+ MainCarOkFlag: Yes
+ MainCarIndex.: CAR11.1
+ SimulcstReady: 0
+=============== =============== 
+
+********** Debug Que Content **********
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/DESCR/DL5OP, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/NCNO/1, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/IPADDR/INT/172.016.001.010, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/IPADDR/DMZ/000.000.000.000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/LOCMCADDR/224.000.001.239, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/LOCMCPORT/00000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/POS/00:00:00.00N/000:00:00.00E, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/REDNC/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/REDNC/000.000.000.000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/NODENO/001, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/IP/MCADDR/224.239.016.000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/IP/MCPORT/42400, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/IP/UCPORT/42401, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/IP/LOGADDR/224.239.017.001, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/IP/LOGPORT/42402, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/IP/CMOIPADDR/225.000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/MCC/0901, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/MNC/09999, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/NODETIMEOUT/0500, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/MULTIVOCODER/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/VOICEBUF/2, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/SUBIPADDR/172.028.000.000/16, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/SUBMODE/S, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/KEYREG/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/SHARENAME/TetraFlex, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/SHAREUSER/TetraFlex, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/SHAREPASSWORD/TetraFlex, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/SNMP/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S71/EMERGROUPTIMEOUTMIN/00000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/TR/11/ADD/TR421, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/TR/11/FREQ/385.000000/395.000000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/TR/11/POWER/30.0/30.0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/CAR/11/1/ADD/00, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/CNFG/+, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/SIMCAST/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/SIMCAST/AREA/001, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/SIMCAST/OFFSET/1, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/POWER/30.0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/SCCH/0/0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/PDCH/00, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/FALLBACK/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/MSPWR/7, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/MSACC/02, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/ACCPAR/08, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/DLTO/03, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/CONNTIMEOUT/0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/CLASS/++++++++++++++++, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/AIE/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/MIGRATION/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/NCSYNC/A, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/SRT/05, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/FRT/06, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/SRH/05, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/FRH/05, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/MAXCELLRADIUS/00, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/CAR/AUTO/+, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/NOISE/MODE/0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/NOISE/RSSI/-070, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/LA/00000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/CAR/11/1/3800/03/0/0/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/T/NC/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/CNFG/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/SIMCAST/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/SIMCAST/AREA/001, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/SIMCAST/OFFSET/1, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/POWER/40.0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/SYSCODE/3/002/AUTO, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/MASSREG/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/FALLBACK/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/TSCC/0/0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/TSCCAS/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/NOISE/MODE/0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/NOISE/RSSI/-070, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/COLOURCODE/00, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/NC/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/AUTO/R/ALLOW/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/AUTO/R/PROFILE/0000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/AUTO/R/USERSSI/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/AUTO/G/ALLOW/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/AUTO/G/PROFILE/0000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/AUTO/G/USERSSI/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/AUTO/G/TIMEOUT/00005, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/AUTO/G/DMRGROUP/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/EMERGPREEMPT/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/HIBERNATE/000.0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/BEACONINTERVAL/0000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/VOTENOWINTERVAL/000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/VOTENOWBLKCOUNT/03, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D/SITEPRIORITY/0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D2/CNFG/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D2/SIMCAST/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D2/SIMCAST/AREA/001, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D2/SIMCAST/OFFSET/1, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D2/POWER/40.0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D2/NOISE/MODE/0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D2/NOISE/RSSI/-070, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D2/COLOURCODE/00, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D2/HIBERNATE/000.0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/D2/BEACONINTERVAL/0000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/A/CNFG/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/A/SIMCAST/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/A/SIMCAST/AREA/001, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/A/SIMCAST/OFFSET/1, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S72/A/POWER/40.0, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S73/CNFG/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S73/ORG/000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S73/CALLMAX/005, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S73/PRIORITY/02, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S73/SIMPLEX/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S73/REG/+, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S73/NAME/, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S73/PASSWORD/, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S73/IPADDR/000.000.000.000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S73/PORT/LOC/05060, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S73/PORT/REM/05060, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S73/PORT/RTP/00000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S74/CNFG/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S74/RIP/+, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S75/CNFG/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S75/CONNMAX/020, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S75/STREAMMAX/100, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S75/CONNTIMEOUT/002, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S75/DISCRLIST/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S76/CNFG/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S76/STREAMMAX/200, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S76/STREAMPERCONNMAX/02, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S76/CONNTIMEOUT/002, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S76/PORT/00000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S76/DISCRLIST/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S76/QUIC/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S76/QUICCERT/, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S76/QUICCLIENTAUTH/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S77/CNFG/-, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S77/CONNMAX/005, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S77/IPADDR/000.000.000.000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S77/PORT/LOC/05060, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S77/PORT/REM/05060, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:36Z:  L3: OmAudit: S77/PORT/RTP/00000, from Ssi=0, IpAddr=000.000.000.000(Config)
+2008-02-10 19:09:41Z:  L3: RmActivateMain()
+2008-02-10 19:09:41Z:  L3: PM: BS_MAIN_HW_TYPE changes from  0 to 1
+2008-02-10 19:09:41Z:  L3: PmActivateMain(), LogCar activations will be delayed for Tetra=31000ms, Dmr=700ms, Analog=500ms, Tier2=800ms
+2008-02-10 19:09:41Z:  L3: PdGwService: Started (running in every node)
+2008-02-10 19:09:42Z:  L3: RM: Main TETRA CFG_MAX_QUEUED_TIMESLOT_COUNT change detected
+2008-02-10 19:09:42Z:  L3: RM: Main DMR CFG_MAX_QUEUED_TIMESLOT_COUNT change detected
+2008-02-10 19:09:42Z:  L3: PM: MAC-U-BLCK support (unsupported on old TR412/421) changes from 1 to 0, restarting all TETRA/TEDS carriers
+2008-02-10 19:09:43Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 255 to 2
+2008-02-10 19:09:43Z:  L3: PM: BS_TR_PHY_CURRENT_ALARM_BITMAP(0) changes from 00000000 to 00600000
+2008-02-10 19:09:43Z:  L3: PM: BS_TR_PHY_LATCHED_ALARM_BITMAP(0) changes from 00000000 to 00200000 
+2008-02-10 19:09:43Z:  L3: PM: BS_PM_LOG_CAR_TR_UPPER_MASTER_SELECTED_FLAG(LogCar0) changes from  0 to 1
+2008-02-10 19:09:43Z:  L3: PM: BS_PM_LOG_CAR_TR_UPPER_RUNNING_FLAG(LogCar0) changes from 0 to 1
+2008-02-10 19:09:43Z:  L3: PM: InfoOnly: BS_PM_LOG_CAR_TR_LOWER_RUNNING_FLAG(LogCar0) changes from 0 to 1
+2008-02-10 19:09:43Z:  L3: PM: BsAlarmResetReq triggered by Blocking situation (by PhyCarIx=0 and maybe others), setting RequestFlag
+2008-02-10 19:09:43Z:  L3: PM: CFG_PHY_CAR_STARTUP_DATE_TIME change detected (TR0)
+2008-02-10 19:09:44Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 2 to 1
+2008-02-10 19:09:44Z:  L3: PM: BS_TR_PHY_CURRENT_ALARM_BITMAP(0) changes from 00600000 to 00000000
+2008-02-10 19:09:44Z:  L3: PM: BsAlarmResetReq not required any longer, resetting RequestFlag
+2008-02-10 19:09:44Z:  L3: PM: ActivateTransceiver as TR0 becomes available: BS_TR_PHY_ALARM_STATUS=1, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=1
+2008-02-10 19:09:44Z:  L3: PmActivateTransceiverPhysical(0): Normal activation (Intern=0)
+2008-02-10 19:09:51Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 1 to 0
+2008-02-10 19:09:51Z:  L3: PM: BS_TR_PHY_LATCHED_ALARM_BITMAP(0) changes from 00200000 to 00000000 
+2008-02-10 19:10:12Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:10:12Z:  L3: PmActivateTransceiverLogical(LogCarIx=0, cPhyCar=0, PhyState=0) 
+2008-02-10 19:10:12Z:  L3: PmActivateTransceiverLogical(0): Normal activation (Intern=0) [Phy=0 0]
+2008-02-10 19:10:12Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0
+2008-02-10 19:10:12Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0; Sending response immediately, OldTr
+2008-02-10 19:10:13Z:  L3: PmCheckTransceiverStateLogical(0): Sending CarrierConnectedInd to PROC_RM
+2008-02-10 19:10:13Z:  L3: RM: CarrierConnectedInd(0, Config=0): CarMode=0, Freq=395000000/385000000
+2008-02-10 19:10:13Z:  L3: RmBuildAndSendTpmDynamicUpdateReq(0/0), with TetraMainCarrierInfo zeroed
+2008-02-10 19:10:13Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-10 19:10:13Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:10:13Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:10:13Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-10 19:10:13Z:  L3: PSK carrier changes from 0 to 1 (no DynamicUpdate required)
+2008-02-10 19:10:14Z:  L3: DEBUG RM: RmMainCarrierSwitchover(CellType0) going (from 65535) to CAR=0, SC=1
+2008-02-10 19:10:14Z:  L3: MainCarrierTetra: MCCH is established on TS0 (LogCarIx=0)
+2008-02-10 19:10:14Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-10 19:10:14Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:10:14Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:10:14Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-10 19:11:17Z:  L3: OmAudit: S71/MNC/09998, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-10 19:11:17Z:  L3: RM: Main TETRA CFG_MNC change detected
+2008-02-10 19:11:17Z:  L3: RM: Dynamic Transceiver update performed now (Tetra)
+2008-02-10 19:11:17Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-10 19:11:17Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:11:17Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:11:17Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-10 19:11:28Z:  L3: OmAudit: S71/SUBMODE/M, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-10 19:11:48Z:  L3: OmAudit: S72/TR/11/POWER/35.0/30.0, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-10 19:11:48Z:  L3: PM: CFG_PHY_CAR_TX_OUTPUT_POWER_NORMAL change detected (TR0)
+2008-02-10 19:11:48Z:  L3: PmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-10 19:11:48Z:  L3: PmDeactivateTransceiverPhysical(CarNo=0)
+2008-02-10 19:11:48Z:  L3: RM: CarrierLostInd(0)
+2008-02-10 19:11:48Z:  L3: RmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-10 19:11:48Z:  L3: MainCarrierTetra lost (CAR=0), starting MainCarrierSwitchOver
+2008-02-10 19:11:48Z:  L3: PM: PHYSICAL_MODE_CON, PhyTr0 is deactivated (Result=0)
+2008-02-10 19:11:48Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:11:48Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:11:49Z:  L3: PSK carrier changes from 1 to 0 (no DynamicUpdate required)
+2008-02-10 19:11:49Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 255 to 0
+2008-02-10 19:11:49Z:  L3: PM: ActivateTransceiver as TR0 becomes available: BS_TR_PHY_ALARM_STATUS=0, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=0
+2008-02-10 19:11:49Z:  L3: PmActivateTransceiverPhysical(0): Normal activation (Intern=0)
+2008-02-10 19:11:49Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:11:49Z:  L3: PmActivateTransceiverLogical(LogCarIx=0, cPhyCar=0, PhyState=0) 
+2008-02-10 19:11:49Z:  L3: PmActivateTransceiverLogical(0): Normal activation (Intern=0) [Phy=0 0]
+2008-02-10 19:11:49Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0
+2008-02-10 19:11:49Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0; Sending response immediately, OldTr
+2008-02-10 19:11:50Z:  L3: PmCheckTransceiverStateLogical(0): Sending CarrierConnectedInd to PROC_RM
+2008-02-10 19:11:50Z:  L3: RM: CarrierConnectedInd(0, Config=0): CarMode=0, Freq=395000000/385000000
+2008-02-10 19:11:50Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-10 19:11:50Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:11:50Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:11:50Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-10 19:11:50Z:  L3: PSK carrier changes from 0 to 1 (no DynamicUpdate required)
+2008-02-10 19:11:51Z:  L3: DEBUG RM: RmMainCarrierSwitchover(CellType0) going (from 1) to CAR=0, SC=1
+2008-02-10 19:11:51Z:  L3: MainCarrierTetra: MCCH is established on TS0 (LogCarIx=0)
+2008-02-10 19:11:51Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-10 19:11:51Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:11:51Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:11:51Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-10 19:12:56Z:  L3: OmAudit: S27/0901:09999/DEL, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-10 19:18:00Z:  L3: OmAudit: S72/T/CAR/11/1/3800/03/3/0/-, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-10 19:18:00Z:  L3: RM: Main TETRA(0) CFG_TETRA_CAR_PRIMITIVE_xxx change detected, on MainCarrier, all TR update
+2008-02-10 19:18:00Z:  L3: RM: Dynamic Transceiver update performed now (Tetra)
+2008-02-10 19:18:00Z:  L3: PM: CFG_PHY_CAR_DOWNLINK_FREQUENCY change detected (TR0)
+2008-02-10 19:18:00Z:  L3: PmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-10 19:18:00Z:  L3: PmDeactivateTransceiverPhysical(CarNo=0)
+2008-02-10 19:18:00Z:  L3: ErrorFunc(): Line=60303871 TPM_CARRIER_DYNAMIC_UPDATE_REQ_TC=0 LogCar not activated towards RM=255
+                                      : =0 =0
+2008-02-10 19:18:00Z:  L3: RM: CarrierLostInd(0)
+2008-02-10 19:18:00Z:  L3: RmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-10 19:18:00Z:  L3: MainCarrierTetra lost (CAR=0), starting MainCarrierSwitchOver
+2008-02-10 19:18:00Z:  L3: PM: PHYSICAL_MODE_CON, PhyTr0 is deactivated (Result=0)
+2008-02-10 19:18:00Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:18:00Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:18:00Z:  L3: PSK carrier changes from 1 to 0 (no DynamicUpdate required)
+2008-02-10 19:18:00Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 255 to 0
+2008-02-10 19:18:00Z:  L3: PM: ActivateTransceiver as TR0 becomes available: BS_TR_PHY_ALARM_STATUS=0, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=0
+2008-02-10 19:18:00Z:  L3: PmActivateTransceiverPhysical(0): Normal activation (Intern=0)
+2008-02-10 19:18:01Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:18:01Z:  L3: PmActivateTransceiverLogical(LogCarIx=0, cPhyCar=0, PhyState=0) 
+2008-02-10 19:18:01Z:  L3: PmActivateTransceiverLogical(0): Normal activation (Intern=0) [Phy=0 0]
+2008-02-10 19:18:01Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0
+2008-02-10 19:18:01Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0; Sending response immediately, OldTr
+2008-02-10 19:18:01Z:  L3: PmCheckTransceiverStateLogical(0): Sending CarrierConnectedInd to PROC_RM
+2008-02-10 19:18:01Z:  L3: RM: CarrierConnectedInd(0, Config=0): CarMode=0, Freq=395012500/385012500
+2008-02-10 19:18:01Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-10 19:18:01Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:18:01Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:18:01Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-10 19:18:02Z:  L3: PSK carrier changes from 0 to 1 (no DynamicUpdate required)
+2008-02-10 19:18:02Z:  L3: DEBUG RM: RmMainCarrierSwitchover(CellType0) going (from 1) to CAR=0, SC=1
+2008-02-10 19:18:02Z:  L3: MainCarrierTetra: MCCH is established on TS0 (LogCarIx=0)
+2008-02-10 19:18:02Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-10 19:18:02Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:18:02Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:18:02Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-10 19:18:39Z:  L3: OmAudit: S72/TR/11/FREQ/384.012500/394.012500, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-10 19:18:39Z:  L3: RM: Main TETRA(0) CFG_TETRA_CAR_PRIMITIVE_xxx change detected, on MainCarrier, all TR update
+2008-02-10 19:18:39Z:  L3: RM: Dynamic Transceiver update performed now (Tetra)
+2008-02-10 19:18:39Z:  L3: PM: CFG_PHY_CAR_DOWNLINK_FREQUENCY change detected (TR0)
+2008-02-10 19:18:39Z:  L3: PmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-10 19:18:39Z:  L3: PmDeactivateTransceiverPhysical(CarNo=0)
+2008-02-10 19:18:39Z:  L3: ErrorFunc(): Line=60303871 TPM_CARRIER_DYNAMIC_UPDATE_REQ_TC=0 LogCar not activated towards RM=255
+                                      : =0 =0
+2008-02-10 19:18:39Z:  L3: RM: CarrierLostInd(0)
+2008-02-10 19:18:39Z:  L3: RmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-10 19:18:39Z:  L3: MainCarrierTetra lost (CAR=0), starting MainCarrierSwitchOver
+2008-02-10 19:18:39Z:  L3: PM: PHYSICAL_MODE_CON, PhyTr0 is deactivated (Result=0)
+2008-02-10 19:18:39Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:18:39Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:18:40Z:  L3: PSK carrier changes from 1 to 0 (no DynamicUpdate required)
+2008-02-10 19:18:40Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 255 to 0
+2008-02-10 19:18:40Z:  L3: PM: ActivateTransceiver as TR0 becomes available: BS_TR_PHY_ALARM_STATUS=0, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=0
+2008-02-10 19:18:40Z:  L3: PmActivateTransceiverPhysical(0): Normal activation (Intern=0)
+2008-02-10 19:18:40Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:18:40Z:  L3: PmActivateTransceiverLogical(LogCarIx=0, cPhyCar=0, PhyState=0) 
+2008-02-10 19:18:40Z:  L3: PmActivateTransceiverLogical(0): Normal activation (Intern=0) [Phy=0 0]
+2008-02-10 19:18:40Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0
+2008-02-10 19:18:40Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0; Sending response immediately, OldTr
+2008-02-10 19:18:41Z:  L3: PmCheckTransceiverStateLogical(0): Sending CarrierConnectedInd to PROC_RM
+2008-02-10 19:18:41Z:  L3: RM: CarrierConnectedInd(0, Config=0): CarMode=0, Freq=394012500/384012500
+2008-02-10 19:18:41Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-10 19:18:41Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:18:41Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:18:41Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-10 19:18:41Z:  L3: PSK carrier changes from 0 to 1 (no DynamicUpdate required)
+2008-02-10 19:18:42Z:  L3: DEBUG RM: RmMainCarrierSwitchover(CellType0) going (from 1) to CAR=0, SC=1
+2008-02-10 19:18:42Z:  L3: MainCarrierTetra: MCCH is established on TS0 (LogCarIx=0)
+2008-02-10 19:18:42Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-10 19:18:42Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:18:42Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:18:42Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-10 19:43:18Z:  L3: OmAudit: S72/T/CAR/11/1/3760/03/0/0/-, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-10 19:43:18Z:  L3: RM: Main TETRA(0) CFG_TETRA_CAR_PRIMITIVE_xxx change detected, on MainCarrier, all TR update
+2008-02-10 19:43:18Z:  L3: RM: Dynamic Transceiver update performed now (Tetra)
+2008-02-10 19:43:18Z:  L3: PM: CFG_PHY_CAR_DOWNLINK_FREQUENCY change detected (TR0)
+2008-02-10 19:43:18Z:  L3: PmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-10 19:43:18Z:  L3: PmDeactivateTransceiverPhysical(CarNo=0)
+2008-02-10 19:43:18Z:  L3: ErrorFunc(): Line=60303871 TPM_CARRIER_DYNAMIC_UPDATE_REQ_TC=0 LogCar not activated towards RM=255
+                                      : =0 =0
+2008-02-10 19:43:18Z:  L3: RM: CarrierLostInd(0)
+2008-02-10 19:43:18Z:  L3: RmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-10 19:43:18Z:  L3: MainCarrierTetra lost (CAR=0), starting MainCarrierSwitchOver
+2008-02-10 19:43:18Z:  L3: PM: PHYSICAL_MODE_CON, PhyTr0 is deactivated (Result=0)
+2008-02-10 19:43:18Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:43:18Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:43:19Z:  L3: PSK carrier changes from 1 to 0 (no DynamicUpdate required)
+2008-02-10 19:43:19Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 255 to 0
+2008-02-10 19:43:19Z:  L3: PM: ActivateTransceiver as TR0 becomes available: BS_TR_PHY_ALARM_STATUS=0, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=0
+2008-02-10 19:43:19Z:  L3: PmActivateTransceiverPhysical(0): Normal activation (Intern=0)
+2008-02-10 19:43:19Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:43:19Z:  L3: PmActivateTransceiverLogical(LogCarIx=0, cPhyCar=0, PhyState=0) 
+2008-02-10 19:43:19Z:  L3: PmActivateTransceiverLogical(0): Normal activation (Intern=0) [Phy=0 0]
+2008-02-10 19:43:19Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0
+2008-02-10 19:43:19Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0; Sending response immediately, OldTr
+2008-02-10 19:43:20Z:  L3: PmCheckTransceiverStateLogical(0): Sending CarrierConnectedInd to PROC_RM
+2008-02-10 19:43:20Z:  L3: RM: CarrierConnectedInd(0, Config=0): CarMode=0, Freq=394000000/384000000
+2008-02-10 19:43:20Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-10 19:43:20Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:43:20Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:43:20Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-10 19:43:20Z:  L3: PSK carrier changes from 0 to 1 (no DynamicUpdate required)
+2008-02-10 19:43:21Z:  L3: DEBUG RM: RmMainCarrierSwitchover(CellType0) going (from 1) to CAR=0, SC=1
+2008-02-10 19:43:21Z:  L3: MainCarrierTetra: MCCH is established on TS0 (LogCarIx=0)
+2008-02-10 19:43:21Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-10 19:43:21Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-10 19:43:21Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-10 19:43:21Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:40:47Z:  L3: OmAudit: S71/MCC/0262, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-11 02:40:47Z:  L3: RM: Main TETRA CFG_MCC change detected
+2008-02-11 02:40:47Z:  L3: RM: Dynamic Transceiver update performed now (Tetra)
+2008-02-11 02:40:47Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:40:47Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:40:47Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:40:47Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:41:12Z:  L3: OmAudit: S71/MNC/01010, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-11 02:41:12Z:  L3: RM: Main TETRA CFG_MNC change detected
+2008-02-11 02:41:12Z:  L3: RM: Dynamic Transceiver update performed now (Tetra)
+2008-02-11 02:41:12Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:41:12Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:41:12Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:41:12Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:42:25Z:  L3: OmAudit: S27/0262:01010/ADD/, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-11 02:42:25Z:  L3: OmAudit: S27/0262:01010/ISIGWNODE/000, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-11 02:42:25Z:  L3: OmAudit: S27/0262:01010/AUTO/T/PROFILE/0000, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-11 02:42:25Z:  L3: OmAudit: S27/0262:01010/AUTO/T/ALLOW/+, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-11 02:42:25Z:  L3: OmAudit: S27/0262:01010/AUTO/T/SSITSI/+, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-11 02:42:25Z:  L3: OmAudit: S27/0262:01010/AUTO/T/USERSSI/+, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-11 02:42:25Z:  L3: OmAudit: S27/0262:01010/AUTO/G/PROFILE/0000, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-11 02:42:25Z:  L3: OmAudit: S27/0262:01010/AUTO/G/ALLOW/+, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-11 02:42:25Z:  L3: OmAudit: S27/0262:01010/AUTO/G/USERSSI/+, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-11 02:42:25Z:  L3: OmAudit: S27/0262:01010/AUTO/G/TIMEOUT/00005, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-11 02:43:21Z:  L3: OmAudit: S72/T/CAR/11/1/3760/03/3/0/-, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-11 02:43:21Z:  L3: RM: Main TETRA(0) CFG_TETRA_CAR_PRIMITIVE_xxx change detected, on MainCarrier, all TR update
+2008-02-11 02:43:21Z:  L3: RM: Dynamic Transceiver update performed now (Tetra)
+2008-02-11 02:43:21Z:  L3: PM: CFG_PHY_CAR_DOWNLINK_FREQUENCY change detected (TR0)
+2008-02-11 02:43:21Z:  L3: PmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:43:21Z:  L3: PmDeactivateTransceiverPhysical(CarNo=0)
+2008-02-11 02:43:21Z:  L3: ErrorFunc(): Line=60303871 TPM_CARRIER_DYNAMIC_UPDATE_REQ_TC=0 LogCar not activated towards RM=255
+                                      : =0 =0
+2008-02-11 02:43:21Z:  L3: RM: CarrierLostInd(0)
+2008-02-11 02:43:21Z:  L3: RmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:43:21Z:  L3: MainCarrierTetra lost (CAR=0), starting MainCarrierSwitchOver
+2008-02-11 02:43:21Z:  L3: PM: PHYSICAL_MODE_CON, PhyTr0 is deactivated (Result=0)
+2008-02-11 02:43:21Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:43:21Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:43:22Z:  L3: PSK carrier changes from 1 to 0 (no DynamicUpdate required)
+2008-02-11 02:43:22Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 255 to 0
+2008-02-11 02:43:22Z:  L3: PM: ActivateTransceiver as TR0 becomes available: BS_TR_PHY_ALARM_STATUS=0, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=0
+2008-02-11 02:43:22Z:  L3: PmActivateTransceiverPhysical(0): Normal activation (Intern=0)
+2008-02-11 02:43:22Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:43:22Z:  L3: PmActivateTransceiverLogical(LogCarIx=0, cPhyCar=0, PhyState=0) 
+2008-02-11 02:43:22Z:  L3: PmActivateTransceiverLogical(0): Normal activation (Intern=0) [Phy=0 0]
+2008-02-11 02:43:22Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0
+2008-02-11 02:43:22Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0; Sending response immediately, OldTr
+2008-02-11 02:43:23Z:  L3: PmCheckTransceiverStateLogical(0): Sending CarrierConnectedInd to PROC_RM
+2008-02-11 02:43:23Z:  L3: RM: CarrierConnectedInd(0, Config=0): CarMode=0, Freq=394012500/384012500
+2008-02-11 02:43:23Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:43:23Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:43:23Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:43:23Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:43:23Z:  L3: PSK carrier changes from 0 to 1 (no DynamicUpdate required)
+2008-02-11 02:43:24Z:  L3: DEBUG RM: RmMainCarrierSwitchover(CellType0) going (from 1) to CAR=0, SC=1
+2008-02-11 02:43:24Z:  L3: MainCarrierTetra: MCCH is established on TS0 (LogCarIx=0)
+2008-02-11 02:43:24Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:43:24Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:43:24Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:43:24Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:46:07Z:  L3: OmAudit: S72/TR/11/FREQ/382.987500/392.987500, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-11 02:46:08Z:  L3: RM: Main TETRA(0) CFG_TETRA_CAR_PRIMITIVE_xxx change detected, on MainCarrier, all TR update
+2008-02-11 02:46:08Z:  L3: RM: Dynamic Transceiver update performed now (Tetra)
+2008-02-11 02:46:08Z:  L3: PM: CFG_PHY_CAR_DOWNLINK_FREQUENCY change detected (TR0)
+2008-02-11 02:46:08Z:  L3: PmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:46:08Z:  L3: PmDeactivateTransceiverPhysical(CarNo=0)
+2008-02-11 02:46:08Z:  L3: ErrorFunc(): Line=60303871 TPM_CARRIER_DYNAMIC_UPDATE_REQ_TC=0 LogCar not activated towards RM=255
+                                      : =0 =0
+2008-02-11 02:46:08Z:  L3: RM: CarrierLostInd(0)
+2008-02-11 02:46:08Z:  L3: RmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:46:08Z:  L3: MainCarrierTetra lost (CAR=0), starting MainCarrierSwitchOver
+2008-02-11 02:46:08Z:  L3: PM: PHYSICAL_MODE_CON, PhyTr0 is deactivated (Result=0)
+2008-02-11 02:46:08Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:46:08Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:46:08Z:  L3: PSK carrier changes from 1 to 0 (no DynamicUpdate required)
+2008-02-11 02:46:08Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 255 to 0
+2008-02-11 02:46:08Z:  L3: PM: ActivateTransceiver as TR0 becomes available: BS_TR_PHY_ALARM_STATUS=0, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=0
+2008-02-11 02:46:08Z:  L3: PmActivateTransceiverPhysical(0): Normal activation (Intern=0)
+2008-02-11 02:46:09Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:46:09Z:  L3: PmActivateTransceiverLogical(LogCarIx=0, cPhyCar=0, PhyState=0) 
+2008-02-11 02:46:09Z:  L3: PmActivateTransceiverLogical(0): Normal activation (Intern=0) [Phy=0 0]
+2008-02-11 02:46:09Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0
+2008-02-11 02:46:09Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0; Sending response immediately, OldTr
+2008-02-11 02:46:09Z:  L3: PmCheckTransceiverStateLogical(0): Sending CarrierConnectedInd to PROC_RM
+2008-02-11 02:46:09Z:  L3: RM: CarrierConnectedInd(0, Config=0): CarMode=0, Freq=392987500/382987500
+2008-02-11 02:46:09Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:46:09Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:46:09Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:46:09Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:46:10Z:  L3: PSK carrier changes from 0 to 1 (no DynamicUpdate required)
+2008-02-11 02:46:10Z:  L3: DEBUG RM: RmMainCarrierSwitchover(CellType0) going (from 1) to CAR=0, SC=1
+2008-02-11 02:46:10Z:  L3: MainCarrierTetra: MCCH is established on TS0 (LogCarIx=0)
+2008-02-11 02:46:10Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:46:10Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:46:10Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:46:10Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:46:21Z:  L3: OmAudit: AUTOCREATE/M/0262:01010:02633716, from Ssi=2633716, IpAddr=172.016.001.010 MP
+2008-02-11 02:46:21Z:  L3: MM: TETRA ITSI ATTACH attempt from ITSI=262:1010:2633716, not responding yet as ITSI is not configured, waiting for creation of that subscriber (MsgFlag=0)
+2008-02-11 02:46:21Z:  L3: VMAC - Mapping removed by command from higher layer, oldtype=1, ssi=2633716
+2008-02-11 02:46:21Z:  L3: OmAudit: AUTOCREATE/G/03100001/02633716, from Ssi=3100001, IpAddr=172.016.001.010 MP
+2008-02-11 02:46:21Z:  L3: MM: GroupCreation attempt from ISSI=2633716, GSSI=3100001 ... (MsgFlag=0)
+2008-02-11 02:46:21Z:  L3: MM: GroupCreation attempt from ISSI=2633716, not responding yet as some Groups are not configured, waiting for creation of that subscriber
+2008-02-11 02:53:11Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 0 to 2
+2008-02-11 02:53:11Z:  L3: PM: BS_TR_PHY_CURRENT_ALARM_BITMAP(0) changes from 00000000 to 00000080
+2008-02-11 02:53:11Z:  L3: PM: BS_TR_PHY_LATCHED_ALARM_BITMAP(0) changes from 00000000 to 00000080 
+2008-02-11 02:53:11Z:  L3: PM: BsAlarmResetReq triggered by Blocking situation (by PhyCarIx=0 and maybe others), setting RequestFlag
+2008-02-11 02:53:11Z:  L3: PM: DeactivateTransceiver as TR disappears: BS_TR_PHY_ALARM_STATUS=2, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=2
+2008-02-11 02:53:11Z:  L3: PmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:53:11Z:  L3: PmDeactivateTransceiverPhysical(CarNo=0)
+2008-02-11 02:53:11Z:  L3: RM: CarrierLostInd(0)
+2008-02-11 02:53:11Z:  L3: RmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:53:11Z:  L3: MainCarrierTetra lost (CAR=0), starting MainCarrierSwitchOver
+2008-02-11 02:53:11Z:  L3: PM: PHYSICAL_MODE_CON, PhyTr0 is deactivated (Result=0)
+2008-02-11 02:53:11Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:53:11Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:53:11Z:  L3: PSK carrier changes from 1 to 0 (no DynamicUpdate required)
+2008-02-11 02:53:11Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 255 to 2
+2008-02-11 02:53:11Z:  L3: PM: BS_TR_PHY_CURRENT_ALARM_BITMAP(0) changes from 00000000 to 00000080
+2008-02-11 02:53:11Z:  L3: PM: BS_TR_PHY_LATCHED_ALARM_BITMAP(0) changes from 00000000 to 00000080 
+2008-02-11 02:53:11Z:  L3: PM: BsAlarmResetReq is sent now, last one at 0; now is 28030412
+2008-02-11 02:53:12Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 2 to 0
+2008-02-11 02:53:12Z:  L3: PM: BS_TR_PHY_CURRENT_ALARM_BITMAP(0) changes from 00000080 to 00000000
+2008-02-11 02:53:12Z:  L3: PM: BS_TR_PHY_LATCHED_ALARM_BITMAP(0) changes from 00000080 to 00000000 
+2008-02-11 02:53:12Z:  L3: PM: BsAlarmResetReq not required any longer, resetting RequestFlag
+2008-02-11 02:53:12Z:  L3: PM: ActivateTransceiver as TR0 becomes available: BS_TR_PHY_ALARM_STATUS=0, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=0
+2008-02-11 02:53:12Z:  L3: PmActivateTransceiverPhysical(0): Normal activation (Intern=0)
+2008-02-11 02:53:12Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:53:12Z:  L3: PmActivateTransceiverLogical(LogCarIx=0, cPhyCar=0, PhyState=0) 
+2008-02-11 02:53:12Z:  L3: PmActivateTransceiverLogical(0): Normal activation (Intern=0) [Phy=0 0]
+2008-02-11 02:53:12Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0
+2008-02-11 02:53:12Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0; Sending response immediately, OldTr
+2008-02-11 02:53:13Z:  L3: PmCheckTransceiverStateLogical(0): Sending CarrierConnectedInd to PROC_RM
+2008-02-11 02:53:13Z:  L3: RM: CarrierConnectedInd(0, Config=0): CarMode=0, Freq=392987500/382987500
+2008-02-11 02:53:13Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:53:13Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:53:13Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:53:13Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:53:13Z:  L3: DEBUG RM: RmMainCarrierSwitchover(CellType0) going (from 1) to CAR=0, SC=1
+2008-02-11 02:53:13Z:  L3: PSK carrier changes from 0 to 1 (no DynamicUpdate required)
+2008-02-11 02:53:13Z:  L3: MainCarrierTetra: MCCH is established on TS0 (LogCarIx=0)
+2008-02-11 02:53:13Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:53:13Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:53:13Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:53:13Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:53:17Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 0 to 2
+2008-02-11 02:53:17Z:  L3: PM: BS_TR_PHY_LATCHED_ALARM_BITMAP(0) changes from 00000000 to 00000080 
+2008-02-11 02:53:17Z:  L3: PM: BsAlarmResetReq triggered by Blocking situation (by PhyCarIx=0 and maybe others), setting RequestFlag
+2008-02-11 02:53:17Z:  L3: PM: DeactivateTransceiver as TR disappears: BS_TR_PHY_ALARM_STATUS=2, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=2
+2008-02-11 02:53:17Z:  L3: PmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:53:17Z:  L3: PmDeactivateTransceiverPhysical(CarNo=0)
+2008-02-11 02:53:17Z:  L3: RM: CarrierLostInd(0)
+2008-02-11 02:53:17Z:  L3: RmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:53:17Z:  L3: MainCarrierTetra lost (CAR=0), starting MainCarrierSwitchOver
+2008-02-11 02:53:17Z:  L3: PM: PHYSICAL_MODE_CON, PhyTr0 is deactivated (Result=0)
+2008-02-11 02:53:17Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:53:17Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:53:17Z:  L3: PSK carrier changes from 1 to 0 (no DynamicUpdate required)
+2008-02-11 02:53:17Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 255 to 2
+2008-02-11 02:53:17Z:  L3: PM: BS_TR_PHY_LATCHED_ALARM_BITMAP(0) changes from 00000000 to 00000080 
+2008-02-11 02:53:32Z:  L3: OmAudit: S03/C, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-11 02:53:32Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 2 to 0
+2008-02-11 02:53:32Z:  L3: PM: BS_TR_PHY_LATCHED_ALARM_BITMAP(0) changes from 00000080 to 00000000 
+2008-02-11 02:53:32Z:  L3: PM: BsAlarmResetReq not required any longer, resetting RequestFlag
+2008-02-11 02:53:32Z:  L3: PM: ActivateTransceiver as TR0 becomes available: BS_TR_PHY_ALARM_STATUS=0, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=0
+2008-02-11 02:53:32Z:  L3: PmActivateTransceiverPhysical(0): Normal activation (Intern=0)
+2008-02-11 02:53:32Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:53:32Z:  L3: PmActivateTransceiverLogical(LogCarIx=0, cPhyCar=0, PhyState=0) 
+2008-02-11 02:53:32Z:  L3: PmActivateTransceiverLogical(0): Normal activation (Intern=0) [Phy=0 0]
+2008-02-11 02:53:32Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0
+2008-02-11 02:53:32Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0; Sending response immediately, OldTr
+2008-02-11 02:53:33Z:  L3: OmAudit: S03/C, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-11 02:53:33Z:  L3: PmCheckTransceiverStateLogical(0): Sending CarrierConnectedInd to PROC_RM
+2008-02-11 02:53:33Z:  L3: RM: CarrierConnectedInd(0, Config=0): CarMode=0, Freq=392987500/382987500
+2008-02-11 02:53:33Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:53:33Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:53:33Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:53:33Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:53:33Z:  L3: PSK carrier changes from 0 to 1 (no DynamicUpdate required)
+2008-02-11 02:53:34Z:  L3: DEBUG RM: RmMainCarrierSwitchover(CellType0) going (from 1) to CAR=0, SC=1
+2008-02-11 02:53:34Z:  L3: MainCarrierTetra: MCCH is established on TS0 (LogCarIx=0)
+2008-02-11 02:53:34Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:53:34Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:53:34Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:53:34Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:54:13Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 0 to 2
+2008-02-11 02:54:13Z:  L3: PM: BS_TR_PHY_CURRENT_ALARM_BITMAP(0) changes from 00000000 to 00000080
+2008-02-11 02:54:13Z:  L3: PM: BS_TR_PHY_LATCHED_ALARM_BITMAP(0) changes from 00000000 to 00000080 
+2008-02-11 02:54:13Z:  L3: PM: BsAlarmResetReq triggered by Blocking situation (by PhyCarIx=0 and maybe others), setting RequestFlag
+2008-02-11 02:54:13Z:  L3: PM: DeactivateTransceiver as TR disappears: BS_TR_PHY_ALARM_STATUS=2, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=2
+2008-02-11 02:54:13Z:  L3: PmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:54:13Z:  L3: PmDeactivateTransceiverPhysical(CarNo=0)
+2008-02-11 02:54:13Z:  L3: RM: CarrierLostInd(0)
+2008-02-11 02:54:13Z:  L3: RmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:54:13Z:  L3: MainCarrierTetra lost (CAR=0), starting MainCarrierSwitchOver
+2008-02-11 02:54:13Z:  L3: PM: PHYSICAL_MODE_CON, PhyTr0 is deactivated (Result=0)
+2008-02-11 02:54:13Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:54:13Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:54:14Z:  L3: PSK carrier changes from 1 to 0 (no DynamicUpdate required)
+2008-02-11 02:54:14Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 255 to 2
+2008-02-11 02:54:14Z:  L3: PM: BS_TR_PHY_CURRENT_ALARM_BITMAP(0) changes from 00000000 to 00000080
+2008-02-11 02:54:14Z:  L3: PM: BS_TR_PHY_LATCHED_ALARM_BITMAP(0) changes from 00000000 to 00000080 
+2008-02-11 02:54:14Z:  L3: PM: BS_TR_PHY_CURRENT_ALARM_BITMAP(0) changes from 00000080 to 00000000
+2008-02-11 02:54:45Z:  L3: OmAudit: S03/C, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-11 02:54:45Z:  L3: PM: BS_TR_PHY_LATCHED_ALARM_BITMAP(0) changes from 00000080 to 00000000 
+2008-02-11 02:54:46Z:  L3: PM: BS_TR_PHY_ALARM_STATUS(0) changes from 2 to 0
+2008-02-11 02:54:46Z:  L3: PM: BsAlarmResetReq not required any longer, resetting RequestFlag
+2008-02-11 02:54:46Z:  L3: PM: ActivateTransceiver as TR0 becomes available: BS_TR_PHY_ALARM_STATUS=0, CFG_PHY_CAR_USE=1, NcLib::Radio.Tr[].CurrentAlState=0
+2008-02-11 02:54:46Z:  L3: PmActivateTransceiverPhysical(0): Normal activation (Intern=0)
+2008-02-11 02:54:46Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:54:46Z:  L3: PmActivateTransceiverLogical(LogCarIx=0, cPhyCar=0, PhyState=0) 
+2008-02-11 02:54:46Z:  L3: PmActivateTransceiverLogical(0): Normal activation (Intern=0) [Phy=0 0]
+2008-02-11 02:54:46Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0
+2008-02-11 02:54:46Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0; Sending response immediately, OldTr
+2008-02-11 02:54:47Z:  L3: PmCheckTransceiverStateLogical(0): Sending CarrierConnectedInd to PROC_RM
+2008-02-11 02:54:47Z:  L3: RM: CarrierConnectedInd(0, Config=0): CarMode=0, Freq=392987500/382987500
+2008-02-11 02:54:47Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:54:47Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:54:47Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:54:47Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:54:47Z:  L3: PSK carrier changes from 0 to 1 (no DynamicUpdate required)
+2008-02-11 02:54:48Z:  L3: DEBUG RM: RmMainCarrierSwitchover(CellType0) going (from 1) to CAR=0, SC=1
+2008-02-11 02:54:48Z:  L3: MainCarrierTetra: MCCH is established on TS0 (LogCarIx=0)
+2008-02-11 02:54:48Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:54:48Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:54:48Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:54:48Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:55:29Z:  L3: OmAudit: S72/T/POWER/27.0, from Ssi=0, IpAddr=172.016.001.010(IS QUE)
+2008-02-11 02:55:29Z:  L3: PM: CFG_CELL_CONFIGURED(0) changes from 1 to 1, restarting all carriers
+2008-02-11 02:55:29Z:  L3: PM: CFG_SIMULCAST_CONFIGURED(0) changes from 0 to 0, restarting all carriers
+2008-02-11 02:55:29Z:  L3: PM: BS_SIMULCAST_READY(0) changes from 0 to 0, restarting all carriers
+2008-02-11 02:55:29Z:  L3: PM: CFG_SIMULCAST_AREA(0) changes from 1 to 1, restarting all carriers
+2008-02-11 02:55:29Z:  L3: PM: CFG_SIMULCAST_OFFSET(0) changes from 1 to 1, restarting all carriers
+2008-02-11 02:55:29Z:  L3: PM: CFG_TX_OUTPUT_POWER(0) changes from 30.000000 to 27.000000, restarting all carriers
+2008-02-11 02:55:29Z:  L3: PmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:55:29Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:55:29Z:  L3: PmActivateTransceiverLogical(LogCarIx=0, cPhyCar=0, PhyState=0) 
+2008-02-11 02:55:29Z:  L3: PmActivateTransceiverLogical(0): Normal activation (Intern=0) [Phy=0 0]
+2008-02-11 02:55:29Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0
+2008-02-11 02:55:29Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0; Sending response immediately, OldTr
+2008-02-11 02:55:29Z:  L3: RM: CarrierLostInd(0)
+2008-02-11 02:55:29Z:  L3: RmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:55:29Z:  L3: MainCarrierTetra lost (CAR=0), starting MainCarrierSwitchOver
+2008-02-11 02:55:29Z:  L3: PmDeactivateTransceiverLogical(LogCarIx=0)
+2008-02-11 02:55:29Z:  L3: RM: CarrierLostInd(0)
+2008-02-11 02:55:29Z:  L3: RmDeactivateTransceiverLogical(0) already Inactive...?
+2008-02-11 02:55:29Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:55:29Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:55:30Z:  L3: PSK carrier changes from 1 to 0 (no DynamicUpdate required)
+2008-02-11 02:55:30Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:55:30Z:  L3: PmActivateTransceiverLogical(LogCarIx=0, cPhyCar=0, PhyState=0) 
+2008-02-11 02:55:30Z:  L3: PmActivateTransceiverLogical(0): Normal activation (Intern=0) [Phy=0 0]
+2008-02-11 02:55:30Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0
+2008-02-11 02:55:30Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=0; Sending response immediately, OldTr
+2008-02-11 02:55:30Z:  L3: PmCheckTransceiverStateLogical(0): Sending CarrierConnectedInd to PROC_RM
+2008-02-11 02:55:30Z:  L3: RM: CarrierConnectedInd(0, Config=0): CarMode=0, Freq=392987500/382987500
+2008-02-11 02:55:30Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:55:30Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:55:30Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:55:30Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:55:31Z:  L3: PSK carrier changes from 0 to 1 (no DynamicUpdate required)
+2008-02-11 02:55:32Z:  L3: DEBUG RM: RmMainCarrierSwitchover(CellType0) going (from 1) to CAR=0, SC=1
+2008-02-11 02:55:32Z:  L3: MainCarrierTetra: MCCH is established on TS0 (LogCarIx=0)
+2008-02-11 02:55:32Z:  L3: PmBuildAndSendTvcLogicalModeReq(TR0<--0) CarMode=0, ModeSpecificContent=1
+2008-02-11 02:55:32Z:  L3: PmGetSimcastParameters(ConfigLogCarIx=0, CnfgSim=0, CnfgCell=1, SimReady=0, SimMaster=0
+2008-02-11 02:55:32Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=0
+2008-02-11 02:55:32Z:  L3: PmAnaTvcTransceiverPowerCon(0), Tx=1
+2008-02-11 02:56:22Z:  L3: OmAudit: S22/02633716/TRUST/N, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-11 02:56:29Z:  L3: OmAudit: S22/02633716/DESCR/, from Ssi=0, IpAddr=172.016.001.010(TCP #0)
+2008-02-11 03:31:19Z:  L3: OmAudit: S46/S, from Ssi=0, IpAddr=000.000.000.000(GUI   )
