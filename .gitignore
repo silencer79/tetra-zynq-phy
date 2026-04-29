@@ -114,3 +114,8 @@ xsim.dir/
 
 # Vivado auto-generated constraint files
 *.xdc.orig
+
+# Air-test captures (purged 2026-04-29 — never commit)
+*.wav
+*.cfile
+*.dcp
