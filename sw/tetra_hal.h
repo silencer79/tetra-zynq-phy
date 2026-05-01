@@ -243,6 +243,9 @@
 #define REG_NWRK_BCAST_TRIGGER   0x1D8   /* W1S [0]    HW-clr on consume      */
 #define REG_NWRK_BCAST_CNT       0x1E4   /* RO  [15:0] sticky push counter    */
 
+/* Phase H.6.3 — AACH UL-Slot-Grant override (single-shot pulse)            */
+#define REG_AACH_GRANT_HINT      0x1F4   /* R/W [31] pending, [13:0] info14  */
+
 /* UL_PDU_STATUS bitfield helpers (bluestation-aligned bit layout) */
 #define UL_STATUS_VALID(s)     (((s) >> 0)  & 0x1u)
 #define UL_STATUS_PDU_TYPE(s)  (((s) >> 1)  & 0x1u)

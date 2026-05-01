@@ -1629,6 +1629,16 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
         ok, info, _ = decode_channel_soft(sb1_soft, 120, 11, 60)
         return ok, info, demod_pi4dqpsk(burst_syms)
 
+    if dump_burst == -2:
+        # --dump-burst -2: dump (idx, sample_pos, time_s, type, tn, fn, mn) für jeden burst,
+        # rest des Decodes wird übersprungen.  Genutzt für UL/DL-Time-Sync.
+        print(f"# dump_pos sample_rate={sample_rate}")
+        print(f"# columns: idx sample_pos time_s")
+        for idx, grid_sts_pos in enumerate(sts_positions[:max_bursts]):
+            t_s = grid_sts_pos / float(sample_rate)
+            print(f"DUMPPOS {idx:>5d} {int(grid_sts_pos):>12d} {t_s:>10.4f}")
+        return True
+
     for idx, grid_sts_pos in enumerate(sts_positions[:max_bursts]):
         burst_start_pred = grid_sts_pos - sb_off_sts * sps
 

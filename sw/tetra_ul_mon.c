@@ -183,6 +183,18 @@ int main(int argc, char *argv[])
             last_count = count;
             first = 0;
 
+            /* Phase H.6.3 + Bug-3 — AACH UL-Slot-Grant Trigger.
+             * Gold-Cell sendet 156× ein statisches `[Reserved] f1=1 f2=9`
+             * = 14'h2049 (Header=10 SCG, Field1=1, Field2=9) in 110 s,
+             * unabhängig von der MS-SSI.  Hypothese: das Pattern ist ein
+             * Cell-weiter "Slot-Reserviert-für-aktive-MS"-Indicator, kein
+             * adressierter Grant.  Wir feuern ihn on-demand pro Frag-1.   */
+            if (frag == 1 && at == 0) {
+                uint32_t info14 = 0x2049u;          /* Header=10, f1=1, f2=9 */
+                uint32_t hint   = 0x80000000u | info14;
+                tetra_reg_write(&hal, REG_AACH_GRANT_HINT, hint);
+            }
+
             /* W1C clear sticky — hw-set-wins, so if another PDU arrives
              * same cycle we won't lose it. */
             tetra_reg_write(&hal, REG_UL_PDU_CTRL, 1u);

@@ -1464,31 +1464,19 @@ static void encode_sch_f_c(const uint8_t *info_268, uint32_t scramb_init,
  * 24-bit Network-Time region overwritten by the live UTC clock. */
 static void build_d_nwrk_broadcast_268(time_t utc_now, uint8_t *info_268)
 {
-    /* Static template from Gold-Burst #423.  Bits 88..111 = Network-Time
-     * (we overwrite with UTC sec/min/hour packed).  All other bits are
-     * captured static.                                              */
-    static const uint8_t TEMPLATE[268] = {
-        /* 124 bit useful PDU (MAC-RESOURCE + TM-SDU + MM-Body) */
-        0,0,1,0, 0,0,0,0, 1,0,0,0, 0,0,0,1,    /*   0-15  */
-        1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,    /*  16-31  */
-        1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,    /*  32-47  */
-        0,0,0,0, 0,1,0,1, 0,1,0,1, 0,0,1,0,    /*  48-63  */
-        1,0,1,1, 0,0,1,0, 1,0,1,0, 1,0,0,1,    /*  64-79  */
-        1,0,0,0, 1,1,1,1, 1,1,0,0, 1,1,1,0,    /*  80-95  */
-        1,1,1,1, 1,1,0,0, 1,0,0,0, 0,1,0,0,    /*  96-111 */
-        0,0,1,0, 0,0,1,1, 1,1,1,1, 1,1,1,1,    /* 112-127 */
-        /* 144 bit padding/stuffing (NULL-PDU pattern) */
-        1,1,0,0, 0,1,0,0, 0,0,0,0, 0,0,0,0,    /* 128-143 */
-        0,0,0,1, 0,0,0,0, 1,0,0,0, 0,0,0,0,    /* 144-159 */
-        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,    /* 160-175 */
-        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,    /* 176-191 */
-        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,    /* 192-207 */
-        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,    /* 208-223 */
-        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,    /* 224-239 */
-        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,    /* 240-255 */
-        0,0,0,0, 0,0,0,0, 0,0,0,0,             /* 256-267 */
-    };
-    memcpy(info_268, TEMPLATE, 268);
+    /* Static template from Gold-Burst #423, bit-genau aus Phase-1
+     * Round-Trip-Verifikation (info_268_hex aus decode_dl --dump-burst 423):
+     *   0x2081ffffff0552b2a98fcefc8423ffc400108000000000000000000000000000000
+     * Bits 88..111 (24-bit Network-Time-Region) werden mit UTC-Live-Zeit
+     * überschrieben.                                                  */
+    static const char INFO_HEX[] =
+        "2081ffffff0552b2a98fcefc8423ffc4"
+        "00108000000000000000000000000000000";
+    for (int i = 0; i < 268; i++) {
+        char c = INFO_HEX[i / 4];
+        int n = (c <= '9') ? c - '0' : (c | 0x20) - 'a' + 10;
+        info_268[i] = (n >> (3 - (i % 4))) & 1;
+    }
 
     /* Pack UTC time into 24-bit field at bits[88..111].
      * Layout: [88..92] hour(5b) [93..98] minute(6b) [99..104] sec(6b)
@@ -1505,27 +1493,32 @@ static void build_d_nwrk_broadcast_268(time_t utc_now, uint8_t *info_268)
 
 /* Push 432-bit payload into the FPGA via indirect window + trigger.
  * payload_432 is 432 bits MSB-first (bit 0 = first on-air bit).
- * Maps to 14 × 32-bit words: word 0 = bits[0..15] in low 16 bit (top
- * word is partial), words 1..13 = bits[16..431] full 32 bit each.   */
+ *
+ * RTL pack-Layout (rtl/infra/tetra_axi_lite_regs.v g_nwrk_payload):
+ *   word  0 [31:0]   → payload bits[431:400]   = first 32 on-air bits
+ *   word  1 [31:0]   → payload bits[399:368]   = next 32 on-air bits
+ *   ...
+ *   word 12 [31:0]   → payload bits[ 47: 16]   = bits 384..415
+ *   word 13 [31:16]  → payload bits[ 15:  0]   = last 16 on-air bits (in upper half!)
+ * (432 = 13 × 32 + 16, der 16-bit-Rest sitzt in der OBEREN Hälfte
+ *  von word 13 — RTL ignoriert word 13 [15:0].)                  */
 static void push_d_nwrk_broadcast(tetra_hal_t *hal, const uint8_t *payload_432)
 {
-    /* Pack 432 bits into 14 × 32-bit words, MSB-first per word.
-     * Word layout (matches RTL g_nwrk_payload concat):
-     *   word  0: payload[431:416]  = top 16 bit (in lower 16 of word)
-     *   word  1: payload[415:384]  = next 32 bit
-     *   ...
-     *   word 13: payload[ 31:  0]  = bottom 32 bit                  */
-    uint32_t words[14];
-    /* First word = top 16 bits of payload (bits 0..15 of MSB-first input). */
-    uint32_t w0 = 0;
-    for (int i = 0; i < 16; i++) w0 = (w0 << 1) | (payload_432[i] & 1);
-    words[0] = w0;
-    for (int wi = 1; wi < 14; wi++) {
+    uint32_t words[14] = {0};
+    /* words[0..12] = 32 on-air bits each (MSB-first).  payload_432[0]
+     * ist erstes on-air bit → landet in words[0] bit 31 (MSB).      */
+    for (int wi = 0; wi < 13; wi++) {
         uint32_t w = 0;
-        int base = 16 + (wi - 1) * 32;
-        for (int b = 0; b < 32; b++) w = (w << 1) | (payload_432[base + b] & 1);
+        for (int b = 0; b < 32; b++)
+            w = (w << 1) | (payload_432[wi * 32 + b] & 1);
         words[wi] = w;
     }
+    /* words[13][31:16] = last 16 on-air bits (= payload_432[416..431]).
+     * Untere 16 bit unbenutzt — auf 0 lassen.                       */
+    uint32_t w13_top = 0;
+    for (int b = 0; b < 16; b++)
+        w13_top = (w13_top << 1) | (payload_432[416 + b] & 1);
+    words[13] = w13_top << 16;
 
     for (int wi = 0; wi < 14; wi++) {
         tetra_reg_write(hal, REG_NWRK_BCAST_INDEX, (uint32_t)wi);
