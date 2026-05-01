@@ -156,6 +156,15 @@ module tetra_rx_chain #(
     output wire [23:0]           ul_continuation_ssi_sys,
     output wire [15:0]           ul_continuation_count_sys,
 
+    // -------------------------------------------------------------------------
+    // Phase H.6.1 — UL SCH/HU decoder diagnostic counters (free-running 16-bit,
+    // wraps; reset only via rst_n_sys).  schhu_attempted = every Viterbi-output
+    // info_valid pulse (good or bad CRC); schhu_ok = info_valid AND crc_ok.
+    // Used to localise the MAC-END-HU pipeline bottleneck.
+    // -------------------------------------------------------------------------
+    output wire [15:0]           schhu_attempted_sys,
+    output wire [15:0]           schhu_ok_sys,
+
   // -------------------------------------------------------------------------
   // Debug outputs (ILA probes)
   // -------------------------------------------------------------------------
@@ -367,8 +376,8 @@ tetra_ul_sch_hu_decoder #(
     .info_bits_sys        (ul_info_bits_sys),
     .info_valid_sys       (ul_info_valid_sys),
     .crc_ok_sys           (ul_crc_ok_sys),
-    .decodes_attempted_sys(),
-    .decodes_ok_sys       ()
+    .decodes_attempted_sys(schhu_attempted_sys),
+    .decodes_ok_sys       (schhu_ok_sys)
 );
 
 tetra_ul_mac_access_parser u_ul_mac_parser (

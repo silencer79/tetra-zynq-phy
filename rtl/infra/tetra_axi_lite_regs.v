@@ -359,6 +359,20 @@ module tetra_axi_lite_regs (
     output reg  [3:0]  reass_t0_frames_axi,
 
     // ------------------------------------------------------------------
+    // Phase H.6.1 — UL MAC-END-HU pipeline diagnostic counters.
+    //   ul_cont_cnt_axi          : Parser klassifizierte MAC-END-HU
+    //                              (REG_UL_CONT_CNT @ 0x1B8 [15:0])
+    //   schhu_attempted_cnt_axi  : SCH/HU-Decoder produzierte info_valid
+    //                              (REG_SCHHU_VALID_CNT @ 0x1BC [15:0])
+    //   schhu_ok_cnt_axi         : SCH/HU-Decoder + CRC ok
+    //                              (REG_SCHHU_CRC_CNT @ 0x1F0 [15:0])
+    // CDC: 2-FF resync in top-level on the clk_sys → clk_axi side.
+    // ------------------------------------------------------------------
+    input  wire [15:0] ul_cont_cnt_axi,
+    input  wire [15:0] schhu_attempted_cnt_axi,
+    input  wire [15:0] schhu_ok_cnt_axi,
+
+    // ------------------------------------------------------------------
     // DL-signalling scheduler config — cfg_signal_target_tn_axi
     // 2-bit R/W register (REG_SIGNAL_TARGET_TN @ 0x19C).  Drives which
     // TN of the next frame the scheduler injects the popped SCH/F into.
@@ -615,8 +629,12 @@ localparam [6:0] REG_DB_POLICY        = 7'h6B; // 0x1AC R/W {30'd0, reserved, ac
 localparam [6:0] REG_AST_TTL_EVICT_CNT = 7'h6C; // 0x1B0 RO {16'd0, ast_ttl_evict_cnt[15:0]} Phase 6 C
 // Phase 7 F.3 — UL-Demand decoded-fields mailbox + reassembly mailbox
 localparam [6:0] REG_UL_PDU_STATUS_2  = 7'h6D; // 0x1B4 RO {decoded LLC/MLE/MM fields}
+// Phase H.6.1 — UL MAC-END-HU pipeline diagnostic counters
+localparam [6:0] REG_UL_CONT_CNT      = 7'h6E; // 0x1B8 RO {16'd0, ul_continuation_count[15:0]}
+localparam [6:0] REG_SCHHU_VALID_CNT  = 7'h6F; // 0x1BC RO {16'd0, schhu_attempted[15:0]}
 localparam [6:0] REG_REASSEMBLY_T0    = 7'h77; // 0x1DC R/W [3:0] T0 in TDMA frames (0=default 2)
 localparam [6:0] REG_REASSEMBLY_STATS = 7'h78; // 0x1E0 RO  {drop_cnt[15:0], reassembled_cnt[15:0]}
+localparam [6:0] REG_SCHHU_CRC_CNT    = 7'h7C; // 0x1F0 RO {16'd0, schhu_ok[15:0]} Phase H.6.1
 
 // Profile-Table indirect window (Phase 6 D-rev) — 0x1C0..0x1CC
 // 6 × 32-bit profile records (§9.2).  No DATA_HI — Profile is 32 bit, fits
@@ -927,6 +945,10 @@ always @(*) begin
         REG_REASSEMBLY_T0:    rdata_mux_axi = {28'b0, reass_t0_frames_axi};
         REG_REASSEMBLY_STATS: rdata_mux_axi = {reass_drop_cnt_axi,
                                                 reass_reassembled_cnt_axi};
+        // Phase H.6.1 — UL MAC-END-HU pipeline diagnostic counters
+        REG_UL_CONT_CNT:      rdata_mux_axi = {16'b0, ul_cont_cnt_axi};
+        REG_SCHHU_VALID_CNT:  rdata_mux_axi = {16'b0, schhu_attempted_cnt_axi};
+        REG_SCHHU_CRC_CNT:    rdata_mux_axi = {16'b0, schhu_ok_cnt_axi};
         // Profile-Table indirect window (Phase 6 D-rev)
         REG_PROFILE_INDEX: rdata_mux_axi = {29'b0, profile_index_axi};
         REG_PROFILE_DATA:  rdata_mux_axi = profile_data_axi;

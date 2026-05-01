@@ -410,6 +410,9 @@ wire        ul_continuation_valid_sys;
 wire [84:0] ul_continuation_bits_sys;
 wire [23:0] ul_continuation_ssi_sys;
 wire [15:0] ul_continuation_count_sys;
+// Phase H.6.1 — UL SCH/HU decoder diagnostic counters (clk_sys, free-running)
+wire [15:0] schhu_attempted_sys;
+wire [15:0] schhu_ok_sys;
 wire        reass_valid_sys;
 wire [128:0] reass_body_sys;
 wire [23:0] reass_ssi_sys;
@@ -597,6 +600,8 @@ tetra_rx_chain #(
     .ul_continuation_bits_sys   (ul_continuation_bits_sys),
     .ul_continuation_ssi_sys    (ul_continuation_ssi_sys),
     .ul_continuation_count_sys  (ul_continuation_count_sys),
+    .schhu_attempted_sys        (schhu_attempted_sys),
+    .schhu_ok_sys               (schhu_ok_sys),
   .dbg_fe_valid_sys (dbg_fe_valid_sys),
   .dbg_tr_valid_sys (dbg_tr_valid_sys),
   .dbg_demod_valid_sys (dbg_demod_valid_sys)
@@ -1903,6 +1908,10 @@ tetra_axi_lite_regs u_axi_regs (
     .reass_reassembled_cnt_axi (reass_reassembled_cnt_axi_r1),
     .reass_drop_cnt_axi        (reass_drop_cnt_axi_r1),
     .reass_t0_frames_axi       (reass_t0_frames_axi_w),
+    // Phase H.6.1 — UL MAC-END-HU pipeline diagnostic counters
+    .ul_cont_cnt_axi           (ul_cont_cnt_axi_r1),
+    .schhu_attempted_cnt_axi   (schhu_attempted_axi_r1),
+    .schhu_ok_cnt_axi          (schhu_ok_axi_r1),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -2450,6 +2459,46 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         mle_detach_cnt_axi_r1  <= mle_detach_cnt_axi_r0;
         ast_ttl_evict_cnt_axi_r0 <= ast_ttl_evict_cnt_sys;
         ast_ttl_evict_cnt_axi_r1 <= ast_ttl_evict_cnt_axi_r0;
+    end
+end
+
+// =============================================================================
+// Phase H.6.1 — UL MAC-END-HU pipeline diagnostic counters
+//
+// Three free-running 16-bit clk_sys counters, 2-FF resynced to clk_axi.
+// Used to localise where MAC-END-HU bursts get dropped (Bug 1):
+//
+//   ul_continuation_count_sys (parser, existing)  → REG_UL_CONT_CNT @0x1B8
+//   schhu_attempted_sys (decoder, every info_valid) → REG_SCHHU_VALID_CNT @0x1BC
+//   schhu_ok_sys        (decoder, info_valid + crc) → REG_SCHHU_CRC_CNT @0x1F0
+//
+// All three are free-running 16-bit (wrap on overflow) — sufficient for
+// short live-test sweeps (~65k events ≈ ~30 min @ 36k bursts/min worst-
+// case).  Reset only via rst_n_sys; per-event resets via CTRL[3] would
+// require touching the decoder/parser which is outside H.6.1 scope.
+// =============================================================================
+(* ASYNC_REG = "TRUE" *) reg [15:0] ul_cont_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] ul_cont_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] schhu_attempted_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] schhu_attempted_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] schhu_ok_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] schhu_ok_axi_r1;
+
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        ul_cont_cnt_axi_r0      <= 16'd0;
+        ul_cont_cnt_axi_r1      <= 16'd0;
+        schhu_attempted_axi_r0  <= 16'd0;
+        schhu_attempted_axi_r1  <= 16'd0;
+        schhu_ok_axi_r0         <= 16'd0;
+        schhu_ok_axi_r1         <= 16'd0;
+    end else begin
+        ul_cont_cnt_axi_r0      <= ul_continuation_count_sys;
+        ul_cont_cnt_axi_r1      <= ul_cont_cnt_axi_r0;
+        schhu_attempted_axi_r0  <= schhu_attempted_sys;
+        schhu_attempted_axi_r1  <= schhu_attempted_axi_r0;
+        schhu_ok_axi_r0         <= schhu_ok_sys;
+        schhu_ok_axi_r1         <= schhu_ok_axi_r0;
     end
 end
 
