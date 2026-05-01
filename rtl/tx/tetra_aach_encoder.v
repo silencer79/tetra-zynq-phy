@@ -156,27 +156,35 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         // -----------------------------------------------------------------
         S_IDLE: begin
             if (encode_start_sys) begin
-                // Per-slot AACH info (Gold-mimic, EN 300 392-2 §21.5.2):
-                //   TN=0 + addressed signalling → DL/UL-Assign Unalloc/Unalloc
-                //                                (0x0009)
-                //   TN=0 + idle signalling      → DL/UL-Assign Common/Random
-                //                                (0x0249)
-                //   FN=18, TN!=0                → DL/UL-Assign Unalloc/Random
-                //                                (0x0049)
-                //   else                        → Capacity Allocation (0x3000)
-                // H.6.3 grant-override: TN=0 idle slot + grant pending →
-                // broadcast operator-supplied DL/UL-Assign Field2 instead of
-                // the default Common/Random pattern.  Consume the hint so it
-                // fires on exactly one slot.
-                if (tn_sys == 2'd0 && !signalling_active_sys && grant_pending_sys) begin
+                // Per-slot AACH info — Gold-Cell bit-genau verifiziert
+                // (1278 Burst-Slots in docs/references/captures_external_bs_
+                // 2026-04-25/decode_dl_full.log):
+                //
+                //   F18 TN=0 MN%4==2 (BSCH-Anker, SB)        → 0x0049 Unalloc/Random
+                //   F18 TN=0 MN%4∈{0,1,3} (NDB2 BNCH)        → 0x0249 Common/Random
+                //   F18 TN!=0 (SB)                           → 0x0040 Unalloc/Random
+                //   F1-17 TN=0 + signalling-active reply     → 0x0009 Unalloc/Unalloc
+                //   F1-17 TN=0 + idle (NDB2 MCCH)            → 0x0249 Common/Random
+                //   F1-17 TN!=0 (Pilot SB)                   → 0x3000 CapAlloc
+                //
+                // Branch-Reihenfolge: F18 vor TN=0, sonst fällt der F18-TN=0
+                // BSCH-Anker durch.  H.6.3 grant-override wirkt nur auf den
+                // F1-17 TN=0 idle-Pfad (signalling_active=0, kein F18).
+                if (fn_sys == 5'd17) begin
+                    if (tn_sys == 2'd0 && mn_low2_sys == 2'd2)
+                        info_sys <= 14'h0049;             // F18 BSCH-Anker
+                    else if (tn_sys == 2'd0)
+                        info_sys <= 14'h0249;             // F18 TN=0 NDB2 BNCH
+                    else
+                        info_sys <= 14'h0040;             // F18 TN!=0 SB
+                end else if (tn_sys == 2'd0 && !signalling_active_sys && grant_pending_sys) begin
                     info_sys <= grant_info_sys;
                     grant_consume_sys <= 1'b1;
-                end else if (tn_sys == 2'd0)
+                end else if (tn_sys == 2'd0) begin
                     info_sys <= signalling_active_sys ? 14'h0009 : 14'h0249;
-                else if (fn_sys == 5'd17)
-                    info_sys <= 14'h049;
-                else
+                end else begin
                     info_sys <= 14'h3000;
+                end
                 // Init LFSR; handle degenerate lfsr=0 case (never in practice)
                 lfsr_sys     <= (lfsr_init_w == 32'h0) ? 32'hFFFFFFFF
                                                        : lfsr_init_w;
