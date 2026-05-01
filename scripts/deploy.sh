@@ -272,14 +272,17 @@ fi
 if $DO_INIT; then
     step "Running full_init + subscriber-DB sync + tetra_sysinfo + tetra_ul_mon"
 
-    bash "${SCRIPT_DIR}/tetra_ctrl.sh" full_init
+    # Operativer RF-Pfad: RX 438.250 MHz, TX 428.250 MHz, TX_ATT=-10 dB.
+    # full_init nimmt RX/TX als Args — vorher war der Default 429.95/439.95
+    # die manuelle Korrektur via rf_loopback erforderte. Jetzt direkt richtig.
+    bash "${SCRIPT_DIR}/tetra_ctrl.sh" full_init 438250000 428250000
 
     # VCXO trim — ohne diesen DAC-Wert driftet der Board-Takt; Wert 153
     # wurde als sweet-spot kalibriert (siehe scripts/vcxo_cal.sh).
     bash "${SCRIPT_DIR}/vcxo_cal.sh" --host 192.168.2.180 --dac 153
 
-    # Operativer RF-Pfad: RX 438.250 MHz, TX 428.250 MHz, TX_ATT=-10 dB.
-    # Kevin's Standard-Setup, war bisher manueller Schritt.
+    # rf_loopback re-issued damit AGC + TX_ATT=-10 dB sauber gesetzt sind
+    # (full_init initialisiert die Kette ohne TX_ATT-Override).
     bash "${SCRIPT_DIR}/tetra_ctrl.sh" rf_loopback 438250000 428250000 20 -10
 
     # Subscriber-DB boot-sync: ensure /var/lib/tetra/db.tsv exists, is in
