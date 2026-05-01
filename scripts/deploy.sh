@@ -286,7 +286,7 @@ if $DO_INIT; then
 
     # rf_loopback re-issued damit AGC + TX_ATT=-10 dB sauber gesetzt sind
     # (full_init initialisiert die Kette ohne TX_ATT-Override).
-    bash "${SCRIPT_DIR}/tetra_ctrl.sh" rf_loopback 428250000 438250000 20 -10
+    bash "${SCRIPT_DIR}/tetra_ctrl.sh" rf_loopback 428250000 438250000 13 -10
 
     # Subscriber-DB boot-sync: ensure /var/lib/tetra/db.tsv exists, is in
     # the Phase 6 D-rev 4-column format, and is pushed to the FPGA EntityTable
