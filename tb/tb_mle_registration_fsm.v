@@ -957,10 +957,16 @@ module tb_mle_registration_fsm;
         end
 
         // -------------------------------------------------------------------
-        // gssi_wish_ignored_old_path: feed a registration WITHOUT a demand
-        // IE pulse.  FSM must take the legacy Phase D-rev path —
-        // BS-dictated default GSSI from EntityTable Slot 1 (0x2F4D61).
-        // group_count must be 0 in AST.
+        // T19 — gssi_wish_honored (Phase H.3.3): MS sends a GILD with a
+        // wish-GSSI that is NOT in EntityTable.  Per H.3.2 the GILA in
+        // the D-LOC-UPDATE-ACCEPT must echo the raw wish (so the MS-MMI
+        // sees its chosen group accepted), even though the validation
+        // loop rejects it (group_count stays 0 in the AST record —
+        // Phase J SW Group-Switch will refuse actual traffic on the
+        // unknown GSSI).  This replaces the obsolete
+        // `gssi_wish_ignored_old_path` test; the legacy "no demand →
+        // default GSSI" path is still exercised by profile0_m2_guard
+        // (T6/T7) which never pulses demand_parsed_valid.
         // -------------------------------------------------------------------
         // Re-seed slot 1 with the default GSSI (T9 had cleared u_entity.mem[1]).
         @(posedge clk);
@@ -970,12 +976,23 @@ module tb_mle_registration_fsm;
         clear_ast();
         @(posedge clk);
 
-        begin : gssi_wish_ignored_test
+        accept_unknown = 1'b1;
+        begin : gssi_wish_honored_test
             integer s_id;
             integer found_slot;
             integer wait_cycles;
             test_count = test_count + 1;
-            // No demand pulse — straight ul_req_valid.
+            // Drive a demand pulse with wish-GSSI 0x123456 (deliberately
+            // not in EntityTable — validation loop rejects).
+            @(posedge clk);
+            demand_pdu_ssi      <= 24'h282F91;
+            demand_gssi_count   <= 3'd1;
+            demand_gssi_array   <= {48'd0, 24'h123456};
+            demand_class_array  <= 9'd4;
+            demand_parsed_valid <= 1'b1;
+            @(posedge clk);
+            demand_parsed_valid <= 1'b0;
+            // Now drive ul_req_valid for the matching ISSI.
             push_request(24'h282F91, 14'd36);
             wait_cycles = 0;
             while (wait_cycles < 4000 && !req_valid) begin
@@ -989,10 +1006,11 @@ module tb_mle_registration_fsm;
                 wait_cycles = wait_cycles + 1;
             end
             if (!accept_pulse) begin
-                $display("[T%0d gssi_wish_ignored_old_path] FAIL no accept", test_count);
+                $display("[T%0d gssi_wish_honored] FAIL no accept", test_count);
                 fail_count = fail_count + 1;
             end else begin
-                // group_count must be 0; lat_gila_gssi must be 0x2F4D61.
+                // GILA must echo the raw wish 0x123456; AST group_count
+                // must remain 0 (wish failed validation against EntityTable).
                 found_slot = -1;
                 for (s_id = 0; s_id < AST_DEPTH; s_id = s_id + 1) begin
                     if (u_ast.mem[s_id][AST_REC_WIDTH-1 -: AST_ISSI_WIDTH]
@@ -1001,19 +1019,19 @@ module tb_mle_registration_fsm;
                         found_slot = s_id;
                 end
                 if (found_slot < 0) begin
-                    $display("[T%0d gssi_wish_ignored_old_path] FAIL ISSI not in AST",
+                    $display("[T%0d gssi_wish_honored] FAIL ISSI not in AST",
                              test_count);
                     fail_count = fail_count + 1;
                 end else if (u_ast.mem[found_slot][195:192] !== 4'd0) begin
-                    $display("[T%0d gssi_wish_ignored_old_path] FAIL group_count got=%0d exp=0",
+                    $display("[T%0d gssi_wish_honored] FAIL group_count got=%0d exp=0 (unknown GSSI must not be subscribed)",
                              test_count, u_ast.mem[found_slot][195:192]);
                     fail_count = fail_count + 1;
-                end else if (dut.lat_gila_gssi !== 24'h2F4D61) begin
-                    $display("[T%0d gssi_wish_ignored_old_path] FAIL gila_gssi got=0x%06X exp=0x2F4D61",
+                end else if (dut.lat_gila_gssi !== 24'h123456) begin
+                    $display("[T%0d gssi_wish_honored] FAIL gila_gssi got=0x%06X exp=0x123456 (raw MS-wish must be echoed)",
                              test_count, dut.lat_gila_gssi);
                     fail_count = fail_count + 1;
                 end else begin
-                    $display("[T%0d gssi_wish_ignored_old_path] PASS slot=%0d group_count=0 GILA=2F4D61",
+                    $display("[T%0d gssi_wish_honored] PASS slot=%0d group_count=0 GILA=0x123456 (raw wish echoed)",
                              test_count, found_slot);
                 end
             end
