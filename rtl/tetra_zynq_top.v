@@ -1912,6 +1912,10 @@ tetra_axi_lite_regs u_axi_regs (
     .ul_cont_cnt_axi           (ul_cont_cnt_axi_r1),
     .schhu_attempted_cnt_axi   (schhu_attempted_axi_r1),
     .schhu_ok_cnt_axi          (schhu_ok_axi_r1),
+    // Phase H.6.3 — AACH UL-Slot-Grant hint (PS-driven override)
+    .grant_consume_axi         (aach_grant_consume_axi_r1),
+    .aach_grant_info_axi       (aach_grant_info_axi_w),
+    .aach_grant_pending_axi    (aach_grant_pending_axi_w),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -2503,6 +2507,45 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
 end
 
 // =============================================================================
+// Phase H.6.3 — AACH UL-Slot-Grant CDC
+// AXI-side reg drives info[13:0] + pending → 2-FF resync to clk_sys for the
+// AACH encoder.  Encoder consume pulse → 2-FF resync clk_sys → clk_axi.
+// =============================================================================
+wire [13:0] aach_grant_info_axi_w;
+wire        aach_grant_pending_axi_w;
+
+(* ASYNC_REG = "TRUE" *) reg [13:0] aach_grant_info_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [13:0] aach_grant_info_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg        aach_grant_pending_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg        aach_grant_pending_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        aach_grant_info_sys_r0    <= 14'd0;
+        aach_grant_info_sys_r1    <= 14'd0;
+        aach_grant_pending_sys_r0 <= 1'b0;
+        aach_grant_pending_sys_r1 <= 1'b0;
+    end else begin
+        aach_grant_info_sys_r0    <= aach_grant_info_axi_w;
+        aach_grant_info_sys_r1    <= aach_grant_info_sys_r0;
+        aach_grant_pending_sys_r0 <= aach_grant_pending_axi_w;
+        aach_grant_pending_sys_r1 <= aach_grant_pending_sys_r0;
+    end
+end
+
+wire aach_grant_consume_sys_w;
+(* ASYNC_REG = "TRUE" *) reg aach_grant_consume_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg aach_grant_consume_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        aach_grant_consume_axi_r0 <= 1'b0;
+        aach_grant_consume_axi_r1 <= 1'b0;
+    end else begin
+        aach_grant_consume_axi_r0 <= aach_grant_consume_sys_w;
+        aach_grant_consume_axi_r1 <= aach_grant_consume_axi_r0;
+    end
+end
+
+// =============================================================================
 // Slot-Schedule BRAM (Plan Stufe 3, Port B rewired in Stufe 4)
 //
 // Dual-port BRAM: Port A = AXI (clk_axi, write + readback); Port B =
@@ -2840,6 +2883,10 @@ tetra_aach_encoder u_aach_encoder (
     .mcc_sys          (cell_cfg_mcc_sys_r1),
     .mnc_sys          (cell_cfg_mnc_sys_r1),
     .signalling_active_sys (sched_reply_active_by_content_w[tx_tn_next_sys]),
+    // Phase H.6.3 — UL-Slot-Grant override
+    .grant_pending_sys (aach_grant_pending_sys_r1),
+    .grant_info_sys    (aach_grant_info_sys_r1),
+    .grant_consume_sys (aach_grant_consume_sys_w),
     .encode_start_sys (tx_tdma_state_slot_pulse_sys),
     .aach_coded_sys   (aach_coded_sys_w),
     .aach_valid_sys   (aach_valid_sys_w)

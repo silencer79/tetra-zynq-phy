@@ -56,6 +56,18 @@ module tetra_aach_encoder (
     // Idle TN0 slots stay DL/UL-Assign Common/Random.
     input  wire        signalling_active_sys,
 
+    // H.6.3 — UL-Slot-Grant override.  When grant_pending_sys=1 and the slot
+    // being encoded is TN=0 idle (signalling_active_sys=0), the AACH info is
+    // overridden with grant_info_sys[13:0] instead of the default 0x0249.
+    // grant_pending_sys is held high by software (REG_AACH_GRANT_HINT[31])
+    // until the AACH encoder consumes it (consume pulse 1 cycle on encode_start
+    // when override fires).  grant_info_sys carries the 14-bit AACH info word
+    // to broadcast: header=01 (DL/UL-Assign), DL-usage / UL-usage as needed,
+    // Field2 = USSI or subslot index per ETSI EN 300 392-2 §21.5.2.
+    input  wire        grant_pending_sys,
+    input  wire [13:0] grant_info_sys,
+    output reg         grant_consume_sys,
+
     // Trigger — 1-cycle pulse, start new encoding
     input  wire        encode_start_sys,
 
@@ -137,7 +149,9 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         info_sys       <= 14'd0;
         aach_coded_sys <= 30'd0;
         aach_valid_sys <= 1'b0;
+        grant_consume_sys <= 1'b0;
     end else begin
+        grant_consume_sys <= 1'b0;
         case (state_sys)
         // -----------------------------------------------------------------
         S_IDLE: begin
@@ -150,7 +164,14 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
                 //   FN=18, TN!=0                → DL/UL-Assign Unalloc/Random
                 //                                (0x0049)
                 //   else                        → Capacity Allocation (0x3000)
-                if (tn_sys == 2'd0)
+                // H.6.3 grant-override: TN=0 idle slot + grant pending →
+                // broadcast operator-supplied DL/UL-Assign Field2 instead of
+                // the default Common/Random pattern.  Consume the hint so it
+                // fires on exactly one slot.
+                if (tn_sys == 2'd0 && !signalling_active_sys && grant_pending_sys) begin
+                    info_sys <= grant_info_sys;
+                    grant_consume_sys <= 1'b1;
+                end else if (tn_sys == 2'd0)
                     info_sys <= signalling_active_sys ? 14'h0009 : 14'h0249;
                 else if (fn_sys == 5'd17)
                     info_sys <= 14'h049;

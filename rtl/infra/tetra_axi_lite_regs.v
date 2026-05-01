@@ -373,6 +373,18 @@ module tetra_axi_lite_regs (
     input  wire [15:0] schhu_ok_cnt_axi,
 
     // ------------------------------------------------------------------
+    // Phase H.6.3 — AACH UL-Slot-Grant hint.
+    //   REG_AACH_GRANT_HINT @ 0x1F4
+    //     [31]    pending — SW-set, HW-clr on consume
+    //     [13:0]  info    — AACH 14-bit info word for the override slot
+    // grant_consume_axi pulses 1 cycle when the encoder consumes the hint,
+    // generated in top-level via 2-FF resync of grant_consume_sys.
+    // ------------------------------------------------------------------
+    input  wire        grant_consume_axi,
+    output wire [13:0] aach_grant_info_axi,
+    output wire        aach_grant_pending_axi,
+
+    // ------------------------------------------------------------------
     // DL-signalling scheduler config — cfg_signal_target_tn_axi
     // 2-bit R/W register (REG_SIGNAL_TARGET_TN @ 0x19C).  Drives which
     // TN of the next frame the scheduler injects the popped SCH/F into.
@@ -635,6 +647,9 @@ localparam [6:0] REG_SCHHU_VALID_CNT  = 7'h6F; // 0x1BC RO {16'd0, schhu_attempt
 localparam [6:0] REG_REASSEMBLY_T0    = 7'h77; // 0x1DC R/W [3:0] T0 in TDMA frames (0=default 2)
 localparam [6:0] REG_REASSEMBLY_STATS = 7'h78; // 0x1E0 RO  {drop_cnt[15:0], reassembled_cnt[15:0]}
 localparam [6:0] REG_SCHHU_CRC_CNT    = 7'h7C; // 0x1F0 RO {16'd0, schhu_ok[15:0]} Phase H.6.1
+localparam [6:0] REG_AACH_GRANT_HINT  = 7'h7D; // 0x1F4 R/W [31] pending (HW-clr on consume)
+                                              //         [13:0] info word (AACH 14-bit)
+                                              // Phase H.6.3 — UL-Slot-Grant override
 
 // Profile-Table indirect window (Phase 6 D-rev) — 0x1C0..0x1CC
 // 6 × 32-bit profile records (§9.2).  No DATA_HI — Profile is 32 bit, fits
@@ -949,6 +964,8 @@ always @(*) begin
         REG_UL_CONT_CNT:      rdata_mux_axi = {16'b0, ul_cont_cnt_axi};
         REG_SCHHU_VALID_CNT:  rdata_mux_axi = {16'b0, schhu_attempted_cnt_axi};
         REG_SCHHU_CRC_CNT:    rdata_mux_axi = {16'b0, schhu_ok_cnt_axi};
+        REG_AACH_GRANT_HINT:  rdata_mux_axi = {aach_grant_pending_axi, 17'b0,
+                                                aach_grant_info_axi};
         // Profile-Table indirect window (Phase 6 D-rev)
         REG_PROFILE_INDEX: rdata_mux_axi = {29'b0, profile_index_axi};
         REG_PROFILE_DATA:  rdata_mux_axi = profile_data_axi;
@@ -1094,6 +1111,32 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         if (wr_strb_axi[1]) ast_ttl_multiframes_axi[15: 8] <= wr_data_axi[15: 8];
         if (wr_strb_axi[2]) ast_ttl_multiframes_axi[23:16] <= wr_data_axi[23:16];
         if (wr_strb_axi[3]) ast_ttl_multiframes_axi[31:24] <= wr_data_axi[31:24];
+    end
+end
+
+// ---- AACH_GRANT_HINT register (0x1F4) — Phase H.6.3 ----
+// SW writes [31]=1 + [13:0]=info to schedule a one-shot UL-Slot-Grant on
+// the next TN=0 idle AACH.  HW pulses grant_consume_axi (1 cycle, resynced
+// from clk_sys side) and we clear [31].  SW-set wins on simultaneous events.
+reg [13:0] aach_grant_info_axi_r;
+reg        aach_grant_pending_axi_r;
+assign aach_grant_info_axi   = aach_grant_info_axi_r;
+assign aach_grant_pending_axi = aach_grant_pending_axi_r;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        aach_grant_info_axi_r    <= 14'd0;
+        aach_grant_pending_axi_r <= 1'b0;
+    end else begin
+        // HW-side clear on consume (lower priority than SW-set below)
+        if (grant_consume_axi)
+            aach_grant_pending_axi_r <= 1'b0;
+        // SW-set wins on simultaneous edge
+        if (wr_en_axi & (wr_addr_axi[8:2] == REG_AACH_GRANT_HINT)) begin
+            if (wr_strb_axi[0]) aach_grant_info_axi_r[ 7:0] <= wr_data_axi[ 7:0];
+            if (wr_strb_axi[1]) aach_grant_info_axi_r[13:8] <= wr_data_axi[13:8];
+            if (wr_strb_axi[3]) aach_grant_pending_axi_r    <= wr_data_axi[31];
+        end
     end
 end
 
