@@ -316,8 +316,8 @@ if $DO_INIT; then
              ${REMOTE_BIN_DIR}/tetra_db_mgr sync"
     echo "Subscriber-DB synced to FPGA EntityTable BRAM"
 
-    ssh_cmd "setsid /root/tetra_sysinfo < /dev/null > /tmp/tetra_sysinfo.log 2>&1 &"
-    echo "tetra_sysinfo started in background → /tmp/tetra_sysinfo.log"
+    ssh_cmd "setsid /root/tetra_sysinfo --daemon < /dev/null > /tmp/tetra_sysinfo.log 2>&1 &"
+    echo "tetra_sysinfo started in --daemon mode → /tmp/tetra_sysinfo.log"
 
     ssh_cmd "setsid /root/tetra_ul_mon  < /dev/null > /tmp/tetra_ul_mon.log  2>&1 &"
     echo "tetra_ul_mon  started in background → /tmp/tetra_ul_mon.log"
