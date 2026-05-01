@@ -1371,7 +1371,8 @@ def refine_timing(iq, ts_offset, sps, ref_dibits, ref_diff):
 # =============================================================================
 
 def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
-              max_bursts=200, conjugate=False, swap_iq=False, verbose=False):
+              max_bursts=200, conjugate=False, swap_iq=False, verbose=False,
+              dump_burst=-1):
     print("=" * 60)
     print(" TETRA Downlink Decoder — Full MAC/LLC/MLE")
     print("=" * 60)
@@ -1800,8 +1801,21 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
             if btype == 'NDB1':
                 # SCH/F combined
                 combined_soft = np.concatenate([blk1_soft, blk2_soft])
+
+                # Phase-1 dump-hook: vor Descramble die rohen on-air type-5
+                # hard-bits + nach Decode die 268 info bits ausgeben.
+                if dump_burst == idx:
+                    on_air_t5 = (np.concatenate([blk1_soft, blk2_soft]) < 0).astype(int).tolist()
+                    print(f"  ROUNDTRIP_DUMP type5_onair_432b={''.join(str(b) for b in on_air_t5)}")
+                    print(f"  ROUNDTRIP_DUMP scramb_code=0x{scramb_code:08x}")
+
                 combined_soft = descramble_soft(combined_soft, scramb_code, 432)
                 crc_ok, info_bits, _ = decode_channel_soft(combined_soft, 432, 103, 268)
+
+                if dump_burst == idx and crc_ok:
+                    info_str = ''.join(str(int(b)) for b in info_bits)
+                    print(f"  ROUNDTRIP_DUMP info_268b={info_str}")
+                    print(f"  ROUNDTRIP_DUMP info_hex=0x{int(info_str,2):067x}")
 
                 if crc_ok:
                     n_ndb_ok += 1
@@ -1836,6 +1850,22 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                     return c1, i1, c2, i2
 
                 crc1, info1, crc2, info2 = _decode_halves(soft_bits)
+
+                # Phase-1 NDB2 dump-hook (SCH/HD round-trip)
+                if dump_burst == idx:
+                    b1 = soft_bits[blk1_s : blk1_s + NDB_BLK1 * 2]
+                    b2 = soft_bits[blk2_s : blk2_s + NDB_BLK2 * 2]
+                    onair_b1 = (np.asarray(b1) < 0).astype(int).tolist()
+                    onair_b2 = (np.asarray(b2) < 0).astype(int).tolist()
+                    print(f"  ROUNDTRIP_DUMP_HD bkn1_onair_216b={''.join(str(b) for b in onair_b1)}")
+                    print(f"  ROUNDTRIP_DUMP_HD bkn2_onair_216b={''.join(str(b) for b in onair_b2)}")
+                    print(f"  ROUNDTRIP_DUMP_HD scramb_code=0x{scramb_code:08x}")
+                    if crc1:
+                        i1s = ''.join(str(int(b)) for b in info1)
+                        print(f"  ROUNDTRIP_DUMP_HD bkn1_info_124b={i1s}")
+                    if crc2:
+                        i2s = ''.join(str(int(b)) for b in info2)
+                        print(f"  ROUNDTRIP_DUMP_HD bkn2_info_124b={i2s}")
 
                 # Retry with timing jitter + phase rotation if either half failed.
                 # NTS-only phase fit (11 sym) extrapolates poorly over 108-sym BLKs.
@@ -2095,6 +2125,10 @@ if __name__ == '__main__':
                         help='RTL-SDR gain')
     parser.add_argument('--duration', type=float, default=2.0,
                         help='Capture duration in seconds')
+    parser.add_argument('--dump-burst', type=int, default=-1,
+                        help='Dump 268-bit SCH/F info + 432-bit type-5 hard '
+                             'bits for a single NDB1 burst index (Phase-1 '
+                             'verifier hook, used by verify_sch_f_roundtrip).')
     args = parser.parse_args()
 
     if args.capture:
@@ -2115,5 +2149,5 @@ if __name__ == '__main__':
     ok = decode_dl(args.input, sample_rate=args.sr,
                    freq_offset=args.offset, max_bursts=args.max_bursts,
                    conjugate=args.conjugate, swap_iq=args.swap_iq,
-                   verbose=args.verbose)
+                   verbose=args.verbose, dump_burst=args.dump_burst)
     sys.exit(0 if ok else 1)

@@ -1916,6 +1916,11 @@ tetra_axi_lite_regs u_axi_regs (
     .grant_consume_axi         (aach_grant_consume_axi_r1),
     .aach_grant_info_axi       (aach_grant_info_axi_w),
     .aach_grant_pending_axi    (aach_grant_pending_axi_w),
+    // Phase H.7 — D-NWRK-BROADCAST periodic push window
+    .nwrk_bcast_payload_axi    (nwrk_bcast_payload_axi_w),
+    .nwrk_bcast_trigger_axi    (nwrk_bcast_trigger_axi_w),
+    .nwrk_bcast_consume_axi    (nwrk_bcast_consume_axi_r1),
+    .nwrk_bcast_cnt_axi        (nwrk_bcast_cnt_axi_r1),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -2301,11 +2306,11 @@ tetra_dl_signal_queue #(
     // flag + nr for downstream ILA / AXI visibility.
     .wr_mle_second_pdu_present (mle_req_second_pdu_present_w),
     .wr_mle_second_pdu_nr      (mle_req_second_pdu_nr_w),
-    // CMCE producer — tied off
-    .wr_cmce_valid    (1'b0),
-    .wr_cmce_coded    (432'd0),
-    .wr_cmce_pdu_type (2'd0),
-    .wr_cmce_target_tn(2'd0),
+    // CMCE producer — Phase H.7 D-NWRK-BROADCAST periodic push
+    .wr_cmce_valid    (nwrk_bcast_push_valid_sys_w),
+    .wr_cmce_coded    (nwrk_bcast_push_coded_sys_w),
+    .wr_cmce_pdu_type (nwrk_bcast_push_pdu_type_sys_w),
+    .wr_cmce_target_tn(nwrk_bcast_push_target_tn_sys_w),
     // SDS producer — tied off
     .wr_sds_valid     (1'b0),
     .wr_sds_coded     (432'd0),
@@ -2542,6 +2547,77 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     end else begin
         aach_grant_consume_axi_r0 <= aach_grant_consume_sys_w;
         aach_grant_consume_axi_r1 <= aach_grant_consume_axi_r0;
+    end
+end
+
+// =============================================================================
+// Phase H.7 — D-NWRK-BROADCAST periodic push: CDC + Modul-Instance
+//
+// AXI side (clk_axi):
+//   nwrk_bcast_payload_axi_w  — 432-bit shadow built by SW via INDEX/DATA
+//   nwrk_bcast_trigger_axi_w  — W1S, set by SW write to REG_NWRK_BCAST_TRIGGER
+//   nwrk_bcast_consume_axi_r1 — pulse, cleared by axi_lite_regs.bcast_trigger
+//   nwrk_bcast_cnt_axi_r1     — push count for SW readback
+//
+// clk_sys side: tetra_dl_nwrk_broadcast consumes the trigger, pulses
+// wr_cmce_valid into the DL-Signal-Queue, increments push_cnt_sys.
+// =============================================================================
+wire [431:0] nwrk_bcast_payload_axi_w;
+wire         nwrk_bcast_trigger_axi_w;
+
+(* ASYNC_REG = "TRUE" *) reg [431:0] nwrk_bcast_payload_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [431:0] nwrk_bcast_payload_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg         nwrk_bcast_trigger_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg         nwrk_bcast_trigger_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        nwrk_bcast_payload_sys_r0 <= 432'd0;
+        nwrk_bcast_payload_sys_r1 <= 432'd0;
+        nwrk_bcast_trigger_sys_r0 <= 1'b0;
+        nwrk_bcast_trigger_sys_r1 <= 1'b0;
+    end else begin
+        nwrk_bcast_payload_sys_r0 <= nwrk_bcast_payload_axi_w;
+        nwrk_bcast_payload_sys_r1 <= nwrk_bcast_payload_sys_r0;
+        nwrk_bcast_trigger_sys_r0 <= nwrk_bcast_trigger_axi_w;
+        nwrk_bcast_trigger_sys_r1 <= nwrk_bcast_trigger_sys_r0;
+    end
+end
+
+wire         nwrk_bcast_push_valid_sys_w;
+wire [431:0] nwrk_bcast_push_coded_sys_w;
+wire [1:0]   nwrk_bcast_push_pdu_type_sys_w;
+wire [1:0]   nwrk_bcast_push_target_tn_sys_w;
+wire [15:0]  nwrk_bcast_push_cnt_sys_w;
+
+tetra_dl_nwrk_broadcast u_dl_nwrk_broadcast (
+    .clk_sys              (clk_sys),
+    .rst_n_sys            (rst_n_sys),
+    .payload_sys          (nwrk_bcast_payload_sys_r1),
+    .trigger_sys          (nwrk_bcast_trigger_sys_r1),
+    .cfg_mcch_tn_sys      (cfg_mcch_tn_sys_r1),
+    .wr_cmce_valid_sys    (nwrk_bcast_push_valid_sys_w),
+    .wr_cmce_coded_sys    (nwrk_bcast_push_coded_sys_w),
+    .wr_cmce_pdu_type_sys (nwrk_bcast_push_pdu_type_sys_w),
+    .wr_cmce_target_tn_sys(nwrk_bcast_push_target_tn_sys_w),
+    .push_cnt_sys         (nwrk_bcast_push_cnt_sys_w)
+);
+
+// CDC: consume pulse + counter clk_sys → clk_axi
+(* ASYNC_REG = "TRUE" *) reg nwrk_bcast_consume_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg nwrk_bcast_consume_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] nwrk_bcast_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] nwrk_bcast_cnt_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        nwrk_bcast_consume_axi_r0 <= 1'b0;
+        nwrk_bcast_consume_axi_r1 <= 1'b0;
+        nwrk_bcast_cnt_axi_r0     <= 16'd0;
+        nwrk_bcast_cnt_axi_r1     <= 16'd0;
+    end else begin
+        nwrk_bcast_consume_axi_r0 <= nwrk_bcast_push_valid_sys_w;
+        nwrk_bcast_consume_axi_r1 <= nwrk_bcast_consume_axi_r0;
+        nwrk_bcast_cnt_axi_r0     <= nwrk_bcast_push_cnt_sys_w;
+        nwrk_bcast_cnt_axi_r1     <= nwrk_bcast_cnt_axi_r0;
     end
 end
 

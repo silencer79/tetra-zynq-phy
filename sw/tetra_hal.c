@@ -1347,6 +1347,203 @@ static void daemon_signal_handler(int signum)
     g_daemon_running = 0;
 }
 
+/* ========================================================================
+ * Phase H.7 — D-NWRK-BROADCAST periodic push
+ *
+ * Builds a 268-bit MAC-RESOURCE+TM-SDU info PDU per ETSI EN 300 392-2
+ * §21.4.3.2 (broadcast addr), runs it through the SCH/F channel coder
+ * (CRC-16 + R=1/4 conv + R=2/3 punc + N=432 a=103 interleave + cell
+ * scramble), packs the resulting 432 bits into the FPGA's indirect
+ * payload window and pulses the trigger.  RTL (`tetra_dl_nwrk_broadcast`)
+ * forwards into the DL-Signal-Queue CMCE producer slot.
+ *
+ * Encoder math is bit-identical to scripts/gen_sch_f_tv.py.
+ * ======================================================================== */
+
+/* CRC-16 CCITT, poly 0x1021, init 0xFFFF, ones-complement final.
+ * `bits` holds nbits bit values (0/1) MSB-first, returns 16-bit CRC also
+ * MSB-first as bits[nbits..nbits+15].  Mirrors verify_sb1_encoder.crc16. */
+static void crc16_append(uint8_t *bits, int nbits)
+{
+    uint16_t crc = 0xFFFF;
+    for (int i = 0; i < nbits; i++) {
+        uint16_t fb = ((bits[i] & 1) << 15) ^ (crc & 0x8000);
+        crc = (crc << 1) & 0xFFFF;
+        if (fb) crc ^= 0x1021;
+    }
+    crc = (uint16_t)~crc;
+    for (int i = 0; i < 16; i++)
+        bits[nbits + i] = (crc >> (15 - i)) & 1;
+}
+
+/* Rate-1/4 convolutional mother + P_2/3 puncture (matches Python
+ * verify_sb1_encoder.conv_encode_r14 + puncture_r23 bit-for-bit).
+ *
+ * Mother (rate 1/4, K=5, per ETSI §8.2.3.1.2 / Table 8.x):
+ *   G1 mask 0x13  (D^4 + D + 1)
+ *   G2 mask 0x1D  (D^4 + D^3 + D^2 + 1)
+ *   G3 mask 0x17  (D^4 + D^2 + D + 1)
+ *   G4 mask 0x1B  (D^4 + D^3 + D + 1)
+ *
+ * Puncture (rate 2/3): per 8 mother bits keep indices [0, 1, 4].
+ * → For 288 input bits we get 1152 mother bits → 432 punctured bits. */
+static void conv_punc_r23(const uint8_t *in_bits, int n_in, uint8_t *out_bits)
+{
+    /* Build 1152-bit mother (4 × n_in) inline, emit only kept indices. */
+    uint8_t sr = 0;
+    int o = 0;
+    for (int i = 0; i < n_in; i += 2) {
+        /* Two input bits = 8 mother bits.  Keep [0,1,4] = first input's
+         * G1, G2, and second input's G1.                            */
+        uint8_t b0 = in_bits[i] & 1;
+        sr = (uint8_t)((sr << 1) | b0) & 0x1F;
+        out_bits[o++] = __builtin_parity(sr & 0x13);  /* G1(a) — kept idx 0 */
+        out_bits[o++] = __builtin_parity(sr & 0x1D);  /* G2(a) — kept idx 1 */
+        /* indices 2,3 (G3a,G4a) dropped */
+
+        if (i + 1 < n_in) {
+            uint8_t b1 = in_bits[i + 1] & 1;
+            sr = (uint8_t)((sr << 1) | b1) & 0x1F;
+            out_bits[o++] = __builtin_parity(sr & 0x13);  /* G1(b) — kept idx 4 */
+            /* indices 5,6,7 (G2b,G3b,G4b) dropped */
+        }
+    }
+    /* o should now be 432 for n_in=288 */
+}
+
+/* Multiplicative interleaver N=432, a=103 (ETSI Table 8.13).
+ *   y[i] = x[(a*i) mod N]    (1-based per spec, 0-based here) */
+static void interleave_sch_f_c(const uint8_t *in_bits, uint8_t *out_bits)
+{
+    const int N = 432, A = 103;
+    /* Per gen_sch_f_tv.py: out[1+(a*k)%N - 1] = in[k - 1]  → permutation */
+    for (int k = 1; k <= N; k++) {
+        int j = 1 + ((A * k) % N);
+        out_bits[j - 1] = in_bits[k - 1];
+    }
+}
+
+/* Cell scrambler — 32-bit Fibonacci LFSR with same taps as BSCH/AACH,
+ * init derived from MCC/MNC/CC ((MCC<<22)|(MNC<<8)|(CC<<2)|3).
+ * Or a runtime init value passed through directly (e.g. cell scrambling
+ * code 0x4183F207).  In-place XOR.                                  */
+static void scramble_with_init_c(uint8_t *bits, int n, uint32_t init)
+{
+    uint32_t lfsr = init ? init : 0xFFFFFFFFu;
+    for (int i = 0; i < n; i++) {
+        uint32_t fb = ((lfsr >> 0) ^ (lfsr >> 6) ^ (lfsr >> 9) ^
+                       (lfsr >> 10) ^ (lfsr >> 16) ^ (lfsr >> 20) ^
+                       (lfsr >> 21) ^ (lfsr >> 22) ^ (lfsr >> 24) ^
+                       (lfsr >> 25) ^ (lfsr >> 27) ^ (lfsr >> 28) ^
+                       (lfsr >> 30) ^ (lfsr >> 31)) & 1u;
+        bits[i] ^= (uint8_t)fb;
+        lfsr = (fb << 31) | (lfsr >> 1);
+    }
+}
+
+/* Full SCH/F encoder: 268 bits info → 432 bits type-5.
+ * Mirrors scripts/gen_sch_f_tv.py::encode_sch_f. */
+static void encode_sch_f_c(const uint8_t *info_268, uint32_t scramb_init,
+                           uint8_t *out_432)
+{
+    uint8_t buf[288];
+    /* type2 = info(268) + CRC(16) + tail(4) = 288 */
+    for (int i = 0; i < 268; i++) buf[i] = info_268[i] & 1;
+    crc16_append(buf, 268);
+    buf[284] = buf[285] = buf[286] = buf[287] = 0;
+
+    uint8_t mother_punc[432];
+    conv_punc_r23(buf, 288, mother_punc);
+
+    interleave_sch_f_c(mother_punc, out_432);
+    scramble_with_init_c(out_432, 432, scramb_init);
+}
+
+/* Build a 268-bit D-NWRK-BROADCAST PDU.  Static fields from Gold-Capture
+ * Burst #423 (verified bit-identical via Phase-1 round-trip), with the
+ * 24-bit Network-Time region overwritten by the live UTC clock. */
+static void build_d_nwrk_broadcast_268(time_t utc_now, uint8_t *info_268)
+{
+    /* Static template from Gold-Burst #423.  Bits 88..111 = Network-Time
+     * (we overwrite with UTC sec/min/hour packed).  All other bits are
+     * captured static.                                              */
+    static const uint8_t TEMPLATE[268] = {
+        /* 124 bit useful PDU (MAC-RESOURCE + TM-SDU + MM-Body) */
+        0,0,1,0, 0,0,0,0, 1,0,0,0, 0,0,0,1,    /*   0-15  */
+        1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,    /*  16-31  */
+        1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,    /*  32-47  */
+        0,0,0,0, 0,1,0,1, 0,1,0,1, 0,0,1,0,    /*  48-63  */
+        1,0,1,1, 0,0,1,0, 1,0,1,0, 1,0,0,1,    /*  64-79  */
+        1,0,0,0, 1,1,1,1, 1,1,0,0, 1,1,1,0,    /*  80-95  */
+        1,1,1,1, 1,1,0,0, 1,0,0,0, 0,1,0,0,    /*  96-111 */
+        0,0,1,0, 0,0,1,1, 1,1,1,1, 1,1,1,1,    /* 112-127 */
+        /* 144 bit padding/stuffing (NULL-PDU pattern) */
+        1,1,0,0, 0,1,0,0, 0,0,0,0, 0,0,0,0,    /* 128-143 */
+        0,0,0,1, 0,0,0,0, 1,0,0,0, 0,0,0,0,    /* 144-159 */
+        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,    /* 160-175 */
+        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,    /* 176-191 */
+        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,    /* 192-207 */
+        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,    /* 208-223 */
+        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,    /* 224-239 */
+        0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,    /* 240-255 */
+        0,0,0,0, 0,0,0,0, 0,0,0,0,             /* 256-267 */
+    };
+    memcpy(info_268, TEMPLATE, 268);
+
+    /* Pack UTC time into 24-bit field at bits[88..111].
+     * Layout: [88..92] hour(5b) [93..98] minute(6b) [99..104] sec(6b)
+     *         [105..111] reserved(7b, leave at 1).                    */
+    struct tm t;
+    gmtime_r(&utc_now, &t);
+    uint32_t time_field = ((t.tm_hour & 0x1F) << 19) |
+                          ((t.tm_min  & 0x3F) << 13) |
+                          ((t.tm_sec  & 0x3F) <<  7) |
+                          0x7F;  /* reserved bits */
+    for (int i = 0; i < 24; i++)
+        info_268[88 + i] = (uint8_t)((time_field >> (23 - i)) & 1);
+}
+
+/* Push 432-bit payload into the FPGA via indirect window + trigger.
+ * payload_432 is 432 bits MSB-first (bit 0 = first on-air bit).
+ * Maps to 14 × 32-bit words: word 0 = bits[0..15] in low 16 bit (top
+ * word is partial), words 1..13 = bits[16..431] full 32 bit each.   */
+static void push_d_nwrk_broadcast(tetra_hal_t *hal, const uint8_t *payload_432)
+{
+    /* Pack 432 bits into 14 × 32-bit words, MSB-first per word.
+     * Word layout (matches RTL g_nwrk_payload concat):
+     *   word  0: payload[431:416]  = top 16 bit (in lower 16 of word)
+     *   word  1: payload[415:384]  = next 32 bit
+     *   ...
+     *   word 13: payload[ 31:  0]  = bottom 32 bit                  */
+    uint32_t words[14];
+    /* First word = top 16 bits of payload (bits 0..15 of MSB-first input). */
+    uint32_t w0 = 0;
+    for (int i = 0; i < 16; i++) w0 = (w0 << 1) | (payload_432[i] & 1);
+    words[0] = w0;
+    for (int wi = 1; wi < 14; wi++) {
+        uint32_t w = 0;
+        int base = 16 + (wi - 1) * 32;
+        for (int b = 0; b < 32; b++) w = (w << 1) | (payload_432[base + b] & 1);
+        words[wi] = w;
+    }
+
+    for (int wi = 0; wi < 14; wi++) {
+        tetra_reg_write(hal, REG_NWRK_BCAST_INDEX, (uint32_t)wi);
+        tetra_reg_write(hal, REG_NWRK_BCAST_DATA,  words[wi]);
+    }
+    tetra_reg_write(hal, REG_NWRK_BCAST_TRIGGER, 1);
+}
+
+/* Combined: build PDU + encode + push. */
+static void tick_d_nwrk_broadcast(tetra_hal_t *hal, uint32_t scramb_init)
+{
+    uint8_t info_268[268];
+    uint8_t coded_432[432];
+    build_d_nwrk_broadcast_268(time(NULL), info_268);
+    encode_sch_f_c(info_268, scramb_init, coded_432);
+    push_d_nwrk_broadcast(hal, coded_432);
+}
+
 int main(int argc, char *argv[])
 {
     tetra_sysinfo_t info = {
@@ -1592,13 +1789,20 @@ int main(int argc, char *argv[])
     struct timespec next;
     clock_gettime(CLOCK_MONOTONIC, &next);
 
+    /* Phase H.7: daemon-Loop läuft jetzt mit ~7 s Periode für die
+     * D-NWRK-BROADCAST-Pushes.  Jeden 9. Tick (≈ 63 s) wird zusätzlich
+     * der Hyperframe-Counter inkrementiert + SYSINFO refreshed.        */
+    int hf_tick = 0;
+    /* Cell scrambler init aus MCC/MNC/CC (matches RTL u_aach_encoder
+     * lfsr_init_w pack). */
+    uint32_t scramb_init = ((uint32_t)(info.mcc & 0x3FF) << 22) |
+                           ((uint32_t)(info.mnc & 0x3FFF) <<  8) |
+                           ((uint32_t)(info.colour_code & 0x3F) << 2) |
+                           0x3u;
+    if (scramb_init == 0) scramb_init = 0xFFFFFFFFu;
+
     while (g_daemon_running) {
-        next.tv_sec  += 61;
-        next.tv_nsec += 200000000L;  /* +200 ms → 61.200 s total */
-        if (next.tv_nsec >= 1000000000L) {
-            next.tv_sec  += 1;
-            next.tv_nsec -= 1000000000L;
-        }
+        next.tv_sec  += 7;            /* 7 s D-NWRK-BROADCAST cadence */
 
         int rc;
         do {
@@ -1608,13 +1812,22 @@ int main(int argc, char *argv[])
         if (!g_daemon_running)
             break;
 
-        info.hyperframe = (uint16_t)(info.hyperframe + 1);
-        if (tetra_refresh_sysinfo(&hal, &info) != 0) {
-            fprintf(stderr, "daemon: SYSINFO refresh failed — continuing\n");
-            continue;
+        /* D-NWRK-BROADCAST push (every tick) */
+        tick_d_nwrk_broadcast(&hal, scramb_init);
+
+        /* SYSINFO Hyperframe advance every 9 ticks (≈ 63 s — close to
+         * the 61.2 s ETSI hyperframe period, off by 3% which is below
+         * what MS-TA81-Resync cares about). */
+        if (++hf_tick >= 9) {
+            hf_tick = 0;
+            info.hyperframe = (uint16_t)(info.hyperframe + 1);
+            if (tetra_refresh_sysinfo(&hal, &info) != 0) {
+                fprintf(stderr, "daemon: SYSINFO refresh failed — continuing\n");
+                continue;
+            }
+            printf("HN advance: hyperframe = %u (SYSINFO refreshed)\n",
+                   info.hyperframe);
         }
-        printf("HN advance: hyperframe = %u (SYSINFO refreshed)\n",
-               info.hyperframe);
     }
 
     printf("Daemon exiting on signal — leaving RTL running.\n");

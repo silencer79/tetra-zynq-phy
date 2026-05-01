@@ -385,6 +385,20 @@ module tetra_axi_lite_regs (
     output wire        aach_grant_pending_axi,
 
     // ------------------------------------------------------------------
+    // Phase H.7 — D-NWRK-BROADCAST periodic push.
+    //   REG_NWRK_BCAST_INDEX   @ 0x1D0 [3:0]   payload word index (0..13)
+    //   REG_NWRK_BCAST_DATA    @ 0x1D4 [31:0]  32-bit, write→payload[INDEX]
+    //   REG_NWRK_BCAST_TRIGGER @ 0x1D8 [0]     pulse: W1S, HW-clr on consume
+    //   REG_NWRK_BCAST_CNT     @ 0x1E4 [15:0]  push counter (sticky)
+    // 432-bit payload = 14 × 32 bit words (lower 432 bits of 448).
+    // bcast_consume_axi pulses 1 cycle when push-FSM consumes the trigger.
+    // ------------------------------------------------------------------
+    output wire [431:0] nwrk_bcast_payload_axi,
+    output wire         nwrk_bcast_trigger_axi,
+    input  wire         nwrk_bcast_consume_axi,
+    input  wire [15:0]  nwrk_bcast_cnt_axi,
+
+    // ------------------------------------------------------------------
     // DL-signalling scheduler config — cfg_signal_target_tn_axi
     // 2-bit R/W register (REG_SIGNAL_TARGET_TN @ 0x19C).  Drives which
     // TN of the next frame the scheduler injects the popped SCH/F into.
@@ -665,6 +679,12 @@ localparam [6:0] REG_PROFILE_DATA    = 7'h71; // 0x1C4  R/W record [31:0]
 // instead of the TSV mirror file.
 localparam [6:0] REG_PROFILE_DATA_RD = 7'h72; // 0x1C8  RO record [31:0]
 localparam [6:0] REG_PROFILE_CTRL    = 7'h73; // 0x1CC  W1S commit pulse
+
+// D-NWRK-BROADCAST periodic push (Phase H.7) — indirect 432-bit payload window
+localparam [6:0] REG_NWRK_BCAST_INDEX   = 7'h74; // 0x1D0  R/W [3:0] payload word index 0..13
+localparam [6:0] REG_NWRK_BCAST_DATA    = 7'h75; // 0x1D4  R/W 32-bit, indexed via INDEX
+localparam [6:0] REG_NWRK_BCAST_TRIGGER = 7'h76; // 0x1D8  W1S HW-clr on consume
+localparam [6:0] REG_NWRK_BCAST_CNT     = 7'h79; // 0x1E4  RO  [15:0] push counter
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -972,6 +992,11 @@ always @(*) begin
         // Phase 7 F.4 — drift-free read-back from RTL Profile-Table
         REG_PROFILE_DATA_RD: rdata_mux_axi = profile_rd_data_axi;
         REG_PROFILE_CTRL:  rdata_mux_axi = 32'b0; // self-clearing
+        // Phase H.7 — D-NWRK-BROADCAST indirect window
+        REG_NWRK_BCAST_INDEX:   rdata_mux_axi = {28'b0, nwrk_bcast_index_axi};
+        REG_NWRK_BCAST_DATA:    rdata_mux_axi = nwrk_bcast_payload_word_axi;
+        REG_NWRK_BCAST_TRIGGER: rdata_mux_axi = {31'b0, nwrk_bcast_trigger_r};
+        REG_NWRK_BCAST_CNT:     rdata_mux_axi = {16'b0, nwrk_bcast_cnt_axi};
         default:          rdata_mux_axi = 32'b0;
     endcase
 end
@@ -2001,6 +2026,68 @@ assign tx_tdma_sync_fn_axi     = tx_tdma_load_fn_axi;
 assign tx_tdma_sync_mn_axi     = tx_tdma_load_mn_axi;
 assign tx_tdma_sync_hn_axi     = tx_tdma_load_hn_axi;
 assign tx_tdma_sync_strobe_axi = tx_tdma_strobe_pulse_axi;
+
+// ---------------------------------------------------------------------------
+// Phase H.7 — D-NWRK-BROADCAST indirect window storage
+//
+// 14 × 32 bit payload words = 448 bit storage; lower 432 bit = SCH/F type-5
+// payload that the FPGA push-FSM forwards to the DL-Signal-Queue (CMCE port).
+// SW writes via INDEX → DATA pairs, then asserts TRIGGER (W1S).  HW pulses
+// nwrk_bcast_consume_axi 1 cycle after the push-FSM has consumed the trigger,
+// which clears the trigger reg.  CNT is a sticky 16-bit counter exported by
+// the push-FSM, here purely passed through to the rdata mux.
+// ---------------------------------------------------------------------------
+reg [3:0]   nwrk_bcast_index_axi;
+reg [31:0]  nwrk_bcast_payload_axi_r [0:13];
+reg         nwrk_bcast_trigger_r;
+
+wire [31:0] nwrk_bcast_payload_word_axi = nwrk_bcast_payload_axi_r[nwrk_bcast_index_axi];
+
+assign nwrk_bcast_trigger_axi = nwrk_bcast_trigger_r;
+
+// Pack 14 words → 432-bit bus.  Word 0 = MSB chunk (bits[431:400]),
+// Word 13 = LSB chunk (bits[15:0] in lower half — actually 32 bit per word
+// so word 13 covers bits[31:0]).  Order matches scripts/gen_sch_f_tv.py
+// which emits hex MSB-first across the 432-bit array.
+genvar gnwrk;
+generate
+    for (gnwrk = 0; gnwrk < 14; gnwrk = gnwrk + 1) begin : g_nwrk_payload
+        localparam integer WORD_HI = 432 - 1 - gnwrk * 32;
+        localparam integer WORD_LO = (gnwrk == 13) ? 0 : (432 - (gnwrk + 1) * 32);
+        if (gnwrk < 13) begin : g_full
+            assign nwrk_bcast_payload_axi[WORD_HI -: 32] = nwrk_bcast_payload_axi_r[gnwrk];
+        end else begin : g_last
+            // Last word: only lower 16 bits used, upper 16 of the 32-bit
+            // word are ignored (the 432-bit bus has 432 = 13*32 + 16 bit).
+            assign nwrk_bcast_payload_axi[15:0] = nwrk_bcast_payload_axi_r[gnwrk][31:16];
+        end
+    end
+endgenerate
+
+integer idx_init;
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        nwrk_bcast_index_axi <= 4'd0;
+        nwrk_bcast_trigger_r <= 1'b0;
+        for (idx_init = 0; idx_init < 14; idx_init = idx_init + 1)
+            nwrk_bcast_payload_axi_r[idx_init] <= 32'd0;
+    end else begin
+        if (nwrk_bcast_consume_axi)
+            nwrk_bcast_trigger_r <= 1'b0;
+        if (wr_en_axi & (wr_addr_axi[8:2] == REG_NWRK_BCAST_INDEX)) begin
+            if (wr_strb_axi[0]) nwrk_bcast_index_axi <= wr_data_axi[3:0];
+        end
+        if (wr_en_axi & (wr_addr_axi[8:2] == REG_NWRK_BCAST_DATA)) begin
+            if (wr_strb_axi[0]) nwrk_bcast_payload_axi_r[nwrk_bcast_index_axi][ 7: 0] <= wr_data_axi[ 7: 0];
+            if (wr_strb_axi[1]) nwrk_bcast_payload_axi_r[nwrk_bcast_index_axi][15: 8] <= wr_data_axi[15: 8];
+            if (wr_strb_axi[2]) nwrk_bcast_payload_axi_r[nwrk_bcast_index_axi][23:16] <= wr_data_axi[23:16];
+            if (wr_strb_axi[3]) nwrk_bcast_payload_axi_r[nwrk_bcast_index_axi][31:24] <= wr_data_axi[31:24];
+        end
+        if (wr_en_axi & (wr_addr_axi[8:2] == REG_NWRK_BCAST_TRIGGER)) begin
+            if (wr_strb_axi[0] && wr_data_axi[0]) nwrk_bcast_trigger_r <= 1'b1;
+        end
+    end
+end
 
 // ---------------------------------------------------------------------------
 // IRQ output — registered OR-reduce of (status & enable)

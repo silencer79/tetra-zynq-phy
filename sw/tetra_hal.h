@@ -237,6 +237,12 @@
 #define REG_PROFILE_CTRL     0x1CC
 #define PROFILE_CTRL_COMMIT  (1u << 0)
 
+/* Phase H.7 — D-NWRK-BROADCAST periodic push (indirect 432-bit window) */
+#define REG_NWRK_BCAST_INDEX     0x1D0   /* R/W [3:0]  payload word 0..13     */
+#define REG_NWRK_BCAST_DATA      0x1D4   /* R/W [31:0] indirect via INDEX     */
+#define REG_NWRK_BCAST_TRIGGER   0x1D8   /* W1S [0]    HW-clr on consume      */
+#define REG_NWRK_BCAST_CNT       0x1E4   /* RO  [15:0] sticky push counter    */
+
 /* UL_PDU_STATUS bitfield helpers (bluestation-aligned bit layout) */
 #define UL_STATUS_VALID(s)     (((s) >> 0)  & 0x1u)
 #define UL_STATUS_PDU_TYPE(s)  (((s) >> 1)  & 0x1u)
