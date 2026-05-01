@@ -1021,19 +1021,28 @@ module tetra_mle_registration_fsm #(
                     // Loop terminated — drop demand latch and proceed to
                     // the AST write step.
                     lat_demand_valid <= 1'b0;
-                    // Phase 7 F.6 — GILA-Source-Multiplexer.  Wenn die
-                    // MS mindestens eine erlaubte GSSI angefragt hat
-                    // (lat_group_count > 0), antwortet der GILA-Block im
-                    // D-LOC-UPDATE-ACCEPT mit der ersten akzeptierten
-                    // Group statt der EntityTable-Default-GSSI.  Damit
-                    // sieht das MS-MMI seine eigene gewählte Gruppe
-                    // bestätigt — ohne Match → MS bleibt rot.
-                    // Wenn lat_group_count==0: lat_gila_gssi behält den
-                    // Wert vom Default-GSSI-Lookup (Phase D-rev-Verhalten),
-                    // damit profile0_m2_guard und einfache 1-Group-Setups
-                    // weiter bit-identisch zur Gold-Ref bleiben.
-                    if (lat_group_count != 4'd0) begin
-                        lat_gila_gssi    <= lat_group_list[191:168];
+                    // Phase H.3.2 — GILA-Source-Multiplexer (raw MS-wish
+                    // echo).  Honor the first MS-requested GSSI from the
+                    // GILD IE directly, regardless of whether it appears
+                    // in EntityTable / passed Profile.permit_voice/data.
+                    // The MS-MMI sees its chosen group accepted; Phase J
+                    // SW Group-Switch will enforce real subscription
+                    // when the MS subsequently tries to talk on that
+                    // group (BS-side refusal at the call-setup layer).
+                    //
+                    // Empty/zero GILD (lat_demand_count==0 or wish==0):
+                    // lat_gila_gssi behält den Wert vom Default-GSSI-
+                    // Lookup (Phase D-rev-Verhalten), damit profile0_m2_
+                    // guard und einfache 1-Group-Setups weiter bit-
+                    // identisch zur Gold-Ref bleiben.
+                    //
+                    // The validation loop above still ran and populated
+                    // lat_group_list / lat_group_count for the AST
+                    // record — Phase J SW reads those to know which
+                    // wishes really passed subscription checks.
+                    if (lat_demand_count != 3'd0 &&
+                        lat_demand_gssi_array[23:0] != 24'd0) begin
+                        lat_gila_gssi    <= lat_demand_gssi_array[23:0];
                         lat_gila_present <= 1'b1;
                     end
                     state <= S_CHECK_START;
