@@ -274,6 +274,14 @@ if $DO_INIT; then
 
     bash "${SCRIPT_DIR}/tetra_ctrl.sh" full_init
 
+    # VCXO trim — ohne diesen DAC-Wert driftet der Board-Takt; Wert 153
+    # wurde als sweet-spot kalibriert (siehe scripts/vcxo_cal.sh).
+    bash "${SCRIPT_DIR}/vcxo_cal.sh" --host 192.168.2.180 --dac 153
+
+    # Operativer RF-Pfad: RX 438.250 MHz, TX 428.250 MHz, TX_ATT=-10 dB.
+    # Kevin's Standard-Setup, war bisher manueller Schritt.
+    bash "${SCRIPT_DIR}/tetra_ctrl.sh" rf_loopback 438250000 428250000 20 -10
+
     # Subscriber-DB boot-sync: ensure /var/lib/tetra/db.tsv exists, is in
     # the Phase 6 D-rev 4-column format, and is pushed to the FPGA EntityTable
     # BRAM. If a legacy 7-column TSV from an earlier phase is present, back it
