@@ -157,33 +157,50 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         S_IDLE: begin
             if (encode_start_sys) begin
                 // Per-slot AACH info — Gold-Cell bit-genau verifiziert
-                // (1278 Burst-Slots in docs/references/captures_external_bs_
-                // 2026-04-25/decode_dl_full.log):
+                // (Capture GOLD_DL_…GRUPPENRUF.wav, 7338 Slot-Decode + AACH-
+                // Schedule-Histogramm 2026-05-02):
                 //
                 //   F18 TN=0 MN%4==2 (BSCH-Anker, SB)        → 0x0049 Unalloc/Random
                 //   F18 TN=0 MN%4∈{0,1,3} (NDB2 BNCH)        → 0x0249 Common/Random
-                //   F18 TN!=0 (SB)                           → 0x0040 Unalloc/Random
+                //   F18 TN!=0 MN%4==1 (SB)                   → 0x0040 Unalloc/Random
+                //   F18 TN!=0 MN%4∈{0,2,3}                   → 0x2249 Reserved f1=9 f2=9
                 //   F1-17 TN=0 + signalling-active reply     → 0x0009 Unalloc/Unalloc
                 //   F1-17 TN=0 + idle (NDB2 MCCH)            → 0x0249 Common/Random
-                //   F1-17 TN!=0 (Pilot SB)                   → 0x3000 CapAlloc
+                //   F1-17 TN!=0 MN%4==1 + FN(ETSI)=3..13     → 0x2049 Reserved f1=1 f2=9
+                //   F1-17 TN!=0 MN%4==3 + FN(ETSI)=14..17    → 0x2049 Reserved f1=1 f2=9
+                //   F1-17 TN!=0 sonst (Traffic-Slot-CapAlloc) → 0x3CCB CapAlloc f1=11 f2=11
+                //
+                // FN-Codierung: fn_sys = ETSI FN-1, also fn_sys=2..12 == FN 3..13,
+                // fn_sys=13..16 == FN 14..17, fn_sys=17 == FN 18.
                 //
                 // Branch-Reihenfolge: F18 vor TN=0, sonst fällt der F18-TN=0
                 // BSCH-Anker durch.  H.6.3 grant-override wirkt nur auf den
                 // F1-17 TN=0 idle-Pfad (signalling_active=0, kein F18).
                 if (fn_sys == 5'd17) begin
+                    // F18-Bereich
                     if (tn_sys == 2'd0 && mn_low2_sys == 2'd2)
-                        info_sys <= 14'h0049;             // F18 BSCH-Anker
+                        info_sys <= 14'h0049;             // F18 TN=0 BSCH-Anker
                     else if (tn_sys == 2'd0)
                         info_sys <= 14'h0249;             // F18 TN=0 NDB2 BNCH
+                    else if (mn_low2_sys == 2'd1)
+                        info_sys <= 14'h0040;             // F18 TN!=0 MN%4=1 SB
                     else
-                        info_sys <= 14'h0040;             // F18 TN!=0 SB
+                        info_sys <= 14'h2249;             // F18 TN!=0 MN%4∈{0,2,3} Reserved
                 end else if (tn_sys == 2'd0 && !signalling_active_sys && grant_pending_sys) begin
                     info_sys <= grant_info_sys;
                     grant_consume_sys <= 1'b1;
                 end else if (tn_sys == 2'd0) begin
                     info_sys <= signalling_active_sys ? 14'h0009 : 14'h0249;
                 end else begin
-                    info_sys <= 14'h3000;
+                    // F1-17 TN!=0 (Traffic-Slots) — Gold rotiert nach FN/MN%4
+                    if (mn_low2_sys == 2'd1 &&
+                        fn_sys >= 5'd2 && fn_sys <= 5'd12)
+                        info_sys <= 14'h2049;             // FN=3..13 MN%4=1 Reserved
+                    else if (mn_low2_sys == 2'd3 &&
+                             fn_sys >= 5'd13 && fn_sys <= 5'd16)
+                        info_sys <= 14'h2049;             // FN=14..17 MN%4=3 Reserved
+                    else
+                        info_sys <= 14'h3CCB;             // Default CapAlloc f1=11 f2=11
                 end
                 // Init LFSR; handle degenerate lfsr=0 case (never in practice)
                 lfsr_sys     <= (lfsr_init_w == 32'h0) ? 32'hFFFFFFFF

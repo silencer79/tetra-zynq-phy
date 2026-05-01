@@ -127,23 +127,12 @@ initial begin
     rst_n_sys = 1'b1;
     repeat (3) @(posedge clk_sys);
 
-    // TC1-TC4 reproduce the legacy CapAlloc(F1)/DLUL-Assign(F18) reference
-    // vectors from scripts/gen_aach_reference.py (info=0x3000 / 0x0040).
-    $display("=== TC1 F1  TN=2 cc=9  mcc=901  mnc=9998  expect 0x09857ABF ===");
-    run_encode(5'd0, 2'd2, 2'd0, 6'd9, 10'd901, 14'd9998);
-    check("TC1", 30'h09857ABF);
-
-    $display("=== TC2 F18 TN=2 cc=9  mcc=901  mnc=9998  expect 0x39C533E0 ===");
-    run_encode(5'd17, 2'd2, 2'd0, 6'd9, 10'd901, 14'd9998);
-    check("TC2", 30'h39C533E0);
-
-    $display("=== TC3 F1  TN=2 cc=36 mcc=262  mnc=106   expect 0x3781E09B ===");
-    run_encode(5'd0, 2'd2, 2'd0, 6'd36, 10'd262, 14'd106);
-    check("TC3", 30'h3781E09B);
-
-    $display("=== TC4 F18 TN=2 cc=36 mcc=262  mnc=106   expect 0x07C1A9C4 ===");
-    run_encode(5'd17, 2'd2, 2'd0, 6'd36, 10'd262, 14'd106);
-    check("TC4", 30'h07C1A9C4);
+    // TC1-TC4 entfernt: alte gen_aach_reference.py-Vektoren basierten auf
+    // info=0x3000 / 0x0040.  Mit der 2026-05-02 AACH-Schedule-Erweiterung
+    // (Gold-Pattern auf TN!=0) gibt das DUT jetzt info=0x3CCB / 0x2249 für
+    // dieselben Slot-Positionen.  Die info-Werte werden via TC13-TC17
+    // direkt asserted; der RM-Encoder-Pfad ist durch den unveränderten
+    // RM-encode-Code abgedeckt.
 
     // TC5/TC6: F1-17 TN=0 idle (NDB2 MCCH) → info=0x0249 (Common/Random)
     $display("=== TC5 F1  TN=0 cc=9  mcc=901  mnc=9998  expect 0x3BCC8E90 ===");
@@ -203,16 +192,9 @@ initial begin
         fail_cnt = fail_cnt + 1;
     end
 
-    // TC11: F18 TN!=0 must have info14=0x0040 (Gold), not 0x0049 (alter Bug)
-    $display("=== TC11 F18 TN=2 → info14=0x0040 (Gold, NICHT 0x0049!) ===");
-    run_encode(5'd17, 2'd2, 2'd0, 6'd9, 10'd901, 14'd9998);
-    if (u_dut.info_sys == 14'h0040) begin
-        $display("PASS TC11: info14=0x%04x", u_dut.info_sys);
-        pass_cnt = pass_cnt + 1;
-    end else begin
-        $display("FAIL TC11: info14=0x%04x  expected 0x0040", u_dut.info_sys);
-        fail_cnt = fail_cnt + 1;
-    end
+    // TC11 entfernt: war F18 TN=2 MN%4=0 → 0x0040.  Mit der 2026-05-02
+    // Gold-Schedule-Erweiterung gibt F18 TN!=0 MN%4=0 jetzt 0x2249.
+    // TC16/TC17 decken die neue F18-MN%4-Rotation ab.
 
     // TC12: TN=0 signalling-active (DL-Reply läuft) → info=0x0009
     $display("=== TC12 F1 TN=0 signalling_active=1 → info14=0x0009 ===");
@@ -225,6 +207,59 @@ initial begin
         pass_cnt = pass_cnt + 1;
     end else begin
         $display("FAIL TC12: info14=0x%04x  expected 0x0009", u_dut.info_sys);
+        fail_cnt = fail_cnt + 1;
+    end
+
+    // ------------------------------------------------------------------
+    // 2026-05-02 Erweiterung: Gold-Pattern auf TN!=0 nach FN/MN%4
+    // ------------------------------------------------------------------
+    $display("=== TC13 F1 TN=2 MN%%4=0 → info14=0x3CCB (CapAlloc f1=11 f2=11) ===");
+    run_encode(5'd0, 2'd2, 2'd0, 6'd9, 10'd901, 14'd9998);
+    if (u_dut.info_sys == 14'h3CCB) begin
+        $display("PASS TC13: info14=0x%04x", u_dut.info_sys);
+        pass_cnt = pass_cnt + 1;
+    end else begin
+        $display("FAIL TC13: info14=0x%04x  expected 0x3CCB", u_dut.info_sys);
+        fail_cnt = fail_cnt + 1;
+    end
+
+    $display("=== TC14 F1(FN=4) TN=2 MN%%4=1 → info14=0x2049 (Reserved) ===");
+    run_encode(5'd3, 2'd2, 2'd1, 6'd9, 10'd901, 14'd9998);
+    if (u_dut.info_sys == 14'h2049) begin
+        $display("PASS TC14: info14=0x%04x", u_dut.info_sys);
+        pass_cnt = pass_cnt + 1;
+    end else begin
+        $display("FAIL TC14: info14=0x%04x  expected 0x2049", u_dut.info_sys);
+        fail_cnt = fail_cnt + 1;
+    end
+
+    $display("=== TC15 F1(FN=15) TN=2 MN%%4=3 → info14=0x2049 (Reserved) ===");
+    run_encode(5'd14, 2'd2, 2'd3, 6'd9, 10'd901, 14'd9998);
+    if (u_dut.info_sys == 14'h2049) begin
+        $display("PASS TC15: info14=0x%04x", u_dut.info_sys);
+        pass_cnt = pass_cnt + 1;
+    end else begin
+        $display("FAIL TC15: info14=0x%04x  expected 0x2049", u_dut.info_sys);
+        fail_cnt = fail_cnt + 1;
+    end
+
+    $display("=== TC16 F18 TN=2 MN%%4=0 → info14=0x2249 (Reserved f1=9 f2=9) ===");
+    run_encode(5'd17, 2'd2, 2'd0, 6'd9, 10'd901, 14'd9998);
+    if (u_dut.info_sys == 14'h2249) begin
+        $display("PASS TC16: info14=0x%04x", u_dut.info_sys);
+        pass_cnt = pass_cnt + 1;
+    end else begin
+        $display("FAIL TC16: info14=0x%04x  expected 0x2249", u_dut.info_sys);
+        fail_cnt = fail_cnt + 1;
+    end
+
+    $display("=== TC17 F18 TN=2 MN%%4=1 → info14=0x0040 (Unalloc/Random) ===");
+    run_encode(5'd17, 2'd2, 2'd1, 6'd9, 10'd901, 14'd9998);
+    if (u_dut.info_sys == 14'h0040) begin
+        $display("PASS TC17: info14=0x%04x", u_dut.info_sys);
+        pass_cnt = pass_cnt + 1;
+    end else begin
+        $display("FAIL TC17: info14=0x%04x  expected 0x0040", u_dut.info_sys);
         fail_cnt = fail_cnt + 1;
     end
 
