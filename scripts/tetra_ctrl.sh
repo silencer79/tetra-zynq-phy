@@ -400,6 +400,7 @@ cmd_full_init() {
     bash "${PROJ_DIR}/scripts/ad9361_init.sh" \
         --host "$BOARD_IP" \
         --freq "$rx_freq" \
+        --tx-freq "$tx_freq" \
         --samplerate 4608000 \
         --agc || { echo "ERROR: ad9361_init.sh (step 2) failed"; exit 1; }
 
@@ -417,6 +418,7 @@ cmd_full_init() {
     bash "${PROJ_DIR}/scripts/ad9361_init.sh" \
         --host "$BOARD_IP" \
         --freq "$rx_freq" \
+        --tx-freq "$tx_freq" \
         --samplerate 4608000 \
         --agc || { echo "ERROR: ad9361_init.sh (step 4) failed"; exit 1; }
 

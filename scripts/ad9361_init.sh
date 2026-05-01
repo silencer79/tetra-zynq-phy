@@ -37,6 +37,7 @@ SSH_HOST="192.168.2.180"
 SSH_USER="root"
 SSH_PASS="openwifi"
 RX_FREQ_HZ=429950000
+TX_FREQ_HZ=""              # leer → RX+10 MHz Default; sonst expliziter Wert
 SAMPLERATE_HZ=4608000
 RX_GAIN_DB=40
 GAIN_MODE="slow_attack"    # manual | slow_attack | fast_attack
@@ -46,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --host)       SSH_HOST="$2";       shift 2 ;;
         --freq)       RX_FREQ_HZ="$2";     shift 2 ;;
+        --tx-freq)    TX_FREQ_HZ="$2";     shift 2 ;;
         --samplerate) SAMPLERATE_HZ="$2";  shift 2 ;;
         --gain)       RX_GAIN_DB="$2";     shift 2 ;;
         --agc)        GAIN_MODE="slow_attack"; shift 1 ;;
@@ -156,7 +158,9 @@ iio_set_dev() {
 echo ""
 echo "--- AD9361 TETRA-Konfiguration ---"
 
-TX_FREQ_HZ=$(( RX_FREQ_HZ + 10000000 ))
+if [[ -z "$TX_FREQ_HZ" ]]; then
+    TX_FREQ_HZ=$(( RX_FREQ_HZ + 10000000 ))
+fi
 BW_HZ=200000  # 200 kHz — minimum AD9361, optimal for 25 kHz TETRA
 
 # 1. Samplerate RX (setzt automatisch BBPLL + Decimation)
