@@ -2120,27 +2120,27 @@ tetra_active_session_table #(
 // the D-LOC-UPDATE-ACCEPT reply so the MS recognises the response as its
 // own (the previous 10-bit short_ssi was bit-misaligned and produced
 // ssi=523 for every Motorola MS — see commit `feat(ul-parser):` for fix).
-wire [23:0] mle_ul_ssi_w = ul_issi_sys;
-// Accept mm_type 4 (U-LOC-UPDATE-DEMAND, complete PDU) and mm_type 2
-// (frag_flag=1 fragment header — both MTP3550 and the gold-ref external MS
-// emit this as their initial registration burst; the real MM-type lives in
-// the un-reassembled remainder, but the external BS treats this as a valid
-// trigger for D-LOC-UPDATE-ACCEPT — see PROTOCOL.md §9 / capture
-// docs/references/captures_external_bs_2026-04-25/).
-wire        mle_ul_req_wrapped_w =
-    ul_pdu_valid_sys &&
-    ul_llc_is_bl_data_w &&
-    ul_llc_is_mle_mm_w &&
-    ((ul_llc_mm_pdu_type_w == 4'h4) || (ul_llc_mm_pdu_type_w == 4'h2));
-wire        mle_ul_req_direct_w =
-    ul_pdu_valid_sys &&
-    ((ul_mm_pdu_type_sys == 4'h4) || (ul_mm_pdu_type_sys == 4'h2));
+//
+// Phase H.3.1 (2026-05-01) — MLE trigger moved from single-burst-bypass
+// hack (mm=2/4 on Frag-1) to the reassembly + IE-parse path.  The old
+// hack fired BEFORE the reassembled MM body had been walked by the IE
+// parser, so `lat_demand_*` were not populated when the FSM reached
+// S_GSSI_QUERY_DEFAULT_DONE → MS-Wunsch-GSSI was always ignored
+// (fallback to Profile-Default).  The new trigger fires only when:
+//   - reassembly completed and IE parser finished without overrun
+//     (`iep_parse_done_sys & iep_parse_ok_sys`)
+//   - the GILD walker extracted a valid GroupIdentityLocationDemand
+//     (`iep_gild_valid_sys`)
+// On the same clk edge the MLE-FSM's parallel `if (demand_parsed_valid)`
+// block latches `lat_demand_ssi/count/gssi/class`, so the MS-Wunsch
+// is available by the time the FSM reaches S_GSSI_LOOP_NEXT (many
+// cycles later).  SSI + loc_upd_type also come from the parser
+// outputs to avoid stale values from a later unrelated burst.
 wire        mle_ul_req_valid_w =
-    mle_ul_req_wrapped_w || mle_ul_req_direct_w;
-wire [2:0]  mle_ul_loc_upd_type_w =
-    mle_ul_req_wrapped_w ? ul_llc_mm_loc_upd_type_w : ul_loc_upd_type_sys;
-wire        mle_ul_use_l2sig_w =
-    mle_ul_req_direct_w && !mle_ul_req_wrapped_w;
+    iep_parse_done_sys && iep_parse_ok_sys && iep_gild_valid_sys;
+wire [23:0] mle_ul_ssi_w          = iep_pdu_ssi_sys;
+wire [2:0]  mle_ul_loc_upd_type_w = iep_loc_upd_type_sys;
+wire        mle_ul_use_l2sig_w    = 1'b0;
 
 // DL scrambler seed pack — identical to tetra_aach_encoder.v line 127.
 wire [31:0] mle_dl_scramb_init_sys = {cell_cfg_mcc_sys_r1,
