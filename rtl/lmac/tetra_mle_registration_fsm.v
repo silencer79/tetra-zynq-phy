@@ -390,9 +390,13 @@ module tetra_mle_registration_fsm #(
     // rewiring needed.
     // -------------------------------------------------------------------------
     wire [7:0]  slot_grant_packed_w;
+    // Gold-Pre-Reply Burst #775: slot_granting_element = 0x01
+    //   = capacity_allocation(0) | granting_delay(1)
+    // Phase H.3.2 (2026-05-02): granting_delay 0→1 für Bit-Identity zu Gold.
+    // Frühere 4'd0 ergab packed=0x00 — 1-Bit-Drift gegen Gold im SG-Element.
     tetra_basic_slotgrant_encoder u_slotgrant (
         .capacity_allocation (4'd0),
-        .granting_delay      (4'd0),
+        .granting_delay      (4'd1),
         .packed_element      (slot_grant_packed_w)
     );
 
@@ -660,7 +664,7 @@ module tetra_mle_registration_fsm #(
     reg [5:0] state;
     // Profile-Table read latency for the per-GSSI Profile lookup loop.
     reg [3:0] lat_gssi_profile_id;
-    reg [2:0] gap_slot_count;
+    reg [3:0] gap_slot_count;     // 4 bits für 2-Frame-Wartezeit (8 slot_pulses)
     // Profile-Table read latency = 1 cycle (registered output); we drive
     // profile_rd_idx in S_PROFILE_QUERY and consume profile_rd_data 2
     // cycles later via S_PROFILE_WAIT.
@@ -681,7 +685,7 @@ module tetra_mle_registration_fsm #(
             lat_existing      <= 1'b0;
             lat_accept_info_bits <= 268'd0;
             lat_short_info_bits  <= 124'd0;
-            gap_slot_count    <= 3'd0;
+            gap_slot_count    <= 4'd0;
             ast_wr_en         <= 1'b0;
             ast_wr_idx        <= {AST_IDX_WIDTH{1'b0}};
             ast_wr_data       <= {AST_REC_WIDTH{1'b0}};
@@ -1241,23 +1245,29 @@ module tetra_mle_registration_fsm #(
                     req_second_pdu_present <= 1'b0;
                     req_second_pdu_nr      <= 1'b0;
                     req_valid      <= 1'b1;
-                    gap_slot_count <= 3'd4;
+                    // Phase H.3.2c (2026-05-02) — Δ Pre-Reply → ACCEPT = 2 Frames.
+                    // Gold-Capture-Verifikation (3 Pärchen #775/#783, #2515/#2523,
+                    // #4107/#4115): ACCEPT konsequent auf TN1/FN=N+2 nach Pre-Reply
+                    // auf TN1/FN=N — also 8 slot_pulses Wartezeit (= 2 TDMA-Frames).
+                    // Vorher gap_slot_count=4 ergab nur 4 slot_pulses = 1 Frame
+                    // (DL-Capture 17:03 zeigte ACCEPT 1F nach Pre-Reply, nicht 2F).
+                    // Initial 8: count 8→7→6→...→1 = 8 Decrements via 8 Pulses,
+                    // bei count==1 Transition zu S_BUILD_ACCEPT_START.
+                    gap_slot_count <= 4'd8;
                     state          <= S_WAIT_GAP_FRAME;
                 end
             end
 
             // -----------------------------------------------------------------
             // Match the external BS spacing: the short SCH/HD pre-reply appears
-            // on TN1/FN=N, the full SCH/F accept two frames later on TN1/FN=N+2.
-            // The scheduler pops at most one signalling PDU per frame, so hold
-            // the accept back for one full TDMA frame (4 slot pulses) after the
-            // pre-reply request has been queued.
+            // on TN1/FN=N, the full SCH/F accept two frames later on TN1/FN=N+2
+            // (= 8 slot pulses).  Per Gold-Korrelation 2026-05-02 verifiziert.
             S_WAIT_GAP_FRAME: begin
                 if (slot_pulse) begin
-                    if (gap_slot_count == 3'd1)
+                    if (gap_slot_count == 4'd1)
                         state <= S_BUILD_ACCEPT_START;
                     else
-                        gap_slot_count <= gap_slot_count - 3'd1;
+                        gap_slot_count <= gap_slot_count - 4'd1;
                 end
             end
 

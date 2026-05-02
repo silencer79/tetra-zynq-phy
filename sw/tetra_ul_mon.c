@@ -183,17 +183,26 @@ int main(int argc, char *argv[])
             last_count = count;
             first = 0;
 
-            /* Phase H.6.3 + Bug-3 — AACH UL-Slot-Grant Trigger.
-             * Gold-Cell sendet 156× ein statisches `[Reserved] f1=1 f2=9`
-             * = 14'h2049 (Header=10 SCG, Field1=1, Field2=9) in 110 s,
-             * unabhängig von der MS-SSI.  Hypothese: das Pattern ist ein
-             * Cell-weiter "Slot-Reserviert-für-aktive-MS"-Indicator, kein
-             * adressierter Grant.  Wir feuern ihn on-demand pro Frag-1.   */
-            if (frag == 1 && at == 0) {
-                uint32_t info14 = 0x2049u;          /* Header=10, f1=1, f2=9 */
-                uint32_t hint   = 0x80000000u | info14;
-                tetra_reg_write(&hal, REG_AACH_GRANT_HINT, hint);
-            }
+            /* Phase H.3.2c (2026-05-02) — AACH-Grant-Hint deaktiviert.
+             *
+             * Vorher (Phase H.6.3): tetra_ul_mon schrieb per Frag-1 ein
+             * 0x2049 (Header=10) in REG_AACH_GRANT_HINT, das die nächste
+             * idle-MCCH-AACH überschrieb.  Mit Phase H.3.2 triggert nun
+             * die MLE-FSM bereits auf frag1_pulse_w und emittiert die
+             * Pre-Reply LI=7 mit korrektem AACH 0x0009 — exakt auf der
+             * Frame-Position, an der vorher der 0x2049-Override gewann.
+             * Race-Condition: ul_mon-Hint und MLE-FSM zielen dieselbe
+             * AACH an, ul_mon gewinnt fälschlicherweise → DL-Capture
+             * 17:03 zeigte AACH=0x2049 statt 0x0009 auf Pre-Reply-Slot
+             * (Gold-Drift, MS interpretiert Header=10 als „Reserved").
+             *
+             * Mit H.3.2 ist der Hint funktional redundant — MLE-FSM
+             * macht das Gold-konforme Pre-Reply komplett.  Override
+             * weglassen → AACH = MLE-FSM-Output (0x0009 oder 0x0249).
+             *
+             * Frühere "MS schweigt ohne Override"-Befund (12:04 Test)
+             * war ein anderer Bug-Zustand vor Pre-Reply-Trigger-Fix.  */
+            (void)frag; (void)at;
 
             /* W1C clear sticky — hw-set-wins, so if another PDU arrives
              * same cycle we won't lose it. */

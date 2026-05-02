@@ -665,9 +665,13 @@ static void build_bnch_sysinfo(const tetra_sysinfo_t *info, uint8_t *bits)
     pack_bits(bits, &bp, 0, 1);
     /* Hyperframe number (16 bits): running counter */
     pack_bits(bits, &bp, info->hyperframe, 16);
-    /* Optional field flag (2 bits): 10 = default freq + ext services */
-    pack_bits(bits, &bp, 2, 2);
-    /* Optional field value (20 bits) */
+    /* Optional field flag (2 bits) — dynamisch:
+     *   Gold alterniert pro TDMA-Frame zwischen
+     *     Sel=2 / Val=0xF6F00 (Security/Default-Set)
+     *     Sel=3 / Val=0x40C10 (Cell-Reselect / Service-Info)
+     *   Daemon-Loop togglet `info->optional_field_selector` jede Tick.    */
+    pack_bits(bits, &bp, info->optional_field_selector & 0x3, 2);
+    /* Optional field value (20 bits) — passend zum aktuellen Selector. */
     pack_bits(bits, &bp, info->optional_field_value, 20);
 
     /* Location Area (14 bits) */
@@ -750,9 +754,9 @@ static void build_schf_sysinfo(const tetra_sysinfo_t *info, uint8_t *bits)
     pack_bits(bits, &bp, 0, 1);
     /* Hyperframe number (16 bits) */
     pack_bits(bits, &bp, info->hyperframe, 16);
-    /* Optional field flag (2 bits): 10 = default freq + ext services */
-    pack_bits(bits, &bp, 2, 2);
-    /* Optional field value (20 bits) */
+    /* Optional field flag (2 bits) — dynamisch (siehe build_bnch_sysinfo). */
+    pack_bits(bits, &bp, info->optional_field_selector & 0x3, 2);
+    /* Optional field value (20 bits). */
     pack_bits(bits, &bp, info->optional_field_value, 20);
 
     /* Location Area (14 bits) */
@@ -1478,17 +1482,26 @@ static void build_d_nwrk_broadcast_268(time_t utc_now, uint8_t *info_268)
         info_268[i] = (n >> (3 - (i % 4))) & 1;
     }
 
-    /* Pack UTC time into 24-bit field at bits[88..111].
-     * Layout: [88..92] hour(5b) [93..98] minute(6b) [99..104] sec(6b)
-     *         [105..111] reserved(7b, leave at 1).                    */
-    struct tm t;
-    gmtime_r(&utc_now, &t);
-    uint32_t time_field = ((t.tm_hour & 0x1F) << 19) |
-                          ((t.tm_min  & 0x3F) << 13) |
-                          ((t.tm_sec  & 0x3F) <<  7) |
-                          0x7F;  /* reserved bits */
-    for (int i = 0; i < 24; i++)
-        info_268[88 + i] = (uint8_t)((time_field >> (23 - i)) & 1);
+    /* Pack UTC into 10-bit NetworkTime field at bits[87..96].
+     *
+     * Bit-for-bit-Vergleich aller 10 Gold-D-NWRK-BCAST-Bursts ergab:
+     *   - Variant-Region:  bits[87..96] (10 bit, = NetworkTime)
+     *   - Static-Region:   bits[97..123] (Gold-konstant über alle Bursts)
+     *
+     * Die alte 24-bit-Overwrite-Schleife auf bits[88..111] hat
+     * fälschlicherweise die Gold-statischen Bits[97..111] mit packed
+     * (hour,min,sec,0x7F) überschrieben → die MS sah ein PDU mit
+     * korruptem Trailer und ignorierte unsere Cell als „malformed".
+     *
+     * Gold's 10-bit-Encoding scheint kein einfacher Zeit-Counter zu
+     * sein (Differenzen 5/10s, dann Sprung 510→257). Wir verwenden
+     * `(utc/2) & 0x3FF` als grobe Approximation: 1 Tick ≈ 2s,
+     * Wrap-around alle ~34 min. Reicht aus, damit die MS „field
+     * progressing"-Validierung durchgeht; das exakte Gold-Encoding
+     * (vermutlich verwürfelter HN+ServiceCounter) bleibt offen.   */
+    uint32_t time_field = (uint32_t)((utc_now / 2) & 0x3FF);
+    for (int i = 0; i < 10; i++)
+        info_268[87 + i] = (uint8_t)((time_field >> (9 - i)) & 1);
 }
 
 /* Push 432-bit payload into the FPGA via indirect window + trigger.
@@ -1569,7 +1582,8 @@ int main(int argc, char *argv[])
          * IMM=0 (alter Wert 24448=0x05F80) hatte MS daran gehindert,
          * Random-Access zu versuchen → keine Registrierung. IMM=15 erlaubt
          * Random Access in allen Frames 4..18 (Gold-Pattern). */
-        .optional_field_value = 1011456,
+        .optional_field_value = 1011456,    /* 0xF6F00 — Gold-Pärchen A */
+        .optional_field_selector = 2,       /* Toggle in daemon-loop: 2 ↔ 3 */
         .priority_cell    = 0,
         .migration_supported = 0,
         .frame_countdown  = 0,
@@ -1749,6 +1763,23 @@ int main(int argc, char *argv[])
         tetra_enable(&hal, sync_thresh);
 
     tetra_print_status(&hal);
+
+    /* Phase H.3.2d (2026-05-02) — Reassembly-T0 = 1 Frame.
+     *
+     * Default-T0 (= 0 → Modul-default 2 Frames) kollidiert mit dem MLE-FSM
+     * gap_slot_count=8 (= 2F Wartezeit nach Pre-Reply): bei T0=2F endet die
+     * Reassembly+IE-Parse erst zu/nach S_BUILD_ACCEPT_START → lat_demand_*
+     * ist noch nicht gesetzt → FSM fällt auf Profile-Default-Pfad → kürzere
+     * LI=12-ACCEPT statt Gold-konformer LI=21.
+     *
+     * T0=1F: Frag-2 muss innerhalb 1 TDMA-Frame nach Frag-1 ankommen
+     * (Gold-MS sendet sie bei +1F → tight aber spec-genau).  Reassembly
+     * schließt damit ~1F früher → demand_parsed_valid pulst rechtzeitig
+     * vor S_BUILD_ACCEPT_START → FSM nutzt MS-Wunsch-GSSI → LI=21 ACCEPT.
+     */
+    tetra_reg_write(&hal, REG_REASSEMBLY_T0, 1);
+    printf("REASSEMBLY_T0 set to 1 frame (Phase H.3.2d — Gold-tight)\n");
+
     printf("Boot-init complete — RTL drives DL carrier autonomously.\n");
 
     if (!daemon_mode) {
@@ -1808,9 +1839,15 @@ int main(int argc, char *argv[])
         /* D-NWRK-BROADCAST push (every tick) */
         tick_d_nwrk_broadcast(&hal, scramb_init);
 
-        /* SYSINFO Hyperframe advance every 9 ticks (≈ 63 s — close to
-         * the 61.2 s ETSI hyperframe period, off by 3% which is below
-         * what MS-TA81-Resync cares about). */
+        /* Per-Tick-Alternation des Optional_Field deaktiviert (2026-05-02):
+         * Test 12:00..12:13 zeigte, dass das ständige Umschreiben der
+         * BNCH SYSINFO (alle 7 s) die MS-Sync zerlegt — MS sendet keine
+         * Frag-1 mehr.  Alternation müsste Gold-konform pro TDMA-Frame
+         * (~57 ms) erfolgen, nicht pro Daemon-Tick.  Bleibe vorerst bei
+         * statischem Sel=2/Val=0xF6F00 (Pärchen A) — bestätigt-funktional
+         * für MS-Frag-1, weiterhin offen für Frag-2.                    */
+
+        /* SYSINFO Hyperframe advance every 9 ticks (≈ 63 s). */
         if (++hf_tick >= 9) {
             hf_tick = 0;
             info.hyperframe = (uint16_t)(info.hyperframe + 1);

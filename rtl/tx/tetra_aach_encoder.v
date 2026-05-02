@@ -168,7 +168,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
                 //   F1-17 TN=0 + idle (NDB2 MCCH)            → 0x0249 Common/Random
                 //   F1-17 TN!=0 MN%4==1 + FN(ETSI)=3..13     → 0x2049 Reserved f1=1 f2=9
                 //   F1-17 TN!=0 MN%4==3 + FN(ETSI)=14..17    → 0x2049 Reserved f1=1 f2=9
-                //   F1-17 TN!=0 sonst (Traffic-Slot-CapAlloc) → 0x3CCB CapAlloc f1=11 f2=11
+                //   F1-17 TN!=0 sonst (Traffic-Slot-CapAlloc) → 0x32CB CapAlloc f1=11 f2=11
                 //
                 // FN-Codierung: fn_sys = ETSI FN-1, also fn_sys=2..12 == FN 3..13,
                 // fn_sys=13..16 == FN 14..17, fn_sys=17 == FN 18.
@@ -200,7 +200,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
                              fn_sys >= 5'd13 && fn_sys <= 5'd16)
                         info_sys <= 14'h2049;             // FN=14..17 MN%4=3 Reserved
                     else
-                        info_sys <= 14'h3CCB;             // Default CapAlloc f1=11 f2=11
+                        info_sys <= 14'h32CB;             // Default CapAlloc f1=11 f2=11 (Gold-bit-genau)
                 end
                 // Init LFSR; handle degenerate lfsr=0 case (never in practice)
                 lfsr_sys     <= (lfsr_init_w == 32'h0) ? 32'hFFFFFFFF

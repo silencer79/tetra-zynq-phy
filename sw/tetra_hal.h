@@ -299,6 +299,7 @@ typedef struct {
     uint8_t  access_parameter;         /* 4 bits */
     uint8_t  radio_dl_timeout;         /* 4 bits */
     uint32_t optional_field_value;     /* 20 bits */
+    uint8_t  optional_field_selector;  /* 2 bits — 2=Security, 3=CellReselect (Gold alterniert) */
     uint8_t  priority_cell;            /* 1 bit */
     uint8_t  migration_supported;      /* 1 bit */
 

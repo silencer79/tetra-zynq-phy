@@ -2154,11 +2154,27 @@ tetra_active_session_table #(
 // is available by the time the FSM reaches S_GSSI_LOOP_NEXT (many
 // cycles later).  SSI + loc_upd_type also come from the parser
 // outputs to avoid stale values from a later unrelated burst.
-wire        mle_ul_req_valid_w =
-    iep_parse_done_sys && iep_parse_ok_sys && iep_gild_valid_sys;
-wire [23:0] mle_ul_ssi_w          = iep_pdu_ssi_sys;
-wire [2:0]  mle_ul_loc_upd_type_w = iep_loc_upd_type_sys;
-wire        mle_ul_use_l2sig_w    = 1'b0;
+// Phase H.3.2 (2026-05-02) — REVERT von H.3.1: MLE trigger zurück auf
+// Frag-1-Pulse statt Reassembly+IE-Parse-Done.  Begründung:
+//   Per Gold-Spec (`reference_gold_full_attach_timeline.md`) sendet die
+//   BS Pre-Reply LI=7 AL-SETUP exakt 1 Frame nach Frag-1-Empfang —
+//   BEVOR Frag-2 überhaupt gesendet wurde.  Die MS sendet Frag-2 erst
+//   NACHDEM sie im DL die Pre-Reply (AACH=0x0009) gesehen hat.
+//   H.3.1 hat den Trigger auf "post-reassembly" verschoben → Pre-Reply
+//   feuert nie, weil ohne Pre-Reply kein Frag-2, ohne Frag-2 kein
+//   reassembly → MS retried Frag-1 endlos (verifiziert über UL-WAV
+//   2026-05-02: 51 Frag-1 Bursts, 0 Frag-2 in 31s).
+//
+// AL-SETUP enthält keinen MM-Body — nur SSI nötig, das die MAC-ACCESS-
+// Parser auf der Frag-1-Pulse-Cycle bereits liefert.  ACCEPT-Pfad nutzt
+// weiterhin den parallelen `demand_parsed_valid`-Latch (FSM zeile 773),
+// der `lat_demand_*` mit IEP-Output befüllt sobald Frag-2 reassembliert
+// und IE-geparst ist.  Falls Frag-2 nicht rechtzeitig ankommt, fällt
+// ACCEPT auf Profile-Default-GSSI zurück (= profile0_m2_guard).
+wire        mle_ul_req_valid_w     = frag1_pulse_w;
+wire [23:0] mle_ul_ssi_w           = ul_issi_sys;
+wire [2:0]  mle_ul_loc_upd_type_w  = ul_loc_upd_type_sys;
+wire        mle_ul_use_l2sig_w     = 1'b0;
 
 // DL scrambler seed pack — identical to tetra_aach_encoder.v line 127.
 wire [31:0] mle_dl_scramb_init_sys = {cell_cfg_mcc_sys_r1,
