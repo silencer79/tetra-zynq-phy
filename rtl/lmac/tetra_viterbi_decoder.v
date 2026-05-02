@@ -273,84 +273,68 @@ module tetra_viterbi_decoder #(
     reg [MAX_STAGES-1:0] surv_s8,  surv_s9,  surv_s10, surv_s11;
     reg [MAX_STAGES-1:0] surv_s12, surv_s13, surv_s14, surv_s15;
 
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s0  <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s0[stage_cnt_sys]  <= g_acs[0].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s1  <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s1[stage_cnt_sys]  <= g_acs[1].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s2  <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s2[stage_cnt_sys]  <= g_acs[2].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s3  <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s3[stage_cnt_sys]  <= g_acs[3].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s4  <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s4[stage_cnt_sys]  <= g_acs[4].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s5  <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s5[stage_cnt_sys]  <= g_acs[5].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s6  <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s6[stage_cnt_sys]  <= g_acs[6].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s7  <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s7[stage_cnt_sys]  <= g_acs[7].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s8  <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s8[stage_cnt_sys]  <= g_acs[8].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s9  <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s9[stage_cnt_sys]  <= g_acs[9].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s10 <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s10[stage_cnt_sys] <= g_acs[10].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s11 <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s11[stage_cnt_sys] <= g_acs[11].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s12 <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s12[stage_cnt_sys] <= g_acs[12].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s13 <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s13[stage_cnt_sys] <= g_acs[13].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s14 <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s14[stage_cnt_sys] <= g_acs[14].surv_w;
     end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) surv_s15 <= {MAX_STAGES{1'b0}};
-        else if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
+    always @(posedge clk_sys) begin
+        if ((state_sys == S_IDLE || state_sys == S_ACS) && input_valid)
             surv_s15[stage_cnt_sys] <= g_acs[15].surv_w;
     end
 
@@ -470,9 +454,8 @@ module tetra_viterbi_decoder #(
     // =========================================================================
     reg [MAX_STAGES-1:0] out_buf_sys;
 
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys) out_buf_sys <= {MAX_STAGES{1'b0}};
-        else if (state_sys == S_TRACEBACK)
+    always @(posedge clk_sys) begin
+        if (state_sys == S_TRACEBACK)
             out_buf_sys[tb_stage_w] <= tb_state_sys[3];
     end
 
