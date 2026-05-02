@@ -260,6 +260,11 @@ tetra_crc16 u_crc16 (
 reg [7:0] crc_fed_cnt_sys;
 
 // -------------------------------------------------------------------------
+// Integers for loops
+// -------------------------------------------------------------------------
+integer idx_i;
+
+// -------------------------------------------------------------------------
 // Main FSM
 // -------------------------------------------------------------------------
 always @(posedge clk_sys or negedge rst_n_sys) begin
@@ -276,6 +281,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         vit_soft1_sys         <= {VIT_SOFT_WIDTH{1'b0}};
         vit_soft2_sys         <= {VIT_SOFT_WIDTH{1'b0}};
         vit_soft3_sys         <= {VIT_SOFT_WIDTH{1'b0}};
+        vit_out_buf_sys       <= {CRC_LEN{1'b0}};
         vit_out_cnt_sys       <= 8'd0;
         crc_init_sys          <= 1'b0;
         crc_data_valid_sys    <= 1'b0;
@@ -290,6 +296,11 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         lfsr_sys              <= 32'hFFFF_FFFF;
         lfsr_cnt_sys          <= 8'd0;
         lfsr_running_sys      <= 1'b0;
+        scramb_seq_sys        <= {N_TX{1'b0}};
+        for (idx_i = 0; idx_i < N_TX; idx_i = idx_i + 1) begin
+            buf_soft_sys[idx_i]  <= {SOFT_IN_WIDTH{1'b0}};
+            buf_deint_sys[idx_i] <= {SOFT_IN_WIDTH{1'b0}};
+        end
     end else begin
         // Defaults for pulse signals
         vit_input_valid_sys <= 1'b0;
