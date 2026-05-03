@@ -252,6 +252,8 @@ if $DO_SW; then
     if [ -d "$WEB_DIR" ]; then
         echo "Uploading WebUI..."
         ssh_cmd "mkdir -p /www/cgi-bin"
+        # Phase X.4.5 — purge stale CGIs that no longer exist in the repo
+        ssh_cmd "rm -f /www/cgi-bin/profiles.cgi"
         scp_to "${WEB_DIR}/index.html" "/www/index.html"
         for f in "${WEB_DIR}"/*.cgi; do
             [ -f "$f" ] || continue

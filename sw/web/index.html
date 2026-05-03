@@ -72,7 +72,6 @@ td.num { text-align: right; }
 <div class="tabs">
   <div class="tab active" id="tab-cfg"      onclick="showTab('cfg')">Cell Config</div>
   <div class="tab"        id="tab-subs"     onclick="showTab('subs')">Subscribers</div>
-  <div class="tab"        id="tab-profiles" onclick="showTab('profiles')">Profiles</div>
 </div>
 
 <!-- ========================= CELL CONFIG TAB ========================= -->
@@ -179,28 +178,51 @@ td.num { text-align: right; }
 <h2>Active Sessions</h2>
 <table id="cnt-tbl">
   <thead><tr>
-    <th>ul_req</th><th>accept</th><th>drop</th><th>detach</th>
-    <th>evict</th><th>sig_override</th><th>clear</th>
+    <th>ul_req</th><th>accept</th><th>drop</th>
+    <th>sig_override</th><th>clear</th>
+    <th>nwrk_push</th><th>demand_drop</th>
   </tr></thead>
   <tbody><tr id="cnt-row">
-    <td class="num">-</td><td class="num">-</td><td class="num">-</td><td class="num">-</td>
     <td class="num">-</td><td class="num">-</td><td class="num">-</td>
+    <td class="num">-</td><td class="num">-</td>
+    <td class="num">-</td><td class="num">-</td>
   </tr></tbody>
 </table>
 <div class="kv">Last ISSI: <b id="li-dec">-</b> (<b id="li-hex">-</b>)
-  &nbsp;&middot;&nbsp; TTL MFs: <b id="ttl-mfs">-</b>
   &nbsp;&middot;&nbsp; busy_sticky=<b id="busy-st">-</b>
 </div>
-<div class="kv" style="margin-top:6px">
-  Access policy:
-  <b id="pol-mode">-</b>
-  (accept_unknown=<b id="pol-acc">-</b>)
-  &nbsp;<button id="pol-btn" type="button" onclick="togglePolicy()">Toggle</button>
+
+<h2>DB Status (sw/db.tsv)</h2>
+<div class="kv">
+  ISSI entries: <b id="db-issi">-</b>
+  &nbsp;&middot;&nbsp; GSSI entries: <b id="db-gssi">-</b>
+  &nbsp;&middot;&nbsp; Total: <b id="db-total">-</b>
+</div>
+
+<h2>Mailbox Status (Phase X.1+X.2+H.7)</h2>
+<div class="kv">
+  demand_pending=<b id="mb-pending">-</b>
+  &nbsp;&middot;&nbsp; reply_use_sw=<b id="mb-usesw">-</b>
+  &nbsp;&middot;&nbsp; nwrk_push_cnt=<b id="mb-nwrk">-</b>
+</div>
+
+<h2>Access Policy (REG_DB_POLICY @ 0x1AC)</h2>
+<div class="kv">
+  Accept unknown ISSI:
+  <b id="pol-issi">-</b>
+  &nbsp;<button id="pol-issi-btn" type="button" onclick="togglePolicyBit('issi')">Toggle</button>
+  &nbsp;&middot;&nbsp;
+  Accept unknown GSSI:
+  <b id="pol-gssi">-</b>
+  &nbsp;<button id="pol-gssi-btn" type="button" onclick="togglePolicyBit('gssi')">Toggle</button>
   <span id="pol-msg" style="margin-left:8px;color:#888"></span>
 </div>
+
 <div id="mon-pre">(no log)</div>
 
-<h2>Registered Entities (EntityTable §9.2)</h2>
+<h2>Registered Entities (sw/db.tsv §9.2)
+  <button type="button" class="btn-status" onclick="refreshEntities()" style="float:right;font-size:0.8em;padding:4px 10px;">Reload DB</button>
+</h2>
 <table id="ent-tbl">
   <thead><tr>
     <th>Slot</th><th>Entity ID</th><th>Type</th><th>Profile</th><th></th>
@@ -213,8 +235,8 @@ td.num { text-align: right; }
 <h2>Add Entity</h2>
 <form id="add-form" class="add-form" onsubmit="return addSub(event)">
   <div class="grid">
-    <label>Slot <span>0-255</span>
-      <input name="slot" type="number" value="1" min="0" max="255" required>
+    <label>Slot <span>0-255 — leer = auto-find</span>
+      <input name="slot" type="number" value="" min="0" max="255">
     </label>
     <label>Entity ID <span>24-bit (ISSI or GSSI)</span>
       <input name="entity_id" type="number" value="0" min="0" max="16777215" required>
@@ -244,93 +266,26 @@ td.num { text-align: right; }
 
 </div><!-- /view-subs -->
 
-<!-- ========================= PROFILES TAB ========================= -->
-<div class="view" id="view-profiles">
-<h2>Profile Table (§9.2 — 6 slots × 32 bit)</h2>
-<table id="prof-tbl">
-  <thead><tr>
-    <th>Slot</th><th>data (hex)</th>
-    <th>max_call_dur</th><th>hangtime</th><th>priority</th>
-    <th>gila_class</th><th>gila_lifetime</th>
-    <th>V</th><th>D</th><th>R</th><th>valid</th>
-    <th></th>
-  </tr></thead>
-  <tbody id="prof-tbody">
-    <tr><td colspan="12">(loading)</td></tr>
-  </tbody>
-</table>
-
-<h2>Edit Profile</h2>
-<div id="prof-warn" style="display:none; background:#3d2510; color:#f0c060; padding:8px 12px; border-radius:4px; font-family:monospace; font-size:0.85em; margin-bottom:8px;">
-  ⚠ Slot 0 ist M2-Default. <code>gila_class=4, gila_lifetime=1, permits=1, valid=1</code> NICHT ändern — sonst bricht der MTP3550-Attach. Falls wirklich nötig: Force-Override per <code>curl ... -d "force=1&amp;..."</code>.
-</div>
-<form id="prof-form" class="add-form" onsubmit="return setProfile(event)">
-  <div class="grid">
-    <label>Slot <span>0..5</span>
-      <select name="slot" onchange="onProfSlotChange()">
-        <option value="0" selected>0 (M2 default = 0x0000088F)</option>
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-      </select>
-    </label>
-    <label>max_call_duration <span>0..255 sec, 0=unlimited</span>
-      <input name="max" type="number" value="0" min="0" max="255">
-    </label>
-    <label>hangtime <span>0..255 (×100 ms)</span>
-      <input name="hangtime" type="number" value="0" min="0" max="255">
-    </label>
-    <label>priority <span>0..15</span>
-      <input name="priority" type="number" value="0" min="0" max="15">
-    </label>
-    <label>gila_class <span>0..7 (M2=4)</span>
-      <input name="gila_class" type="number" value="4" min="0" max="7">
-    </label>
-    <label>gila_lifetime <span>0..3 (M2=1)</span>
-      <input name="gila_lifetime" type="number" value="1" min="0" max="3">
-    </label>
-  </div>
-  <div class="checks">
-    <label><input name="permit_voice" type="checkbox" value="1" checked> permit_voice</label>
-    <label><input name="permit_data"  type="checkbox" value="1" checked> permit_data</label>
-    <label><input name="permit_reg"   type="checkbox" value="1" checked> permit_reg</label>
-    <label><input name="valid"        type="checkbox" value="1" checked> valid</label>
-  </div>
-  <div class="actions">
-    <button class="btn-add" type="submit">Apply</button>
-  </div>
-</form>
-<div id="prof-msg" class="subs-msg"></div>
-
-</div><!-- /view-profiles -->
-
 <script>
 function qs(s) { return document.querySelector(s); }
 function showStatus(txt) { var el = qs('#status'); el.style.display = 'block'; el.textContent = txt; }
 
 /* -------- Tab switching -------- */
-var pollSessId = 0, pollEntId = 0, pollProfId = 0;
+var pollSessId = 0;
 function showTab(name) {
-  var ids = ['cfg', 'subs', 'profiles'];
+  var ids = ['cfg', 'subs'];
   for (var i = 0; i < ids.length; i++) {
     var v = document.getElementById('view-' + ids[i]);
     var t = document.getElementById('tab-' + ids[i]);
     if (ids[i] === name) { v.classList.add('active'); t.classList.add('active'); }
     else                 { v.classList.remove('active'); t.classList.remove('active'); }
   }
-  // Stop all polls; restart whichever the active tab needs.
+  // Stop session-poll; restart only when 'subs' is active.
+  // entities.cgi is on-demand only (Reload button + post-Add/Del).
   if (pollSessId) { clearInterval(pollSessId); pollSessId = 0; }
-  if (pollEntId)  { clearInterval(pollEntId);  pollEntId  = 0; }
-  if (pollProfId) { clearInterval(pollProfId); pollProfId = 0; }
   if (name === 'subs') {
     refreshSessions(); refreshEntities();
     pollSessId = setInterval(refreshSessions, 2000);
-    pollEntId  = setInterval(refreshEntities, 5000);
-  } else if (name === 'profiles') {
-    refreshProfiles();
-    pollProfId = setInterval(refreshProfiles, 5000);
   }
 }
 
@@ -371,6 +326,11 @@ function getState() {
 }
 
 /* -------- Subscribers tab: sessions polling -------- */
+function fmtBit(v, onTxt, offTxt, el) {
+  if (v == null)         { el.textContent = '-'; el.style.color = ''; }
+  else if (v == 1)       { el.textContent = onTxt;  el.style.color = '#1a7f37'; }
+  else                   { el.textContent = offTxt; el.style.color = '#b41c1c'; }
+}
 function refreshSessions() {
   fetch('/cgi-bin/sessions.cgi')
     .then(function(r) { return r.json(); })
@@ -382,27 +342,30 @@ function refreshSessions() {
         cells[0].textContent = c.ul_req       == null ? '-' : c.ul_req;
         cells[1].textContent = c.accept       == null ? '-' : c.accept;
         cells[2].textContent = c.drop         == null ? '-' : c.drop;
-        cells[3].textContent = c.detach       == null ? '-' : c.detach;
-        cells[4].textContent = c.evict        == null ? '-' : c.evict;
-        cells[5].textContent = c.sig_override == null ? '-' : c.sig_override;
-        cells[6].textContent = c.clear        == null ? '-' : c.clear;
+        cells[3].textContent = c.sig_override == null ? '-' : c.sig_override;
+        cells[4].textContent = c.clear        == null ? '-' : c.clear;
+        cells[5].textContent = c.nwrk_push_cnt   == null ? '-' : c.nwrk_push_cnt;
+        cells[6].textContent = c.demand_drop_cnt == null ? '-' : c.demand_drop_cnt;
       }
       qs('#li-dec').textContent  = j.last_issi == null ? '-' : j.last_issi;
       qs('#li-hex').textContent  = j.last_issi_hex || '-';
-      qs('#ttl-mfs').textContent = j.ttl_mfs   == null ? '-' : j.ttl_mfs;
-      qs('#pol-acc').textContent = j.policy_accept_unknown == null ? '-' : j.policy_accept_unknown;
-      var mode = qs('#pol-mode');
-      if (j.policy_accept_unknown == null) {
-        mode.textContent = '-';
-        mode.style.color = '';
-      } else if (j.policy_accept_unknown == 1) {
-        mode.textContent = 'OPEN (accept unknown ISSIs)';
-        mode.style.color = '#1a7f37';
-      } else {
-        mode.textContent = 'RESTRICTED (DB permit only)';
-        mode.style.color = '#b41c1c';
-      }
       qs('#busy-st').textContent = (c && c.busy_sticky != null) ? c.busy_sticky : '-';
+
+      // DB stats
+      var db = j.db || {};
+      qs('#db-issi').textContent  = db.issi_cnt == null ? '-' : db.issi_cnt;
+      qs('#db-gssi').textContent  = db.gssi_cnt == null ? '-' : db.gssi_cnt;
+      qs('#db-total').textContent = db.total    == null ? '-' : db.total;
+
+      // Mailbox status
+      qs('#mb-pending').textContent = j.demand_pending == null ? '-' : j.demand_pending;
+      qs('#mb-usesw').textContent   = j.reply_use_sw   == null ? '-' : j.reply_use_sw;
+      qs('#mb-nwrk').textContent    = c.nwrk_push_cnt  == null ? '-' : c.nwrk_push_cnt;
+
+      // Two policy bits
+      fmtBit(j.policy_accept_unknown_issi, 'an (1)', 'aus (0)', qs('#pol-issi'));
+      fmtBit(j.policy_accept_unknown_gssi, 'an (1)', 'aus (0)', qs('#pol-gssi'));
+
       var mon = qs('#mon-pre');
       if (j.recent_ul_mon && j.recent_ul_mon.length) {
         mon.textContent = j.recent_ul_mon.join('\n');
@@ -416,17 +379,22 @@ function refreshSessions() {
     });
 }
 
-/* -------- Subscribers tab: access policy toggle -------- */
-function togglePolicy() {
-  var cur = qs('#pol-acc').textContent;
-  var next = (cur === '1') ? '0' : '1';
+/* -------- Subscribers tab: access policy toggles (Bit 0 / Bit 1) -------- */
+function togglePolicyBit(which) {
+  // which = 'issi' | 'gssi'
+  var elId  = (which === 'gssi') ? '#pol-gssi' : '#pol-issi';
+  var field = (which === 'gssi') ? 'accept_unknown_gssi' : 'accept_unknown_issi';
+  var curTxt = qs(elId).textContent || '';
+  // Cur "an (1)" -> 1, "aus (0)" -> 0, anything else -> assume 0.
+  var cur = (curTxt.indexOf('1') >= 0) ? 1 : 0;
+  var next = cur ? 0 : 1;
   var msg = qs('#pol-msg');
   msg.textContent = 'switching…';
   msg.style.color = '#888';
   fetch('/cgi-bin/policy.cgi', {
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: 'op=set&accept_unknown=' + next
+    body: 'op=set&' + field + '=' + next
   })
     .then(function(r) { return r.json(); })
     .then(function(j) {
@@ -490,112 +458,6 @@ function refreshEntities() {
     });
 }
 
-/* -------- Profiles tab: poll + edit -------- */
-function refreshProfiles() {
-  fetch('/cgi-bin/profiles.cgi')
-    .then(function(r) { return r.json(); })
-    .then(function(arr) {
-      var tb = qs('#prof-tbody');
-      if (!tb) return;
-      while (tb.firstChild) tb.removeChild(tb.firstChild);
-      for (var i = 0; i < arr.length; i++) {
-        var p = arr[i];
-        var tr = document.createElement('tr');
-        var cell = function(v, num) {
-          var td = document.createElement('td');
-          if (num) td.className = 'num';
-          td.textContent = v;
-          return td;
-        };
-        tr.appendChild(cell(p.slot, true));
-        tr.appendChild(cell(p.data, false));
-        tr.appendChild(cell(p.max, true));
-        tr.appendChild(cell(p.hangtime, true));
-        tr.appendChild(cell(p.priority, true));
-        tr.appendChild(cell(p.gila_class, true));
-        tr.appendChild(cell(p.gila_lifetime, true));
-        tr.appendChild(cell(p.permit_voice ? '1' : '0', true));
-        tr.appendChild(cell(p.permit_data ? '1' : '0', true));
-        tr.appendChild(cell(p.permit_reg ? '1' : '0', true));
-        tr.appendChild(cell(p.valid ? '1' : '0', true));
-        var c12 = document.createElement('td');
-        var btn = document.createElement('button');
-        btn.type = 'button'; btn.textContent = 'Load';
-        (function(pp) {
-          btn.onclick = function() { loadProfileForm(pp); };
-        })(p);
-        c12.appendChild(btn);
-        tr.appendChild(c12);
-        tb.appendChild(tr);
-      }
-    })
-    .catch(function(e) {
-      var tb = qs('#prof-tbody');
-      if (!tb) return;
-      while (tb.firstChild) tb.removeChild(tb.firstChild);
-      var tr = document.createElement('tr');
-      var td = document.createElement('td');
-      td.colSpan = 12; td.textContent = 'profiles.cgi error: ' + e;
-      tr.appendChild(td); tb.appendChild(tr);
-    });
-}
-
-function loadProfileForm(p) {
-  var f = qs('#prof-form');
-  f.slot.value          = p.slot;
-  f.max.value           = p.max;
-  f.hangtime.value      = p.hangtime;
-  f.priority.value      = p.priority;
-  f.gila_class.value    = p.gila_class;
-  f.gila_lifetime.value = p.gila_lifetime;
-  f.permit_voice.checked = !!p.permit_voice;
-  f.permit_data.checked  = !!p.permit_data;
-  f.permit_reg.checked   = !!p.permit_reg;
-  f.valid.checked        = !!p.valid;
-  onProfSlotChange();
-}
-
-function onProfSlotChange() {
-  var f = qs('#prof-form');
-  var w = qs('#prof-warn');
-  if (!f || !w) return;
-  w.style.display = (f.slot.value === '0') ? 'block' : 'none';
-}
-
-function showProfMsg(ok, txt) {
-  var m = qs('#prof-msg');
-  m.textContent = txt;
-  m.className = 'subs-msg ' + (ok ? 'ok' : 'err');
-  setTimeout(function() { m.className = 'subs-msg'; }, 4000);
-}
-
-function setProfile(ev) {
-  ev.preventDefault();
-  var f = qs('#prof-form');
-  var body = 'op=set'
-    + '&slot='          + encodeURIComponent(f.slot.value)
-    + '&max='           + encodeURIComponent(f.max.value)
-    + '&hangtime='      + encodeURIComponent(f.hangtime.value)
-    + '&priority='      + encodeURIComponent(f.priority.value)
-    + '&gila_class='    + encodeURIComponent(f.gila_class.value)
-    + '&gila_lifetime=' + encodeURIComponent(f.gila_lifetime.value)
-    + '&permit_voice='  + (f.permit_voice.checked ? 1 : 0)
-    + '&permit_data='   + (f.permit_data.checked  ? 1 : 0)
-    + '&permit_reg='    + (f.permit_reg.checked   ? 1 : 0)
-    + '&valid='         + (f.valid.checked        ? 1 : 0);
-  fetch('/cgi-bin/profiles.cgi', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body
-  }).then(function(r) { return r.json(); })
-    .then(function(j) {
-      if (j && j.ok) { showProfMsg(true, 'OK — slot ' + j.slot + ' = ' + j.data); refreshProfiles(); }
-      else           { showProfMsg(false, 'ERR: ' + (j && j.err ? j.err : 'unknown')); }
-    })
-    .catch(function(e) { showProfMsg(false, 'fetch error: ' + e); });
-  return false;
-}
-
 function showSubsMsg(ok, txt) {
   var m = qs('#subs-msg');
   m.textContent = txt;
@@ -614,19 +476,27 @@ function postEntities(body) {
 function addSub(ev) {
   ev.preventDefault();
   var f = qs('#add-form');
-  var slot       = f.slot.value;
+  var slot       = (f.slot.value || '').trim();
   var entity_id  = f.entity_id.value;
   var entity_type= f.entity_type.value;
   var profile_id = f.profile_id.value;
   var body = 'op=add'
-    + '&slot='        + encodeURIComponent(slot)
     + '&entity_id='   + encodeURIComponent(entity_id)
     + '&entity_type=' + encodeURIComponent(entity_type)
     + '&profile_id='  + encodeURIComponent(profile_id);
+  // Only send slot if user filled it; empty = let server auto-find.
+  if (slot.length > 0) body += '&slot=' + encodeURIComponent(slot);
   postEntities(body)
     .then(function(j) {
-      if (j && j.ok) { showSubsMsg(true, 'OK — added/updated slot ' + slot); refreshEntities(); }
-      else           { showSubsMsg(false, 'ERR: ' + (j && j.err ? j.err : 'unknown')); }
+      if (j && j.ok) {
+        var msg = (slot.length > 0)
+          ? ('OK — added slot ' + slot)
+          : ('OK — auto-assigned slot ' + j.slot);
+        showSubsMsg(true, msg);
+        refreshEntities();
+      } else {
+        showSubsMsg(false, 'ERR: ' + (j && j.err ? j.err : 'unknown'));
+      }
     })
     .catch(function(e) { showSubsMsg(false, 'fetch error: ' + e); });
   return false;
