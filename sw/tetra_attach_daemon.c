@@ -31,6 +31,26 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 
+/* Local copies of HAL init/close so this tool is self-contained (tetra_hal.c
+ * carries main() and can't be linked in without pulling in the sysinfo app).
+ * Names match the extern declarations in tetra_hal.h. */
+int tetra_hal_init(tetra_hal_t *hal)
+{
+    hal->fd = open("/dev/mem", O_RDWR | O_SYNC);
+    if (hal->fd < 0) { perror("open /dev/mem"); return -1; }
+    hal->regs = mmap(NULL, TETRA_AXI_SIZE, PROT_READ | PROT_WRITE,
+                     MAP_SHARED, hal->fd, TETRA_AXI_BASE);
+    if (hal->regs == MAP_FAILED) { perror("mmap"); close(hal->fd); return -1; }
+    return 0;
+}
+
+void tetra_hal_close(tetra_hal_t *hal)
+{
+    if (hal->regs && hal->regs != MAP_FAILED)
+        munmap((void *)hal->regs, TETRA_AXI_SIZE);
+    if (hal->fd >= 0) close(hal->fd);
+}
+
 /* Hard-coded gold-ref defaults (M2 bit-identity guard).  These match what
  * the existing FPGA MLE-FSM produces for the Profile-0 + GSSI=0x2F4D61
  * baseline; SW just mirrors them so flipping use_sw_body in a live test
