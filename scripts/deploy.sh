@@ -332,6 +332,16 @@ if $DO_INIT; then
     echo "tetra_dbsync     started in background → /tmp/tetra_dbsync.log"
     ssh_cmd "setsid /root/tetra_autoenroll.sh < /dev/null > /tmp/tetra_autoenroll.log 2>&1 &"
     echo "tetra_autoenroll started in background → /tmp/tetra_autoenroll.log"
+
+    # Phase X.3 — SW-driven D-LOC-UPDATE-ACCEPT builder.  Bootstraps db.tsv
+    # from db.tsv.default if missing, then sets REG_DB_POLICY=0x3
+    # (accept_unknown_issi+gssi) and starts the daemon.  Daemon flips
+    # REG_REPLY_USE_SW=1 on entry, =0 on shutdown.
+    ssh_cmd "pkill -f tetra_attach_daemon 2>/dev/null; true"
+    ssh_cmd "test -f /root/db.tsv || cp /root/db.tsv.default /root/db.tsv"
+    ssh_cmd "devmem 0x43C001AC 32 0x3"
+    ssh_cmd "setsid /root/tetra_attach_daemon < /dev/null > /tmp/tetra_attach_daemon.log 2>&1 &"
+    echo "tetra_attach_daemon started in background → /tmp/tetra_attach_daemon.log"
 fi
 
 # =============================================================================

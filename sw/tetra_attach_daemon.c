@@ -194,7 +194,8 @@ int main(int argc, char **argv)
             uint32_t w4 = demand_read(&hal, 4);
             uint32_t w5 = demand_read(&hal, 5);
             uint32_t ssi   = w1 & 0x00FFFFFFu;
-            uint32_t la    = w2 & 0x3FFFu;
+            (void)w2;  /* MS-LA in W2 is informational; we answer with REG_CELL_LA */
+            uint32_t la    = tetra_reg_read(&hal, REG_CELL_LA) & 0x3FFFu;
             uint32_t lut   = (w0 >> 15) & 0x7u;
             uint32_t cnt   = (w0 >> 18) & 0x7u;
             uint32_t gssi[3] = { w3 & 0x00FFFFFFu,
