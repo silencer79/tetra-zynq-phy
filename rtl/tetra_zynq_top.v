@@ -2159,11 +2159,16 @@ tetra_dl_signal_queue #(
     .wr_cmce_coded    (nwrk_bcast_push_coded_sys_w),
     .wr_cmce_pdu_type (nwrk_bcast_push_pdu_type_sys_w),
     .wr_cmce_target_tn(nwrk_bcast_push_target_tn_sys_w),
-    // SDS producer — tied off
-    .wr_sds_valid     (1'b0),
-    .wr_sds_coded     (432'd0),
-    .wr_sds_pdu_type  (2'd0),
-    .wr_sds_target_tn (2'd0),
+    // SDS producer — repurposed for Phase X.5 Pre-Reply BL-ACK Mini-FSM.
+    // The module pushes a SCH/HD-coded BL-ACK on every Frag-1 pulse so the
+    // attaching MS sees an ACK on the Pre-Reply slot (1 frame after Frag-1)
+    // and proceeds to send Frag-2.  See rtl/lmac/tetra_pre_reply_blck.v +
+    // memory `project_h32_attach_breakthrough.md` (Pre-Reply gap is the
+    // remaining Restdrift in Cycle 2-3 reproducibility).
+    .wr_sds_valid     (pre_reply_blck_valid_sys_w),
+    .wr_sds_coded     (pre_reply_blck_coded_sys_w),
+    .wr_sds_pdu_type  (pre_reply_blck_pdu_type_sys_w),
+    .wr_sds_target_tn (pre_reply_blck_target_tn_sys_w),
     // Scheduler consumer
     .pop              (sched_pop_w),
     .head_valid       (queue_head_valid_w),
@@ -2440,6 +2445,50 @@ tetra_dl_nwrk_broadcast u_dl_nwrk_broadcast (
     .wr_cmce_pdu_type_sys (nwrk_bcast_push_pdu_type_sys_w),
     .wr_cmce_target_tn_sys(nwrk_bcast_push_target_tn_sys_w),
     .push_cnt_sys         (nwrk_bcast_push_cnt_sys_w)
+);
+
+// =============================================================================
+// Phase X.5 — Pre-Reply BL-ACK Mini-FSM
+//
+// Trigger: Frag-1 pulse from MAC-ACCESS parser (`frag1_pulse_w`, same wire
+// the MLE-FSM consumes for AL-SETUP).  On every pulse the FSM builds a
+// 124-bit BL-ACK PDU (43-bit MAC + 5-bit LLC, zero-padded), SCH/HD-encodes
+// it to 216 bits, and pushes via the DL-Signal-Queue's SDS slot (was tied
+// off).  Scheduler grabs it on the next frame boundary and delivers it on
+// `cfg_mcch_tn_sys_r1`, the same TN the MS expects the Pre-Reply on.
+//
+// Memory ref: `project_h32_attach_breakthrough.md` Restdrift +
+// `reference_gold_full_attach_timeline.md` (Pre-Reply 1 frame after
+// Frag-1, AACH 0x0249/0x0009 reserved-cap-alloc).  AACH-Schedule for the
+// Pre-Reply slot already shows 0x0249 — no AACH override required at this
+// phase; if on-air verification needs the 0x0009 idle marker, that lives
+// in a separate AACH-encoder change (Phase X.5b).
+// =============================================================================
+wire         pre_reply_blck_valid_sys_w;
+wire [431:0] pre_reply_blck_coded_sys_w;
+wire [1:0]   pre_reply_blck_pdu_type_sys_w;
+wire [1:0]   pre_reply_blck_target_tn_sys_w;
+wire [15:0]  pre_reply_blck_push_cnt_sys_w;
+wire [15:0]  pre_reply_blck_drop_cnt_sys_w;
+
+tetra_pre_reply_blck u_pre_reply_blck (
+    .clk_sys              (clk_sys),
+    .rst_n_sys            (rst_n_sys),
+    // Frag-1 trigger from MAC-ACCESS parser (1-cycle pulse on clk_sys).
+    // Same wire MLE-FSM consumes for AL-SETUP (see line ~2030).
+    .ul_req_valid         (frag1_pulse_w),
+    .ul_ssi               (ul_issi_sys),
+    // Target TN = MCCH slot (where the MS expects the Pre-Reply).
+    .cfg_mcch_tn          (cfg_mcch_tn_sys_r1),
+    // Cell DL scrambler seed — same pack as MLE-FSM and AACH (gold-ref-konform).
+    .cfg_scramble_init    (mle_dl_scramb_init_sys),
+    // DL-Signal-Queue producer (SDS slot)
+    .wr_blck_valid_sys    (pre_reply_blck_valid_sys_w),
+    .wr_blck_coded_sys    (pre_reply_blck_coded_sys_w),
+    .wr_blck_pdu_type_sys (pre_reply_blck_pdu_type_sys_w),
+    .wr_blck_target_tn_sys(pre_reply_blck_target_tn_sys_w),
+    .push_cnt_sys         (pre_reply_blck_push_cnt_sys_w),
+    .drop_cnt_sys         (pre_reply_blck_drop_cnt_sys_w)
 );
 
 // CDC: consume pulse + counter clk_sys → clk_axi
