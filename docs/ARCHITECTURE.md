@@ -80,7 +80,7 @@ Slice-Druck stieg auf 97.82 % nach Phase 7 F.7 (MLE-FSM allein 10172 LUTs). Phas
 - ✅ X.0 ARCH-Memo (Memory `project_arch_fpga_thin_signaling.md`)
 - ✅ X.1 Demand-Push-Mailbox FPGA-seitig (commit `baa40b0`) — passive Anzapfung der IE-Parser-Outputs, kein Behavior-Change am MLE-FSM
 - ✅ X.2 Reply-Pull-Mailbox + `sw/tetra_attach_daemon.c` (commits `ecb3677` + `25c8962`) — fixe M2-Replik, toggleable via `REG_REPLY_USE_SW`. **Live-verifiziert 2026-05-03 22:01:** MTP3550 Frag-1+Frag-2 → SW-Daemon serviced #1 → Encoder via Mux → ACCEPT on-air → MS akzeptiert (`reass_ok=1, ul_req:accept=4:4`).
-- ⏳ X.3 SW-Daemon DB-Lookup + Auto-Enroll (`accept_unknown_issi`/`gssi` Bits) + db.tsv-Persistenz
+- ✅ X.3 SW-DB-Lookup + Auto-Enroll (commits `baeb9e2` + `2711bd0`) — `sw/tetra_db.[ch]` 256-Slot-DB mit atomic db.tsv-write + mtime-reload, Host-TB 59/59 PASS. `REG_DB_POLICY` Bit 0/1 (`accept_unknown_issi`/`gssi`). Polish: W1 LA aus REG_CELL_LA, deploy.sh --init startet Daemon. **Live-verifiziert 2026-05-03 22:35:** MTP3550 GSSI-Wunsch `0x000001` (nicht in DB) → AUTOENROLL → db.tsv appendet → GILA spiegelt MS-Wunsch. **Phase-D-rev "MS-GSSI-Wunsch ignoriert" Bug damit architektonisch gelöst.**
 - ⏳ X.4 RTL-Cleanup: EntityTable + ProfileTable + AST + MLE-FSM Multi-Lookup-Pfade löschen — Slice-Bilanz ≈ −1670 (92.57 % → 79.8 %)
 - ⏳ X.5 Pre-Reply BL-ACK Mini-FSM + AACH-Anpassung + alte SW-Daemons (`tetra_db_mgr`, `dbsync.sh`, `autoenroll.sh`) entfernen
 
