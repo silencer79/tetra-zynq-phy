@@ -270,6 +270,14 @@
 #define REG_REPLY_STATUS  0x22C   /* RO  [0]    busy mirror            */
 #define REG_REPLY_USE_SW  0x230   /* R/W [0]    use_sw_body field-mux  */
 
+/* REG_DB_POLICY @ 0x1AC — auto-enroll policy bits (Phase 6 A + Phase X.3)
+ *   [0] accept_unknown_issi  — 1 (default): ISSI-miss → auto-enroll
+ *   [1] accept_unknown_gssi  — 1 (default): GSSI-miss → auto-enroll
+ * Reset value 0x3 = both bits 1 = M2-compatible behaviour.                  */
+#define REG_DB_POLICY              0x1AC
+#define DB_POLICY_ACCEPT_UNKNOWN_ISSI  (1u << 0)
+#define DB_POLICY_ACCEPT_UNKNOWN_GSSI  (1u << 1)
+
 /* Phase H.6.3 — AACH UL-Slot-Grant override (single-shot pulse)            */
 #define REG_AACH_GRANT_HINT      0x1F4   /* R/W [31] pending, [13:0] info14  */
 

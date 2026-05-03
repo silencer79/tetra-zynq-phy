@@ -467,12 +467,16 @@ module tetra_axi_lite_regs (
     output reg  [13:0] cell_la_axi,
 
     // ------------------------------------------------------------------
-    // DB-Policy — db_policy_axi (Phase 6 A, REG_DB_POLICY @ 0x1AC)
-    //   [0] accept_unknown — 1 (default): shadow miss still accepts
-    //                                     (anonymous attach, M2 behaviour)
-    //                       0: shadow miss → REJECT cause=0 (ITSI unknown)
-    //   [1..31] reserved (auto_enroll_default_profile in Phase E)
-    // CDC-resynced into clk_sys in tetra_zynq_top before MLE-FSM consumes.
+    // DB-Policy — db_policy_axi (Phase 6 A + Phase X.3, REG_DB_POLICY @ 0x1AC)
+    //   [0] accept_unknown_issi — 1 (default): ISSI-miss → auto-enroll
+    //                                          (anonymous attach, M2 behaviour)
+    //                            0: ISSI-miss → REJECT cause=0 (ITSI unknown)
+    //   [1] accept_unknown_gssi — 1 (default): GSSI-wish miss → auto-enroll
+    //                            0: keep profile-default GSSI in GILA
+    //   [2..31] reserved (auto_enroll_default_profile in later phases)
+    // CDC-resynced into clk_sys in tetra_zynq_top before MLE-FSM consumes
+    // (legacy bit-0 path) and read directly by the SW attach-daemon over
+    // AXI for Phase X.3 SW-pulled D-LOC-UPDATE-ACCEPT lookup.
     // ------------------------------------------------------------------
     output reg  [31:0] db_policy_axi,
 
@@ -1314,13 +1318,14 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
     end
 end
 
-// ---- DB_POLICY register (0x1AC) — Phase 6 A ----
-// Default accept_unknown=1 — preserves M2 behaviour (anonymous attaches OK)
-// when the subscriber-shadow is empty.  Operator can flip to 0 to enforce
-// strict permit-check (only known + permit_reg=1 ISSIs may register).
+// ---- DB_POLICY register (0x1AC) — Phase 6 A + Phase X.3 ----
+// Default 0x3 — both accept_unknown_issi (bit 0) and accept_unknown_gssi
+// (bit 1) on, preserves M2 behaviour (anonymous attaches OK) when the
+// subscriber-DB is empty.  Operator can clear bits to enforce strict
+// permit-check (only known + permit_reg=1 ISSIs may register).
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
-        db_policy_axi <= 32'h0000_0001;
+        db_policy_axi <= 32'h0000_0003;
     else if (wr_en_axi & (wr_addr_axi[8:2] == REG_DB_POLICY)) begin
         if (wr_strb_axi[0]) db_policy_axi[ 7: 0] <= wr_data_axi[ 7: 0];
         if (wr_strb_axi[1]) db_policy_axi[15: 8] <= wr_data_axi[15: 8];
