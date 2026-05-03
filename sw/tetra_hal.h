@@ -242,6 +242,7 @@
 #define REG_NWRK_BCAST_DATA      0x1D4   /* R/W [31:0] indirect via INDEX     */
 #define REG_NWRK_BCAST_TRIGGER   0x1D8   /* W1S [0]    HW-clr on consume      */
 #define REG_NWRK_BCAST_CNT       0x1E4   /* RO  [15:0] sticky push counter    */
+#define REG_NWRK_BCAST_PERIOD_MF 0x1E8   /* R/W [4:0]  auto-fire MF period     */
 
 /* Phase H.6.3 — AACH UL-Slot-Grant override (single-shot pulse)            */
 #define REG_AACH_GRANT_HINT      0x1F4   /* R/W [31] pending, [13:0] info14  */

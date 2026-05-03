@@ -1921,6 +1921,8 @@ tetra_axi_lite_regs u_axi_regs (
     .nwrk_bcast_trigger_axi    (nwrk_bcast_trigger_axi_w),
     .nwrk_bcast_consume_axi    (nwrk_bcast_consume_axi_r1),
     .nwrk_bcast_cnt_axi        (nwrk_bcast_cnt_axi_r1),
+    // Phase H.7-AF — Auto-Fire period (multiframes; 0 = SW-Trigger mode)
+    .nwrk_bcast_period_mf_axi  (nwrk_bcast_period_mf_axi_w),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -1948,15 +1950,18 @@ wire [2:0]  mle_profile_rd_idx_w;
 // Phase 6 B — free-running 24-bit multiframe counter for AST `last_seen`
 // and TTL-Sweep (Phase C).  Increments once per multiframe (~1.02 s),
 // rollover ~197 days.  Detect MF transitions via tx_mf_cnt_sys edges.
+// Phase H.7-AF: `mf_pulse_sys` is a 1-cycle pulse on every MF edge,
+// reused as the auto-fire clock for the D-NWRK-BROADCAST scheduler.
 reg [5:0]  tx_mf_cnt_sys_prev;
 reg [23:0] mf_global_cnt_sys;
+wire       mf_pulse_sys = (tx_mf_cnt_sys != tx_mf_cnt_sys_prev);
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
         tx_mf_cnt_sys_prev <= 6'd1;
         mf_global_cnt_sys  <= 24'd0;
     end else begin
         tx_mf_cnt_sys_prev <= tx_mf_cnt_sys;
-        if (tx_mf_cnt_sys != tx_mf_cnt_sys_prev)
+        if (mf_pulse_sys)
             mf_global_cnt_sys <= mf_global_cnt_sys + 24'd1;
     end
 end
@@ -2580,22 +2585,29 @@ end
 // =============================================================================
 wire [431:0] nwrk_bcast_payload_axi_w;
 wire         nwrk_bcast_trigger_axi_w;
+wire [4:0]   nwrk_bcast_period_mf_axi_w;
 
 (* ASYNC_REG = "TRUE" *) reg [431:0] nwrk_bcast_payload_sys_r0;
 (* ASYNC_REG = "TRUE" *) reg [431:0] nwrk_bcast_payload_sys_r1;
 (* ASYNC_REG = "TRUE" *) reg         nwrk_bcast_trigger_sys_r0;
 (* ASYNC_REG = "TRUE" *) reg         nwrk_bcast_trigger_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [4:0]   nwrk_bcast_period_mf_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [4:0]   nwrk_bcast_period_mf_sys_r1;
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
         nwrk_bcast_payload_sys_r0 <= 432'd0;
         nwrk_bcast_payload_sys_r1 <= 432'd0;
         nwrk_bcast_trigger_sys_r0 <= 1'b0;
         nwrk_bcast_trigger_sys_r1 <= 1'b0;
+        nwrk_bcast_period_mf_sys_r0 <= 5'd10;
+        nwrk_bcast_period_mf_sys_r1 <= 5'd10;
     end else begin
         nwrk_bcast_payload_sys_r0 <= nwrk_bcast_payload_axi_w;
         nwrk_bcast_payload_sys_r1 <= nwrk_bcast_payload_sys_r0;
         nwrk_bcast_trigger_sys_r0 <= nwrk_bcast_trigger_axi_w;
         nwrk_bcast_trigger_sys_r1 <= nwrk_bcast_trigger_sys_r0;
+        nwrk_bcast_period_mf_sys_r0 <= nwrk_bcast_period_mf_axi_w;
+        nwrk_bcast_period_mf_sys_r1 <= nwrk_bcast_period_mf_sys_r0;
     end
 end
 
@@ -2611,6 +2623,8 @@ tetra_dl_nwrk_broadcast u_dl_nwrk_broadcast (
     .payload_sys          (nwrk_bcast_payload_sys_r1),
     .trigger_sys          (nwrk_bcast_trigger_sys_r1),
     .cfg_mcch_tn_sys      (cfg_mcch_tn_sys_r1),
+    .cfg_period_mf        (nwrk_bcast_period_mf_sys_r1),
+    .mf_pulse_sys         (mf_pulse_sys),
     .wr_cmce_valid_sys    (nwrk_bcast_push_valid_sys_w),
     .wr_cmce_coded_sys    (nwrk_bcast_push_coded_sys_w),
     .wr_cmce_pdu_type_sys (nwrk_bcast_push_pdu_type_sys_w),

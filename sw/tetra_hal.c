@@ -1504,7 +1504,7 @@ static void build_d_nwrk_broadcast_268(time_t utc_now, uint8_t *info_268)
         info_268[87 + i] = (uint8_t)((time_field >> (9 - i)) & 1);
 }
 
-/* Push 432-bit payload into the FPGA via indirect window + trigger.
+/* Push 432-bit payload into the FPGA via indirect window.
  * payload_432 is 432 bits MSB-first (bit 0 = first on-air bit).
  *
  * RTL pack-Layout (rtl/infra/tetra_axi_lite_regs.v g_nwrk_payload):
@@ -1514,8 +1514,14 @@ static void build_d_nwrk_broadcast_268(time_t utc_now, uint8_t *info_268)
  *   word 12 [31:0]   → payload bits[ 47: 16]   = bits 384..415
  *   word 13 [31:16]  → payload bits[ 15:  0]   = last 16 on-air bits (in upper half!)
  * (432 = 13 × 32 + 16, der 16-bit-Rest sitzt in der OBEREN Hälfte
- *  von word 13 — RTL ignoriert word 13 [15:0].)                  */
-static void push_d_nwrk_broadcast(tetra_hal_t *hal, const uint8_t *payload_432)
+ *  von word 13 — RTL ignoriert word 13 [15:0].)
+ *
+ * If `fire_trigger != 0` the W1S TRIGGER bit is set after the payload
+ * window has been written (legacy SW-Trigger mode).  In Phase H.7-AF
+ * Auto-Fire mode the trigger is generated in RTL by the modulo-N
+ * counter on `mf_pulse_sys`, so the SW path passes 0.                */
+static void push_d_nwrk_broadcast(tetra_hal_t *hal, const uint8_t *payload_432,
+                                  int fire_trigger)
 {
     uint32_t words[14] = {0};
     /* words[0..12] = 32 on-air bits each (MSB-first).  payload_432[0]
@@ -1537,17 +1543,36 @@ static void push_d_nwrk_broadcast(tetra_hal_t *hal, const uint8_t *payload_432)
         tetra_reg_write(hal, REG_NWRK_BCAST_INDEX, (uint32_t)wi);
         tetra_reg_write(hal, REG_NWRK_BCAST_DATA,  words[wi]);
     }
-    tetra_reg_write(hal, REG_NWRK_BCAST_TRIGGER, 1);
+    if (fire_trigger)
+        tetra_reg_write(hal, REG_NWRK_BCAST_TRIGGER, 1);
 }
 
-/* Combined: build PDU + encode + push. */
+/* Combined: build PDU + encode + push (legacy SW-Trigger entrypoint, kept
+ * for callers that want one-shot pushes outside the daemon loop).  The
+ * Phase H.7-AF Auto-Fire path does NOT call this — the RTL fires the
+ * trigger autonomously and SW only refreshes the payload (see
+ * `refresh_d_nwrk_broadcast`).  __attribute__((unused)) suppresses a
+ * harmless -Wunused-function from -Wall on this compatibility shim. */
+__attribute__((unused))
 static void tick_d_nwrk_broadcast(tetra_hal_t *hal, uint32_t scramb_init)
 {
     uint8_t info_268[268];
     uint8_t coded_432[432];
     build_d_nwrk_broadcast_268(time(NULL), info_268);
     encode_sch_f_c(info_268, scramb_init, coded_432);
-    push_d_nwrk_broadcast(hal, coded_432);
+    push_d_nwrk_broadcast(hal, coded_432, 1 /* fire_trigger */);
+}
+
+/* Phase H.7-AF refresh helper — rebuild + write the 14-word payload window
+ * WITHOUT setting the TRIGGER.  The RTL Auto-Fire counter (REG_NWRK_BCAST_
+ * PERIOD_MF) generates the trigger pulse on every Nth multiframe edge. */
+static void refresh_d_nwrk_broadcast(tetra_hal_t *hal, uint32_t scramb_init)
+{
+    uint8_t info_268[268];
+    uint8_t coded_432[432];
+    build_d_nwrk_broadcast_268(time(NULL), info_268);
+    encode_sch_f_c(info_268, scramb_init, coded_432);
+    push_d_nwrk_broadcast(hal, coded_432, 0 /* no trigger; RTL fires */);
 }
 
 int main(int argc, char *argv[])
@@ -1780,6 +1805,13 @@ int main(int argc, char *argv[])
     tetra_reg_write(&hal, REG_REASSEMBLY_T0, 1);
     printf("REASSEMBLY_T0 set to 1 frame (Phase H.3.2d — Gold-tight)\n");
 
+    /* Phase H.7-AF: enable RTL Auto-Fire of D-NWRK-BROADCAST every 10 MFs
+     * (~10.2 s — Gold-Cell cadence).  Reset-default in axi_lite_regs is
+     * already 5'd10, so this write is belt-and-suspenders against future
+     * default drift.  Setting to 0 falls back to legacy SW-Trigger mode. */
+    tetra_reg_write(&hal, REG_NWRK_BCAST_PERIOD_MF, 10);
+    printf("NWRK_BCAST_PERIOD_MF set to 10 multiframes (Phase H.7-AF)\n");
+
     printf("Boot-init complete — RTL drives DL carrier autonomously.\n");
 
     if (!daemon_mode) {
@@ -1813,9 +1845,10 @@ int main(int argc, char *argv[])
     struct timespec next;
     clock_gettime(CLOCK_MONOTONIC, &next);
 
-    /* Phase H.7: daemon-Loop läuft jetzt mit ~7 s Periode für die
-     * D-NWRK-BROADCAST-Pushes.  Jeden 9. Tick (≈ 63 s) wird zusätzlich
-     * der Hyperframe-Counter inkrementiert + SYSINFO refreshed.        */
+    /* Phase H.7-AF: RTL feuert D-NWRK-BROADCAST autonom alle N MFs
+     * (REG_NWRK_BCAST_PERIOD_MF, default 10 ≈ 10.2 s).  Die Daemon-Loop
+     * refresht nur noch das Payload-Window alle 60 s (UTC-Time-Field
+     * stabil, HN-Advance jede ~61.2 s ≈ 1 Iteration).                  */
     int hf_tick = 0;
     /* Cell scrambler init aus MCC/MNC/CC (matches RTL u_aach_encoder
      * lfsr_init_w pack). */
@@ -1825,8 +1858,12 @@ int main(int argc, char *argv[])
                            0x3u;
     if (scramb_init == 0) scramb_init = 0xFFFFFFFFu;
 
+    /* Initial Payload-Refresh sofort (vor erstem Sleep), damit die RTL
+     * ein gültiges 432-bit-Window hat ab T=0.                          */
+    refresh_d_nwrk_broadcast(&hal, scramb_init);
+
     while (g_daemon_running) {
-        next.tv_sec  += 7;            /* 7 s D-NWRK-BROADCAST cadence */
+        next.tv_sec  += 60;           /* 60 s payload-refresh cadence */
 
         int rc;
         do {
@@ -1836,19 +1873,10 @@ int main(int argc, char *argv[])
         if (!g_daemon_running)
             break;
 
-        /* D-NWRK-BROADCAST push (every tick) */
-        tick_d_nwrk_broadcast(&hal, scramb_init);
-
-        /* Per-Tick-Alternation des Optional_Field deaktiviert (2026-05-02):
-         * Test 12:00..12:13 zeigte, dass das ständige Umschreiben der
-         * BNCH SYSINFO (alle 7 s) die MS-Sync zerlegt — MS sendet keine
-         * Frag-1 mehr.  Alternation müsste Gold-konform pro TDMA-Frame
-         * (~57 ms) erfolgen, nicht pro Daemon-Tick.  Bleibe vorerst bei
-         * statischem Sel=2/Val=0xF6F00 (Pärchen A) — bestätigt-funktional
-         * für MS-Frag-1, weiterhin offen für Frag-2.                    */
-
-        /* SYSINFO Hyperframe advance every 9 ticks (≈ 63 s). */
-        if (++hf_tick >= 9) {
+        /* SYSINFO Hyperframe advance — bei 60-s-Period ≈ 61.2 s liegt jede
+         * Iteration sehr nah am Hyperframe-Edge → jede Iteration advancen.
+         * (Gen-Drift gegen wall clock egal, HN ist nur MS-Stale-Detector.) */
+        if (++hf_tick >= 1) {
             hf_tick = 0;
             info.hyperframe = (uint16_t)(info.hyperframe + 1);
             if (tetra_refresh_sysinfo(&hal, &info) != 0) {
@@ -1858,6 +1886,9 @@ int main(int argc, char *argv[])
             printf("HN advance: hyperframe = %u (SYSINFO refreshed)\n",
                    info.hyperframe);
         }
+
+        /* D-NWRK-BROADCAST payload refresh (no trigger — RTL Auto-Fires). */
+        refresh_d_nwrk_broadcast(&hal, scramb_init);
     }
 
     printf("Daemon exiting on signal — leaving RTL running.\n");

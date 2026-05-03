@@ -2,12 +2,14 @@
 // Testbench: tb_tetra_dl_nwrk_broadcast
 //
 // Verifies the periodic-push module:
-//   - On rising edge of trigger_sys, fires wr_cmce_valid_sys for exactly 1
-//     clk_sys cycle.
+//   - SW-Trigger mode (cfg_period_mf=0): rising edge of trigger_sys fires
+//     wr_cmce_valid_sys for exactly 1 clk_sys cycle.
 //   - Drives the 432-bit coded bus through unchanged from payload_sys.
 //   - Sets pdu_type = 2'd0 (SCH/F) and target_tn = cfg_mcch_tn_sys.
 //   - Increments push_cnt_sys exactly once per rising edge.
 //   - Multiple back-to-back rising edges → multiple pulses + counter increments.
+//   - Auto-Fire mode (cfg_period_mf>=1): every N mf_pulse_sys pulses, fires
+//     a 1-cycle wr_cmce_valid_sys and increments push_cnt_sys.
 //
 // Compile + run:
 //   iverilog -g2001 -o /tmp/tb_nwrk tb/tb_tetra_dl_nwrk_broadcast.v \
@@ -25,6 +27,8 @@ reg          rst_n_sys;
 reg  [431:0] payload_sys;
 reg          trigger_sys;
 reg  [1:0]   cfg_mcch_tn_sys;
+reg  [4:0]   cfg_period_mf;
+reg          mf_pulse_sys;
 wire         wr_cmce_valid_sys;
 wire [431:0] wr_cmce_coded_sys;
 wire [1:0]   wr_cmce_pdu_type_sys;
@@ -37,6 +41,8 @@ tetra_dl_nwrk_broadcast u_dut (
     .payload_sys          (payload_sys),
     .trigger_sys          (trigger_sys),
     .cfg_mcch_tn_sys      (cfg_mcch_tn_sys),
+    .cfg_period_mf        (cfg_period_mf),
+    .mf_pulse_sys         (mf_pulse_sys),
     .wr_cmce_valid_sys    (wr_cmce_valid_sys),
     .wr_cmce_coded_sys    (wr_cmce_coded_sys),
     .wr_cmce_pdu_type_sys (wr_cmce_pdu_type_sys),
@@ -73,6 +79,8 @@ initial begin
     payload_sys     = 432'd0;
     trigger_sys     = 1'b0;
     cfg_mcch_tn_sys = 2'd0;
+    cfg_period_mf   = 5'd0;        // SW-Trigger mode for legacy TCs
+    mf_pulse_sys    = 1'b0;
 
     repeat (5) @(posedge clk_sys);
     rst_n_sys = 1'b1;
@@ -155,6 +163,47 @@ initial begin
     check_eq("TC3.coded[431:416]_top16", 32'h0000DEAD, {16'b0, wr_cmce_coded_sys[431:416]});
     check_eq("TC3.coded[415:384]_word2", 32'h12345678, wr_cmce_coded_sys[415:384]);
     check_eq("TC3.coded[ 31:  0]_low",   32'hDDEEFF00, wr_cmce_coded_sys[ 31:  0]);
+
+    // ----- TC4: Auto-Fire period 4 — 12 mf_pulses → exactly 3 fires -----
+    // Cycle SW path off, set period=4, count fires across 12 mf_pulse_sys
+    // pulses spaced apart.  Expect push_cnt_sys delta = 3.
+    $display("=== TC4: Auto-Fire period=4 (12 pulses → 3 fires) ===");
+    @(posedge clk_sys);
+    trigger_sys   = 1'b0;
+    cfg_period_mf = 5'd4;
+    @(posedge clk_sys);
+    @(posedge clk_sys);
+
+    begin : auto_fire_block
+        integer fires_observed;
+        reg [15:0] cnt_before;
+        integer i;
+        fires_observed = 0;
+        cnt_before     = push_cnt_sys;
+        for (i = 0; i < 12; i = i + 1) begin
+            // Drive mf_pulse_sys high for exactly one clk cycle.
+            @(posedge clk_sys);
+            mf_pulse_sys = 1'b1;
+            @(posedge clk_sys);
+            // At this edge the always block sampled mf_pulse_sys=1; if this
+            // is the Nth pulse the fire_v term computed inside is 1 →
+            // wr_cmce_valid_sys is now scheduled to 1.  Read it BEFORE we
+            // change mf_pulse_sys (don't trigger another always evaluation
+            // before sampling).
+            if (wr_cmce_valid_sys === 1'b1)
+                fires_observed = fires_observed + 1;
+            mf_pulse_sys = 1'b0;
+            // Idle gap between mf pulses to model realistic spacing.
+            repeat (3) @(posedge clk_sys);
+        end
+        check_eq("TC4.fires_observed", 32'd3,
+                 fires_observed[31:0]);
+        check_eq("TC4.push_cnt_delta", 32'd3,
+                 {16'b0, (push_cnt_sys - cnt_before)});
+    end
+
+    // Disable auto-fire again so leftover state doesn't leak.
+    cfg_period_mf = 5'd0;
 
     // ----- Summary -----
     $display("=============================================");

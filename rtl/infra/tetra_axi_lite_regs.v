@@ -397,6 +397,9 @@ module tetra_axi_lite_regs (
     output wire         nwrk_bcast_trigger_axi,
     input  wire         nwrk_bcast_consume_axi,
     input  wire [15:0]  nwrk_bcast_cnt_axi,
+    // Phase H.7-AF — Auto-Fire period (REG_NWRK_BCAST_PERIOD_MF @ 0x1E8)
+    //   [4:0] = period in multiframes; 0 = SW-Trigger mode (legacy)
+    output reg  [4:0]   nwrk_bcast_period_mf_axi,
 
     // ------------------------------------------------------------------
     // DL-signalling scheduler config — cfg_signal_target_tn_axi
@@ -685,6 +688,7 @@ localparam [6:0] REG_NWRK_BCAST_INDEX   = 7'h74; // 0x1D0  R/W [3:0] payload wor
 localparam [6:0] REG_NWRK_BCAST_DATA    = 7'h75; // 0x1D4  R/W 32-bit, indexed via INDEX
 localparam [6:0] REG_NWRK_BCAST_TRIGGER = 7'h76; // 0x1D8  W1S HW-clr on consume
 localparam [6:0] REG_NWRK_BCAST_CNT     = 7'h79; // 0x1E4  RO  [15:0] push counter
+localparam [6:0] REG_NWRK_BCAST_PERIOD_MF = 7'h7A; // 0x1E8 R/W [4:0] auto-fire period (MFs); 0=SW-Trigger
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -997,6 +1001,7 @@ always @(*) begin
         REG_NWRK_BCAST_DATA:    rdata_mux_axi = nwrk_bcast_payload_word_axi;
         REG_NWRK_BCAST_TRIGGER: rdata_mux_axi = {31'b0, nwrk_bcast_trigger_r};
         REG_NWRK_BCAST_CNT:     rdata_mux_axi = {16'b0, nwrk_bcast_cnt_axi};
+        REG_NWRK_BCAST_PERIOD_MF: rdata_mux_axi = {27'b0, nwrk_bcast_period_mf_axi};
         default:          rdata_mux_axi = 32'b0;
     endcase
 end
@@ -1174,6 +1179,17 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         reass_t0_frames_axi <= 4'd0;
     else if (wr_en_axi & (wr_addr_axi[8:2] == REG_REASSEMBLY_T0)) begin
         if (wr_strb_axi[0]) reass_t0_frames_axi <= wr_data_axi[3:0];
+    end
+end
+
+// ---- NWRK_BCAST_PERIOD_MF register (0x1E8) — Phase H.7-AF ----
+// Default = 10 multiframes (~10.2 s, close to Gold-Cell cadence).
+// Operator can write 0 to disable auto-fire and fall back to SW-Trigger mode.
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        nwrk_bcast_period_mf_axi <= 5'd10;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_NWRK_BCAST_PERIOD_MF)) begin
+        if (wr_strb_axi[0]) nwrk_bcast_period_mf_axi <= wr_data_axi[4:0];
     end
 end
 
