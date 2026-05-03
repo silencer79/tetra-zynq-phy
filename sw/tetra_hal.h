@@ -244,6 +244,12 @@
 #define REG_NWRK_BCAST_CNT       0x1E4   /* RO  [15:0] sticky push counter    */
 #define REG_NWRK_BCAST_PERIOD_MF 0x1E8   /* R/W [4:0]  auto-fire MF period     */
 
+/* Phase X.1 — UL-Demand Snapshot Mailbox (extension window 0x200..0x2FC) */
+#define REG_DEMAND_STATUS 0x200   /* RO  [31:16]=drop_cnt, [0]=pending */
+#define REG_DEMAND_INDEX  0x204   /* R/W [3:0]  word selector 0..15    */
+#define REG_DEMAND_DATA   0x208   /* RO  [31:0] indirect via INDEX     */
+#define REG_DEMAND_ACK    0x20C   /* W1S [0]    HW-clr after consume   */
+
 /* Phase H.6.3 — AACH UL-Slot-Grant override (single-shot pulse)            */
 #define REG_AACH_GRANT_HINT      0x1F4   /* R/W [31] pending, [13:0] info14  */
 

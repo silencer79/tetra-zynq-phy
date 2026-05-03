@@ -1923,6 +1923,13 @@ tetra_axi_lite_regs u_axi_regs (
     .nwrk_bcast_cnt_axi        (nwrk_bcast_cnt_axi_r1),
     // Phase H.7-AF — Auto-Fire period (multiframes; 0 = SW-Trigger mode)
     .nwrk_bcast_period_mf_axi  (nwrk_bcast_period_mf_axi_w),
+    // Phase X.1 — UL-Demand Snapshot Mailbox extension window 0x200..0x20C
+    .demand_pending_axi_i      (demand_pending_axi_r1),
+    .demand_drop_cnt_axi_i     (demand_drop_cnt_axi_r1),
+    .demand_data_word_axi_i    (demand_data_word_axi_w),
+    .demand_index_axi_o        (demand_index_axi_w),
+    .demand_ack_trigger_axi    (demand_ack_trigger_axi_w),
+    .demand_consume_axi        (demand_consume_axi_r1),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -2648,6 +2655,126 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         nwrk_bcast_consume_axi_r1 <= nwrk_bcast_consume_axi_r0;
         nwrk_bcast_cnt_axi_r0     <= nwrk_bcast_push_cnt_sys_w;
         nwrk_bcast_cnt_axi_r1     <= nwrk_bcast_cnt_axi_r0;
+    end
+end
+
+// =============================================================================
+// Phase X.1 — UL-Demand Snapshot Mailbox: Modul-Instance + CDC
+//
+// AXI side (clk_axi):
+//   demand_index_axi_w        — 4-bit indirect-window word selector
+//   demand_ack_trigger_axi_w  — W1S, set by SW write to REG_DEMAND_ACK,
+//                               cleared by demand_consume_axi pulse
+//   demand_pending_axi_r1     — 2-FF resync of pending flag (clk_sys)
+//   demand_drop_cnt_axi_r1    — 2-FF resync of drop counter (clk_sys)
+//   demand_data_word_axi_w    — 32-bit indirect mailbox word (clk_sys mux,
+//                               combinational; index drives via 2-FF resync)
+//
+// clk_sys side: tetra_demand_mailbox latches the IE-Parser output on
+// demand_parsed_valid_sys, holds it until ack_consumed_pulse_sys clears
+// pending.  Drop counter increments on overlapping pushes.
+// =============================================================================
+wire [3:0]  demand_index_axi_w;
+wire        demand_ack_trigger_axi_w;
+wire [31:0] demand_data_word_axi_w;
+wire        demand_pending_sys_w;
+wire [15:0] demand_drop_cnt_sys_w;
+wire [31:0] demand_data_word_sys_w;
+
+// 2-FF index resync clk_axi → clk_sys (slow-changing R/W)
+(* ASYNC_REG = "TRUE" *) reg [3:0] demand_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0] demand_index_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        demand_index_sys_r0 <= 4'd0;
+        demand_index_sys_r1 <= 4'd0;
+    end else begin
+        demand_index_sys_r0 <= demand_index_axi_w;
+        demand_index_sys_r1 <= demand_index_sys_r0;
+    end
+end
+
+// 2-FF ACK-trigger resync clk_axi → clk_sys, edge-detect to a 1-cycle pulse.
+(* ASYNC_REG = "TRUE" *) reg demand_ack_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg demand_ack_sys_r1;
+reg                          demand_ack_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        demand_ack_sys_r0 <= 1'b0;
+        demand_ack_sys_r1 <= 1'b0;
+        demand_ack_sys_r2 <= 1'b0;
+    end else begin
+        demand_ack_sys_r0 <= demand_ack_trigger_axi_w;
+        demand_ack_sys_r1 <= demand_ack_sys_r0;
+        demand_ack_sys_r2 <= demand_ack_sys_r1;
+    end
+end
+wire demand_ack_pulse_sys_w = demand_ack_sys_r1 & ~demand_ack_sys_r2;
+
+tetra_demand_mailbox u_demand_mailbox (
+    .clk_sys                 (clk_sys),
+    .rst_n_sys               (rst_n_sys),
+    // Passive tap of UL-Demand-IE-Parser outputs (slot 0 plumbed in Phase
+    // X.1; multi-IE rolls in Phase X.2).  iep_la_info_sys is the parsed
+    // LA value from the IE walker; iep_loc_upd_type_sys is the 3-bit
+    // location-update-type from the Type-1 fields.
+    .demand_parsed_valid_sys (mle_demand_parsed_valid_sys),
+    .demand_ul_ssi_sys       (mle_demand_pdu_ssi_sys),
+    .demand_gssi_count_sys   (mle_demand_gssi_count_sys),
+    .demand_gssi_array_sys   (mle_demand_gssi_array_sys),
+    .demand_class_array_sys  (mle_demand_class_array_sys),
+    .demand_loc_upd_type_sys (iep_loc_upd_type_sys),
+    .demand_la_sys           (iep_la_info_sys),
+    .ack_consumed_pulse_sys  (demand_ack_pulse_sys_w),
+    .index_sys               (demand_index_sys_r1),
+    .data_word_sys           (demand_data_word_sys_w),
+    .pending_sys             (demand_pending_sys_w),
+    .drop_cnt_sys            (demand_drop_cnt_sys_w)
+);
+
+// CDC: pending + drop_cnt + data_word clk_sys → clk_axi (slow-changing,
+// 2-FF-per-bit OK; data_word may glitch during index transition but SW
+// reads only after writing INDEX and then waiting ≥ 1 AXI transaction
+// round-trip, which provides ample settling time).
+(* ASYNC_REG = "TRUE" *) reg         demand_pending_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg         demand_pending_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0]  demand_drop_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0]  demand_drop_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [31:0]  demand_data_word_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0]  demand_data_word_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        demand_pending_axi_r0   <= 1'b0;
+        demand_pending_axi_r1   <= 1'b0;
+        demand_drop_cnt_axi_r0  <= 16'd0;
+        demand_drop_cnt_axi_r1  <= 16'd0;
+        demand_data_word_axi_r0 <= 32'd0;
+        demand_data_word_axi_r1 <= 32'd0;
+    end else begin
+        demand_pending_axi_r0   <= demand_pending_sys_w;
+        demand_pending_axi_r1   <= demand_pending_axi_r0;
+        demand_drop_cnt_axi_r0  <= demand_drop_cnt_sys_w;
+        demand_drop_cnt_axi_r1  <= demand_drop_cnt_axi_r0;
+        demand_data_word_axi_r0 <= demand_data_word_sys_w;
+        demand_data_word_axi_r1 <= demand_data_word_axi_r0;
+    end
+end
+assign demand_data_word_axi_w = demand_data_word_axi_r1;
+
+// CDC: ACK-consume pulse clk_sys → clk_axi.  Drive a 1-cycle pulse on
+// every clk_sys ACK pulse — that pulse is then 2-FF resynced to clk_axi
+// and used by axi_lite_regs to clear the W1S trigger.  Since we already
+// edge-detected a clk_sys pulse from the AXI W1S, simply forward it back
+// after handshake.
+(* ASYNC_REG = "TRUE" *) reg demand_consume_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg demand_consume_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        demand_consume_axi_r0 <= 1'b0;
+        demand_consume_axi_r1 <= 1'b0;
+    end else begin
+        demand_consume_axi_r0 <= demand_ack_pulse_sys_w;
+        demand_consume_axi_r1 <= demand_consume_axi_r0;
     end
 end
 

@@ -73,6 +73,14 @@
 //                               write INDEX → write DATA_LO → write DATA_HI
 //                               → write CTRL=1  (commit).
 //                             MCU side uses sw/tetra_db_mgr.c.
+//   0x200..0x2FC PHASE-X1 EXTENSION  R/W  Phase X.1 mailbox-extension window
+//                                    ([10:8]==3'b010).  Used by REG_DEMAND_*
+//                                    (0x200..0x20C); the rest reserved for
+//                                    Phase X.2+.  Bank-decode is via
+//                                    `wr_en_axi` (bank 0) / `wr_en_x1_axi`
+//                                    `rd_addr_axi[10:9] == 2'b01` so a 7-bit
+//                                    [8:2] alias to 0x000..0x0FC does not
+//                                    collide.
 //   0x400..0x63F SCHEDULE_BRAM  R/W  144 32-bit words, 2 x 16-bit entries each
 //                                    (Plan Stufe 3 — word-address decode
 //                                     widened from 7-bit to 9-bit for this
@@ -385,6 +393,23 @@ module tetra_axi_lite_regs (
     output wire        aach_grant_pending_axi,
 
     // ------------------------------------------------------------------
+    // Phase X.1 — UL-Demand Snapshot Mailbox (extension window 0x200..0x20C).
+    //   REG_DEMAND_STATUS @ 0x200 RO   {drop_cnt[15:0], 15'd0, pending}
+    //   REG_DEMAND_INDEX  @ 0x204 R/W  [3:0] word selector 0..15
+    //   REG_DEMAND_DATA   @ 0x208 RO   [31:0] indirect via INDEX
+    //   REG_DEMAND_ACK    @ 0x20C W1S  HW-clr after consume (analog NWRK-BCAST)
+    // Inputs from clk_sys side (caller pre-2FF-resyncs each bit).  Outputs:
+    //   demand_index_axi_o    : 4-bit indirect-window word selector
+    //   demand_ack_trigger_axi: W1S, cleared by demand_consume_axi pulse
+    // ------------------------------------------------------------------
+    input  wire        demand_pending_axi_i,
+    input  wire [15:0] demand_drop_cnt_axi_i,
+    input  wire [31:0] demand_data_word_axi_i,
+    output wire [3:0]  demand_index_axi_o,
+    output wire        demand_ack_trigger_axi,
+    input  wire        demand_consume_axi,
+
+    // ------------------------------------------------------------------
     // Phase H.7 — D-NWRK-BROADCAST periodic push.
     //   REG_NWRK_BCAST_INDEX   @ 0x1D0 [3:0]   payload word index (0..13)
     //   REG_NWRK_BCAST_DATA    @ 0x1D4 [31:0]  32-bit, write→payload[INDEX]
@@ -691,6 +716,17 @@ localparam [6:0] REG_NWRK_BCAST_CNT     = 7'h79; // 0x1E4  RO  [15:0] push count
 localparam [6:0] REG_NWRK_BCAST_PERIOD_MF = 7'h7A; // 0x1E8 R/W [4:0] auto-fire period (MFs); 0=SW-Trigger
 
 // ---------------------------------------------------------------------------
+// Phase X.1 — UL-Demand Snapshot Mailbox (extension window 0x200..0x2FC).
+// Address-gate extended below (wr_en_axi / rdata-mux) so the [10:8]==3'b010
+// region is decodable.  Only the four word-offsets 0x80..0x83 (= 0x200..0x20C)
+// are used in Phase X.1; remaining slots reserved.
+// ---------------------------------------------------------------------------
+localparam [6:0] REG_DEMAND_STATUS = 7'h00; // 0x200  RO  [31:16]=drop_cnt, [0]=pending
+localparam [6:0] REG_DEMAND_INDEX  = 7'h01; // 0x204  R/W [3:0]  word selector 0..15
+localparam [6:0] REG_DEMAND_DATA   = 7'h02; // 0x208  RO  [31:0] indirect via INDEX
+localparam [6:0] REG_DEMAND_ACK    = 7'h03; // 0x20C  W1S [0]    HW-clr after consume
+
+// ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
 // ---------------------------------------------------------------------------
 
@@ -704,12 +740,23 @@ assign s_axi_wready  = !w_latched_axi;
 //                   slave always ACKs.
 wire wr_handshake_axi = aw_latched_axi & w_latched_axi & !s_axi_bvalid;
 
-// wr_en_axi: register-bank-gated write enable.  Fires on wr_handshake_axi
+// wr_en_axi: register-bank-0 gated write enable.  Fires on wr_handshake_axi
 // only when the address falls inside the 0x000..0x1FC register window
 // (word-address bits [10:9] == 2'b00).  All existing register writes
 // below use wr_en_axi, so widening the address bus for the Schedule-BRAM
-// window (0x400..0x63F) does not alias onto the register bank.
-wire wr_en_axi = wr_handshake_axi & (wr_addr_axi[10:9] == 2'b00);
+// window (0x400..0x63F) and the Phase X.1 demand-mailbox extension window
+// (0x200..0x2FC) does not alias onto the register bank.  Phase X.1 writes
+// use wr_en_x1_axi below.
+wire wr_en_axi    = wr_handshake_axi & (wr_addr_axi[10:9] == 2'b00);
+
+// wr_en_x1_axi: Phase X.1 demand-mailbox extension-window write enable.
+// Fires when the address falls inside 0x200..0x2FC ([10:8]==3'b010).  Only
+// four words (0x200..0x20C) are populated in Phase X.1; the rest is
+// reserved as a future extension space.  The 0x000..0x1FC register bank
+// and the 0x200..0x2FC bank share the same [8:2] field — qualify every
+// 7'h00..7'h03 match in the X.1 block with this enable so an alias to
+// 0x000..0x00C does NOT appear in bank-1 and vice-versa.
+wire wr_en_x1_axi = wr_handshake_axi & (wr_addr_axi[10:8] == 3'b010);
 
 // wr_en_sched_axi: schedule-BRAM-gated write enable.  Fires on
 // wr_handshake_axi when the address falls inside 0x400..0x63F
@@ -841,10 +888,21 @@ assign schedule_axi_re    = ar_en_axi & rd_in_sched_window_axi;
 
 // ---------------------------------------------------------------------------
 // Read Data Mux  (combinatorial, R10)
+// Bank-0 (0x000..0x1FC) — register-bank case statement below.
+// Bank-1 (0x200..0x2FC, Phase X.1 demand-mailbox extension) — overrides
+// the bank-0 result via the `if (rd_addr_axi[10:9] == 2'b01)` block
+// at the end of the same always-block.
 // ---------------------------------------------------------------------------
 reg [4:0] irq_status_axi; // declared below; forward ref OK in Verilog
 reg [3:0] ctrl_reg_axi;   // declared below
 reg [31:0] scratch_axi;   // declared below
+
+// Phase X.1 demand-mailbox AXI-side state — declared below; forward refs OK.
+reg [3:0]  demand_index_axi;
+wire        demand_pending_axi;        // 2-FF resynced from clk_sys in top
+wire [15:0] demand_drop_cnt_axi;       // 2-FF resynced from clk_sys in top
+wire [31:0] demand_data_word_axi;      // combinational mux from clk_sys side
+reg         demand_ack_trigger_r;      // W1S ACK reg
 
 reg [31:0] rdata_mux_axi;
 always @(*) begin
@@ -1004,6 +1062,24 @@ always @(*) begin
         REG_NWRK_BCAST_PERIOD_MF: rdata_mux_axi = {27'b0, nwrk_bcast_period_mf_axi};
         default:          rdata_mux_axi = 32'b0;
     endcase
+
+    // ------------------------------------------------------------------
+    // Phase X.1 — demand-mailbox extension window override.  When
+    // rd_addr_axi[10:9] == 2'b01 the read targets 0x200..0x3FC.  The
+    // bank-0 case above ran on aliased [8:2] bits — discard its result
+    // and substitute the demand-mailbox mux instead.
+    // ------------------------------------------------------------------
+    if (rd_addr_axi[10:9] == 2'b01) begin
+        case (rd_addr_axi[8:2])
+            REG_DEMAND_STATUS: rdata_mux_axi = {demand_drop_cnt_axi,
+                                                15'd0,
+                                                demand_pending_axi};
+            REG_DEMAND_INDEX:  rdata_mux_axi = {28'd0, demand_index_axi};
+            REG_DEMAND_DATA:   rdata_mux_axi = demand_data_word_axi;
+            REG_DEMAND_ACK:    rdata_mux_axi = {31'd0, demand_ack_trigger_r};
+            default:           rdata_mux_axi = 32'd0;
+        endcase
+    end
 end
 
 // ---------------------------------------------------------------------------
@@ -2102,6 +2178,41 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         if (wr_en_axi & (wr_addr_axi[8:2] == REG_NWRK_BCAST_TRIGGER)) begin
             if (wr_strb_axi[0] && wr_data_axi[0]) nwrk_bcast_trigger_r <= 1'b1;
         end
+    end
+end
+
+// ---------------------------------------------------------------------------
+// Phase X.1 — UL-Demand Snapshot Mailbox AXI-side state (clk_axi)
+// ---------------------------------------------------------------------------
+// REG_DEMAND_INDEX  @ 0x204 R/W  — 4-bit indirect-window word selector
+// REG_DEMAND_ACK    @ 0x20C W1S  — set on SW write of [0]=1; HW-clears on
+//                                  demand_consume_axi pulse (analog NWRK
+//                                  bcast pattern).
+// Forward refs `demand_index_axi`, `demand_ack_trigger_r` declared near the
+// rdata mux.  External wires `demand_pending_axi`, `demand_drop_cnt_axi`,
+// `demand_data_word_axi` aliased onto the matching input ports below.
+assign demand_pending_axi   = demand_pending_axi_i;
+assign demand_drop_cnt_axi  = demand_drop_cnt_axi_i;
+assign demand_data_word_axi = demand_data_word_axi_i;
+assign demand_index_axi_o   = demand_index_axi;
+assign demand_ack_trigger_axi = demand_ack_trigger_r;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        demand_index_axi <= 4'd0;
+    else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_DEMAND_INDEX) & wr_strb_axi[0])
+        demand_index_axi <= wr_data_axi[3:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        demand_ack_trigger_r <= 1'b0;
+    else begin
+        if (demand_consume_axi)
+            demand_ack_trigger_r <= 1'b0;
+        if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_DEMAND_ACK)
+                        & wr_strb_axi[0] & wr_data_axi[0])
+            demand_ack_trigger_r <= 1'b1;
     end
 end
 
