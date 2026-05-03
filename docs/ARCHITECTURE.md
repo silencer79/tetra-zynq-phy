@@ -17,7 +17,9 @@ Vollständige TETRA-Base-Station für Amateurfunk (70-cm-Band, 438.25 MHz DL / 4
 
 ---
 
-## 2. Architektur-Entscheidung 2026-04-22 — FPGA-heavy
+## 2. Architektur-Entscheidung 2026-04-22 — FPGA-heavy ⚠️ ÜBERHOLT
+
+> **Wichtig — diese Section dokumentiert den ursprünglichen Stand. Aktueller ARCH-Cut ist `Phase-X — FPGA Thin-Signaling` (2026-05-03), siehe §2.5 unten. Sections §2.1–§2.2 beschreiben den Ausgangs-Plan; was davon nicht mehr gilt, ist in §2.4 + §2.5 zusammengefasst.**
 
 **MAC/MLE/CMCE-Logik läuft als RTL-FSMs im FPGA, nicht auf ARM.** Response-Latenz ist damit deterministisch innerhalb eines TDMA-Slots (14.17 ms).
 
@@ -44,6 +46,49 @@ Vollständige TETRA-Base-Station für Amateurfunk (70-cm-Band, 438.25 MHz DL / 4
 - TDMA-Counter + Scheduling müssen deterministisch pro `(TN, FN, MN, HN)` sitzen. Die einzige Instanz die "wo bin ich" kennt, ist das RTL.
 - ACELP-Sprach-Codec für Voice-Relay (Gruppenruf) nicht nötig: bit-transparenter UL-TCH → DL-TCH Pass-Through, alles in RTL.
 - Response-Latenz-Budget: 1 Slot = 14 ms, ARM kann das nicht garantieren.
+
+### 2.3 Revision 2026-04-26 — FPGA + SW Split (jetzt obsolet)
+
+Slice-Druck stieg auf 97.82 % nach Phase 7 F.7 (MLE-FSM allein 10172 LUTs). Phase G+ (CMCE/Voice/SDS) hätte weitere ~20 000 LUTs gebraucht. Erster Cut: Group-Switch (mm=7) + CMCE+ in ARM, M2-Anmeldung blieb in RTL inkl. EntityTable/ProfileTable/AST. PS↔PL über TX-PDU-Mailbox + RX-Burst-FIFO + AACH-Override + IRQ. — abgelöst durch §2.5.
+
+### 2.4 Was vom 2026-04-22-Plan NICHT mehr gilt
+
+- BRAM-Shadow-Subscriber-Table im FPGA → **wandert in SW** (db.tsv im Daemon-RAM)
+- RTL-FSMs für Registration → **passiv-only** (Reassembly + IE-Parser) + **SW-Lookup** baut ACCEPT
+- 1-Cycle-Lookup-Argument → fällt weg, dafür Mailbox-Roundtrip ~1 ms (innerhalb 56-ms-Reply-Slot-Fenster)
+- DB-Transport per AXI-Lite-BRAM-Push → wegfallen, db.tsv ist Single Source of Truth in SW
+- ACELP/Voice in RTL bleibt geplant für Phase Z+
+
+### 2.5 Architektur-Entscheidung 2026-05-03 — FPGA Thin-Signaling (verbindlich)
+
+**Cut:** FPGA macht nur **PHY + Reassembly + IE-Parser + Pre-Reply BL-ACK + ACCEPT-Encoder**. EntityTable/ProfileTable/AST + Lookup-Decision + Auto-Enroll + GILA-Build wandern komplett in SW.
+
+**Auslöser:** Slice-Auslastung blieb bei **92.57 %** (impl_utilization c349d9d) trotz schon erfolgter SW-Split-Migration. GSSI-Lookup-Erweiterung für Group-Attach hätte +1500–3000 LUTs gebraucht → Slices > 95 % → Routing-Druck.
+
+**PS↔PL Schnittstelle:**
+
+| Mailbox | Richtung | AXI-Range | Funktion |
+|---------|----------|-----------|----------|
+| **Demand-Push** | RTL → SW | `0x200..0x20C` (Phase X.1) | Reassembled 132-bit Body + ISSI + bis 3 GSSI-Wunsch + Class für SW-Lese-Zugriff |
+| **Reply-Pull** | SW → RTL | `0x220..0x230` (Phase X.2) | Strukturierte Encoder-Felder (ssi, la, gila_gssi, …) + GO-Trigger + USE_SW-Toggle |
+| **D-NWRK-BCAST Auto-Trigger** | RTL self | `0x1E8` (Phase H.7+) | Frame-getakteter Auto-Push alle 10 MF, kein SW-Roundtrip |
+| **AACH-Override** | SW → RTL | bestehend | Slot-Allocation-Hint |
+
+**Bank-1 AXI-Window (`wr_addr_axi[10:8] == 3'b010`):** 0x200..0x3FC für Mailbox-Erweiterungen. Legacy 0x000..0x1FC unverändert.
+
+**Phase-Plan X.0–X.5:**
+- ✅ X.0 ARCH-Memo (Memory `project_arch_fpga_thin_signaling.md`)
+- ✅ X.1 Demand-Push-Mailbox FPGA-seitig (commit `baa40b0`) — passive Anzapfung der IE-Parser-Outputs, kein Behavior-Change am MLE-FSM
+- ✅ X.2 Reply-Pull-Mailbox + `sw/tetra_attach_daemon.c` (commits `ecb3677` + `25c8962`) — fixe M2-Replik, toggleable via `REG_REPLY_USE_SW`. **Live-verifiziert 2026-05-03 22:01:** MTP3550 Frag-1+Frag-2 → SW-Daemon serviced #1 → Encoder via Mux → ACCEPT on-air → MS akzeptiert (`reass_ok=1, ul_req:accept=4:4`).
+- ⏳ X.3 SW-Daemon DB-Lookup + Auto-Enroll (`accept_unknown_issi`/`gssi` Bits) + db.tsv-Persistenz
+- ⏳ X.4 RTL-Cleanup: EntityTable + ProfileTable + AST + MLE-FSM Multi-Lookup-Pfade löschen — Slice-Bilanz ≈ −1670 (92.57 % → 79.8 %)
+- ⏳ X.5 Pre-Reply BL-ACK Mini-FSM + AACH-Anpassung + alte SW-Daemons (`tetra_db_mgr`, `dbsync.sh`, `autoenroll.sh`) entfernen
+
+**Latency-Budget:** Reply-Slot 2 Frames nach Frag-2-RX = ~56 ms. SW-Roundtrip ~2–12 ms. Margin ~44 ms.
+
+**M2-Bit-Identity-Garantie:** Encoder-Pipeline (Conv+Punc+Interleave+Scramble) bleibt unangetastet; SW liefert nur strukturierte Felder, die der existing Encoder durchnimmt. `tb_d_location_update_encoder.v` 34/34 PASS bewahrt.
+
+Detail-Memo: `project_arch_fpga_thin_signaling.md`.
 
 ---
 
