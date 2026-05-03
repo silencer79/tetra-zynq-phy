@@ -1,220 +1,101 @@
 // =============================================================================
 // tetra_mle_registration_fsm.v
 //
-// MLE registration engine — takes an uplink "location update request"
-// (ISSI + LA from the UL MAC-ACCESS parser) and drives the four-step
-// downlink response flow:
+// Phase X.4 — SW-driven minimal trigger FSM.
 //
-//   1. Query the active-session-table for an existing record on this ISSI.
-//      - hit  → reuse slot (MS is re-registering)
-//      - miss → alloc mode scan, pick the first free slot
-//   2. Write the session record back into the table marked REG_ACCEPT_SENT.
-//   3. Emit the short addressed pre-reply as SCH/HD:
-//        MAC-RESOURCE + slot-granting + LLC AL-SETUP.
-//   4. Emit the full D-LOCATION-UPDATE-ACCEPT as SCH/F:
-//        MAC-RESOURCE + LLC BL-ADATA + MLE/MM.
+// The Multi-Lookup attach flow (EntityTable / ProfileTable / AST) was
+// migrated to ARM SW in Phases X.0..X.3 (sw/tetra_db.[ch] +
+// sw/tetra_attach_daemon.c).  The on-chip FSM is now reduced to a thin
+// trigger machine:
 //
-// The D-LOCATION-UPDATE encoder, MAC-RESOURCE builder, and SCH/F encoder
-// are all instantiated inside this module.  The FSM owns the active-
-// session-table ports exclusively for MVP — an arbiter can be wrapped
-// around it later when a second MLE/CMCE FSM needs the same resource.
+//   1. SW pre-stages the D-LOC-UPDATE-ACCEPT MM-Body fields into the
+//      Reply-Pull-Mailbox (mb_ssi, mb_addr_type, mb_gila_*, ...) via
+//      AXI-Lite REG_REPLY_INDEX/DATA.
+//   2. SW pulses REG_REPLY_GO -> 1-cycle clk_sys mb_go_pulse arrives at
+//      this FSM.  With use_sw_body=1 (Phase X.4 reset default), the FSM
+//      jumps directly into S_BUILD_ACCEPT_START.
+//   3. The MAC-RESOURCE accept builder + SCH/F encoder run unchanged on
+//      lat_ssi/lat_addr_type (latched on the GO pulse).  The encoder
+//      reads mb_* directly via the input mux preserved from Phase X.2.
+//   4. accept_pulse fires after S_DELIVER_ACCEPT, exactly as before.
 //
-// Table-full behaviour: alloc miss just drops the request (no REJECT PDU on
-// the MVP path — the MS will retry).  Wire a REJECT encode branch in as
-// soon as we have a capacity-exhausted scenario worth handling.
+// Detach path is now a no-op telemetry stub; SW will own real detach
+// behaviour in Phase X.5.  detach_pulse still fires for counter
+// observability.
 //
-// The reference BS drives the full accept as BL-ADATA NR=0 NS=0 and the
-// short pre-reply as AL-SETUP with slot-granting=0.  The registration FSM
-// therefore emits two separate queue requests per accepted UL demand.
+// The Pre-Reply (SCH/HD AL-SETUP) path is unreachable in this revision
+// because the only S_IDLE entry is the SW-triggered direct jump.  The
+// SCH/HD encoder + short MAC-RESOURCE builder + slot-grant + chan-alloc
+// encoders are kept instantiated for now so Phase X.5 (Pre-Reply BL-ACK
+// + AACH cleanup) lands as a focused diff; they synthesise as dead
+// logic and will be pruned out together with the Pre-Reply removal.
+//
+// M2 bit-identity: tb_d_location_update_encoder.v 34/34 PASS preserved;
+// the encoder bit-layout is unchanged.  When SW writes the same Profile
+// 0 / GSSI 0x2F4D61 / class=4 / lifetime=1 fields into the Reply
+// mailbox, the on-air ACCEPT body is bit-for-bit identical to the
+// pre-X.4 hardware-driven path.
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
 
-module tetra_mle_registration_fsm #(
-    parameter integer AST_IDX_WIDTH = 6,
-    // Phase D-rev: AST record widened to 256 bit per §9.2 (group_list[8]).
-    // Phase B kept it at 128.  Keep parameter so TB / older callers can
-    // still drive 64-bit / 128-bit during transitional builds.
-    parameter integer AST_REC_WIDTH = 256
-)(
+module tetra_mle_registration_fsm (
     input  wire                        clk,
     input  wire                        rst_n,
 
     // -----------------------------------------------------------------
-    // Uplink request from UL MAC-ACCESS parser (1-cycle pulse).
-    //   ul_addr_type[1:0] : MAC-ACCESS addr_type (0=Ssi/ISSI, 1=EventLabel,
-    //                       2=Ussi, 3=Smi) — bluestation
-    //                       `mac_access.rs::AddressType`.
-    //   ul_ssi[23:0]      : full 24-bit address when addr_type ∈ {0,2,3}.
-    //                       For EventLabel the lower 10 bits hold the label.
+    // Uplink request from UL MAC-ACCESS parser (Phase X.4: ignored).
+    //
+    // Kept on the port for top-level wiring continuity; the SW attach
+    // daemon decodes UL Demand reassemblies independently of these
+    // signals and drives the Reply-Pull-Mailbox directly.
     // -----------------------------------------------------------------
     input  wire                        ul_req_valid,
     input  wire [1:0]                  ul_addr_type,
     input  wire [23:0]                 ul_ssi,
     input  wire [13:0]                 ul_la,
-    // Location update type from MS's U-LOC-UPDATE-DEMAND (ETSI §16.10.37);
-    // echoed back as the D-LOC-UPDATE-ACCEPT's Location-update-accept-type
-    // field so the MS's state machine recognises the response.
     input  wire [2:0]                  ul_loc_upd_type,
-    // Reserved compatibility input from the current UL parser.  The external
-    // gold reference drives registration replies through the Basic-Link path
-    // regardless of the UL wrapper, so the FSM ignores this for now.
     input  wire                        ul_use_l2sig,
-
-    // Reserved compatibility inputs from the current UL parser.  The
-    // BlueStation-like registration path no longer appends a concat BL-ACK
-    // in this FSM; it emits the short AL-SETUP pre-reply followed by the
-    // full BL-ADATA accept as two separate PDUs.
     input  wire                        ul_llc_is_bl_data,
     input  wire                        ul_llc_ns_valid,
     input  wire                        ul_llc_ns,
-
-    // -----------------------------------------------------------------
-    // UL LLC BL-ACK / slot-pulse are kept on the interface for compatibility
-    // with the existing top-level wiring, but the registration path no longer
-    // waits for an MS-side ack after delivering the Accept.  BlueStation-like
-    // behavior for this flow is "UL BL-DATA(ns) -> DL Accept (+ piggybacked
-    // BL-ACK for the UL request) -> done".
-    // -----------------------------------------------------------------
     input  wire                        bl_ack_valid,
     input  wire                        bl_ack_nr,
     input  wire [23:0]                 bl_ack_issi,
     input  wire                        slot_pulse,
 
     // -----------------------------------------------------------------
-    // Cell configuration (static, from AXI regs)
+    // Cell configuration (static, from AXI regs).
+    // The encoder still reads cfg_la and cfg_scramble_init / cfg_mcch_tn
+    // for the legacy non-SW path; in the X.4 default flow (use_sw_body=1)
+    // they are unused on the encoder side but cfg_scramble_init is still
+    // consumed by the SCH/F encoder, and cfg_mcch_tn drives req_target_tn.
     // -----------------------------------------------------------------
     input  wire [13:0]                 cfg_la,
     input  wire [31:0]                 cfg_scramble_init,
-    input  wire [1:0]                  cfg_mcch_tn,       // target_tn for the queue req
-    // Address-Extension (MNI) for the D-LOC-UPDATE-ACCEPT MM body.
-    // Bluestation packs MNI = MCC[9:0]<<14 | MNC[13:0] (24 bit total).
+    input  wire [1:0]                  cfg_mcch_tn,
     input  wire [23:0]                 cfg_address_extension,
-    // Subscriber class default for the MM body (16 bit, broadcast value).
     input  wire [15:0]                 cfg_subscriber_class,
-    // Energy-Saving-Information field (14 bit: 3 bit ESM + 5 bit FN + 6 bit MN).
-    // Default StayAlive = 14'h0000.
     input  wire [13:0]                 cfg_energy_saving_info,
 
     // -----------------------------------------------------------------
-    // Active-session table port — this FSM owns it for MVP
-    // -----------------------------------------------------------------
-    output reg                         ast_wr_en,
-    output reg  [AST_IDX_WIDTH-1:0]    ast_wr_idx,
-    output reg  [AST_REC_WIDTH-1:0]    ast_wr_data,
-    output reg                         ast_q_start,
-    output reg                         ast_q_mode,     // 0=query, 1=alloc
-    output reg  [23:0]                 ast_q_issi,
-    input  wire                        ast_q_busy,
-    input  wire                        ast_q_done,
-    input  wire                        ast_q_hit,
-    input  wire [AST_IDX_WIDTH-1:0]    ast_q_slot,
-    input  wire [AST_REC_WIDTH-1:0]    ast_q_record,
-
-    // -----------------------------------------------------------------
-    // EntityTable lookup port (Phase 6 D-rev — §9.2/§9.3 Multi-Lookup).
-    // FSM scans the 256×64-bit BRAM for the incoming ISSI/GSSI before
-    // accepting the registration.  Three lookup modes:
-    //   match_type=1, default_gssi_scan=0 → strict (id, type) match
-    //   match_type=0, default_gssi_scan=0 → id-only match (legacy path)
-    //   default_gssi_scan=1               → first valid entity_type=1
-    //
-    // Record layout per rtl/lmac/tetra_entity_table.v:
-    //   [63:40] entity_id  [39] entity_type  [38:35] profile_id
-    //   [34:1]  reserved=0 [0]  valid
-    // -----------------------------------------------------------------
-    output reg                         entity_q_start,
-    output reg  [23:0]                 entity_q_id,
-    output reg                         entity_q_type,
-    output reg                         entity_q_match_type,
-    output reg                         entity_q_default_gssi_scan,
-    output reg                         entity_q_alloc,
-    input  wire                        entity_q_busy,
-    input  wire                        entity_q_done,
-    input  wire                        entity_q_hit,
-    input  wire [7:0]                  entity_q_slot,
-    input  wire [63:0]                 entity_q_record,
-
-    // -----------------------------------------------------------------
-    // ProfileTable read port (Phase 6 D-rev).
-    //   profile_rd_idx → drive 3-bit Profile-Table slot index.
-    //   profile_rd_data ← 32-bit profile record (read latency 1 cycle).
-    // Record layout per rtl/lmac/tetra_profile_table.v:
-    //   [31:24] max_call_duration  [23:16] hangtime  [15:12] priority
-    //   [11:9]  gila_class         [8:7]   gila_lifetime
-    //   [6:4]   reserved           [3]     permit_voice
-    //   [2]     permit_data        [1]     permit_reg     [0] valid
-    // -----------------------------------------------------------------
-    output reg  [2:0]                  profile_rd_idx,
-    input  wire [31:0]                 profile_rd_data,
-    // Alloc + write port for entity table — used for Auto-Enroll on
-    // EntityTable-miss when accept_unknown=1.  Writes a fresh ISSI slot
-    // with profile_id=0, valid=1.
-    output reg                         entity_wr_en,
-    output reg  [7:0]                  entity_wr_idx,
-    output reg  [63:0]                 entity_wr_data,
-
-    // -----------------------------------------------------------------
-    // DB policy (REG_DB_POLICY @ 0x1AC):
-    //   accept_unknown=1: shadow miss → still accept (anonymous).
-    //   accept_unknown=0: shadow miss → REJECT with cause=ITSI unknown.
-    // CDC-resynced from clk_axi in tetra_zynq_top.
-    // -----------------------------------------------------------------
-    input  wire                        accept_unknown,
-
-    // -----------------------------------------------------------------
-    // Phase B — Detach pulse + free-running multiframe counter.
-    // ul_detach_valid = U-ITSI-DETACH (mm_pdu_type=1, MLE=MM, LLC=BL-DATA)
-    //                   → AST entry for ul_detach_ssi cleared.
-    // mf_global_cnt 24-bit free-running multiframe tick (see top-level),
-    // used to refresh AST `last_seen` field for TTL sweep (Phase C).
+    // Phase B — Detach pulse.  In Phase X.4 the AST has been migrated
+    // to SW; this path is a no-op telemetry stub (latches the SSI for
+    // visibility, pulses detach_pulse, no AST touch).
     // -----------------------------------------------------------------
     input  wire                        ul_detach_valid,
     input  wire [23:0]                 ul_detach_ssi,
-    input  wire [23:0]                 mf_global_cnt,
-
-    // -----------------------------------------------------------------
-    // Phase 7 F.2 — Demand IE-parser hand-off.
-    //
-    // demand_parsed_valid_sys is a 1-cycle pulse when the IE parser has
-    // finished walking the 129-bit reassembled demand body.  The FSM
-    // latches the GSSI list in this cycle.  When the matching ul_req is
-    // already active, the FSM re-enters S_PARSE_FULL_DEMAND on the next
-    // S_GSSI_QUERY_DEFAULT_DONE entry to validate each MS-requested
-    // GSSI against EntityTable + ProfileTable.permit_voice/data.
-    //
-    // For Phase 7 sprint scope the IE parser only fills slot 0 from the
-    // single GroupIdentityLocationDemand IE; the FSM scaffolding loops
-    // up to MAX_DEMAND_GSSIS (3) so multi-GSSI lookups can be exercised
-    // in TB without changes to the IE parser.  Multi-IE parsing arrives
-    // in M4.
-    //
-    // demand_pdu_ssi_sys must equal the latched lat_ssi for the IE
-    // parser data to be consumed; otherwise the FSM falls back to the
-    // legacy default-GSSI path (same behaviour as Phase D-rev).
-    // -----------------------------------------------------------------
-    input  wire                        demand_parsed_valid,
-    input  wire [23:0]                 demand_pdu_ssi,
-    input  wire [2:0]                  demand_gssi_count,    // 0..MAX
-    input  wire [71:0]                 demand_gssi_array,    // {g2,g1,g0}
-    input  wire [8:0]                  demand_class_array,   // {c2,c1,c0}
 
     // -----------------------------------------------------------------
     // Phase X.2 — Reply-Pull-Mailbox pass-through inputs.
     //
-    // The existing FSM-state-latches (lat_ssi, cfg_la, lat_addr_type,
-    // lat_gila_*, ...) feed u_dloc unchanged when use_sw_body == 0; this
-    // is the M2 default and yields bit-identical D-LOC-UPDATE-ACCEPT
-    // bodies to the gold reference.  When use_sw_body == 1 the SW-staged
-    // mailbox values mb_* substitute at the u_dloc input mux.  The MLE
-    // FSM internal state machine is NOT modified — it still latches and
-    // drives all internal signals exactly as before; the toggle simply
-    // re-routes the encoder inputs.
+    // SW-staged D-LOC-UPDATE-ACCEPT fields.  use_sw_body=1 (Phase X.4
+    // default) routes mb_* to the encoder; use_sw_body=0 falls back to
+    // the FSM-latched lat_* values (now reset-defaults only — no FSM
+    // update path remains in X.4).
     //
-    // mb_go_pulse is reserved for Phase X.4 when SW will fully drive the
-    // accept-build trigger; in Phase X.2 the existing FSM accept_pulse
-    // continues to run the regular trigger and the SW just races to
-    // pre-stage mb_* before that pulse arrives.
+    // mb_go_pulse is the new trigger from SW: with use_sw_body=1 the
+    // FSM jumps directly from S_IDLE to S_BUILD_ACCEPT_START.
     // -----------------------------------------------------------------
     input  wire [23:0]                 mb_ssi,
     input  wire [13:0]                 mb_la,
@@ -230,19 +111,13 @@ module tetra_mle_registration_fsm #(
     input  wire                        use_sw_body,
 
     // -----------------------------------------------------------------
-    // Phase H.0.2 — mm=7 group-attach trigger ports + GAD-ACK driver
-    // outputs removed.  Group-Switch flow moves to ARM SW per the
-    // FPGA+SW split (ARCH-Pivot 2026-04-26).
-    // -----------------------------------------------------------------
     // DL signalling-queue request — 1-cycle pulse carrying the full 432-bit
-    // SCH/F coded PDU plus type/target metadata.  The queue assembles it
-    // into an entry; a downstream scheduler decides when it goes on air.
+    // SCH/F coded PDU plus type/target metadata.
     // -----------------------------------------------------------------
     output reg                         req_valid,
     output reg  [431:0]                req_coded_bits,
     output reg  [1:0]                  req_pdu_type,    // 00=SCH_F
-    output reg  [1:0]                  req_target_tn,   // mirrors cfg_mcch_tn
-    // Legacy telemetry, kept wired for downstream debug compatibility.
+    output reg  [1:0]                  req_target_tn,
     output reg                         req_second_pdu_present,
     output reg                         req_second_pdu_nr,
 
@@ -251,138 +126,72 @@ module tetra_mle_registration_fsm #(
     // -----------------------------------------------------------------
     output reg                         busy,
     output reg                         accept_pulse,   // 1 cyc on ACCEPT built
-    output reg                         drop_pulse,     // 1 cyc on table-full
-    output reg                         ack_pulse,      // 1 cyc on matching BL-ACK
-    output reg                         retransmit_pulse, // 1 cyc per retransmit
-    output reg                         lost_pulse,     // 1 cyc on N252 exhaust
-    output reg                         detach_pulse    // 1 cyc on AST clear (Phase B)
+    output reg                         drop_pulse,     // tied 0 in X.4
+    output reg                         ack_pulse,      // tied 0 in X.4
+    output reg                         retransmit_pulse, // tied 0 in X.4
+    output reg                         lost_pulse,     // tied 0 in X.4
+    output reg                         detach_pulse    // 1 cyc on U-ITSI-DETACH (no-op stub)
 );
 
-    // -------------------------------------------------------------------------
-    // Latched UL request
-    // -------------------------------------------------------------------------
-    reg [2:0]                   lat_addr_type;
-    reg [23:0]                  lat_ssi;
-    reg [13:0]                  lat_la;
-    reg [2:0]                   lat_loc_upd_type;
-    reg                         lat_use_l2sig;
-    reg [AST_IDX_WIDTH-1:0]     lat_slot;
-    reg                         lat_existing;
-    reg [267:0]                 lat_accept_info_bits;
-    reg [123:0]                 lat_short_info_bits;
-    // Phase 6 D-rev — latched lookup results driving the GILA encoder.
-    // Reset defaults reproduce the M2 gold-ref bit pattern when no DB
-    // entry is found (Auto-Enroll path with Profile 0).
-    reg [3:0]                   lat_profile_id;     // EntityTable→Profile slot
-    reg [23:0]                  lat_gila_gssi;
-    reg [2:0]                   lat_gila_class;
-    reg [1:0]                   lat_gila_lifetime;
-    reg                         lat_gila_present;
-    reg [7:0]                   lat_alloc_idx;      // EntityTable alloc target
+    // Suppress lint on unused legacy ports (kept for top-level wiring).
+    // synthesis translate_off
+    wire _unused_ports = |{
+        ul_req_valid, ul_addr_type, ul_ssi, ul_la, ul_loc_upd_type,
+        ul_use_l2sig, ul_llc_is_bl_data, ul_llc_ns_valid, ul_llc_ns,
+        bl_ack_valid, bl_ack_nr, bl_ack_issi, slot_pulse,
+        cfg_la, cfg_address_extension, cfg_subscriber_class,
+        cfg_energy_saving_info, mb_la, mb_result, mb_encryption,
+        mb_auth_result, 1'b0
+    };
+    // synthesis translate_on
 
     // -------------------------------------------------------------------------
-    // Phase 7 F.2 — Demand-IE-parser latches.
+    // Latched ACCEPT trigger fields.
     //
-    // The IE parser produces its outputs ~5–10 cycles after a reassembled
-    // demand body lands.  We latch them on demand_parsed_valid so the FSM
-    // can consume them whenever it reaches S_PARSE_FULL_DEMAND, regardless
-    // of how the EntityTable/ProfileTable scans have progressed for the
-    // matching ul_req_valid pulse.
-    //
-    // demand_present_for_lat_ssi_w gates the multi-GSSI loop: only enter
-    // S_PARSE_FULL_DEMAND when the latched demand SSI matches lat_ssi
-    // (the FSM's current registration target).  This keeps profile0_m2_
-    // guard green — the legacy TB never asserts demand_parsed_valid, so
-    // demand_present_for_lat_ssi_w is 0 and the FSM falls through the
-    // S_GSSI_QUERY_DEFAULT_DONE → S_CHECK_START path unchanged.
-    //
-    // group_count[3:0] tracks how many GSSIs were appended to AST.group_
-    // list in the current registration.  group_idx[1:0] is the loop
-    // index 0..MAX_DEMAND_GSSIS-1.
+    // The MAC-RESOURCE accept builder consumes ssi/addr_type directly (not
+    // through the SW mux), so we latch from mb_* at the GO pulse.  The
+    // encoder mux still reads mb_* live, so its bits stay in lock-step with
+    // the SW-staged values.
     // -------------------------------------------------------------------------
-    localparam integer MAX_DEMAND_GSSIS = 3;
-    reg                         lat_demand_valid;
-    reg [23:0]                  lat_demand_ssi;
-    reg [2:0]                   lat_demand_count;
-    reg [71:0]                  lat_demand_gssi_array;
-    reg [8:0]                   lat_demand_class_array;
+    reg [2:0]   lat_addr_type;
+    reg [23:0]  lat_ssi;
 
-    reg [3:0]                   lat_group_count;
-    reg [191:0]                 lat_group_list;
-    reg [1:0]                   group_idx;       // 0..MAX_DEMAND_GSSIS-1
+    // Encoder fallback latches (only used when use_sw_body=0 — legacy path).
+    // No update path drives them in X.4; they hold their reset defaults so
+    // a downstream consumer with the toggle off still sees the M2 bit
+    // pattern (Profile 0 default GILA).
+    reg [13:0]  lat_la;
+    reg [2:0]   lat_loc_upd_type;
+    reg [23:0]  lat_gila_gssi;
+    reg [2:0]   lat_gila_class;
+    reg [1:0]   lat_gila_lifetime;
+    reg         lat_gila_present;
+
+    reg [267:0] lat_accept_info_bits;
+    reg [23:0]  lat_detach_ssi;
 
     // -------------------------------------------------------------------------
-    // Phase H.0.2 — Group-attach/detach (mm=7) latches removed.  All
-    // mm=7 state (lat_gad_*, lat_ack_*, gad_loop_idx, gad_ast_slot,
-    // gad_ast_hit, lat_ast_nr_ns) and the gad_cur_* combinational
-    // accessor moved out with the FSM states; mm=7 PDU build/transmit
-    // moves to ARM SW per the FPGA+SW split.
-    // -------------------------------------------------------------------------
-
-    // Combinational accessors for the GSSI/class triple at index group_idx.
-    reg [23:0]                  cur_gssi_w;
-    reg [2:0]                   cur_class_w;
-    always @* begin
-        case (group_idx)
-            2'd0: begin
-                cur_gssi_w  = lat_demand_gssi_array[23:0];
-                cur_class_w = lat_demand_class_array[2:0];
-            end
-            2'd1: begin
-                cur_gssi_w  = lat_demand_gssi_array[47:24];
-                cur_class_w = lat_demand_class_array[5:3];
-            end
-            2'd2: begin
-                cur_gssi_w  = lat_demand_gssi_array[71:48];
-                cur_class_w = lat_demand_class_array[8:6];
-            end
-            default: begin
-                cur_gssi_w  = 24'd0;
-                cur_class_w = 3'd0;
-            end
-        endcase
-    end
-
-    wire demand_present_for_lat_ssi_w = lat_demand_valid &&
-                                        (lat_demand_ssi == lat_ssi) &&
-                                        (lat_demand_count != 3'd0);
-
-    // -------------------------------------------------------------------------
-    // D-LOCATION-UPDATE builder — combinational, always watching the latched
-    // request fields.  Produces the raw 108-bit MM PDU (MSB-aligned in 128-bit
-    // bus) that the MAC-RESOURCE builder wraps.  Always emits all 3 type-2
-    // optional fields (Address-Extension, Subscriber-Class, Energy-Saving-Info)
-    // plus a zero-length Security-Downlink type-3 header so the full Accept
-    // lands at the external-reference LI=21 sizing.
+    // D-LOCATION-UPDATE encoder — Phase X.2 input mux preserved.  The mux
+    // selector is `use_sw_body`; with the X.4 reset default of 1 (driven
+    // from REG_REPLY_USE_SW), every encoder input resolves to the SW-staged
+    // mailbox value.
     // -------------------------------------------------------------------------
     wire [127:0] dloc_mm_bits_w;
     wire [7:0]   dloc_mm_len_w;
-    wire [123:0] dloc_legacy_pdu_w;  // unused here, kept for linter silence
+    wire [123:0] dloc_legacy_pdu_w;     // unused — kept for linter silence
 
-    // -------------------------------------------------------------------------
-    // Phase X.2 — u_dloc field mux.  When use_sw_body=0 (M2 default and the
-    // legacy bit-identity path) every input below resolves to the existing
-    // FSM-state value, so the encoder produces the same 102-bit MM body as
-    // before this commit.  When use_sw_body=1 the SW-pulled mailbox latches
-    // (mb_*) substitute, allowing the ARM daemon to stage a fresh ACCEPT
-    // body per UL-Demand without modifying the FSM.
-    // -------------------------------------------------------------------------
     tetra_d_location_update_encoder u_dloc (
-        .pdu_reject        (1'b0),                 // ACCEPT-Pfad nutzt diesen Encoder
+        .pdu_reject        (1'b0),
         .addr_type         (use_sw_body ? mb_addr_type : lat_addr_type),
         .ssi               (use_sw_body ? mb_ssi      : lat_ssi),
-        .la                (use_sw_body ? mb_la       : cfg_la),               // legacy 124-bit path
-        .result            (use_sw_body ? mb_result   : 2'b00),                // accept
-        .encryption        (use_sw_body ? mb_encryption  : 2'b00),             // clear
-        .auth_result       (use_sw_body ? mb_auth_result : 2'b01),             // success
+        .la                (use_sw_body ? mb_la       : cfg_la),
+        .result            (use_sw_body ? mb_result   : 2'b00),
+        .encryption        (use_sw_body ? mb_encryption  : 2'b00),
+        .auth_result       (use_sw_body ? mb_auth_result : 2'b01),
         .subscriber_class  (cfg_subscriber_class),
         .address_extension (cfg_address_extension),
         .energy_saving_info(cfg_energy_saving_info),
-        .loc_acc_type      (lat_loc_upd_type),     // echo MS demand type
-        // Phase 6 D-rev — dynamic GILA inputs from EntityTable/ProfileTable
-        // multi-lookup (latched in lat_gila_*).  M2 default values reproduce
-        // the gold-ref bit pattern when Profile 0 + GSSI 0x2F4D61 are in DB.
-        // Phase X.2 mux: SW-mailbox overrides when use_sw_body=1.
+        .loc_acc_type      (lat_loc_upd_type),
         .gila_gssi         (use_sw_body ? mb_gila_gssi     : lat_gila_gssi),
         .gila_class        (use_sw_body ? mb_gila_class    : lat_gila_class),
         .gila_lifetime     (use_sw_body ? mb_gila_lifetime : lat_gila_lifetime),
@@ -392,54 +201,12 @@ module tetra_mle_registration_fsm #(
         .pdu_len_bits      (dloc_mm_len_w)
     );
 
-    // Phase X.2 — mb_go_pulse currently unused (Reserve für Phase X.4 SW
-    // accept-Trigger).  Tie it through a synthesis-only "unused" guard so
-    // lint stays clean while the input remains on the module port.
-    // synthesis translate_off
-    wire _x2_unused_mb_go = mb_go_pulse;
-    // synthesis translate_on
-
     // -------------------------------------------------------------------------
-    // D-LOCATION-UPDATE-REJECT encoder (Phase 6 A, ETSI §16.10.40).
-    // 8-bit MM body: pdu_type=0111, reject_cause(3), o-bit=0.
-    // Used when the subscriber-shadow lookup denies registration
-    // (permit_reg=0 or shadow miss + accept_unknown=0).
-    // -------------------------------------------------------------------------
-    reg  [2:0]   lat_reject_cause;
-    wire [127:0] dreject_mm_bits_w;
-    wire [7:0]   dreject_mm_len_w;
-
-    tetra_d_location_update_reject_encoder u_dreject (
-        .reject_cause (lat_reject_cause),
-        .pdu_bits_mm  (dreject_mm_bits_w),
-        .pdu_len_bits (dreject_mm_len_w)
-    );
-
-    // Mux between ACCEPT (102 bit) and REJECT (8 bit) MM body for the
-    // accept-path MAC-RESOURCE wrapper.  `lat_is_reject` is set during
-    // S_PERMIT_DECIDE when the lookup denies registration.
-    reg          lat_is_reject;
-    wire [127:0] mle_mm_bits_w  = lat_is_reject ? dreject_mm_bits_w : dloc_mm_bits_w;
-    wire [7:0]   mle_mm_len_w   = lat_is_reject ? dreject_mm_len_w  : dloc_mm_len_w;
-
-    // -------------------------------------------------------------------------
-    // BasicSlotgrant + ChanAllocElement encoders — structurally wired in
-    // ahead of Phase-6 call-setup / paging callers.  For D-LOC-UPDATE-ACCEPT
-    // all three MAC-RESOURCE flag inputs on the builder are tied 0 so the
-    // builder skips the optional elements regardless of what these encoders
-    // output.  Both encoders are pure combinational — they synthesise to
-    // constant zeros here (all-zero inputs propagate through).
-    //
-    // Phase-6 callers will replace these zero stimuli with real semantic
-    // values (capacity_allocation, granting_delay, carrier_num, ...) and
-    // flip the corresponding *_flag on the builder interface — no further
-    // rewiring needed.
+    // BasicSlotgrant + ChanAllocElement encoders — kept instantiated; the
+    // builder ties their flags to 0/1 below.  These vanish with the
+    // Pre-Reply removal in Phase X.5.
     // -------------------------------------------------------------------------
     wire [7:0]  slot_grant_packed_w;
-    // Gold-Pre-Reply Burst #775: slot_granting_element = 0x01
-    //   = capacity_allocation(0) | granting_delay(1)
-    // Phase H.3.2 (2026-05-02): granting_delay 0→1 für Bit-Identity zu Gold.
-    // Frühere 4'd0 ergab packed=0x00 — 1-Bit-Drift gegen Gold im SG-Element.
     tetra_basic_slotgrant_encoder u_slotgrant (
         .capacity_allocation (4'd0),
         .granting_delay      (4'd1),
@@ -455,68 +222,18 @@ module tetra_mle_registration_fsm #(
         .clch_permission     (1'b0),
         .cell_change_flag    (1'b0),
         .carrier_num         (12'd0),
-        .mon_pattern         (2'd3),   // non-zero → 25-bit form, matches
-                                       // bluestation "replace_lab" default
+        .mon_pattern         (2'd3),
         .frame18_mon_pattern (2'd0),
         .packed_element      (chan_alloc_packed_w),
         .element_len         (chan_alloc_len_w)
     );
 
     // -------------------------------------------------------------------------
-    // MAC-RESOURCE DL builders:
-    //   - short pre-reply: SCH/HD, MAC-RESOURCE + slot-grant + LLC AL-SETUP
-    //   - full accept:     SCH/F, MAC-RESOURCE + slot-grant + LLC BL-ADATA + MLE/MM
+    // MAC-RESOURCE DL builder — full ACCEPT (SCH/F, 268 info bits).
     // -------------------------------------------------------------------------
-    reg          short_builder_start;
     reg          accept_builder_start;
-    wire [123:0] short_builder_pdu_bits_w;
-    wire         short_builder_valid_w;
     wire [267:0] accept_builder_pdu_bits_w;
     wire         accept_builder_valid_w;
-
-    tetra_mac_resource_dl_builder #(
-        .PDU_BITS(124),
-        // Short builder fits in 124 bits; override the default 144-bit LLC
-        // buffer so the (PDU_BITS - LLC_BUF_BITS) repeat stays non-negative.
-        // No MM body in the short pre-reply — 96 bit is plenty for AL-SETUP
-        // (4 bit) + slot-grant element (8 bit).
-        .LLC_BUF_BITS(96)
-    ) u_short_builder (
-        .clk               (clk),
-        .rst_n             (rst_n),
-        .start             (short_builder_start),
-        .ssi               (lat_ssi),
-        .addr_type         (lat_addr_type),
-        .ns                (1'b0),
-        .nr                (1'b0),                 // TODO: from AST record
-        .llc_pdu_type      (4'd8),                 // AL-SETUP
-        .random_access_flag(1'b1),
-        .power_control_flag       (1'b0),
-        .power_control_element    (4'd0),
-        .slot_granting_flag       (1'b1),
-        .slot_granting_element    (slot_grant_packed_w),
-        .chan_alloc_flag          (1'b0),
-        .chan_alloc_element       (chan_alloc_packed_w),
-        .chan_alloc_element_len   (chan_alloc_len_w),
-        .second_pdu_valid              (1'b0),
-        .second_pdu_length_ind         (6'd0),
-        .second_pdu_random_access_flag (1'b0),
-        .second_pdu_addr_type          (3'd0),
-        .second_pdu_ssi                (24'd0),
-        .second_pdu_tl_sdu             (80'd0),
-        .second_pdu_tl_sdu_len         (7'd0),
-        .second_pdu_pc_flag            (1'b0),
-        .second_pdu_pc_element         (4'd0),
-        .second_pdu_sg_flag            (1'b0),
-        .second_pdu_sg_element         (8'd0),
-        .second_pdu_ca_flag            (1'b0),
-        .second_pdu_ca_element         (32'd0),
-        .second_pdu_ca_element_len     (5'd0),
-        .mm_pdu_bits       (128'd0),
-        .mm_pdu_len_bits   (8'd0),
-        .pdu_bits          (short_builder_pdu_bits_w),
-        .valid             (short_builder_valid_w)
-    );
 
     tetra_mac_resource_dl_builder #(
         .PDU_BITS(268)
@@ -529,10 +246,6 @@ module tetra_mle_registration_fsm #(
         .ns                (1'b0),
         .nr                (1'b0),
         .llc_pdu_type      (4'd0),                 // BL-ADATA
-        // Gold-ref Burst #735: RA-flag = 0 on the full Accept.  The RA
-        // acknowledgement was already piggybacked in the SCH/HD AL-SETUP
-        // pre-reply (Burst #727, RA-flag=1), so the SCH/F Accept must NOT
-        // re-acknowledge.  Setting this to 1 here was a delta vs. gold.
         .random_access_flag(1'b0),
         .power_control_flag       (1'b0),
         .power_control_element    (4'd0),
@@ -555,766 +268,114 @@ module tetra_mle_registration_fsm #(
         .second_pdu_ca_flag            (1'b0),
         .second_pdu_ca_element         (32'd0),
         .second_pdu_ca_element_len     (5'd0),
-        .mm_pdu_bits       (mle_mm_bits_w),    // ACCEPT (102b) or REJECT (8b) per lat_is_reject
-        .mm_pdu_len_bits   (mle_mm_len_w),
+        .mm_pdu_bits       (dloc_mm_bits_w),
+        .mm_pdu_len_bits   (dloc_mm_len_w),
         .pdu_bits          (accept_builder_pdu_bits_w),
         .valid             (accept_builder_valid_w)
     );
 
     // -------------------------------------------------------------------------
     // SCH/F channel encoder — 268 info bits → 432 type-5 coded bits.
-    // Pulsed at S_ENCODE_START after the builder latches a complete PDU.
     // -------------------------------------------------------------------------
     reg          sch_encode_start;
     wire [431:0] sch_coded_bits_w;
     wire         sch_coded_valid_w;
 
-    // Phase H.0.2 — sch_f info-bits source mux removed (mm=7 GAD-ACK
-    // path moved to ARM SW per the FPGA+SW split).  M2 ACCEPT path
-    // drives the encoder directly.
-    wire [267:0] sch_f_info_bits_w = lat_accept_info_bits;
-
     tetra_sch_f_encoder u_sch_f (
         .clk          (clk),
         .rst_n        (rst_n),
         .encode_start (sch_encode_start),
-        .info_bits    (sch_f_info_bits_w),
+        .info_bits    (lat_accept_info_bits),
         .scramble_init(cfg_scramble_init),
         .coded_bits   (sch_coded_bits_w),
         .coded_valid  (sch_coded_valid_w)
     );
 
-    reg          sch_hd_encode_start;
-    wire [215:0] sch_hd_coded_bits_w;
-    wire         sch_hd_coded_valid_w;
-
-    tetra_sch_hd_encoder u_sch_hd (
-        .clk          (clk),
-        .rst_n        (rst_n),
-        .encode_start (sch_hd_encode_start),
-        .info_bits    (lat_short_info_bits),
-        .scramble_init(cfg_scramble_init),
-        .coded_bits   (sch_hd_coded_bits_w),
-        .coded_valid  (sch_hd_coded_valid_w)
-    );
-
     // -------------------------------------------------------------------------
-    // Phase H.0.2 — F.7.4 GAD-ACK encoder + dedicated MAC-RESOURCE DL
-    // builder removed.  Group-Switch (mm=7) D-ATTACH-DETACH-GRP-ID-ACK
-    // assembly moves to ARM SW per the FPGA+SW split (ARCH-Pivot
-    // 2026-04-26).  M2 attach unchanged.
-    // -------------------------------------------------------------------------
-    // -------------------------------------------------------------------------
-    // Session record packer (Phase D-rev — 256 bit layout per §9.2)
-    // [255:232]  ISSI               24    (visible to AST query scan)
-    // [231:208]  last_seen_multiframe 24  (free-running counter, TTL key)
-    // [207:200]  shadow_idx          8    (Phase A backref — 0 in D rev,
-    //                                       wired in D.4)
-    // [199:196]  state               4    (1=REG_ACCEPT_SENT)
-    // [195:192]  group_count         4    (Phase D writes 0 — RX IE parser
-    //                                       is M3 scope)
-    // [191:  1]  group_list[8]    191    (Phase D writes 0; MS-driven GSSI
-    //                                       lists land here in M3)
-    // [  0]      valid               1    (visible to AST alloc scan)
+    // FSM — Phase X.4 minimal trigger machine.
     //
-    // The legacy 128-bit and 64-bit paths still work via parameter override
-    // — record packing degrades gracefully at the lower widths (everything
-    // above [127] / [63] simply isn't emitted).  In the 256-bit path we
-    // re-use the SAME [0]=valid convention from Phase B/C (see header of
-    // tetra_active_session_table.v for the §9.2-vs-valid reconciliation).
+    //   S_IDLE              — wait for U-ITSI-DETACH or SW-driven ACCEPT GO.
+    //   S_DETACH_NOOP       — pulse detach_pulse, return idle (no AST touch).
+    //   S_BUILD_ACCEPT_*    — drive MAC-RESOURCE builder; latch accept_info.
+    //   S_ENCODE_F_*        — drive SCH/F encoder; latch 432-bit coded.
+    //   S_DELIVER_ACCEPT    — emit req_valid + accept_pulse.
     // -------------------------------------------------------------------------
-    wire [AST_REC_WIDTH-1:0] session_record_w = (AST_REC_WIDTH == 256) ? {
-        lat_ssi,                    // [255:232]  24  ISSI
-        mf_global_cnt,              // [231:208]  24  last_seen_multiframe
-        8'd0,                       // [207:200]   8  shadow_idx (D.4 wires)
-        4'd1,                       // [199:196]   4  state=REG_ACCEPT_SENT
-        lat_group_count,            // [195:192]   4  group_count (Phase 7 F.2)
-        lat_group_list[191:1],      // [191:  1] 191  group_list (Phase 7 F.2)
-        1'b1                        // [  0]       1  valid
-    } : (AST_REC_WIDTH == 128) ? {
-        lat_ssi,                    // [127:104]  24  ISSI (legacy)
-        mf_global_cnt,              // [103: 80]  24  last_seen
-        8'd0,                       // [ 79: 72]   8  shadow_idx
-        4'd1,                       // [ 71: 68]   4  state
-        67'd0,                      // [ 67:  1]  67  reserved
-        1'b1                        // [  0]       1  valid
-    } : {
-        // 64-bit fallback for legacy TBs (shadow_idx/state collapsed)
-        lat_ssi,                    // [63:40]    24  ISSI
-        39'd0,                      // [39: 1]    39  reserved
-        1'b1                        // [ 0]        1  valid
-    };
+    localparam [3:0] S_IDLE              = 4'd0;
+    localparam [3:0] S_DETACH_NOOP       = 4'd1;
+    localparam [3:0] S_BUILD_ACCEPT_START= 4'd2;
+    localparam [3:0] S_BUILD_ACCEPT_WAIT = 4'd3;
+    localparam [3:0] S_ENCODE_F_START    = 4'd4;
+    localparam [3:0] S_ENCODE_F_WAIT     = 4'd5;
+    localparam [3:0] S_DELIVER_ACCEPT    = 4'd6;
+    reg [3:0] state;
 
-    // -------------------------------------------------------------------------
-    // Detach record — same layout, all-zero except width (write valid=0)
-    // -------------------------------------------------------------------------
-    wire [AST_REC_WIDTH-1:0] detach_zero_record_w = {AST_REC_WIDTH{1'b0}};
-
-    // -------------------------------------------------------------------------
-    // FSM — Phase 6 D-rev Multi-Lookup attach flow per §9.3:
-    //   Entity(ISSI) → Profile → (Default-GSSI scan when group_count==0) → AST.
-    // -------------------------------------------------------------------------
-    localparam [5:0] S_IDLE                = 5'd0;
-    localparam [5:0] S_CHECK_START         = 5'd1;
-    localparam [5:0] S_CHECK_WAIT          = 5'd2;
-    localparam [5:0] S_ALLOC_START         = 5'd3;
-    localparam [5:0] S_ALLOC_WAIT          = 5'd4;
-    localparam [5:0] S_WRITE               = 5'd5;
-    localparam [5:0] S_BUILD_SHORT_START   = 5'd6;
-    localparam [5:0] S_BUILD_SHORT_WAIT    = 5'd7;
-    localparam [5:0] S_ENCODE_HD_START     = 5'd8;
-    localparam [5:0] S_ENCODE_HD_WAIT      = 5'd9;
-    localparam [5:0] S_BUILD_ACCEPT_START  = 5'd10;
-    localparam [5:0] S_BUILD_ACCEPT_WAIT   = 5'd11;
-    localparam [5:0] S_ENCODE_F_START      = 5'd12;
-    localparam [5:0] S_ENCODE_F_WAIT       = 5'd13;
-    localparam [5:0] S_DELIVER_ACCEPT      = 5'd14;
-    localparam [5:0] S_DROP                = 5'd15;
-    localparam [5:0] S_WAIT_GAP_FRAME      = 5'd16;
-    // Phase 6 D-rev Multi-Lookup attach flow:
-    //   ENTITY_QUERY_ISSI[_DONE] → PROFILE_QUERY[_WAIT][_DECIDE]
-    //                            → DEFAULT_GSSI[_DONE] → AST (S_CHECK_START).
-    //   On ENTITY-miss + accept_unknown=1: ENTITY_ALLOC[_WAIT] → write fresh
-    //   entry with profile_id=0 → PROFILE_QUERY (slot 0).
-    localparam [5:0] S_ENTITY_QUERY_ISSI       = 5'd17;
-    localparam [5:0] S_ENTITY_QUERY_ISSI_DONE  = 5'd18;
-    localparam [5:0] S_ENTITY_ALLOC_ISSI       = 5'd19;
-    localparam [5:0] S_ENTITY_ALLOC_WAIT       = 5'd20;
-    localparam [5:0] S_PROFILE_QUERY           = 5'd21;
-    localparam [5:0] S_PROFILE_WAIT            = 5'd22;
-    localparam [5:0] S_PROFILE_DECIDE          = 5'd23;
-    localparam [5:0] S_GSSI_QUERY_DEFAULT      = 5'd24;
-    localparam [5:0] S_GSSI_QUERY_DEFAULT_DONE = 5'd25;
-    // Phase 6 B: U-ITSI-DETACH path — clear AST entry for ISSI
-    localparam [5:0] S_DETACH_QUERY        = 5'd26;
-    localparam [5:0] S_DETACH_WAIT         = 5'd27;
-    localparam [5:0] S_DETACH_CLEAR        = 5'd28;
-    // Phase 7 F.2 — Multi-GSSI lookup states (after default-GSSI scan).
-    //   PARSE_FULL_DEMAND  → entry: latch lat_group_count=0, group_idx=0
-    //   GSSI_LOOP_NEXT     → either kick off Entity.query for the next GSSI
-    //                        or, on group_idx == lat_demand_count, jump to
-    //                        S_CHECK_START.
-    //   GSSI_ENTITY_DONE   → consume Entity.query result; on hit + permit,
-    //                        append to lat_group_list.
-    //   GSSI_PROFILE_QUERY → drive profile_rd_idx for the gssi's owning
-    //                        EntityTable record.
-    //   GSSI_PROFILE_WAIT  → 2 cycle settle.
-    //   GSSI_PROFILE_DECIDE→ examine permit_voice / permit_data.
-    localparam [5:0] S_PARSE_FULL_DEMAND   = 6'd29;
-    localparam [5:0] S_GSSI_LOOP_NEXT      = 6'd30;
-    localparam [5:0] S_GSSI_ENTITY_DONE    = 6'd31;
-    localparam [5:0] S_GSSI_PROFILE_QUERY  = 6'd32;
-    localparam [5:0] S_GSSI_PROFILE_WAIT   = 6'd33;
-    localparam [5:0] S_GSSI_PROFILE_DECIDE = 6'd34;
-    reg [23:0] lat_detach_ssi;
-    reg [5:0] state;
-    // Profile-Table read latency for the per-GSSI Profile lookup loop.
-    reg [3:0] lat_gssi_profile_id;
-    reg [3:0] gap_slot_count;     // 4 bits für 2-Frame-Wartezeit (8 slot_pulses)
-    // Profile-Table read latency = 1 cycle (registered output); we drive
-    // profile_rd_idx in S_PROFILE_QUERY and consume profile_rd_data 2
-    // cycles later via S_PROFILE_WAIT.
-    reg [1:0] profile_wait_cnt;
-
-    // Synchronous reset — Xilinx DRC (REQP-1839) flags async resets on
-    // registers feeding BRAM control pins (WEBWE, ADDRBWRADDR) as memory-
-    // corruption hazards.  Keep the AST ports async-reset-free.
     always @(posedge clk) begin
         if (!rst_n) begin
-            state             <= S_IDLE;
-            lat_addr_type     <= 3'd0;
-            lat_ssi           <= 24'd0;
-            lat_la            <= 14'd0;
-            lat_loc_upd_type  <= 3'd0;
-            lat_use_l2sig     <= 1'b0;
-            lat_slot          <= {AST_IDX_WIDTH{1'b0}};
-            lat_existing      <= 1'b0;
-            lat_accept_info_bits <= 268'd0;
-            lat_short_info_bits  <= 124'd0;
-            gap_slot_count    <= 4'd0;
-            ast_wr_en         <= 1'b0;
-            ast_wr_idx        <= {AST_IDX_WIDTH{1'b0}};
-            ast_wr_data       <= {AST_REC_WIDTH{1'b0}};
-            ast_q_start       <= 1'b0;
-            ast_q_mode        <= 1'b0;
-            ast_q_issi        <= 24'd0;
-            // Phase 6 D-rev — entity table & profile table FSM ports
-            entity_q_start              <= 1'b0;
-            entity_q_id                 <= 24'd0;
-            entity_q_type               <= 1'b0;
-            entity_q_match_type         <= 1'b0;
-            entity_q_default_gssi_scan  <= 1'b0;
-            entity_q_alloc              <= 1'b0;
-            entity_wr_en                <= 1'b0;
-            entity_wr_idx               <= 8'd0;
-            entity_wr_data              <= 64'd0;
-            profile_rd_idx              <= 3'd0;
-            profile_wait_cnt            <= 2'd0;
-            // GILA defaults — Profile 0 / Default-GSSI lookup result.
-            // Reset values are the M2 gold-ref bit-identity guard so that
-            // even if the DB is empty / unsynced, the encoder still
-            // produces the canonical Accept (modulo gila_present=0 path
-            // when no GSSI is in DB, which is also a valid behaviour).
-            lat_profile_id    <= 4'd0;
-            lat_gila_gssi     <= 24'h2F4D61;
-            lat_gila_class    <= 3'b100;
-            lat_gila_lifetime <= 2'b01;
-            lat_gila_present  <= 1'b1;
-            lat_alloc_idx     <= 8'd0;
-            lat_is_reject     <= 1'b0;
-            lat_reject_cause  <= 3'd0;
-            lat_detach_ssi    <= 24'd0;
-            detach_pulse      <= 1'b0;
-            // Phase 7 F.2 — demand IE-parser latches + group-list state
-            lat_demand_valid       <= 1'b0;
-            lat_demand_ssi         <= 24'd0;
-            lat_demand_count       <= 3'd0;
-            lat_demand_gssi_array  <= 72'd0;
-            lat_demand_class_array <= 9'd0;
-            lat_group_count        <= 4'd0;
-            lat_group_list         <= 192'd0;
-            group_idx              <= 2'd0;
-            lat_gssi_profile_id    <= 4'd0;
-            short_builder_start  <= 1'b0;
-            accept_builder_start <= 1'b0;
-            sch_encode_start  <= 1'b0;
-            sch_hd_encode_start <= 1'b0;
-            req_valid         <= 1'b0;
-            req_coded_bits    <= 432'd0;
-            req_pdu_type      <= 2'd0;
-            req_target_tn     <= 2'd0;
+            state                  <= S_IDLE;
+            lat_addr_type          <= 3'd0;
+            lat_ssi                <= 24'd0;
+            lat_la                 <= 14'd0;
+            lat_loc_upd_type       <= 3'd0;
+            lat_gila_gssi          <= 24'h2F4D61;   // M2 default
+            lat_gila_class         <= 3'b100;
+            lat_gila_lifetime      <= 2'b01;
+            lat_gila_present       <= 1'b1;
+            lat_accept_info_bits   <= 268'd0;
+            lat_detach_ssi         <= 24'd0;
+            accept_builder_start   <= 1'b0;
+            sch_encode_start       <= 1'b0;
+            req_valid              <= 1'b0;
+            req_coded_bits         <= 432'd0;
+            req_pdu_type           <= 2'd0;
+            req_target_tn          <= 2'd0;
             req_second_pdu_present <= 1'b0;
             req_second_pdu_nr      <= 1'b0;
-            busy              <= 1'b0;
-            accept_pulse      <= 1'b0;
-            drop_pulse        <= 1'b0;
-            ack_pulse         <= 1'b0;
-            retransmit_pulse  <= 1'b0;
-            lost_pulse        <= 1'b0;
+            busy                   <= 1'b0;
+            accept_pulse           <= 1'b0;
+            drop_pulse             <= 1'b0;
+            ack_pulse              <= 1'b0;
+            retransmit_pulse       <= 1'b0;
+            lost_pulse             <= 1'b0;
+            detach_pulse           <= 1'b0;
         end else begin
             // Default strobes — every state may override
-            ast_wr_en        <= 1'b0;
-            ast_q_start      <= 1'b0;
-            entity_q_start   <= 1'b0;
-            entity_q_alloc   <= 1'b0;
-            entity_wr_en     <= 1'b0;
-            short_builder_start  <= 1'b0;
             accept_builder_start <= 1'b0;
-            sch_encode_start <= 1'b0;
-            sch_hd_encode_start <= 1'b0;
-            req_valid        <= 1'b0;
-            accept_pulse     <= 1'b0;
-            drop_pulse       <= 1'b0;
-            ack_pulse        <= 1'b0;
-            retransmit_pulse <= 1'b0;
-            lost_pulse       <= 1'b0;
-            detach_pulse     <= 1'b0;
-
-            // Phase 7 F.2 — latch demand-IE-parser outputs whenever a
-            // parse-done pulse arrives.  This is independent of the FSM
-            // state machine so the demand data is available regardless
-            // of where the FSM is in the registration flow.  The latches
-            // are consumed in S_GSSI_QUERY_DEFAULT_DONE (gated on the
-            // SSI matching lat_ssi).
-            //
-            // The latches stay live across multiple ul_req_valid pulses
-            // until either (a) consumed by a matching registration, or
-            // (b) overwritten by a fresh demand_parsed_valid pulse.
-            if (demand_parsed_valid) begin
-                lat_demand_valid       <= 1'b1;
-                lat_demand_ssi         <= demand_pdu_ssi;
-                lat_demand_count       <= demand_gssi_count;
-                lat_demand_gssi_array  <= demand_gssi_array;
-                lat_demand_class_array <= demand_class_array;
-            end
+            sch_encode_start     <= 1'b0;
+            req_valid            <= 1'b0;
+            accept_pulse         <= 1'b0;
+            drop_pulse           <= 1'b0;
+            ack_pulse            <= 1'b0;
+            retransmit_pulse     <= 1'b0;
+            lost_pulse           <= 1'b0;
+            detach_pulse         <= 1'b0;
 
             case (state)
             // -----------------------------------------------------------------
             S_IDLE: begin
-                busy          <= 1'b0;
-                lat_is_reject <= 1'b0;
-                // Phase 6 B — U-ITSI-DETACH takes priority over a new
-                // registration request.  Phase H.0.2 (2026-04-27) removed
-                // the mm=7 group-attach branch — Group-Switch moves to
-                // ARM SW per the FPGA+SW split.
+                busy <= 1'b0;
+                // Phase X.4 — U-ITSI-DETACH takes priority and lands as a
+                // no-op telemetry stub.  Real AST clear is owned by SW
+                // (Phase X.5 will plumb the SW detach daemon).
                 if (ul_detach_valid) begin
                     lat_detach_ssi <= ul_detach_ssi;
                     busy           <= 1'b1;
-                    state          <= S_DETACH_QUERY;
-                end else if (ul_req_valid) begin
-                    // D-LOCATION UPDATE ACCEPT is always addressed per SSI
-                    // (ETSI EN 300 392-2 §16.10.28).  Force SSI (3'd1)
-                    // for every registration accept regardless of the
-                    // MS-picked MAC addressing on the UL request.
-                    lat_addr_type    <= 3'd1;
-                    lat_ssi          <= ul_ssi;
-                    lat_la           <= ul_la;
-                    lat_loc_upd_type <= ul_loc_upd_type;
-                    lat_use_l2sig    <= ul_use_l2sig;
-                    busy             <= 1'b1;
-                    // Phase 7 F.2 — clear group_list on each new request;
-                    // the multi-GSSI loop in S_PARSE_FULL_DEMAND will
-                    // populate it from the demand IE-parser (when the
-                    // demand was reassembled in time).  profile0_m2_
-                    // guard takes the legacy path (no demand pulse) and
-                    // ends up with group_count=0 — same as Phase D-rev.
-                    lat_group_count  <= 4'd0;
-                    lat_group_list   <= 192'd0;
-                    group_idx        <= 2'd0;
-                    // Phase 6 D-rev §9.3 step 1: EntityTable.query(ISSI).
-                    state            <= S_ENTITY_QUERY_ISSI;
+                    state          <= S_DETACH_NOOP;
+                end else if (use_sw_body && mb_go_pulse) begin
+                    // Phase X.4 — SW has staged the ACCEPT body; jump
+                    // directly into the builder.  Latch ssi/addr_type so the
+                    // MAC-RESOURCE wrapper sees a stable address pair while
+                    // SW is free to start staging the next ACCEPT.
+                    lat_ssi       <= mb_ssi;
+                    lat_addr_type <= mb_addr_type;
+                    busy          <= 1'b1;
+                    state         <= S_BUILD_ACCEPT_START;
                 end
             end
 
             // -----------------------------------------------------------------
-            // Phase 6 D-rev — §9.3 Multi-Lookup attach flow
-            //
-            // Step 1: Entity.query(issi=ul_issi, type=0).
-            //   hit  → profile_id = entity.profile_id
-            //          goto S_PROFILE_QUERY
-            //   miss + accept_unknown=0 → REJECT (cause "service profile not
-            //                                      subscribed")
-            //   miss + accept_unknown=1 → goto S_ENTITY_ALLOC_ISSI
-            // -----------------------------------------------------------------
-            S_ENTITY_QUERY_ISSI: begin
-                entity_q_start             <= 1'b1;
-                entity_q_id                <= lat_ssi;
-                entity_q_type              <= 1'b0;          // ISSI
-                entity_q_match_type        <= 1'b1;          // strict
-                entity_q_default_gssi_scan <= 1'b0;
-                state                      <= S_ENTITY_QUERY_ISSI_DONE;
-            end
-
-            S_ENTITY_QUERY_ISSI_DONE: begin
-                if (entity_q_done) begin
-                    if (entity_q_hit) begin
-                        // Latch profile_id from EntityTable record [38:35].
-                        lat_profile_id <= entity_q_record[38:35];
-                        state          <= S_PROFILE_QUERY;
-                    end else if (accept_unknown) begin
-                        // Auto-Enroll: alloc free slot, write fresh entry
-                        // with profile_id=0.
-                        state <= S_ENTITY_ALLOC_ISSI;
-                    end else begin
-                        // Strict mode unknown → REJECT cause=0 (ITSI unknown
-                        // per ETSI §16.10.39 / "service profile not
-                        // subscribed").
-                        lat_is_reject    <= 1'b1;
-                        lat_reject_cause <= 3'd0;
-                        // Default GILA inputs to M2 values so the encoder
-                        // still emits a clean REJECT (GILA bits ignored on
-                        // REJECT path — len=8).
-                        lat_profile_id   <= 4'd0;
-                        // Skip Profile/GSSI lookups, go straight to AST so
-                        // the existing flow records the rejected attempt.
-                        state            <= S_CHECK_START;
-                    end
-                end
-            end
-
-            S_ENTITY_ALLOC_ISSI: begin
-                // Issue alloc-mode scan to find first valid=0 slot.
-                entity_q_start             <= 1'b1;
-                entity_q_id                <= 24'd0;         // don't-care
-                entity_q_type              <= 1'b0;
-                entity_q_match_type        <= 1'b0;
-                entity_q_default_gssi_scan <= 1'b0;
-                entity_q_alloc             <= 1'b1;
-                state                      <= S_ENTITY_ALLOC_WAIT;
-            end
-
-            S_ENTITY_ALLOC_WAIT: begin
-                if (entity_q_done) begin
-                    if (entity_q_hit) begin
-                        // Found free slot — write fresh entry with
-                        // entity_id=lat_ssi, entity_type=0, profile_id=0,
-                        // valid=1.
-                        lat_alloc_idx  <= entity_q_slot;
-                        entity_wr_en   <= 1'b1;
-                        entity_wr_idx  <= entity_q_slot;
-                        entity_wr_data <= {lat_ssi,        // [63:40]
-                                           1'b0,           // [39] type=ISSI
-                                           4'd0,           // [38:35] profile=0
-                                           34'd0,          // [34:1] reserved
-                                           1'b1};          // [0] valid
-                        lat_profile_id <= 4'd0;
-                        state          <= S_PROFILE_QUERY;
-                    end else begin
-                        // EntityTable full — REJECT cause=0.
-                        lat_is_reject    <= 1'b1;
-                        lat_reject_cause <= 3'd0;
-                        state            <= S_CHECK_START;
-                    end
-                end
-            end
-
-            // -----------------------------------------------------------------
-            // Step 2: Profile.lookup(profile_id) → permit_reg?
-            //   permit_reg=0 → REJECT (cause "service profile not subscribed")
-            //   permit_reg=1 → continue, latch gila_class/lifetime
-            // -----------------------------------------------------------------
-            S_PROFILE_QUERY: begin
-                profile_rd_idx   <= lat_profile_id[2:0];
-                // Profile-Table read latency = 1 cycle (registered).
-                // We need at least 2 cycles between drive-rd_idx and
-                // sample-rd_data: cycle N drives rd_idx, cycle N+1 the
-                // BRAM/LUT-RAM internal read fires, cycle N+2 rd_data
-                // is stable.
-                profile_wait_cnt <= 2'd2;
-                state            <= S_PROFILE_WAIT;
-            end
-
-            S_PROFILE_WAIT: begin
-                if (profile_wait_cnt == 2'd0) begin
-                    state <= S_PROFILE_DECIDE;
-                end else begin
-                    profile_wait_cnt <= profile_wait_cnt - 2'd1;
-                end
-            end
-
-            S_PROFILE_DECIDE: begin
-                // profile_rd_data[1] = permit_reg per §9.2.
-                if (!profile_rd_data[0]) begin
-                    // valid=0 → profile slot is unconfigured → REJECT
-                    // cause=0 (ITSI unknown / profile not subscribed).
-                    // Profile 0 reset-default has valid=1, so this only
-                    // fires when an Auto-Enroll-with-Profile-N path is
-                    // wired in Phase E.5.
-                    lat_is_reject    <= 1'b1;
-                    lat_reject_cause <= 3'd0;
-                    state            <= S_CHECK_START;
-                end else if (!profile_rd_data[1]) begin
-                    // permit_reg=0 → REJECT cause=4 ("service not
-                    // authorised").
-                    lat_is_reject    <= 1'b1;
-                    lat_reject_cause <= 3'd4;
-                    state            <= S_CHECK_START;
-                end else begin
-                    // Permit granted — latch gila_class/lifetime from
-                    // Profile record [11:9] / [8:7] per §9.2.
-                    lat_gila_class    <= profile_rd_data[11:9];
-                    lat_gila_lifetime <= profile_rd_data[8:7];
-                    lat_is_reject     <= 1'b0;
-                    state             <= S_GSSI_QUERY_DEFAULT;
-                end
-            end
-
-            // -----------------------------------------------------------------
-            // Step 3: Default-GSSI scan (§9.3 + fix_plan M2-Bit-Identity hack).
-            //   In Phase D the RX `group_identity_location_demand` IE is not
-            //   yet parsed (M3 scope), so AST.group_count == 0 unconditionally.
-            //   Per the fix_plan resolution, we scan EntityTable for the first
-            //   valid entity_type=1 slot ("Default-Group-of-the-Cell"); if
-            //   found, GILA goes out with that GSSI.  If no GSSI in DB, the
-            //   GILA Type-3 element is omitted (gila_present=0).
-            // -----------------------------------------------------------------
-            S_GSSI_QUERY_DEFAULT: begin
-                entity_q_start             <= 1'b1;
-                entity_q_id                <= 24'd0;
-                entity_q_type              <= 1'b0;
-                entity_q_match_type        <= 1'b0;
-                entity_q_default_gssi_scan <= 1'b1;
-                state                      <= S_GSSI_QUERY_DEFAULT_DONE;
-            end
-
-            S_GSSI_QUERY_DEFAULT_DONE: begin
-                if (entity_q_done) begin
-                    if (entity_q_hit) begin
-                        // GSSI found — latch it, GILA Type-3 emitted.
-                        lat_gila_gssi    <= entity_q_record[63:40];
-                        lat_gila_present <= 1'b1;
-                    end else begin
-                        // No GSSI in DB — omit GILA Type-3 element.
-                        lat_gila_present <= 1'b0;
-                    end
-                    // Phase 7 F.2 — if a fresh demand IE-parse for this
-                    // ISSI is available, drop into the multi-GSSI loop
-                    // (S_PARSE_FULL_DEMAND) before writing the AST
-                    // record.  The default-GSSI scan above still runs so
-                    // the GILA payload mirrors Phase D-rev behaviour
-                    // (BS-dictated default group); the MS-requested
-                    // GSSIs are independently appended to AST.group_list
-                    // for routing decisions in M3 (CMCE call setup).
-                    if (demand_present_for_lat_ssi_w) begin
-                        state <= S_PARSE_FULL_DEMAND;
-                    end else begin
-                        state <= S_CHECK_START;
-                    end
-                end
-            end
-
-            // -----------------------------------------------------------------
-            // Phase 7 F.2 — Multi-GSSI lookup loop.  Per requested GSSI
-            // from the demand body:
-            //   1. Entity.query(gssi, type=1, match_type=1)
-            //   2. on hit: Profile.lookup(profile_id) → permit_voice/data
-            //   3. on permit: append gssi to lat_group_list[group_count]
-            //
-            // After looping over all lat_demand_count GSSIs we proceed to
-            // S_CHECK_START (legacy AST write path).  group_count is left
-            // populated and gets baked into the session_record_w packer.
-            //
-            // The IE-parser-cleared latches stay live until consumed.  We
-            // drop lat_demand_valid once the loop finishes so a stale
-            // demand can't be re-applied to a later ul_req_valid for a
-            // different MS.
-            // -----------------------------------------------------------------
-            S_PARSE_FULL_DEMAND: begin
-                group_idx       <= 2'd0;
-                lat_group_count <= 4'd0;
-                lat_group_list  <= 192'd0;
-                state           <= S_GSSI_LOOP_NEXT;
-            end
-
-            S_GSSI_LOOP_NEXT: begin
-                if ({1'b0, group_idx} >= {1'b0, lat_demand_count}) begin
-                    // Loop terminated — drop demand latch and proceed to
-                    // the AST write step.
-                    lat_demand_valid <= 1'b0;
-                    // Phase H.3.2 — GILA-Source-Multiplexer (raw MS-wish
-                    // echo).  Honor the first MS-requested GSSI from the
-                    // GILD IE directly, regardless of whether it appears
-                    // in EntityTable / passed Profile.permit_voice/data.
-                    // The MS-MMI sees its chosen group accepted; Phase J
-                    // SW Group-Switch will enforce real subscription
-                    // when the MS subsequently tries to talk on that
-                    // group (BS-side refusal at the call-setup layer).
-                    //
-                    // Empty/zero GILD (lat_demand_count==0 or wish==0):
-                    // lat_gila_gssi behält den Wert vom Default-GSSI-
-                    // Lookup (Phase D-rev-Verhalten), damit profile0_m2_
-                    // guard und einfache 1-Group-Setups weiter bit-
-                    // identisch zur Gold-Ref bleiben.
-                    //
-                    // The validation loop above still ran and populated
-                    // lat_group_list / lat_group_count for the AST
-                    // record — Phase J SW reads those to know which
-                    // wishes really passed subscription checks.
-                    if (lat_demand_count != 3'd0 &&
-                        lat_demand_gssi_array[23:0] != 24'd0) begin
-                        lat_gila_gssi    <= lat_demand_gssi_array[23:0];
-                        lat_gila_present <= 1'b1;
-                    end
-                    state <= S_CHECK_START;
-                end else begin
-                    // Issue Entity.query(gssi=cur_gssi_w, type=1, strict).
-                    entity_q_start             <= 1'b1;
-                    entity_q_id                <= cur_gssi_w;
-                    entity_q_type              <= 1'b1;     // GSSI
-                    entity_q_match_type        <= 1'b1;     // strict match
-                    entity_q_default_gssi_scan <= 1'b0;
-                    entity_q_alloc             <= 1'b0;
-                    state                      <= S_GSSI_ENTITY_DONE;
-                end
-            end
-
-            S_GSSI_ENTITY_DONE: begin
-                if (entity_q_done) begin
-                    if (entity_q_hit) begin
-                        // Latch profile_id from EntityTable record [38:35]
-                        // and chain to Profile.lookup.
-                        lat_gssi_profile_id <= entity_q_record[38:35];
-                        state               <= S_GSSI_PROFILE_QUERY;
-                    end else begin
-                        // No EntityTable entry for this GSSI → reject.
-                        // Skip without appending; advance to the next.
-                        group_idx <= group_idx + 2'd1;
-                        state     <= S_GSSI_LOOP_NEXT;
-                    end
-                end
-            end
-
-            S_GSSI_PROFILE_QUERY: begin
-                profile_rd_idx   <= lat_gssi_profile_id[2:0];
-                profile_wait_cnt <= 2'd2;
-                state            <= S_GSSI_PROFILE_WAIT;
-            end
-
-            S_GSSI_PROFILE_WAIT: begin
-                if (profile_wait_cnt == 2'd0) begin
-                    state <= S_GSSI_PROFILE_DECIDE;
-                end else begin
-                    profile_wait_cnt <= profile_wait_cnt - 2'd1;
-                end
-            end
-
-            S_GSSI_PROFILE_DECIDE: begin
-                // permit_voice = profile_rd_data[3], permit_data =
-                // profile_rd_data[2], valid = profile_rd_data[0].
-                if (profile_rd_data[0] &&
-                    (profile_rd_data[3] || profile_rd_data[2])) begin
-                    // Append GSSI to lat_group_list at the current
-                    // group_count slot.  Slot 0 occupies bits [191:168]
-                    // (highest); slot 1 [167:144]; etc.  We use a
-                    // shift-register flavor: place the new GSSI at the
-                    // upper end of an "unused" zone.  Since lat_group_
-                    // count starts at 0 and increments, the slot for
-                    // entry N is bits [191 - N*24 : 168 - N*24].
-                    case (lat_group_count)
-                        4'd0: lat_group_list[191:168] <= cur_gssi_w;
-                        4'd1: lat_group_list[167:144] <= cur_gssi_w;
-                        4'd2: lat_group_list[143:120] <= cur_gssi_w;
-                        4'd3: lat_group_list[119: 96] <= cur_gssi_w;
-                        4'd4: lat_group_list[ 95: 72] <= cur_gssi_w;
-                        4'd5: lat_group_list[ 71: 48] <= cur_gssi_w;
-                        4'd6: lat_group_list[ 47: 24] <= cur_gssi_w;
-                        // Slot 7 lower 23 bits + valid bit at [0] —
-                        // truncate the LSB so the [0]=valid invariant
-                        // is preserved.  Phase 7 only fills up to slot
-                        // 2, so this branch is forward-compat.
-                        4'd7: lat_group_list[ 24:  1] <= cur_gssi_w[23:0];
-                        default: ;
-                    endcase
-                    lat_group_count <= lat_group_count + 4'd1;
-                end
-                // Whether we appended or rejected, advance to the next
-                // GSSI.
-                group_idx <= group_idx + 2'd1;
-                state     <= S_GSSI_LOOP_NEXT;
-            end
-
-            // -----------------------------------------------------------------
-            // Phase 6 B — U-ITSI-DETACH path: query AST for ISSI, clear slot.
-            //   1. AST.query(lat_detach_ssi)
-            //   2. hit  → AST.write(slot, valid=0) + detach_pulse
-            //      miss → ignore, detach_pulse still fires for counter purpose
-            //   3. No DL response (ETSI: ITSI-DETACH is one-way).
-            // -----------------------------------------------------------------
-            S_DETACH_QUERY: begin
-                ast_q_start <= 1'b1;
-                ast_q_mode  <= 1'b0;       // query existing
-                ast_q_issi  <= lat_detach_ssi;
-                state       <= S_DETACH_WAIT;
-            end
-
-            S_DETACH_WAIT: begin
-                if (ast_q_done) begin
-                    if (ast_q_hit) begin
-                        // Latch the slot we will overwrite with a zeroed record
-                        lat_slot <= ast_q_slot;
-                        state    <= S_DETACH_CLEAR;
-                    end else begin
-                        // No matching session — pulse counter, return idle.
-                        detach_pulse <= 1'b1;
-                        state        <= S_IDLE;
-                    end
-                end
-            end
-
-            S_DETACH_CLEAR: begin
-                ast_wr_en    <= 1'b1;
-                ast_wr_idx   <= lat_slot;
-                ast_wr_data  <= detach_zero_record_w;
+            S_DETACH_NOOP: begin
                 detach_pulse <= 1'b1;
                 state        <= S_IDLE;
-            end
-
-            // -----------------------------------------------------------------
-            S_CHECK_START: begin
-                ast_q_start <= 1'b1;
-                ast_q_mode  <= 1'b0;    // query existing
-                ast_q_issi  <= lat_ssi;
-                state       <= S_CHECK_WAIT;
-            end
-
-            // -----------------------------------------------------------------
-            S_CHECK_WAIT: begin
-                if (ast_q_done) begin
-                    if (ast_q_hit) begin
-                        // Existing session → reuse slot, skip alloc
-                        lat_slot     <= ast_q_slot;
-                        lat_existing <= 1'b1;
-                        state        <= S_WRITE;
-                    end else begin
-                        lat_existing <= 1'b0;
-                        state        <= S_ALLOC_START;
-                    end
-                end
-            end
-
-            // -----------------------------------------------------------------
-            S_ALLOC_START: begin
-                ast_q_start <= 1'b1;
-                ast_q_mode  <= 1'b1;    // alloc scan
-                ast_q_issi  <= 24'd0;   // don't care in alloc mode
-                state       <= S_ALLOC_WAIT;
-            end
-
-            // -----------------------------------------------------------------
-            S_ALLOC_WAIT: begin
-                if (ast_q_done) begin
-                    if (ast_q_hit) begin
-                        lat_slot <= ast_q_slot;
-                        state    <= S_WRITE;
-                    end else begin
-                        // Table full — drop for MVP, no REJECT yet
-                        state <= S_DROP;
-                    end
-                end
-            end
-
-            // -----------------------------------------------------------------
-            S_WRITE: begin
-                ast_wr_en   <= 1'b1;
-                ast_wr_idx  <= lat_slot;
-                ast_wr_data <= session_record_w;
-                state       <= S_BUILD_SHORT_START;
-            end
-
-            // -----------------------------------------------------------------
-            S_BUILD_SHORT_START: begin
-                short_builder_start <= 1'b1;
-                state               <= S_BUILD_SHORT_WAIT;
-            end
-
-            // -----------------------------------------------------------------
-            S_BUILD_SHORT_WAIT: begin
-                if (short_builder_valid_w) begin
-                    lat_short_info_bits <= short_builder_pdu_bits_w;
-                    state               <= S_ENCODE_HD_START;
-                end
-            end
-
-            // -----------------------------------------------------------------
-            S_ENCODE_HD_START: begin
-                sch_hd_encode_start <= 1'b1;
-                state               <= S_ENCODE_HD_WAIT;
-            end
-
-            // -----------------------------------------------------------------
-            S_ENCODE_HD_WAIT: begin
-                if (sch_hd_coded_valid_w) begin
-                    req_coded_bits[431:216] <= sch_hd_coded_bits_w;
-                    req_coded_bits[215:0]   <= 216'd0;
-                    req_pdu_type   <= 2'd1;                // SCH_HD
-                    req_target_tn  <= cfg_mcch_tn;
-                    req_second_pdu_present <= 1'b0;
-                    req_second_pdu_nr      <= 1'b0;
-                    req_valid      <= 1'b1;
-                    // Phase H.3.2c (2026-05-02) — Δ Pre-Reply → ACCEPT = 2 Frames.
-                    // Gold-Capture-Verifikation (3 Pärchen #775/#783, #2515/#2523,
-                    // #4107/#4115): ACCEPT konsequent auf TN1/FN=N+2 nach Pre-Reply
-                    // auf TN1/FN=N — also 8 slot_pulses Wartezeit (= 2 TDMA-Frames).
-                    // Vorher gap_slot_count=4 ergab nur 4 slot_pulses = 1 Frame
-                    // (DL-Capture 17:03 zeigte ACCEPT 1F nach Pre-Reply, nicht 2F).
-                    // Initial 8: count 8→7→6→...→1 = 8 Decrements via 8 Pulses,
-                    // bei count==1 Transition zu S_BUILD_ACCEPT_START.
-                    gap_slot_count <= 4'd8;
-                    state          <= S_WAIT_GAP_FRAME;
-                end
-            end
-
-            // -----------------------------------------------------------------
-            // Match the external BS spacing: the short SCH/HD pre-reply appears
-            // on TN1/FN=N, the full SCH/F accept two frames later on TN1/FN=N+2
-            // (= 8 slot pulses).  Per Gold-Korrelation 2026-05-02 verifiziert.
-            S_WAIT_GAP_FRAME: begin
-                if (slot_pulse) begin
-                    if (gap_slot_count == 4'd1)
-                        state <= S_BUILD_ACCEPT_START;
-                    else
-                        gap_slot_count <= gap_slot_count - 4'd1;
-                end
             end
 
             // -----------------------------------------------------------------
@@ -1323,7 +384,6 @@ module tetra_mle_registration_fsm #(
                 state                <= S_BUILD_ACCEPT_WAIT;
             end
 
-            // -----------------------------------------------------------------
             S_BUILD_ACCEPT_WAIT: begin
                 if (accept_builder_valid_w) begin
                     lat_accept_info_bits <= accept_builder_pdu_bits_w;
@@ -1331,35 +391,26 @@ module tetra_mle_registration_fsm #(
                 end
             end
 
-            // -----------------------------------------------------------------
             S_ENCODE_F_START: begin
                 sch_encode_start <= 1'b1;
                 state            <= S_ENCODE_F_WAIT;
             end
 
-            // -----------------------------------------------------------------
             S_ENCODE_F_WAIT: begin
                 if (sch_coded_valid_w) begin
-                    req_coded_bits <= sch_coded_bits_w;
-                    req_pdu_type   <= 2'd0;                // SCH_F
-                    req_target_tn  <= cfg_mcch_tn;
+                    req_coded_bits         <= sch_coded_bits_w;
+                    req_pdu_type           <= 2'd0;       // SCH_F
+                    req_target_tn          <= cfg_mcch_tn;
                     req_second_pdu_present <= 1'b0;
                     req_second_pdu_nr      <= 1'b0;
-                    state          <= S_DELIVER_ACCEPT;
+                    state                  <= S_DELIVER_ACCEPT;
                 end
             end
 
-            // -----------------------------------------------------------------
             S_DELIVER_ACCEPT: begin
-                req_valid        <= 1'b1;
-                accept_pulse     <= 1'b1;
-                state            <= S_IDLE;
-            end
-
-            // -----------------------------------------------------------------
-            S_DROP: begin
-                drop_pulse <= 1'b1;
-                state      <= S_IDLE;
+                req_valid    <= 1'b1;
+                accept_pulse <= 1'b1;
+                state        <= S_IDLE;
             end
 
             default: state <= S_IDLE;

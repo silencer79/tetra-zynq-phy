@@ -349,9 +349,8 @@ module tetra_axi_lite_regs (
     input  wire        mle_busy_sticky_axi,
     input  wire [15:0] mle_inject_cnt_axi,
     input  wire [15:0] mle_clear_cnt_axi,
-    input  wire [15:0] mle_detach_cnt_axi,    // Phase 6 B (REG_AST_DETACH_CNT @ 0x1A4 [15:0])
-    input  wire [15:0] ast_ttl_evict_cnt_axi, // Phase 6 C (REG_AST_TTL_EVICT_CNT @ 0x1B0 [15:0])
-    output reg  [31:0] ast_ttl_multiframes_axi,// Phase 6 C (REG_AST_TTL_MFS @ 0x1A8, default 84706)
+    // Phase X.4 — AST migrated to SW; REG_AST_DETACH_CNT (0x1A4),
+    // REG_AST_TTL_MFS (0x1A8) and REG_AST_TTL_EVICT_CNT (0x1B0) removed.
 
     // ------------------------------------------------------------------
     // Phase 7 F.3 — UL-Demand-Reassembly counters + T0 timer config.
@@ -703,10 +702,10 @@ localparam [6:0] REG_SIGNAL_TARGET_TN = 7'h67; // 0x19C R/W {30'd0, cfg_signal_t
 // echoed in D-LOC-UPDATE-ACCEPT.  Default 14'd1 matches the tetra_hal.c
 // info.la default (the legacy hard-coded value in rtl/tetra_zynq_top.v).
 localparam [6:0] REG_CELL_LA          = 7'h68; // 0x1A0 R/W {18'd0, cell_la[13:0]}
-localparam [6:0] REG_AST_DETACH_CNT   = 7'h69; // 0x1A4 RO  {16'd0, mle_detach_cnt[15:0]}  Phase 6 B
-localparam [6:0] REG_AST_TTL_MFS      = 7'h6A; // 0x1A8 R/W TTL threshold in multiframes (Phase 6 C, default 84706 ≈ 24h)
+// Phase X.4 — REG_AST_DETACH_CNT (0x1A4), REG_AST_TTL_MFS (0x1A8) and
+// REG_AST_TTL_EVICT_CNT (0x1B0) removed (AST migrated to SW).  REG_DB_POLICY
+// (0x1AC) stays — SW reads it to gate auto-enroll on EntityTable miss.
 localparam [6:0] REG_DB_POLICY        = 7'h6B; // 0x1AC R/W {30'd0, reserved, accept_unknown}
-localparam [6:0] REG_AST_TTL_EVICT_CNT = 7'h6C; // 0x1B0 RO {16'd0, ast_ttl_evict_cnt[15:0]} Phase 6 C
 // Phase 7 F.3 — UL-Demand decoded-fields mailbox + reassembly mailbox
 localparam [6:0] REG_UL_PDU_STATUS_2  = 7'h6D; // 0x1B4 RO {decoded LLC/MLE/MM fields}
 // Phase H.6.1 — UL MAC-END-HU pipeline diagnostic counters
@@ -1073,9 +1072,7 @@ always @(*) begin
         REG_MLE_STATS_C:    rdata_mux_axi = {mle_clear_cnt_axi, mle_inject_cnt_axi};
         REG_SIGNAL_TARGET_TN: rdata_mux_axi = {30'b0, cfg_signal_target_tn_axi};
         REG_CELL_LA:      rdata_mux_axi = {18'b0, cell_la_axi};
-        REG_AST_DETACH_CNT: rdata_mux_axi = {16'b0, mle_detach_cnt_axi};
-        REG_AST_TTL_MFS:   rdata_mux_axi = ast_ttl_multiframes_axi;
-        REG_AST_TTL_EVICT_CNT: rdata_mux_axi = {16'b0, ast_ttl_evict_cnt_axi};
+        // Phase X.4 — REG_AST_DETACH_CNT/REG_AST_TTL_MFS/REG_AST_TTL_EVICT_CNT removed.
         REG_DB_POLICY:    rdata_mux_axi = db_policy_axi;
         // Phase 7 F.3 — UL-Demand decoded fields + reassembly mailbox
         REG_UL_PDU_STATUS_2:  rdata_mux_axi = {20'b0,
@@ -1255,19 +1252,7 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
     end
 end
 
-// ---- AST_TTL_MULTIFRAMES register (0x1A8) — Phase 6 C ----
-// 32-bit RW, default 84706 (≈ 24 h at 1.02 s per multiframe).
-// 0 disables eviction (sweeper still runs, but no slot expires).
-always @(posedge clk_axi or negedge rst_n_axi) begin
-    if (!rst_n_axi)
-        ast_ttl_multiframes_axi <= 32'd84706;
-    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_AST_TTL_MFS)) begin
-        if (wr_strb_axi[0]) ast_ttl_multiframes_axi[ 7: 0] <= wr_data_axi[ 7: 0];
-        if (wr_strb_axi[1]) ast_ttl_multiframes_axi[15: 8] <= wr_data_axi[15: 8];
-        if (wr_strb_axi[2]) ast_ttl_multiframes_axi[23:16] <= wr_data_axi[23:16];
-        if (wr_strb_axi[3]) ast_ttl_multiframes_axi[31:24] <= wr_data_axi[31:24];
-    end
-end
+// Phase X.4 — REG_AST_TTL_MFS (0x1A8) write block removed (AST in SW).
 
 // ---- AACH_GRANT_HINT register (0x1F4) — Phase H.6.3 ----
 // SW writes [31]=1 + [13:0]=info to schedule a one-shot UL-Slot-Grant on
@@ -2275,7 +2260,7 @@ end
 //                                 (we pulse + 4-bit index + 32-bit data).
 // REG_REPLY_GO     @ 0x228 W1S  — set on SW write of [0]=1; HW-clears on
 //                                 reply_go_consume_axi pulse from clk_sys.
-// REG_REPLY_USE_SW @ 0x230 R/W  — use_sw_body toggle (default 0 = M2 path).
+// REG_REPLY_USE_SW @ 0x230 R/W  — use_sw_body toggle (Phase X.4 default 1 = SW path primary).
 // REG_REPLY_STATUS @ 0x22C RO   — busy mirror, read-only.
 //
 // Outputs to top-level CDC: reply_index_axi_o, reply_wdata_axi_o,
@@ -2307,9 +2292,13 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
     end
 end
 
+// Phase X.4 — SW-driven attach is the primary path.  Reset default flips
+// 0 -> 1 so the encoder reads mb_* from the Reply-Pull-Mailbox out of
+// reset; the FSM in tetra_mle_registration_fsm.v also gates its new
+// SW-trigger flow on use_sw_body.
 always @(posedge clk_axi or negedge rst_n_axi) begin
     if (!rst_n_axi)
-        reply_use_sw_r <= 1'b0;
+        reply_use_sw_r <= 1'b1;
     else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_REPLY_USE_SW)
                           & wr_strb_axi[0])
         reply_use_sw_r <= wr_data_axi[0];

@@ -250,8 +250,7 @@ wire [13:0] cell_la_axi_w;
 // Phase 6 A: DB-Policy register (REG_DB_POLICY @ 0x1AC).
 // Bit 0 = accept_unknown (CDC-resynced into clk_sys below).
 wire [31:0] db_policy_axi_w;
-// Phase 6 C: TTL threshold (REG_AST_TTL_MFS @ 0x1A8) in multiframes
-wire [31:0] ast_ttl_multiframes_axi_w;
+// Phase X.4 — REG_AST_TTL_MFS removed (AST migrated to SW).
 
 // Synchronize static AXI control bits into the consuming clock domains.
 (* ASYNC_REG = "TRUE" *) reg ctrl_loopback_lvds_r0;
@@ -425,47 +424,22 @@ wire [1:0]  reass_busy_slots_sys;
 wire [31:0] ul_scramb_init_axi_w;
 wire [31:0] ul_scramb_init_sys;
 
-// Subscriber-Shadow BRAM indirect write port (Phase 6 M2.3).
-// clk_axi and clk_sys share the fabric PLL in this design, so the
-// write pulse and data fly through directly.  Lookup port is reserved
-// for the registration FSM (M2.3b); tied off for now so the module
-// synthesises cleanly with no driver on the consumer side.
+// Phase X.4 — EntityTable (formerly Subscriber-Shadow), ProfileTable and
+// Active-Session Table moved to ARM SW.  The AXI-Lite indirect-write
+// windows in tetra_axi_lite_regs.v still emit `shadow_wr_*` /
+// `profile_wr_*` / `profile_rd_idx_axi` strobes for SW backwards
+// compatibility, so we keep dangling wire declarations here; they
+// terminate at no consumer in PL and synth prunes them.  Phase X.5
+// will retire the AXI windows together with the legacy Pre-Reply path.
 wire [7:0]  shadow_wr_idx_w;
 wire [63:0] shadow_wr_data_w;
 wire        shadow_wr_en_w;
-wire        shadow_q_busy_w;
-wire        shadow_q_done_w;
-wire        shadow_q_hit_w;
-wire [7:0]  shadow_q_slot_w;
-wire [63:0] shadow_q_record_w;
 
-// Profile Table (Phase 6 D-rev) — 6×32-bit distributed-LUT-RAM, ARM-written.
-// Read port wired into MLE-FSM in D.4; in D.2/D.3 the read port is tied
-// off so synthesis still infers the LUT-RAM cleanly.
 wire [2:0]  profile_wr_idx_w;
 wire [31:0] profile_wr_data_w;
-// Phase 7 F.4 — drift-free AXI Profile-Table read port (clk_sys side).
-// AXI regs drives `profile_rd_idx_axi` (clk_axi); since clk_axi == clk_sys
-// in this design, no resync needed.  CGI GET reads REG_PROFILE_DATA_RD
-// (0x1C8) which AXI regs muxes from `profile_rd_data_axi`, sourced
-// directly from tetra_profile_table.rd_data_axi.
 wire [2:0]  profile_rd_idx_axi_sys_w;
-wire [31:0] profile_rd_data_axi_sys_w;
+wire [31:0] profile_rd_data_axi_sys_w = 32'd0;   // tied to 0 (no live ProfileTable)
 wire        profile_wr_en_w;
-
-// Active-Session Table (Phase 6 M2.3b) — 64×256-bit BRAM, FSM-owned.
-// Phase 6 D-rev: REC_WIDTH widened 128 → 256 bit per §9.2 (group_list[8]).
-wire        ast_wr_en_w;
-wire [5:0]  ast_wr_idx_w;
-wire [255:0] ast_wr_data_w;        // Phase D-rev — 128→256
-wire        ast_q_start_w;
-wire        ast_q_mode_w;
-wire [23:0] ast_q_issi_w;
-wire        ast_q_busy_w;
-wire        ast_q_done_w;
-wire        ast_q_hit_w;
-wire [5:0]  ast_q_slot_w;
-wire [255:0] ast_q_record_w;       // Phase D-rev — 128→256
 
 // MLE-registration FSM → DL-signalling-queue request port.  The MLE emits
 // the full 432-bit SCH/F codeword as a queue-request; the scheduler
@@ -1896,14 +1870,13 @@ tetra_axi_lite_regs u_axi_regs (
     .mle_busy_sticky_axi     (mle_busy_sticky_axi_r1),
     .mle_inject_cnt_axi      (mle_inject_cnt_axi_r1),
     .mle_clear_cnt_axi       (mle_clear_cnt_axi_r1),
-    .mle_detach_cnt_axi      (mle_detach_cnt_axi_r1),
+    // Phase X.4 — mle_detach_cnt_axi (REG_AST_DETACH_CNT) removed
     // DL-signalling scheduler config (R/W @ 0x19C) — resynced into clk_sys below
     .cfg_signal_target_tn_axi(cfg_signal_target_tn_axi_w),
     // Cell Location Area (R/W @ 0x1A0) — resynced into clk_sys below
     .cell_la_axi             (cell_la_axi_w),
     .db_policy_axi           (db_policy_axi_w),
-    .ast_ttl_multiframes_axi (ast_ttl_multiframes_axi_w),
-    .ast_ttl_evict_cnt_axi   (ast_ttl_evict_cnt_axi_r1),
+    // Phase X.4 — ast_ttl_multiframes_axi/ast_ttl_evict_cnt_axi removed (AST in SW)
     // Phase 7 F.3 — UL-Demand reassembly counters + T0 config
     .reass_reassembled_cnt_axi (reass_reassembled_cnt_axi_r1),
     .reass_drop_cnt_axi        (reass_drop_cnt_axi_r1),
@@ -1959,27 +1932,17 @@ tetra_axi_lite_regs u_axi_regs (
 // the BRAM still infers.  clk_axi == clk_sys in this design so direct
 // connect is safe.
 // =============================================================================
-// Phase 6 D-rev: EntityTable + ProfileTable lookup-port wires
-// (MLE-FSM ↔ EntityTable / ProfileTable).
-wire [2:0]  mle_profile_rd_idx_w;
-
-// Phase 6 B — free-running 24-bit multiframe counter for AST `last_seen`
-// and TTL-Sweep (Phase C).  Increments once per multiframe (~1.02 s),
-// rollover ~197 days.  Detect MF transitions via tx_mf_cnt_sys edges.
-// Phase H.7-AF: `mf_pulse_sys` is a 1-cycle pulse on every MF edge,
-// reused as the auto-fire clock for the D-NWRK-BROADCAST scheduler.
+// Phase X.4 — mle_profile_rd_idx_w / mf_global_cnt_sys removed (AST in SW).
+//
+// `mf_pulse_sys` is the 1-cycle pulse on every multiframe edge, kept as
+// the auto-fire clock for the D-NWRK-BROADCAST scheduler.
 reg [5:0]  tx_mf_cnt_sys_prev;
-reg [23:0] mf_global_cnt_sys;
 wire       mf_pulse_sys = (tx_mf_cnt_sys != tx_mf_cnt_sys_prev);
 always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) begin
+    if (!rst_n_sys)
         tx_mf_cnt_sys_prev <= 6'd1;
-        mf_global_cnt_sys  <= 24'd0;
-    end else begin
+    else
         tx_mf_cnt_sys_prev <= tx_mf_cnt_sys;
-        if (mf_pulse_sys)
-            mf_global_cnt_sys <= mf_global_cnt_sys + 24'd1;
-    end
 end
 
 // Phase 6 B — U-ITSI-DETACH trigger (MM PDU type 1, MLE=MM, LLC=BL-DATA)
@@ -1989,142 +1952,14 @@ wire ul_itsi_detach_sys =
     ul_llc_is_mle_mm_w &&
     (ul_llc_mm_pdu_type_w == 4'h1);
 
-// Phase 6 D-rev — EntityTable (replaces Subscriber-Shadow per §9.2).
-// Same AXI-Lite indirect window 0x180..0x18C wires through; the FSM-side
-// `q_*` semantics changed (id+type+match_type+default_gssi_scan+alloc).
-// MLE-FSM lookup-port wires:
-wire        mle_entity_q_start_w;
-wire [23:0] mle_entity_q_id_w;
-wire        mle_entity_q_type_w;
-wire        mle_entity_q_match_type_w;
-wire        mle_entity_q_default_gssi_scan_w;
-wire        mle_entity_q_alloc_w;
-wire        mle_entity_wr_en_w;
-wire [7:0]  mle_entity_wr_idx_w;
-wire [63:0] mle_entity_wr_data_w;
-
-// Mux external (AXI) and internal (MLE Auto-Enroll) write ports onto the
-// EntityTable single write port.  External AXI writes always win on
-// concurrent assertion (operator override).
-wire        et_wr_en_w   = shadow_wr_en_w | mle_entity_wr_en_w;
-wire [7:0]  et_wr_idx_w  = shadow_wr_en_w ? shadow_wr_idx_w
-                                          : mle_entity_wr_idx_w;
-wire [63:0] et_wr_data_w = shadow_wr_en_w ? shadow_wr_data_w
-                                          : mle_entity_wr_data_w;
-
-tetra_entity_table #(
-    .DEPTH    (256),
-    .IDX_WIDTH(8),
-    .REC_WIDTH(64),
-    .ID_WIDTH (24)
-) u_entity_table (
-    .clk      (clk_sys),
-    .rst_n    (rst_n_sys),
-    .wr_idx   (et_wr_idx_w),
-    .wr_data  (et_wr_data_w),
-    .wr_en    (et_wr_en_w),
-    .q_start  (mle_entity_q_start_w),
-    .q_id     (mle_entity_q_id_w),
-    .q_type   (mle_entity_q_type_w),
-    .q_match_type        (mle_entity_q_match_type_w),
-    .q_default_gssi_scan (mle_entity_q_default_gssi_scan_w),
-    .q_alloc             (mle_entity_q_alloc_w),
-    .q_busy   (shadow_q_busy_w),
-    .q_done   (shadow_q_done_w),
-    .q_hit    (shadow_q_hit_w),
-    .q_slot   (shadow_q_slot_w),
-    .q_record (shadow_q_record_w)
-);
-
 // =============================================================================
-// Profile Table (Phase 6 D-rev, §9.2)
-//
-// 6 × 32-bit distributed-LUT-RAM of authorisation/policy profiles.  Written
-// from the ARM via the AXI-Lite indirect window 0x1C0..0x1CC.  Read port
-// wired into the MLE-FSM in D.4 (multi-lookup attach flow); for now the
-// FSM does not consume profile records, so the read port sits idle with
-// `rd_idx=0`.  Slot 0 reset-default = 0x0000_088F (M2 bit-identity guard).
+// Phase X.4 — EntityTable, ProfileTable and Active-Session Table removed.
+// All three migrated to ARM SW (sw/tetra_db.[ch] + sw/tetra_attach_daemon.c).
+// AXI-Lite indirect-write windows 0x180..0x18C, 0x1C0..0x1CC remain in
+// tetra_axi_lite_regs.v as compatibility no-ops; their write strobes have
+// no consumer in PL after this refactor.  Phase X.5 will retire those
+// windows together with the legacy Pre-Reply path.
 // =============================================================================
-wire [31:0] profile_rd_data_w;
-tetra_profile_table #(
-    .DEPTH    (6),
-    .IDX_WIDTH(3),
-    .REC_WIDTH(32)
-) u_profile_table (
-    .clk     (clk_sys),
-    .rst_n   (rst_n_sys),
-    .wr_idx  (profile_wr_idx_w),
-    .wr_data (profile_wr_data_w),
-    .wr_en   (profile_wr_en_w),
-    .rd_idx  (mle_profile_rd_idx_w),  // Phase 6 D-rev — wired to MLE-FSM
-    .rd_data (profile_rd_data_w),
-    // Phase 7 F.4 — independent AXI read port (drift-free CGI GET)
-    .rd_idx_axi  (profile_rd_idx_axi_sys_w),
-    .rd_data_axi (profile_rd_data_axi_sys_w)
-);
-
-// =============================================================================
-// Active-Session Table (Phase 6 M2.3b)
-//
-// 64 × 64-bit BRAM-backed hot-state table for currently registered /
-// active MS.  Written directly by the MLE registration FSM (not by the
-// ARM).  Record layout is owned by the FSM — the table only interprets
-// [63:40]=ISSI (query match) and [0]=valid (alloc match).
-// =============================================================================
-// Phase 6 D-rev — AST record widened 128 → 256 bit per §9.2:
-//   [255:232] ISSI (24)
-//   [231:208] last_seen_multiframe (24)  — TTL key (Phase C uses this)
-//   [207:200] shadow_idx (8)             — Backref EntityTable (Phase A)
-//   [199:196] state (4)                  — 1=REG_ACCEPT_SENT
-//   [195:192] group_count (4)            — 0..8 valid GSSIs
-//   [191:  1] group_list[8]              — 8 × 24 bit GSSI (group[7] LSB
-//                                          dual-purposed as valid bit;
-//                                          see active_session_table.v
-//                                          header).  Phase D writes 0 here.
-//   [  0]     valid (kept at bit 0 — alloc-scan signature unchanged)
-// Phase 6 C — TTL-Sweeper wires
-wire        ast_sweep_evict_pulse_w;
-wire [5:0]  ast_sweep_idx_w;
-// Sweep tick = +1 multiframe (= edge of mf_global_cnt_sys).  We reuse the
-// same edge-detect we already built for mf_global_cnt to make a 1-cycle
-// pulse per multiframe.
-reg         mf_tick_sys;
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys)
-        mf_tick_sys <= 1'b0;
-    else
-        mf_tick_sys <= (tx_mf_cnt_sys != tx_mf_cnt_sys_prev);
-end
-
-tetra_active_session_table #(
-    .DEPTH      (64),
-    .IDX_WIDTH  (6),
-    .REC_WIDTH  (256),
-    .ISSI_WIDTH (24),
-    .LAST_SEEN_WIDTH (24),
-    .LAST_SEEN_LSB   (256 - 24 - 24)   // bits [231:208]
-) u_active_session_table (
-    .clk      (clk_sys),
-    .rst_n    (rst_n_sys),
-    .wr_idx   (ast_wr_idx_w),
-    .wr_data  (ast_wr_data_w),
-    .wr_en    (ast_wr_en_w),
-    .q_start  (ast_q_start_w),
-    .q_mode   (ast_q_mode_w),
-    .q_issi   (ast_q_issi_w),
-    .q_busy   (ast_q_busy_w),
-    .q_done   (ast_q_done_w),
-    .q_hit    (ast_q_hit_w),
-    .q_slot   (ast_q_slot_w),
-    .q_record (ast_q_record_w),
-    // Phase 6 C — TTL-Sweep
-    .sweep_enable      (1'b1),                       // always-on for now
-    .sweep_now         (mf_global_cnt_sys),
-    .sweep_threshold   (ast_ttl_multiframes_sys_r1),
-    .sweep_tick        (mf_tick_sys),
-    .sweep_evict_pulse (ast_sweep_evict_pulse_w),
-    .sweep_idx         (ast_sweep_idx_w)
-);
 
 // =============================================================================
 // MLE Registration FSM (Phase 6 M2.3b)
@@ -2203,10 +2038,7 @@ wire [31:0] mle_dl_scramb_init_sys = {cell_cfg_mcc_sys_r1,
                                       colour_code_sys_r1,
                                       2'b11};
 
-tetra_mle_registration_fsm #(
-    .AST_IDX_WIDTH(6),
-    .AST_REC_WIDTH(256)              // Phase 6 D-rev — §9.2 group_list[8]
-) u_mle_registration_fsm (
+tetra_mle_registration_fsm u_mle_registration_fsm (
     .clk              (clk_sys),
     .rst_n            (rst_n_sys),
     // UL request
@@ -2252,40 +2084,14 @@ tetra_mle_registration_fsm #(
     .cfg_address_extension ({cell_cfg_mcc_sys_r1, cell_cfg_mnc_sys_r1}),
     .cfg_subscriber_class  (16'hFFFF),
     .cfg_energy_saving_info(14'h0000),
-    // Phase 6 D-rev — EntityTable Multi-Lookup + ProfileTable + accept_unknown
-    .entity_q_start              (mle_entity_q_start_w),
-    .entity_q_id                 (mle_entity_q_id_w),
-    .entity_q_type               (mle_entity_q_type_w),
-    .entity_q_match_type         (mle_entity_q_match_type_w),
-    .entity_q_default_gssi_scan  (mle_entity_q_default_gssi_scan_w),
-    .entity_q_alloc              (mle_entity_q_alloc_w),
-    .entity_q_busy               (shadow_q_busy_w),
-    .entity_q_done               (shadow_q_done_w),
-    .entity_q_hit                (shadow_q_hit_w),
-    .entity_q_slot               (shadow_q_slot_w),
-    .entity_q_record             (shadow_q_record_w),
-    .entity_wr_en                (mle_entity_wr_en_w),
-    .entity_wr_idx               (mle_entity_wr_idx_w),
-    .entity_wr_data              (mle_entity_wr_data_w),
-    .profile_rd_idx              (mle_profile_rd_idx_w),
-    .profile_rd_data             (profile_rd_data_w),
-    .accept_unknown   (db_policy_accept_unknown_sys_r1),
-    // Phase 6 B — Detach pulse + multiframe counter for AST last_seen
+    // Phase X.4 — EntityTable / ProfileTable / Active-Session Table ports
+    // removed.  All Multi-Lookup logic moved to ARM SW (sw/tetra_db.[ch] +
+    // sw/tetra_attach_daemon.c); the FSM is now a thin SW-pulse trigger.
+    //
+    // Phase B — Detach is now a no-op telemetry stub (counter only).  SW
+    // owns AST clear in Phase X.5.
     .ul_detach_valid  (ul_itsi_detach_sys),
     .ul_detach_ssi    (ul_issi_sys),
-    .mf_global_cnt    (mf_global_cnt_sys),
-    // AST
-    .ast_wr_en        (ast_wr_en_w),
-    .ast_wr_idx       (ast_wr_idx_w),
-    .ast_wr_data      (ast_wr_data_w),
-    .ast_q_start      (ast_q_start_w),
-    .ast_q_mode       (ast_q_mode_w),
-    .ast_q_issi       (ast_q_issi_w),
-    .ast_q_busy       (ast_q_busy_w),
-    .ast_q_done       (ast_q_done_w),
-    .ast_q_hit        (ast_q_hit_w),
-    .ast_q_slot       (ast_q_slot_w),
-    .ast_q_record     (ast_q_record_w),
     // DL queue-request port — emits full 432-bit SCH/F codeword, scheduler pops
     .req_valid        (mle_req_valid_w),
     .req_coded_bits   (mle_req_coded_bits_w),
@@ -2296,24 +2102,15 @@ tetra_mle_registration_fsm #(
     .busy             (mle_busy_w),
     .accept_pulse     (mle_accept_pulse_w),
     .drop_pulse       (mle_drop_pulse_w),
-    // M2+M3 observability pulses — not yet exported to AXI regs; available
-    // for ILA/debug attachment.  ack_pulse fires 1 cycle per matching
-    // BL-ACK; retransmit_pulse fires per T251-triggered resend;
-    // lost_pulse fires when N252 is exhausted.
     .ack_pulse        (mle_ack_pulse_w),
     .retransmit_pulse (mle_retransmit_pulse_w),
     .lost_pulse       (mle_lost_pulse_w),
-    .detach_pulse     (mle_detach_pulse_w),        // Phase 6 B
-    // Phase 7 F.2 — UL-Demand-IE-Parser hand-off
-    .demand_parsed_valid (mle_demand_parsed_valid_sys),
-    .demand_pdu_ssi      (mle_demand_pdu_ssi_sys),
-    .demand_gssi_count   (mle_demand_gssi_count_sys),
-    .demand_gssi_array   (mle_demand_gssi_array_sys),
-    .demand_class_array  (mle_demand_class_array_sys),
+    .detach_pulse     (mle_detach_pulse_w),
     // Phase X.2 — Reply-Pull Mailbox pass-through to u_dloc field mux.
-    // use_sw_body == 0 (M2 default) keeps the encoder bit-identical to the
-    // gold reference; the mb_* values do not propagate.  When SW sets the
-    // toggle, u_dloc consumes the staged ACCEPT body fields verbatim.
+    // Phase X.4: use_sw_body reset default flipped to 1 — the SW path is
+    // now primary; the encoder consumes the staged ACCEPT body fields.
+    // mb_go_pulse is the new FSM trigger (S_IDLE → S_BUILD_ACCEPT_START
+    // when use_sw_body=1 && mb_go_pulse).
     .mb_ssi              (mb_ssi_sys_w),
     .mb_la               (mb_la_sys_w),
     .mb_addr_type        (mb_addr_type_sys_w),
@@ -2326,8 +2123,6 @@ tetra_mle_registration_fsm #(
     .mb_auth_result      (mb_auth_result_sys_w),
     .mb_go_pulse         (mb_go_pulse_sys_w),
     .use_sw_body         (reply_use_sw_sys_r1)
-    // Phase H.0.2 — mm=7 group-attach FSM ports stripped (Group-Switch
-    // moved to ARM SW per the FPGA+SW split).
 );
 
 // =============================================================================
@@ -2446,10 +2241,9 @@ reg        mle_busy_sticky_sys;
 wire [15:0] mle_inject_cnt_sys = sig_override_cnt_w;
 wire [15:0] mle_clear_cnt_sys  = queue_drop_cnt_w;
 
-// Phase 6 B — detach counter (16-bit saturating, AXI 0x1A4 [15:0])
-reg [15:0] mle_detach_cnt_sys;
-// Phase 6 C — TTL evict counter (16-bit saturating, AXI 0x1B0 [15:0])
-reg [15:0] ast_ttl_evict_cnt_sys;
+// Phase X.4 — detach + TTL-evict counters removed (AST/Detach moved to SW).
+// detach_pulse output from MLE-FSM still toggles mle_detach_pulse_w for
+// optional ILA observability, but no longer feeds an AXI-mirrored counter.
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
@@ -2457,15 +2251,11 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         mle_accept_cnt_sys  <= 16'd0;
         mle_drop_cnt_sys    <= 16'd0;
         mle_busy_sticky_sys <= 1'b0;
-        mle_detach_cnt_sys  <= 16'd0;
-        ast_ttl_evict_cnt_sys <= 16'd0;
     end else begin
         if (mle_ul_req_valid_w)  mle_ul_req_cnt_sys <= mle_ul_req_cnt_sys + 16'd1;
         if (mle_accept_pulse_w)  mle_accept_cnt_sys <= mle_accept_cnt_sys + 16'd1;
         if (mle_drop_pulse_w)    mle_drop_cnt_sys   <= mle_drop_cnt_sys   + 16'd1;
         if (mle_busy_w)          mle_busy_sticky_sys <= 1'b1;
-        if (mle_detach_pulse_w)  mle_detach_cnt_sys <= mle_detach_cnt_sys + 16'd1;
-        if (ast_sweep_evict_pulse_w) ast_ttl_evict_cnt_sys <= ast_ttl_evict_cnt_sys + 16'd1;
     end
 end
 
@@ -2481,10 +2271,6 @@ end
 (* ASYNC_REG = "TRUE" *) reg [15:0] mle_inject_cnt_axi_r1;
 (* ASYNC_REG = "TRUE" *) reg [15:0] mle_clear_cnt_axi_r0;
 (* ASYNC_REG = "TRUE" *) reg [15:0] mle_clear_cnt_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [15:0] mle_detach_cnt_axi_r0;     // Phase 6 B
-(* ASYNC_REG = "TRUE" *) reg [15:0] mle_detach_cnt_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [15:0] ast_ttl_evict_cnt_axi_r0;   // Phase 6 C
-(* ASYNC_REG = "TRUE" *) reg [15:0] ast_ttl_evict_cnt_axi_r1;
 
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     if (!rst_n_axi) begin
@@ -2500,10 +2286,6 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         mle_inject_cnt_axi_r1  <= 16'd0;
         mle_clear_cnt_axi_r0   <= 16'd0;
         mle_clear_cnt_axi_r1   <= 16'd0;
-        mle_detach_cnt_axi_r0  <= 16'd0;
-        mle_detach_cnt_axi_r1  <= 16'd0;
-        ast_ttl_evict_cnt_axi_r0 <= 16'd0;
-        ast_ttl_evict_cnt_axi_r1 <= 16'd0;
     end else begin
         mle_ul_req_cnt_axi_r0  <= mle_ul_req_cnt_sys;
         mle_ul_req_cnt_axi_r1  <= mle_ul_req_cnt_axi_r0;
@@ -2517,10 +2299,6 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         mle_inject_cnt_axi_r1  <= mle_inject_cnt_axi_r0;
         mle_clear_cnt_axi_r0   <= mle_clear_cnt_sys;
         mle_clear_cnt_axi_r1   <= mle_clear_cnt_axi_r0;
-        mle_detach_cnt_axi_r0  <= mle_detach_cnt_sys;
-        mle_detach_cnt_axi_r1  <= mle_detach_cnt_axi_r0;
-        ast_ttl_evict_cnt_axi_r0 <= ast_ttl_evict_cnt_sys;
-        ast_ttl_evict_cnt_axi_r1 <= ast_ttl_evict_cnt_axi_r0;
     end
 end
 
@@ -2838,8 +2616,12 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         reply_index_sys_r1  <= 4'd0;
         reply_wdata_sys_r0  <= 32'd0;
         reply_wdata_sys_r1  <= 32'd0;
-        reply_use_sw_sys_r0 <= 1'b0;
-        reply_use_sw_sys_r1 <= 1'b0;
+        // Phase X.4 — use_sw_body reset default flipped 0 -> 1 (SW path
+        // primary).  Both the AXI-side reset (REG_REPLY_USE_SW @ 0x230)
+        // and this CDC pipe must agree so the MLE-FSM sees use_sw_body=1
+        // out of reset before SW writes the toggle.
+        reply_use_sw_sys_r0 <= 1'b1;
+        reply_use_sw_sys_r1 <= 1'b1;
     end else begin
         reply_index_sys_r0  <= reply_index_axi_w;
         reply_index_sys_r1  <= reply_index_sys_r0;
@@ -3066,10 +2848,7 @@ end
 // Phase 6 A — DB-Policy[0] = accept_unknown, 2-FF resynced to clk_sys
 (* ASYNC_REG = "TRUE" *) reg        db_policy_accept_unknown_sys_r0;
 (* ASYNC_REG = "TRUE" *) reg        db_policy_accept_unknown_sys_r1;
-// Phase 6 C — AST TTL threshold (24-bit, even though AXI is 32-bit; upper
-// bits ignored).  2-FF resynced to clk_sys.
-(* ASYNC_REG = "TRUE" *) reg [23:0] ast_ttl_multiframes_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg [23:0] ast_ttl_multiframes_sys_r1;
+// Phase X.4 — AST TTL threshold removed (AST migrated to SW).
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) cell_cfg_sys_code_sys_r0 <= 4'd0;
@@ -3184,15 +2963,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) db_policy_accept_unknown_sys_r1 <= 1'b1;
     else            db_policy_accept_unknown_sys_r1 <= db_policy_accept_unknown_sys_r0;
 end
-// Phase 6 C — AST TTL multiframes CDC (default 84706 ≈ 24 h)
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) ast_ttl_multiframes_sys_r0 <= 24'd84706;
-    else            ast_ttl_multiframes_sys_r0 <= ast_ttl_multiframes_axi_w[23:0];
-end
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) ast_ttl_multiframes_sys_r1 <= 24'd84706;
-    else            ast_ttl_multiframes_sys_r1 <= ast_ttl_multiframes_sys_r0;
-end
+// Phase X.4 — AST TTL multiframes CDC removed (AST migrated to SW).
 
 // Lookahead tuple (next-slot tn, fn, mn).  The sb1/aach encoders are
 // started on slot_pulse_sys of slot N but their outputs are only fully
