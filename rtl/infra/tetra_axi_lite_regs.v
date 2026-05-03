@@ -410,6 +410,28 @@ module tetra_axi_lite_regs (
     input  wire        demand_consume_axi,
 
     // ------------------------------------------------------------------
+    // Phase X.2 — Reply-Pull Mailbox (extension window 0x220..0x230).
+    //   REG_REPLY_INDEX  @ 0x220 R/W [3:0]  word selector 0..15
+    //   REG_REPLY_DATA   @ 0x224 R/W [31:0] indirect-write via INDEX,
+    //                                 read-back for SW debug.
+    //   REG_REPLY_GO     @ 0x228 W1S [0]    1-cycle GO pulse to FSM,
+    //                                 HW-clr on go_consume_axi pulse.
+    //   REG_REPLY_STATUS @ 0x22C RO  [0]    busy mirror (FSM-side)
+    //   REG_REPLY_USE_SW @ 0x230 R/W [0]    use_sw_body field-mux toggle
+    // The mailbox itself lives in clk_sys; this slave drives the AXI-side
+    // shadow registers and the GO trigger.  Caller (top-level) does the
+    // 2-FF resyncs and edge-detect to a 1-cycle clk_sys pulse.
+    // ------------------------------------------------------------------
+    output wire [3:0]  reply_index_axi_o,
+    output wire [31:0] reply_wdata_axi_o,
+    output wire        reply_we_axi_o,
+    output wire        reply_go_trigger_axi_o,
+    input  wire        reply_go_consume_axi,
+    input  wire [31:0] reply_rdata_axi_i,
+    input  wire        reply_busy_axi_i,
+    output wire        reply_use_sw_axi_o,
+
+    // ------------------------------------------------------------------
     // Phase H.7 — D-NWRK-BROADCAST periodic push.
     //   REG_NWRK_BCAST_INDEX   @ 0x1D0 [3:0]   payload word index (0..13)
     //   REG_NWRK_BCAST_DATA    @ 0x1D4 [31:0]  32-bit, write→payload[INDEX]
@@ -727,6 +749,18 @@ localparam [6:0] REG_DEMAND_DATA   = 7'h02; // 0x208  RO  [31:0] indirect via IN
 localparam [6:0] REG_DEMAND_ACK    = 7'h03; // 0x20C  W1S [0]    HW-clr after consume
 
 // ---------------------------------------------------------------------------
+// Phase X.2 — Reply-Pull Mailbox (extension window 0x220..0x230).
+// SW writes the 16-word D-LOC-UPDATE-ACCEPT field shadow via INDEX/DATA,
+// pulses GO so HW samples the staged values, and reads STATUS for SW-side
+// telemetry (busy mirror).  USE_SW toggles the FSM-input mux.
+// ---------------------------------------------------------------------------
+localparam [6:0] REG_REPLY_INDEX   = 7'h08; // 0x220  R/W [3:0]  word selector 0..15
+localparam [6:0] REG_REPLY_DATA    = 7'h09; // 0x224  R/W [31:0] indirect via INDEX
+localparam [6:0] REG_REPLY_GO      = 7'h0A; // 0x228  W1S [0]    1-cycle pulse to MLE-FSM
+localparam [6:0] REG_REPLY_STATUS  = 7'h0B; // 0x22C  RO  [0]=busy
+localparam [6:0] REG_REPLY_USE_SW  = 7'h0C; // 0x230  R/W [0]=use_sw_body
+
+// ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
 // ---------------------------------------------------------------------------
 
@@ -904,6 +938,11 @@ wire [15:0] demand_drop_cnt_axi;       // 2-FF resynced from clk_sys in top
 wire [31:0] demand_data_word_axi;      // combinational mux from clk_sys side
 reg         demand_ack_trigger_r;      // W1S ACK reg
 
+// Phase X.2 reply-pull-mailbox AXI-side state — declared below; forward refs OK.
+reg [3:0]  reply_index_axi;            // 4-bit indirect-window word selector
+reg        reply_go_trigger_r;         // W1S GO trigger, HW-clr on go_consume
+reg        reply_use_sw_r;             // R/W use_sw_body toggle
+
 reg [31:0] rdata_mux_axi;
 always @(*) begin
     case (rd_addr_axi[8:2])
@@ -1077,6 +1116,12 @@ always @(*) begin
             REG_DEMAND_INDEX:  rdata_mux_axi = {28'd0, demand_index_axi};
             REG_DEMAND_DATA:   rdata_mux_axi = demand_data_word_axi;
             REG_DEMAND_ACK:    rdata_mux_axi = {31'd0, demand_ack_trigger_r};
+            // Phase X.2 — reply-pull mailbox
+            REG_REPLY_INDEX:   rdata_mux_axi = {28'd0, reply_index_axi};
+            REG_REPLY_DATA:    rdata_mux_axi = reply_rdata_axi_i;
+            REG_REPLY_GO:      rdata_mux_axi = {31'd0, reply_go_trigger_r};
+            REG_REPLY_STATUS:  rdata_mux_axi = {31'd0, reply_busy_axi_i};
+            REG_REPLY_USE_SW:  rdata_mux_axi = {31'd0, reply_use_sw_r};
             default:           rdata_mux_axi = 32'd0;
         endcase
     end
@@ -2214,6 +2259,55 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
                         & wr_strb_axi[0] & wr_data_axi[0])
             demand_ack_trigger_r <= 1'b1;
     end
+end
+
+// ---------------------------------------------------------------------------
+// Phase X.2 — Reply-Pull Mailbox AXI-side state (clk_axi)
+// ---------------------------------------------------------------------------
+// REG_REPLY_INDEX  @ 0x220 R/W  — 4-bit indirect-window word selector
+// REG_REPLY_DATA   @ 0x224 W    — passes wdata + we directly to the clk_sys
+//                                 reply-mailbox.  The CDC is in top-level
+//                                 (we pulse + 4-bit index + 32-bit data).
+// REG_REPLY_GO     @ 0x228 W1S  — set on SW write of [0]=1; HW-clears on
+//                                 reply_go_consume_axi pulse from clk_sys.
+// REG_REPLY_USE_SW @ 0x230 R/W  — use_sw_body toggle (default 0 = M2 path).
+// REG_REPLY_STATUS @ 0x22C RO   — busy mirror, read-only.
+//
+// Outputs to top-level CDC: reply_index_axi_o, reply_wdata_axi_o,
+// reply_we_axi_o (1-cycle pulse on AXI write), reply_go_trigger_axi_o (W1S
+// trigger), reply_use_sw_axi_o.
+assign reply_index_axi_o      = reply_index_axi;
+assign reply_wdata_axi_o      = wr_data_axi;
+assign reply_we_axi_o         = wr_en_x1_axi & (wr_addr_axi[8:2] == REG_REPLY_DATA);
+assign reply_go_trigger_axi_o = reply_go_trigger_r;
+assign reply_use_sw_axi_o     = reply_use_sw_r;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        reply_index_axi <= 4'd0;
+    else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_REPLY_INDEX)
+                          & wr_strb_axi[0])
+        reply_index_axi <= wr_data_axi[3:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        reply_go_trigger_r <= 1'b0;
+    else begin
+        if (reply_go_consume_axi)
+            reply_go_trigger_r <= 1'b0;
+        if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_REPLY_GO)
+                        & wr_strb_axi[0] & wr_data_axi[0])
+            reply_go_trigger_r <= 1'b1;
+    end
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        reply_use_sw_r <= 1'b0;
+    else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_REPLY_USE_SW)
+                          & wr_strb_axi[0])
+        reply_use_sw_r <= wr_data_axi[0];
 end
 
 // ---------------------------------------------------------------------------

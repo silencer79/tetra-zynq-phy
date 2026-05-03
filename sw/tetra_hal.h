@@ -250,6 +250,26 @@
 #define REG_DEMAND_DATA   0x208   /* RO  [31:0] indirect via INDEX     */
 #define REG_DEMAND_ACK    0x20C   /* W1S [0]    HW-clr after consume   */
 
+/* Phase X.2 — Reply-Pull Mailbox (extension window 0x220..0x230).
+ * SW stages a complete D-LOC-UPDATE-ACCEPT body via the indirect window
+ * and pulses GO; the field outputs feed the MLE-FSM u_dloc input mux
+ * when REG_REPLY_USE_SW[0] is set.  Word layout (32 bit each):
+ *   W0 [23:0]  ssi
+ *   W1 [13:0]  la
+ *   W2 [ 2:0]  addr_type
+ *   W3 [ 1:0]  result          (0=accept, 1=rej-temp, 2=rej-perm)
+ *   W4 [23:0]  gila_gssi
+ *   W5 [ 4:2]  gila_class      [1:0] gila_lifetime
+ *   W6 [ 0]    gila_present
+ *   W7 [ 1:0]  encryption      (Reserved Phase X.2)
+ *   W8 [ 1:0]  auth_result     (Reserved Phase X.2)
+ *   W9..W15    reserved Phase X.4                                       */
+#define REG_REPLY_INDEX   0x220   /* R/W [3:0]  word selector 0..15    */
+#define REG_REPLY_DATA    0x224   /* R/W [31:0] indirect via INDEX     */
+#define REG_REPLY_GO      0x228   /* W1S [0]    pulse to MLE-FSM       */
+#define REG_REPLY_STATUS  0x22C   /* RO  [0]    busy mirror            */
+#define REG_REPLY_USE_SW  0x230   /* R/W [0]    use_sw_body field-mux  */
+
 /* Phase H.6.3 — AACH UL-Slot-Grant override (single-shot pulse)            */
 #define REG_AACH_GRANT_HINT      0x1F4   /* R/W [31] pending, [13:0] info14  */
 

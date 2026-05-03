@@ -207,8 +207,8 @@ if ! sshpass -p "$BOARD_PASS" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=
     fail "Board not reachable at ${BOARD_IP}"
 fi
 
-# Kill running tetra_sysinfo / tetra_ul_mon before upload
-ssh_cmd "killall tetra_sysinfo 2>/dev/null || true; killall tetra_ul_mon 2>/dev/null || true"
+# Kill running tetra_sysinfo / tetra_ul_mon / tetra_attach_daemon before upload
+ssh_cmd "killall tetra_sysinfo 2>/dev/null || true; killall tetra_ul_mon 2>/dev/null || true; killall tetra_attach_daemon 2>/dev/null || true"
 
 # Upload bitstream
 echo "Uploading bitstream..."
@@ -234,6 +234,9 @@ if $DO_SW; then
     echo "Uploading tetra_db_mgr..."
     scp_to "${SW_DIR}/tetra_db_mgr" "${REMOTE_BIN_DIR}/tetra_db_mgr"
     ssh_cmd "chmod +x ${REMOTE_BIN_DIR}/tetra_db_mgr"
+    echo "Uploading tetra_attach_daemon..."
+    scp_to "${SW_DIR}/tetra_attach_daemon" "${REMOTE_BIN_DIR}/tetra_attach_daemon"
+    ssh_cmd "chmod +x ${REMOTE_BIN_DIR}/tetra_attach_daemon"
     echo "Uploading db.tsv.default..."
     scp_to "${SW_DIR}/db.tsv.default" "${REMOTE_BIN_DIR}/db.tsv.default"
 

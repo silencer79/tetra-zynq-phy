@@ -168,6 +168,7 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_ul_demand_ie_parser.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_nwrk_broadcast.v \
  $PROJ_DIR/rtl/lmac/tetra_demand_mailbox.v \
+ $PROJ_DIR/rtl/lmac/tetra_reply_mailbox.v \
 ]
 
 # Top-Level modules

@@ -1930,6 +1930,15 @@ tetra_axi_lite_regs u_axi_regs (
     .demand_index_axi_o        (demand_index_axi_w),
     .demand_ack_trigger_axi    (demand_ack_trigger_axi_w),
     .demand_consume_axi        (demand_consume_axi_r1),
+    // Phase X.2 — Reply-Pull Mailbox extension window 0x220..0x230
+    .reply_index_axi_o         (reply_index_axi_w),
+    .reply_wdata_axi_o         (reply_wdata_axi_w),
+    .reply_we_axi_o            (reply_we_axi_w),
+    .reply_go_trigger_axi_o    (reply_go_trigger_w),
+    .reply_go_consume_axi      (reply_go_consume_axi_r1),
+    .reply_rdata_axi_i         (reply_rdata_axi_r1),
+    .reply_busy_axi_i          (reply_busy_axi_r1),
+    .reply_use_sw_axi_o        (reply_use_sw_axi_w),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -2300,7 +2309,23 @@ tetra_mle_registration_fsm #(
     .demand_pdu_ssi      (mle_demand_pdu_ssi_sys),
     .demand_gssi_count   (mle_demand_gssi_count_sys),
     .demand_gssi_array   (mle_demand_gssi_array_sys),
-    .demand_class_array  (mle_demand_class_array_sys)
+    .demand_class_array  (mle_demand_class_array_sys),
+    // Phase X.2 — Reply-Pull Mailbox pass-through to u_dloc field mux.
+    // use_sw_body == 0 (M2 default) keeps the encoder bit-identical to the
+    // gold reference; the mb_* values do not propagate.  When SW sets the
+    // toggle, u_dloc consumes the staged ACCEPT body fields verbatim.
+    .mb_ssi              (mb_ssi_sys_w),
+    .mb_la               (mb_la_sys_w),
+    .mb_addr_type        (mb_addr_type_sys_w),
+    .mb_result           (mb_result_sys_w),
+    .mb_gila_gssi        (mb_gila_gssi_sys_w),
+    .mb_gila_class       (mb_gila_class_sys_w),
+    .mb_gila_lifetime    (mb_gila_lifetime_sys_w),
+    .mb_gila_present     (mb_gila_present_sys_w),
+    .mb_encryption       (mb_encryption_sys_w),
+    .mb_auth_result      (mb_auth_result_sys_w),
+    .mb_go_pulse         (mb_go_pulse_sys_w),
+    .use_sw_body         (reply_use_sw_sys_r1)
     // Phase H.0.2 — mm=7 group-attach FSM ports stripped (Group-Switch
     // moved to ARM SW per the FPGA+SW split).
 );
@@ -2775,6 +2800,161 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     end else begin
         demand_consume_axi_r0 <= demand_ack_pulse_sys_w;
         demand_consume_axi_r1 <= demand_consume_axi_r0;
+    end
+end
+
+// =============================================================================
+// Phase X.2 — Reply-Pull Mailbox: Modul-Instance + CDC
+//
+// AXI side (clk_axi):
+//   reply_index_axi_w    — 4-bit indirect-window word selector
+//   reply_wdata_axi_w    — 32-bit AXI write-data passed through
+//   reply_we_axi_w       — 1-cycle write-enable pulse on REG_REPLY_DATA write
+//   reply_go_trigger_w   — W1S GO bit, cleared by reply_go_consume_axi pulse
+//   reply_use_sw_axi_w   — R/W toggle bit
+//   reply_busy_axi_r1    — 2-FF resync of busy mirror (clk_sys)
+//   reply_rdata_axi_r1   — 2-FF resync of indirect read-back word (clk_sys)
+//
+// clk_sys side: tetra_reply_mailbox holds the 16-word shadow, exposes the
+// per-field outputs (mb_*) feeding the MLE-FSM input mux, and forwards
+// the 1-cycle GO pulse for FSM logging / Phase X.4.
+// =============================================================================
+wire [3:0]  reply_index_axi_w;
+wire [31:0] reply_wdata_axi_w;
+wire        reply_we_axi_w;
+wire        reply_go_trigger_w;
+wire        reply_use_sw_axi_w;
+
+// 2-FF resync of slow-changing R/W signals: index, wdata, use_sw_body.
+(* ASYNC_REG = "TRUE" *) reg [3:0]  reply_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0]  reply_index_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [31:0] reply_wdata_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] reply_wdata_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg        reply_use_sw_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg        reply_use_sw_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        reply_index_sys_r0  <= 4'd0;
+        reply_index_sys_r1  <= 4'd0;
+        reply_wdata_sys_r0  <= 32'd0;
+        reply_wdata_sys_r1  <= 32'd0;
+        reply_use_sw_sys_r0 <= 1'b0;
+        reply_use_sw_sys_r1 <= 1'b0;
+    end else begin
+        reply_index_sys_r0  <= reply_index_axi_w;
+        reply_index_sys_r1  <= reply_index_sys_r0;
+        reply_wdata_sys_r0  <= reply_wdata_axi_w;
+        reply_wdata_sys_r1  <= reply_wdata_sys_r0;
+        reply_use_sw_sys_r0 <= reply_use_sw_axi_w;
+        reply_use_sw_sys_r1 <= reply_use_sw_sys_r0;
+    end
+end
+
+// 2-FF resync + edge-detect of the AXI write pulse: emits a 1-cycle
+// pulse on clk_sys when AXI writes a new value to REG_REPLY_DATA.
+// This timing is conservative (multi-cycle re-sync) — SW issues writes
+// at a few-Hz cadence, so the index already settled by the time the
+// edge fires.
+(* ASYNC_REG = "TRUE" *) reg reply_we_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg reply_we_sys_r1;
+reg                            reply_we_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        reply_we_sys_r0 <= 1'b0;
+        reply_we_sys_r1 <= 1'b0;
+        reply_we_sys_r2 <= 1'b0;
+    end else begin
+        reply_we_sys_r0 <= reply_we_axi_w;
+        reply_we_sys_r1 <= reply_we_sys_r0;
+        reply_we_sys_r2 <= reply_we_sys_r1;
+    end
+end
+wire reply_we_pulse_sys_w = reply_we_sys_r1 & ~reply_we_sys_r2;
+
+// 2-FF resync + edge-detect of the GO trigger to a 1-cycle pulse.
+(* ASYNC_REG = "TRUE" *) reg reply_go_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg reply_go_sys_r1;
+reg                            reply_go_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        reply_go_sys_r0 <= 1'b0;
+        reply_go_sys_r1 <= 1'b0;
+        reply_go_sys_r2 <= 1'b0;
+    end else begin
+        reply_go_sys_r0 <= reply_go_trigger_w;
+        reply_go_sys_r1 <= reply_go_sys_r0;
+        reply_go_sys_r2 <= reply_go_sys_r1;
+    end
+end
+wire reply_go_pulse_sys_w = reply_go_sys_r1 & ~reply_go_sys_r2;
+
+// Reply-Mailbox instance (clk_sys) — 16-word indirect register file with
+// per-field outputs.
+wire [31:0] reply_rdata_sys_w;
+wire [23:0] mb_ssi_sys_w;
+wire [13:0] mb_la_sys_w;
+wire [2:0]  mb_addr_type_sys_w;
+wire [1:0]  mb_result_sys_w;
+wire [23:0] mb_gila_gssi_sys_w;
+wire [2:0]  mb_gila_class_sys_w;
+wire [1:0]  mb_gila_lifetime_sys_w;
+wire        mb_gila_present_sys_w;
+wire [1:0]  mb_encryption_sys_w;
+wire [1:0]  mb_auth_result_sys_w;
+wire        mb_go_pulse_sys_w;
+
+tetra_reply_mailbox u_reply_mailbox (
+    .clk_sys              (clk_sys),
+    .rst_n_sys            (rst_n_sys),
+    .index_sys            (reply_index_sys_r1),
+    .wdata_sys            (reply_wdata_sys_r1),
+    .wr_en_sys            (reply_we_pulse_sys_w),
+    .go_pulse_sys         (reply_go_pulse_sys_w),
+    .rdata_sys            (reply_rdata_sys_w),
+    .mb_ssi_sys           (mb_ssi_sys_w),
+    .mb_la_sys            (mb_la_sys_w),
+    .mb_addr_type_sys     (mb_addr_type_sys_w),
+    .mb_result_sys        (mb_result_sys_w),
+    .mb_gila_gssi_sys     (mb_gila_gssi_sys_w),
+    .mb_gila_class_sys    (mb_gila_class_sys_w),
+    .mb_gila_lifetime_sys (mb_gila_lifetime_sys_w),
+    .mb_gila_present_sys  (mb_gila_present_sys_w),
+    .mb_encryption_sys    (mb_encryption_sys_w),
+    .mb_auth_result_sys   (mb_auth_result_sys_w),
+    .mb_go_pulse_sys      (mb_go_pulse_sys_w)
+);
+
+// CDC: rdata + busy clk_sys → clk_axi (busy is the OR of FSM busy-state).
+// In Phase X.2 the FSM busy mirror is taken directly from mle_busy_w (already
+// in clk_sys).  rdata is a slow read-back path so 2-FF settles fine.
+(* ASYNC_REG = "TRUE" *) reg [31:0] reply_rdata_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] reply_rdata_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg        reply_busy_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg        reply_busy_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        reply_rdata_axi_r0 <= 32'd0;
+        reply_rdata_axi_r1 <= 32'd0;
+        reply_busy_axi_r0  <= 1'b0;
+        reply_busy_axi_r1  <= 1'b0;
+    end else begin
+        reply_rdata_axi_r0 <= reply_rdata_sys_w;
+        reply_rdata_axi_r1 <= reply_rdata_axi_r0;
+        reply_busy_axi_r0  <= mle_busy_w;
+        reply_busy_axi_r1  <= reply_busy_axi_r0;
+    end
+end
+
+// CDC: GO-consume pulse clk_sys → clk_axi to clear the W1S trigger.
+(* ASYNC_REG = "TRUE" *) reg reply_go_consume_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg reply_go_consume_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        reply_go_consume_axi_r0 <= 1'b0;
+        reply_go_consume_axi_r1 <= 1'b0;
+    end else begin
+        reply_go_consume_axi_r0 <= reply_go_pulse_sys_w;
+        reply_go_consume_axi_r1 <= reply_go_consume_axi_r0;
     end
 end
 

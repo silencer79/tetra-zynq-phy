@@ -200,6 +200,36 @@ module tetra_mle_registration_fsm #(
     input  wire [8:0]                  demand_class_array,   // {c2,c1,c0}
 
     // -----------------------------------------------------------------
+    // Phase X.2 — Reply-Pull-Mailbox pass-through inputs.
+    //
+    // The existing FSM-state-latches (lat_ssi, cfg_la, lat_addr_type,
+    // lat_gila_*, ...) feed u_dloc unchanged when use_sw_body == 0; this
+    // is the M2 default and yields bit-identical D-LOC-UPDATE-ACCEPT
+    // bodies to the gold reference.  When use_sw_body == 1 the SW-staged
+    // mailbox values mb_* substitute at the u_dloc input mux.  The MLE
+    // FSM internal state machine is NOT modified — it still latches and
+    // drives all internal signals exactly as before; the toggle simply
+    // re-routes the encoder inputs.
+    //
+    // mb_go_pulse is reserved for Phase X.4 when SW will fully drive the
+    // accept-build trigger; in Phase X.2 the existing FSM accept_pulse
+    // continues to run the regular trigger and the SW just races to
+    // pre-stage mb_* before that pulse arrives.
+    // -----------------------------------------------------------------
+    input  wire [23:0]                 mb_ssi,
+    input  wire [13:0]                 mb_la,
+    input  wire [2:0]                  mb_addr_type,
+    input  wire [1:0]                  mb_result,
+    input  wire [23:0]                 mb_gila_gssi,
+    input  wire [2:0]                  mb_gila_class,
+    input  wire [1:0]                  mb_gila_lifetime,
+    input  wire                        mb_gila_present,
+    input  wire [1:0]                  mb_encryption,
+    input  wire [1:0]                  mb_auth_result,
+    input  wire                        mb_go_pulse,
+    input  wire                        use_sw_body,
+
+    // -----------------------------------------------------------------
     // Phase H.0.2 — mm=7 group-attach trigger ports + GAD-ACK driver
     // outputs removed.  Group-Switch flow moves to ARM SW per the
     // FPGA+SW split (ARCH-Pivot 2026-04-26).
@@ -329,14 +359,22 @@ module tetra_mle_registration_fsm #(
     wire [7:0]   dloc_mm_len_w;
     wire [123:0] dloc_legacy_pdu_w;  // unused here, kept for linter silence
 
+    // -------------------------------------------------------------------------
+    // Phase X.2 — u_dloc field mux.  When use_sw_body=0 (M2 default and the
+    // legacy bit-identity path) every input below resolves to the existing
+    // FSM-state value, so the encoder produces the same 102-bit MM body as
+    // before this commit.  When use_sw_body=1 the SW-pulled mailbox latches
+    // (mb_*) substitute, allowing the ARM daemon to stage a fresh ACCEPT
+    // body per UL-Demand without modifying the FSM.
+    // -------------------------------------------------------------------------
     tetra_d_location_update_encoder u_dloc (
         .pdu_reject        (1'b0),                 // ACCEPT-Pfad nutzt diesen Encoder
-        .addr_type         (lat_addr_type),
-        .ssi               (lat_ssi),
-        .la                (cfg_la),               // legacy 124-bit path
-        .result            (2'b00),                // accept
-        .encryption        (2'b00),                // clear
-        .auth_result       (2'b01),                // success
+        .addr_type         (use_sw_body ? mb_addr_type : lat_addr_type),
+        .ssi               (use_sw_body ? mb_ssi      : lat_ssi),
+        .la                (use_sw_body ? mb_la       : cfg_la),               // legacy 124-bit path
+        .result            (use_sw_body ? mb_result   : 2'b00),                // accept
+        .encryption        (use_sw_body ? mb_encryption  : 2'b00),             // clear
+        .auth_result       (use_sw_body ? mb_auth_result : 2'b01),             // success
         .subscriber_class  (cfg_subscriber_class),
         .address_extension (cfg_address_extension),
         .energy_saving_info(cfg_energy_saving_info),
@@ -344,14 +382,22 @@ module tetra_mle_registration_fsm #(
         // Phase 6 D-rev — dynamic GILA inputs from EntityTable/ProfileTable
         // multi-lookup (latched in lat_gila_*).  M2 default values reproduce
         // the gold-ref bit pattern when Profile 0 + GSSI 0x2F4D61 are in DB.
-        .gila_gssi         (lat_gila_gssi),
-        .gila_class        (lat_gila_class),
-        .gila_lifetime     (lat_gila_lifetime),
-        .gila_present      (lat_gila_present),
+        // Phase X.2 mux: SW-mailbox overrides when use_sw_body=1.
+        .gila_gssi         (use_sw_body ? mb_gila_gssi     : lat_gila_gssi),
+        .gila_class        (use_sw_body ? mb_gila_class    : lat_gila_class),
+        .gila_lifetime     (use_sw_body ? mb_gila_lifetime : lat_gila_lifetime),
+        .gila_present      (use_sw_body ? mb_gila_present  : lat_gila_present),
         .pdu_bits          (dloc_legacy_pdu_w),
         .pdu_bits_mm       (dloc_mm_bits_w),
         .pdu_len_bits      (dloc_mm_len_w)
     );
+
+    // Phase X.2 — mb_go_pulse currently unused (Reserve für Phase X.4 SW
+    // accept-Trigger).  Tie it through a synthesis-only "unused" guard so
+    // lint stays clean while the input remains on the module port.
+    // synthesis translate_off
+    wire _x2_unused_mb_go = mb_go_pulse;
+    // synthesis translate_on
 
     // -------------------------------------------------------------------------
     // D-LOCATION-UPDATE-REJECT encoder (Phase 6 A, ETSI §16.10.40).
