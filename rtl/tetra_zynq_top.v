@@ -2144,16 +2144,19 @@ tetra_dl_signal_queue #(
 ) u_dl_signal_queue (
     .clk              (clk_sys),
     .rst_n            (rst_n_sys),
-    // MLE producer
-    .wr_mle_valid     (mle_req_valid_w),
-    .wr_mle_coded     (mle_req_coded_bits_w),
-    .wr_mle_pdu_type  (mle_req_pdu_type_w),
-    .wr_mle_target_tn (mle_req_target_tn_w),
+    // MLE producer — muxed (MLE-FSM Final-ACCEPT priority over Phase X.5b
+    // SlotGrant Pre-Reply, see mux just above the queue instantiation).
+    .wr_mle_valid     (mle_slot_wr_valid_w),
+    .wr_mle_coded     (mle_slot_wr_coded_w),
+    .wr_mle_pdu_type  (mle_slot_wr_pdu_type_w),
+    .wr_mle_target_tn (mle_slot_wr_target_tn_w),
     // Option B second_pdu telemetry (commit 6): propagate MLE-FSM's
     // req_second_pdu_* so the queue entry carries the BL-ACK-present
-    // flag + nr for downstream ILA / AXI visibility.
-    .wr_mle_second_pdu_present (mle_req_second_pdu_present_w),
-    .wr_mle_second_pdu_nr      (mle_req_second_pdu_nr_w),
+    // flag + nr for downstream ILA / AXI visibility.  SlotGrant path
+    // has no concat-second-PDU → the mux above zeros these when MLE
+    // inactive.
+    .wr_mle_second_pdu_present (mle_slot_wr_second_pdu_present_w),
+    .wr_mle_second_pdu_nr      (mle_slot_wr_second_pdu_nr_w),
     // CMCE producer — Phase H.7 D-NWRK-BROADCAST periodic push
     .wr_cmce_valid    (nwrk_bcast_push_valid_sys_w),
     .wr_cmce_coded    (nwrk_bcast_push_coded_sys_w),
@@ -2448,21 +2451,26 @@ tetra_dl_nwrk_broadcast u_dl_nwrk_broadcast (
 );
 
 // =============================================================================
-// Phase X.5 — Pre-Reply BL-ACK Mini-FSM
+// Phase X.5 — Pre-Reply BL-ACK Mini-FSM (post-Frag-2 BL-ACK = Step 4)
 //
-// Trigger: Frag-1 pulse from MAC-ACCESS parser (`frag1_pulse_w`, same wire
-// the MLE-FSM consumes for AL-SETUP).  On every pulse the FSM builds a
-// 124-bit BL-ACK PDU (43-bit MAC + 5-bit LLC, zero-padded), SCH/HD-encodes
-// it to 216 bits, and pushes via the DL-Signal-Queue's SDS slot (was tied
-// off).  Scheduler grabs it on the next frame boundary and delivers it on
-// `cfg_mcch_tn_sys_r1`, the same TN the MS expects the Pre-Reply on.
+// Trigger: `mle_demand_parsed_valid_sys = iep_parse_done_sys & iep_parse_ok_sys`
+// — fires AFTER reassembly of Frag-1+Frag-2 has completed and the IE parser
+// has walked the MM body.  This is Step 4 of the Gold ITSI-Attach sequence
+// (MS Frag-1 → BS slot-grant [Step 2, see u_pre_reply_slotgrant below] →
+// MS Frag-2 → BS BL-ACK [Step 4, this module] → MS Frag-3 → BS ACCEPT).
 //
-// Memory ref: `project_h32_attach_breakthrough.md` Restdrift +
-// `reference_gold_full_attach_timeline.md` (Pre-Reply 1 frame after
-// Frag-1, AACH 0x0249/0x0009 reserved-cap-alloc).  AACH-Schedule for the
-// Pre-Reply slot already shows 0x0249 — no AACH override required at this
-// phase; if on-air verification needs the 0x0009 idle marker, that lives
-// in a separate AACH-encoder change (Phase X.5b).
+// On every pulse the FSM builds a 124-bit BL-ACK PDU (43-bit MAC + 5-bit
+// LLC, zero-padded), SCH/HD-encodes it to 216 bits, and pushes via the
+// DL-Signal-Queue's SDS slot.  Scheduler grabs it on the next frame
+// boundary and delivers it on `cfg_mcch_tn_sys_r1`.
+//
+// Phase X.5 (initial) was triggered on `frag1_pulse_w` — that conflated
+// Step 2 (slot-grant) with Step 4 (BL-ACK) and left no BL-ACK after
+// Frag-2.  The Gold-conformant split is now: tetra_pre_reply_slotgrant.v
+// fires on Frag-1 (Step 2), this module fires on reassembly-done (Step 4).
+//
+// Memory ref: `project_h32_attach_breakthrough.md` +
+// `reference_gold_full_attach_timeline.md`.
 // =============================================================================
 wire         pre_reply_blck_valid_sys_w;
 wire [431:0] pre_reply_blck_coded_sys_w;
@@ -2474,11 +2482,12 @@ wire [15:0]  pre_reply_blck_drop_cnt_sys_w;
 tetra_pre_reply_blck u_pre_reply_blck (
     .clk_sys              (clk_sys),
     .rst_n_sys            (rst_n_sys),
-    // Frag-1 trigger from MAC-ACCESS parser (1-cycle pulse on clk_sys).
-    // Same wire MLE-FSM consumes for AL-SETUP (see line ~2030).
-    .ul_req_valid         (frag1_pulse_w),
+    // Reassembly+IEP-Done trigger (Step 4 — post-Frag-2 BL-ACK).  Bound
+    // to `mle_demand_parsed_valid_sys` (= iep_parse_done_sys &
+    // iep_parse_ok_sys, defined ~line 723).
+    .trigger_valid        (mle_demand_parsed_valid_sys),
     .ul_ssi               (ul_issi_sys),
-    // Target TN = MCCH slot (where the MS expects the Pre-Reply).
+    // Target TN = MCCH slot (where the MS expects the BL-ACK).
     .cfg_mcch_tn          (cfg_mcch_tn_sys_r1),
     // Cell DL scrambler seed — same pack as MLE-FSM and AACH (gold-ref-konform).
     .cfg_scramble_init    (mle_dl_scramb_init_sys),
@@ -2490,6 +2499,70 @@ tetra_pre_reply_blck u_pre_reply_blck (
     .push_cnt_sys         (pre_reply_blck_push_cnt_sys_w),
     .drop_cnt_sys         (pre_reply_blck_drop_cnt_sys_w)
 );
+
+// =============================================================================
+// Phase X.5b — Pre-Reply Slot-Grant Mini-FSM (post-Frag-1 = Step 2)
+//
+// Trigger: `frag1_pulse_w` (1-cycle pulse from MAC-ACCESS parser on Frag-1
+// detection).  Builds a 268-bit MAC-RESOURCE AL-SETUP PDU with
+// slot_granting_flag=1 + slot_granting_element=0x01 (capacity_allocation=0,
+// granting_delay=1 — H.3.2 Gold-Ref-Bit-Identity), SCH/F-encodes it to 432
+// bits and pushes through the MLE producer slot of the DL-Signal-Queue
+// (muxed against the MLE-FSM's req_* output, which only fires on
+// mb_go_pulse for Final ACCEPT and is temporally separated from the
+// post-Frag-1 slot-grant by ~14 ms / Frag-2-roundtrip).
+//
+// This restores the Step-2-of-Gold-sequence behaviour that lived in the
+// MLE-FSM's S_BUILD_SHORT_* path before Phase X.4 deleted it (commit
+// 75c639a, mis-interpreted as Multi-Lookup leftover).  Without this the
+// MS sees no slot-grant after Frag-1, never reserves a slot for Frag-2,
+// and retries Frag-1 indefinitely (verified UL-WAV 2026-05-02).
+//
+// Mux strategy: SlotGrant valid → drives MLE producer slot.  Otherwise
+// MLE-FSM req_valid drives.  When both fire on the same cycle (extremely
+// unlikely — SlotGrant 1F after Frag-1, ACCEPT after Frag-2-reass +
+// 2-frame-gap), MLE-ACCEPT wins (it's the more important Final-Reply,
+// not just a Pre-Reply hint).  Memory: project_arch_fpga_thin_signaling.md
+// + reference_gold_full_attach_timeline.md.
+// =============================================================================
+wire         slotgrant_valid_sys_w;
+wire [431:0] slotgrant_coded_sys_w;
+wire [1:0]   slotgrant_pdu_type_sys_w;
+wire [1:0]   slotgrant_target_tn_sys_w;
+wire [15:0]  slotgrant_push_cnt_sys_w;
+wire [15:0]  slotgrant_drop_cnt_sys_w;
+
+tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
+    .clk_sys                  (clk_sys),
+    .rst_n_sys                (rst_n_sys),
+    // Frag-1 trigger from MAC-ACCESS parser (Step 2 — post-Frag-1 slot-grant).
+    .frag1_pulse              (frag1_pulse_w),
+    .ul_ssi                   (ul_issi_sys),
+    .cfg_mcch_tn              (cfg_mcch_tn_sys_r1),
+    .cfg_scramble_init        (mle_dl_scramb_init_sys),
+    // 432-bit SCH/F-coded MAC-RESOURCE + slot_grant + AL-SETUP, MLE-slot-class
+    .wr_slotgrant_valid_sys   (slotgrant_valid_sys_w),
+    .wr_slotgrant_coded_sys   (slotgrant_coded_sys_w),
+    .wr_slotgrant_pdu_type_sys(slotgrant_pdu_type_sys_w),
+    .wr_slotgrant_target_tn_sys(slotgrant_target_tn_sys_w),
+    .push_cnt_sys             (slotgrant_push_cnt_sys_w),
+    .drop_cnt_sys             (slotgrant_drop_cnt_sys_w)
+);
+
+// MLE-Producer-Slot mux: MLE-FSM req_valid takes priority over SlotGrant
+// when both pulse the same cycle (Final ACCEPT > Pre-Reply slot-grant).
+// Otherwise SlotGrant routes through to the queue's MLE input.
+wire         mle_slot_wr_valid_w     = mle_req_valid_w | slotgrant_valid_sys_w;
+wire [431:0] mle_slot_wr_coded_w     = mle_req_valid_w ? mle_req_coded_bits_w
+                                                       : slotgrant_coded_sys_w;
+wire [1:0]   mle_slot_wr_pdu_type_w  = mle_req_valid_w ? mle_req_pdu_type_w
+                                                       : slotgrant_pdu_type_sys_w;
+wire [1:0]   mle_slot_wr_target_tn_w = mle_req_valid_w ? mle_req_target_tn_w
+                                                       : slotgrant_target_tn_sys_w;
+// SlotGrant has no concat-second-PDU; only MLE-FSM uses the second_pdu_*
+// telemetry (Option B BL-ACK piggyback).  When MLE inactive these are 0.
+wire         mle_slot_wr_second_pdu_present_w = mle_req_valid_w ? mle_req_second_pdu_present_w : 1'b0;
+wire         mle_slot_wr_second_pdu_nr_w      = mle_req_valid_w ? mle_req_second_pdu_nr_w      : 1'b0;
 
 // CDC: consume pulse + counter clk_sys → clk_axi
 (* ASYNC_REG = "TRUE" *) reg nwrk_bcast_consume_axi_r0;

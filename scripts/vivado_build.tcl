@@ -167,6 +167,7 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_demand_mailbox.v \
  $PROJ_DIR/rtl/lmac/tetra_reply_mailbox.v \
  $PROJ_DIR/rtl/lmac/tetra_pre_reply_blck.v \
+ $PROJ_DIR/rtl/lmac/tetra_pre_reply_slotgrant.v \
 ]
 
 # Top-Level modules

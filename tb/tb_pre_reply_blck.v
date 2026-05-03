@@ -37,7 +37,7 @@ module tb_pre_reply_blck;
     always #5 clk = ~clk;
 
     // DUT inputs
-    reg         ul_req_valid = 1'b0;
+    reg         trigger_valid = 1'b0;
     reg  [23:0] ul_ssi       = 24'd0;
     reg  [1:0]  cfg_mcch_tn  = 2'd1;
     reg  [31:0] cfg_scramble_init = 32'd0;  // TB uses 0 so reference encoder matches
@@ -53,7 +53,7 @@ module tb_pre_reply_blck;
     tetra_pre_reply_blck dut (
         .clk_sys              (clk),
         .rst_n_sys            (rst_n),
-        .ul_req_valid         (ul_req_valid),
+        .trigger_valid        (trigger_valid),
         .ul_ssi               (ul_ssi),
         .cfg_mcch_tn          (cfg_mcch_tn),
         .cfg_scramble_init    (cfg_scramble_init),
@@ -211,14 +211,14 @@ module tb_pre_reply_blck;
         end
     endtask
 
-    // Pulse ul_req_valid for 1 cycle with given SSI
-    task automatic pulse_ul_req;
+    // Pulse trigger_valid for 1 cycle with given SSI
+    task automatic pulse_trigger;
         input [23:0] s;
         begin
-            ul_ssi       <= s;
-            ul_req_valid <= 1'b1;
+            ul_ssi        <= s;
+            trigger_valid <= 1'b1;
             @(posedge clk);
-            ul_req_valid <= 1'b0;
+            trigger_valid <= 1'b0;
         end
     endtask
 
@@ -233,10 +233,10 @@ module tb_pre_reply_blck;
 
     initial begin
         // Reset
-        rst_n        = 1'b0;
-        ul_req_valid = 1'b0;
-        ul_ssi       = 24'd0;
-        cfg_mcch_tn  = 2'd1;
+        rst_n         = 1'b0;
+        trigger_valid = 1'b0;
+        ul_ssi        = 24'd0;
+        cfg_mcch_tn   = 2'd1;
         repeat (4) @(posedge clk);
         rst_n = 1'b1;
         @(posedge clk);
@@ -261,7 +261,7 @@ module tb_pre_reply_blck;
         @(posedge clk);
         cfg_mcch_tn = 2'd1;
 
-        pulse_ul_req(24'h282F91);
+        pulse_trigger(24'h282F91);
         wait_push(2000, hit_a);
         if (hit_a == 0) begin
             $display("  FAIL  no wr_blck_valid_sys within 2000 cyc");
@@ -281,7 +281,7 @@ module tb_pre_reply_blck;
         compute_ref(24'hCAFE42, exp_coded_b);
         @(posedge clk);
         cfg_mcch_tn = 2'd2;
-        pulse_ul_req(24'hCAFE42);
+        pulse_trigger(24'hCAFE42);
         wait_push(2000, hit_b);
         if (hit_b == 0) begin
             $display("  FAIL  no wr_blck_valid_sys within 2000 cyc");
@@ -306,10 +306,10 @@ module tb_pre_reply_blck;
         // Fire ul_req while FSM is busy → drop_cnt should increment
         // We trigger first, wait 5 cyc (still in S_BUILD or S_ENC), fire again
         cfg_mcch_tn = 2'd1;
-        pulse_ul_req(24'hAA0001);
+        pulse_trigger(24'hAA0001);
         repeat (5) @(posedge clk);
         // Second pulse during busy
-        pulse_ul_req(24'hBB0002);
+        pulse_trigger(24'hBB0002);
         // Wait for first push to land
         wait_push(2000, hit_x);
         if (hit_x == 0) begin
@@ -331,7 +331,7 @@ module tb_pre_reply_blck;
         $display("---- TC5 fresh push after busy clears ----");
         // Wait long enough for FSM to be back in IDLE
         repeat (50) @(posedge clk);
-        pulse_ul_req(24'h123456);
+        pulse_trigger(24'h123456);
         wait_push(2000, hit_x);
         if (hit_x == 1) begin
             $display("  PASS  fresh push delivered after IDLE recovery");

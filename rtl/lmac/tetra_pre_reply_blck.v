@@ -4,22 +4,29 @@
 // Phase X.5 — Pre-Reply BL-ACK Mini-FSM
 //
 // Purpose:
-//   On every Frag-1 arrival from an attaching MS (`ul_req_valid` 1-cycle
-//   pulse from the MAC-ACCESS parser) build a SCH/HD-coded BL-ACK PDU and
-//   push it into the DL-Signal-Queue's SDS producer port (was tied off).
-//   The DL-Signal-Scheduler picks it up the next frame and overrides the
-//   target slot, so the MS sees an ACK on the Pre-Reply slot and proceeds
-//   to send Frag-2.  Without this Frag-1-ACK the MS retries Frag-1 endlessly
-//   (verified UL-WAV 2026-05-02: 51 Frag-1, 0 Frag-2 in 31s).
+//   On every reassembly+IE-parse-done event (`trigger_valid` 1-cycle pulse,
+//   bound at top.v to `mle_demand_parsed_valid_sys = iep_parse_done_sys &
+//   iep_parse_ok_sys`) build a SCH/HD-coded BL-ACK PDU and push it into the
+//   DL-Signal-Queue's SDS producer port (was tied off).  The DL-Signal-
+//   Scheduler picks it up the next frame and overrides the target slot, so
+//   the MS sees an ACK on the post-Frag-2 slot.
 //
-// Per Gold-Ref `reference_gold_full_attach_timeline.md` the Pre-Reply lives
-// 1 frame after Frag-1, on the same TN as MCCH (cfg_mcch_tn).  AACH on that
-// slot is currently 0x0249 (reserved/capacity-allocation) which is enough
-// for the MS to expect a SCH/HD payload — the existing AACH-Schedule is
-// unchanged by this module.
+//   This corresponds to Step 4 of the Gold-ITSI-Attach sequence
+//   (reference_gold_full_attach_timeline.md): BS BL-ACK after Frag-2.
+//   Step 2 (slot-grant after Frag-1) is now handled by the parallel
+//   tetra_pre_reply_slotgrant.v module.  Earlier (Phase X.5 initial)
+//   this module was triggered on Frag-1 — that conflated Step 2 with
+//   Step 4 and broke Gold-conformance; the trigger has been moved to
+//   the post-reassembly pulse.
+//
+// Per Gold-Ref `reference_gold_full_attach_timeline.md` the post-Frag-2
+// BL-ACK lives on the same TN as MCCH (cfg_mcch_tn).  AACH on that slot is
+// currently 0x0249 (reserved/capacity-allocation) which is enough for the
+// MS to expect a SCH/HD payload — the existing AACH-Schedule is unchanged
+// by this module.
 //
 // Architecture:
-//   ul_req_valid (edge-detect) ──► tetra_mac_resource_bl_ack_builder
+//   trigger_valid (edge-detect) ──► tetra_mac_resource_bl_ack_builder
 //                                      └─► 124-bit padded BL-ACK PDU
 //                                          └─► tetra_sch_hd_encoder
 //                                              └─► 216-bit SCH/HD coded
@@ -35,8 +42,12 @@ module tetra_pre_reply_blck (
     input  wire         clk_sys,
     input  wire         rst_n_sys,
 
-    // Frag-1 trigger from MAC-ACCESS parser (1-cycle pulse on clk_sys)
-    input  wire         ul_req_valid,
+    // Reassembly+IEP-Done trigger (1-cycle pulse on clk_sys).  Bound at
+    // top.v to `mle_demand_parsed_valid_sys = iep_parse_done_sys &
+    // iep_parse_ok_sys` — i.e. fires AFTER Frag-2 has been received,
+    // reassembled, and the IE parser walked the MM body successfully.
+    // This is Step 4 of the Gold ITSI-Attach sequence.
+    input  wire         trigger_valid,
     input  wire [23:0]  ul_ssi,
 
     // MCCH slot (CDC-resynced from AXI), pre-reply target TN
@@ -55,22 +66,22 @@ module tetra_pre_reply_blck (
 );
 
     // -------------------------------------------------------------------------
-    // Edge-detect on ul_req_valid (defensively — even if upstream guarantees
+    // Edge-detect on trigger_valid (defensively — even if upstream guarantees
     // a 1-cycle pulse, double-trigger protection costs nothing).
     // -------------------------------------------------------------------------
-    reg ul_req_valid_q;
-    wire ul_req_pulse_w = ul_req_valid & ~ul_req_valid_q;
+    reg trigger_valid_q;
+    wire trigger_pulse_w = trigger_valid & ~trigger_valid_q;
 
     always @(posedge clk_sys or negedge rst_n_sys) begin
         if (!rst_n_sys)
-            ul_req_valid_q <= 1'b0;
+            trigger_valid_q <= 1'b0;
         else
-            ul_req_valid_q <= ul_req_valid;
+            trigger_valid_q <= trigger_valid;
     end
 
     // -------------------------------------------------------------------------
     // FSM
-    //   S_IDLE   — wait for ul_req_pulse_w
+    //   S_IDLE   — wait for trigger_pulse_w
     //   S_BUILD  — wait for bl_ack_builder.valid → kick SCH/HD encoder
     //   S_ENC    — wait for sch_hd_encoder.coded_valid → latch coded
     //   S_PUSH   — pulse wr_blck_valid_sys for 1 cycle
@@ -147,7 +158,7 @@ module tetra_pre_reply_blck (
 
             case (state)
             S_IDLE: begin
-                if (ul_req_pulse_w) begin
+                if (trigger_pulse_w) begin
                     lat_ssi       <= ul_ssi;
                     lat_target_tn <= cfg_mcch_tn;
                     builder_start <= 1'b1;
@@ -155,12 +166,12 @@ module tetra_pre_reply_blck (
                 end
             end
             S_BUILD: begin
-                // While busy, drop concurrent Frag-1 pulses (Frag-1 cadence
-                // is ~14 ms apart on the slot grid; the FSM completes in
-                // ~500 cycles @ 100 MHz = 5 µs, so this is essentially never
-                // hit in real traffic — but the counter catches stress
-                // cases / TB collisions).
-                if (ul_req_pulse_w && drop_cnt_sys != 16'hFFFF)
+                // While busy, drop concurrent trigger pulses (Reassembly-
+                // done cadence is multi-frame-apart on the slot grid; the
+                // FSM completes in ~500 cycles @ 100 MHz = 5 µs, so this
+                // is essentially never hit in real traffic — but the
+                // counter catches stress cases / TB collisions).
+                if (trigger_pulse_w && drop_cnt_sys != 16'hFFFF)
                     drop_cnt_sys <= drop_cnt_sys + 16'd1;
                 if (builder_valid_w) begin
                     encode_start <= 1'b1;
@@ -168,7 +179,7 @@ module tetra_pre_reply_blck (
                 end
             end
             S_ENC: begin
-                if (ul_req_pulse_w && drop_cnt_sys != 16'hFFFF)
+                if (trigger_pulse_w && drop_cnt_sys != 16'hFFFF)
                     drop_cnt_sys <= drop_cnt_sys + 16'd1;
                 if (coded_valid_w) begin
                     lat_coded_blk1 <= coded_w;
