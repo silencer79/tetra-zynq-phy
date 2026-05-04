@@ -90,7 +90,8 @@ Slice-Druck stieg auf 97.82 % nach Phase 7 F.7 (MLE-FSM allein 10172 LUTs). Phas
   - TBs: tb_pre_reply_blck 15/15 PASS, tb_pre_reply_slotgrant 14/14 PASS bit-exact.
   - Slice 91.75%→**97.65%** (+5.9 ppt, kritisch). Build durch, WNS +0.006 ns. Builder-Duplikate sind der Schmerzpunkt.
   - **Live-verifiziert 2026-05-04 01:18 BST:** MTP3550 Frag-1 → SlotGrant → Frag-2 → BL-ACK → Frag-3 → ACCEPT → eingebucht. `tetra_attach_daemon: serviced #1 ssi=0x282F91 la=0x0001 lut=3 cnt=1 gila_gssi=0x000001 (profile=0, issi=hit, gssi=ok)`. **Phase-X-Migration komplett, MS-Anmeldung End-to-End funktional.**
-- ⏳ X.6 optional: alte SW-Daemons (`tetra_db_mgr`, `tetra_dbsync.sh`, `tetra_autoenroll.sh`) entfernen, AACH-Pre-Reply-Slot-Pattern auf Gold-Optimum tweaken, Builder-Sharing zwischen Pre-Reply und MLE-FSM-Final-ACCEPT für Slice-Reduktion (97.65%→~85%) vor M3 Group-Call.
+- ✅ X.6 Builder-Sharing (commit `50b4144`) — neuer `tetra_dl_pdu_builder.v` instanziiert ONE `basic_slotgrant_encoder` + ONE `mac_resource_dl_builder` + ONE `sch_f_encoder`. Inline-Arbiter im zynq_top mit strict-priority MLE>SlotGrant + Owner-Tracking + Backpressure. Bonus: dead chan_alloc_encoder entfernt. Builder-Instanzen 6→3. **Slice 97.65%→95.28% (−2.37 ppt)**, LUTs −3463, FFs −1738, WNS +0.006→**+0.009 ns** (Routing-Margin gewonnen). 6 TBs alle grün (incl. tb_d_location_update_encoder 34/34 für M2-Bit-Identity). **Live-verifiziert 2026-05-04 02:09:** MTP3550 ITSI-Attach durch — gleiche Sequenz wie pre-X.6, gila_gssi=0x000001 MS-Wunsch, la=0x0001 REG_CELL_LA.
+- ⏳ X.7 optional: alte SW-Daemons (`tetra_db_mgr`, `tetra_dbsync.sh`, `tetra_autoenroll.sh`) entfernen (X.3 macht das zentral); Encoder-Legacy-Pfad in `tetra_d_location_update_encoder.v` (subscriber_class, address_extension) raus; AACH-Pre-Reply-Slot Gold-Tweak.
 
 **Latency-Budget:** Reply-Slot 2 Frames nach Frag-2-RX = ~56 ms. SW-Roundtrip ~2–12 ms. Margin ~44 ms.
 
