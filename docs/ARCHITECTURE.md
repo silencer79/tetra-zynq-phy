@@ -92,7 +92,15 @@ Slice-Druck stieg auf 97.82 % nach Phase 7 F.7 (MLE-FSM allein 10172 LUTs). Phas
   - **Live-verifiziert 2026-05-04 01:18 BST:** MTP3550 Frag-1 → SlotGrant → Frag-2 → BL-ACK → Frag-3 → ACCEPT → eingebucht. `tetra_attach_daemon: serviced #1 ssi=0x282F91 la=0x0001 lut=3 cnt=1 gila_gssi=0x000001 (profile=0, issi=hit, gssi=ok)`. **Phase-X-Migration komplett, MS-Anmeldung End-to-End funktional.**
 - ✅ X.6 Builder-Sharing (commit `50b4144`) — neuer `tetra_dl_pdu_builder.v` instanziiert ONE `basic_slotgrant_encoder` + ONE `mac_resource_dl_builder` + ONE `sch_f_encoder`. Inline-Arbiter im zynq_top mit strict-priority MLE>SlotGrant + Owner-Tracking + Backpressure. Bonus: dead chan_alloc_encoder entfernt. Builder-Instanzen 6→3. **Slice 97.65%→95.28% (−2.37 ppt)**, LUTs −3463, FFs −1738, WNS +0.006→**+0.009 ns** (Routing-Margin gewonnen). 6 TBs alle grün (incl. tb_d_location_update_encoder 34/34 für M2-Bit-Identity). **Live-verifiziert 2026-05-04 02:09:** MTP3550 ITSI-Attach durch — gleiche Sequenz wie pre-X.6, gila_gssi=0x000001 MS-Wunsch, la=0x0001 REG_CELL_LA.
 - ✅ X.7 Cleanup-Sweep (commit `8a2699a` + Pragma-Fix) — DELETE `tetra_db_mgr.c`+`tetra_dbsync.sh`+`tetra_autoenroll.sh` (X.3 zentral); MLE-FSM Dead-Code-Latches (`lat_la`/`lat_loc_upd_type`/`lat_gila_*`) + `use_sw_body`-Mux raus (USE_SW=1 ist Lock seit X.4); Encoder-Legacy-124-bit-Pfad raus (`subscriber_class`, `address_extension`, `pdu_bits[123:0]`). MM-Body unverändert. Slice 95.28%→**94.80%**, LOC −556. **Vivado-Pragma-Pitfall:** Wort `translate_off` im Kommentar wurde fälschlich als Pragma erkannt → File-Parse-Fail; iverilog hat das nicht detected. **Live-verifiziert 2026-05-04 09:21:** ul_req:accept=**1:1** (Gold-Klasse 1-shot), reass_ok=1, Frag-3-BL-ACK in ul_mon — sauberer als pre-X.7.
-- ➡️ **Phase X komplett.** Nächster Meilenstein: **M3 Group-Call** (CMCE-Sequenz in SW analog tetra_attach_daemon, U-ATTACH-DETACH-GRP-ID-Pfad).
+- ➡️ **Phase X komplett.**
+
+**Phase Y — Group-Attach + Group-Call (in Arbeit)**
+
+Architektur-Lock (mit Kevin im Dialog 2026-05-04): (1) eigener Encoder pro PDU-Typ (= existing Pattern, Forward-Look 12-15 PDUs); (2) generisches Mailbox-Pattern + dünne Wrapper pro PDU-Typ; (3) Phase-Aufteilung: Refactor-Schritte isoliert mit M2-Regression-Test, additive Schritte zusammen. Detail-Memo `project_arch_fpga_thin_signaling.md`.
+
+- ✅ Y.1.0 Generic Mailbox-Refactor (commit `6745dc9`) — NEU `tetra_indirect_mailbox.v` (Read-Side: pending-FSM, ack-clear, sticky drop_cnt) + `tetra_indirect_mailbox_wr.v` (Write-Side: 16-Word-Storage, GO-Pulse). Demand+Reply-Mailbox als dünne Wrapper, Module-Header bit-exakt erhalten = Top-Level unangetastet. Pattern für 12-15 kommende PDU-Wrappers steht (jeder ~50-80 LOC). 7 TBs grün, **Live-verifiziert 2026-05-04 10:25:** ITSI-Attach 1-shot 1:1 wie pre-Y.1.0. Slice 94.80%→95.10%.
+- ⏳ Y.1.a IE-Parser mm=7-Erweiterung — ⏳ Y.1.b Group-Attach Mailbox-Wrappers — ⏳ Y.1.c Neuer Encoder `tetra_d_attach_detach_grp_id_ack_encoder.v` (LI=16) — ⏳ Y.1.d DL-PDU-Builder Arbiter (3. Producer) — ⏳ Y.1.e SW-Daemon mm=7-Branch
+- ⏳ Y.2 Group-Call-Setup (CMCE) → Y.3 SDS → Y.4 Voice-Pass-Through
 
 **Latency-Budget:** Reply-Slot 2 Frames nach Frag-2-RX = ~56 ms. SW-Roundtrip ~2–12 ms. Margin ~44 ms.
 
