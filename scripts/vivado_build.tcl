@@ -192,10 +192,13 @@ add_files -fileset constrs_1 -norecurse [list \
  $PROJ_DIR/constraints/adi_cdc_async_reg.xdc \
 ]
 
-# Phase Z.3 — register include path for tetra_pdu_class.vh.
-# All RTL modules use `\`include "tetra_pdu_class.vh"` for PDU-Class-Tupel
-# constants. Vivado needs the include dir in the synthesis fileset so the
-# preprocessor finds it during HDL parsing.
+# Phase Z.3 — register tetra_pdu_class.vh as a header-source plus put
+# rtl/include on the include path.  Vivado needs both: the file must
+# exist in the project (as IS_GLOBAL_INCLUDE) AND the directory must be
+# on the include search path.
+add_files -norecurse [list $PROJ_DIR/rtl/include/tetra_pdu_class.vh]
+set_property file_type "Verilog Header"        [get_files tetra_pdu_class.vh]
+set_property is_global_include true             [get_files tetra_pdu_class.vh]
 set_property include_dirs [list $PROJ_DIR/rtl/include] [get_filesets sources_1]
 
 # Update compile order before BD creation (needed for module reference)
