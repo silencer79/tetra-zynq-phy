@@ -210,6 +210,12 @@ fi
 # Kill running tetra_sysinfo / tetra_ul_mon / tetra_attach_daemon before upload
 ssh_cmd "killall tetra_sysinfo 2>/dev/null || true; killall tetra_ul_mon 2>/dev/null || true; killall tetra_attach_daemon 2>/dev/null || true"
 
+# Phase X.7 — Cleanup-Sweep: stop legacy daemons (tetra_db_mgr, tetra_dbsync,
+# tetra_autoenroll) if any old binaries / scripts are still running on the
+# board.  These are no longer uploaded; this kill is purely hygienic so a
+# fresh deploy doesn't leave orphan processes from a pre-X.7 board state.
+ssh_cmd "pkill -f tetra_db_mgr 2>/dev/null; pkill -f tetra_dbsync 2>/dev/null; pkill -f tetra_autoenroll 2>/dev/null; true"
+
 # Upload bitstream
 echo "Uploading bitstream..."
 scp_to "$BIN_FILE" "${REMOTE_FW_DIR}/${BITSTREAM_NAME}.bit.bin"
@@ -231,20 +237,11 @@ if $DO_SW; then
     echo "Uploading tetra_ul_mon..."
     scp_to "${SW_DIR}/tetra_ul_mon" "${REMOTE_BIN_DIR}/tetra_ul_mon"
     ssh_cmd "chmod +x ${REMOTE_BIN_DIR}/tetra_ul_mon"
-    echo "Uploading tetra_db_mgr..."
-    scp_to "${SW_DIR}/tetra_db_mgr" "${REMOTE_BIN_DIR}/tetra_db_mgr"
-    ssh_cmd "chmod +x ${REMOTE_BIN_DIR}/tetra_db_mgr"
     echo "Uploading tetra_attach_daemon..."
     scp_to "${SW_DIR}/tetra_attach_daemon" "${REMOTE_BIN_DIR}/tetra_attach_daemon"
     ssh_cmd "chmod +x ${REMOTE_BIN_DIR}/tetra_attach_daemon"
     echo "Uploading db.tsv.default..."
     scp_to "${SW_DIR}/db.tsv.default" "${REMOTE_BIN_DIR}/db.tsv.default"
-
-    echo "Uploading tetra_dbsync.sh + tetra_autoenroll.sh..."
-    scp_to "${SW_DIR}/tetra_dbsync.sh"     "${REMOTE_BIN_DIR}/tetra_dbsync.sh"
-    ssh_cmd "chmod +x ${REMOTE_BIN_DIR}/tetra_dbsync.sh"
-    scp_to "${SW_DIR}/tetra_autoenroll.sh" "${REMOTE_BIN_DIR}/tetra_autoenroll.sh"
-    ssh_cmd "chmod +x ${REMOTE_BIN_DIR}/tetra_autoenroll.sh"
     echo "sw binaries uploaded"
 
     # WebUI: index.html → /www/, *.cgi (root + cgi-bin/) → /www/cgi-bin/
@@ -293,33 +290,15 @@ if $DO_INIT; then
     # (full_init initialisiert die Kette ohne TX_ATT-Override).
     bash "${SCRIPT_DIR}/tetra_ctrl.sh" rf_loopback 428250000 438250000 13 -10
 
-    # Subscriber-DB boot-sync: ensure /var/lib/tetra/db.tsv exists, is in
-    # the Phase 6 D-rev 4-column format, and is pushed to the FPGA EntityTable
-    # BRAM. If a legacy 7-column TSV from an earlier phase is present, back it
-    # up and reseed from db.tsv.default — otherwise tetra_db_mgr aborts and
-    # the EntityTable stays empty.
-    #
-    # Profiles cache: seed /var/lib/tetra/profiles.tsv with Profile 0 = M2
-    # default (0x0000088F) if the file does not yet exist, so a fresh WebUI
-    # session never serves up a Profile-0 with gila_class=0 (which would
-    # silently break MS attach).
-    ssh_cmd "mkdir -p /var/lib/tetra && \
-             if [ -f /var/lib/tetra/db.tsv ] && \
-                head -1 /var/lib/tetra/db.tsv | grep -q 'permit_voice'; then \
-                 mv /var/lib/tetra/db.tsv /var/lib/tetra/db.tsv.legacy.bak; \
-                 echo 'Detected legacy 7-column db.tsv; backed up to db.tsv.legacy.bak'; \
-             fi && \
-             if [ ! -f /var/lib/tetra/db.tsv ] && [ -f ${REMOTE_BIN_DIR}/db.tsv.default ]; then \
-                 cp ${REMOTE_BIN_DIR}/db.tsv.default /var/lib/tetra/db.tsv; \
-                 echo 'Seeded /var/lib/tetra/db.tsv from db.tsv.default'; \
-             fi && \
-             if [ ! -f /var/lib/tetra/profiles.tsv ]; then \
-                 printf '# tetra profiles (Phase 6 D-rev §9.2) — slot data_hex\n0\t0x0000088f\n' \
-                     > /var/lib/tetra/profiles.tsv; \
-                 echo 'Seeded /var/lib/tetra/profiles.tsv with Profile-0 M2 default'; \
-             fi && \
-             ${REMOTE_BIN_DIR}/tetra_db_mgr sync"
-    echo "Subscriber-DB synced to FPGA EntityTable BRAM"
+    # Phase X.7 — Subscriber-DB is now a flat /root/db.tsv consumed in-process
+    # by tetra_attach_daemon.  No FPGA EntityTable BRAM (X.4 removed it), no
+    # FPGA push step (X.7 retired tetra_db_mgr).  We still seed a default
+    # /root/db.tsv if missing so the daemon has slot 0 = MTP3550 ready to
+    # accept the first attach.  Profiles cache and the legacy /var/lib/tetra
+    # paths are no longer required — tetra_attach_daemon reads /root/db.tsv
+    # directly and re-loads on mtime change for WebUI live edits.
+    ssh_cmd "test -f /root/db.tsv || cp ${REMOTE_BIN_DIR}/db.tsv.default /root/db.tsv"
+    echo "Subscriber-DB seeded at /root/db.tsv (X.7 SW-resident)"
 
     ssh_cmd "setsid /root/tetra_sysinfo --daemon < /dev/null > /tmp/tetra_sysinfo.log 2>&1 &"
     echo "tetra_sysinfo started in --daemon mode → /tmp/tetra_sysinfo.log"
@@ -327,18 +306,11 @@ if $DO_INIT; then
     ssh_cmd "setsid /root/tetra_ul_mon  < /dev/null > /tmp/tetra_ul_mon.log  2>&1 &"
     echo "tetra_ul_mon  started in background → /tmp/tetra_ul_mon.log"
 
-    # Phase 6 E.4 + E.5 — DB-sync watcher and auto-enroll daemon.
-    # Kill any previous instances to avoid duplicates after re-deploy.
-    ssh_cmd "pkill -f tetra_dbsync 2>/dev/null; pkill -f tetra_autoenroll 2>/dev/null; true"
-    ssh_cmd "setsid /root/tetra_dbsync.sh     < /dev/null > /tmp/tetra_dbsync.log     2>&1 &"
-    echo "tetra_dbsync     started in background → /tmp/tetra_dbsync.log"
-    ssh_cmd "setsid /root/tetra_autoenroll.sh < /dev/null > /tmp/tetra_autoenroll.log 2>&1 &"
-    echo "tetra_autoenroll started in background → /tmp/tetra_autoenroll.log"
-
     # Phase X.3 — SW-driven D-LOC-UPDATE-ACCEPT builder.  Bootstraps db.tsv
     # from db.tsv.default if missing, then sets REG_DB_POLICY=0x3
     # (accept_unknown_issi+gssi) and starts the daemon.  Daemon flips
-    # REG_REPLY_USE_SW=1 on entry, =0 on shutdown.
+    # REG_REPLY_USE_SW=1 on entry, =0 on shutdown (status-only since X.7 —
+    # the FPGA MLE-FSM no longer consumes the bit, see Phase X.7 cleanup).
     ssh_cmd "pkill -f tetra_attach_daemon 2>/dev/null; true"
     ssh_cmd "test -f /root/db.tsv || cp /root/db.tsv.default /root/db.tsv"
     ssh_cmd "devmem 0x43C001AC 32 0x3"

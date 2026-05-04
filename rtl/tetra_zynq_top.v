@@ -2087,12 +2087,10 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
     .cfg_la           (cell_la_sys_r1),
     .cfg_scramble_init(mle_dl_scramb_init_sys),
     .cfg_mcch_tn      (cfg_mcch_tn_sys_r1),
-    // D-LOC-UPDATE-ACCEPT MM-Body fields (bluestation-compliant, gold-ref
-    // capture 2026-04-25).  Address-Extension is the MNI: MCC[9:0]<<14 | MNC[13:0].
-    // Subscriber-Class defaults to all-classes-permitted (0xFFFF). Energy-Saving-
-    // Information defaults to StayAlive (14'h0000 → mode=000, FN/MN=0).
-    .cfg_address_extension ({cell_cfg_mcc_sys_r1, cell_cfg_mnc_sys_r1}),
-    .cfg_subscriber_class  (16'hFFFF),
+    // D-LOC-UPDATE-ACCEPT MM-Body Energy-Saving-Info — defaults to
+    // StayAlive (14'h0000 → mode=000, FN/MN=0).  Phase X.7 cleanup:
+    // cfg_address_extension / cfg_subscriber_class are gone (only the
+    // legacy 124-bit pdu_bits encoder path consumed them).
     .cfg_energy_saving_info(14'h0000),
     // Phase X.4 — EntityTable / ProfileTable / Active-Session Table ports
     // removed.  All Multi-Lookup logic moved to ARM SW (sw/tetra_db.[ch] +
@@ -2116,11 +2114,14 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
     .retransmit_pulse (mle_retransmit_pulse_w),
     .lost_pulse       (mle_lost_pulse_w),
     .detach_pulse     (mle_detach_pulse_w),
-    // Phase X.2 — Reply-Pull Mailbox pass-through to u_dloc field mux.
-    // Phase X.4: use_sw_body reset default flipped to 1 — the SW path is
-    // now primary; the encoder consumes the staged ACCEPT body fields.
-    // mb_go_pulse is the new FSM trigger (S_IDLE → S_BUILD_ACCEPT_START
-    // when use_sw_body=1 && mb_go_pulse).
+    // Phase X.2 — Reply-Pull Mailbox pass-through to u_dloc fields.
+    // Phase X.4: SW path is primary; the encoder consumes the staged
+    // ACCEPT body fields directly.  mb_go_pulse is the FSM trigger.
+    // Phase X.7 cleanup: use_sw_body input gone — the FPGA mux that
+    // toggled between SW-mailbox and (long-dead) FSM-internal latches
+    // has been removed.  REG_REPLY_USE_SW @ 0x230 stays as a R/W status
+    // bit for backward-compat with the SW daemon, but no longer wires
+    // into MLE-FSM.
     .mb_ssi              (mb_ssi_sys_w),
     .mb_la               (mb_la_sys_w),
     .mb_addr_type        (mb_addr_type_sys_w),
@@ -2132,7 +2133,6 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
     .mb_encryption       (mb_encryption_sys_w),
     .mb_auth_result      (mb_auth_result_sys_w),
     .mb_go_pulse         (mb_go_pulse_sys_w),
-    .use_sw_body         (reply_use_sw_sys_r1),
     // Phase X.6 — Build-request to shared tetra_dl_pdu_builder via arbiter.
     .accept_build_req                (mle_accept_build_req_w),
     .accept_build_ssi                (mle_accept_build_ssi_w),
@@ -2863,51 +2863,52 @@ end
 // =============================================================================
 // Phase X.2 — Reply-Pull Mailbox: Modul-Instance + CDC
 //
+// Phase X.7 cleanup: the use_sw_body CDC pipe (reply_use_sw_sys_r0/r1)
+// has been removed — the MLE-FSM no longer consumes that bit.  The AXI
+// register REG_REPLY_USE_SW @ 0x230 is still decoded (lives on
+// reply_use_sw_axi_w) so the SW daemon's existing read/write path stays
+// compatible, but the bit is now status-only and does not gate any RTL.
+//
 // AXI side (clk_axi):
 //   reply_index_axi_w    — 4-bit indirect-window word selector
 //   reply_wdata_axi_w    — 32-bit AXI write-data passed through
 //   reply_we_axi_w       — 1-cycle write-enable pulse on REG_REPLY_DATA write
 //   reply_go_trigger_w   — W1S GO bit, cleared by reply_go_consume_axi pulse
-//   reply_use_sw_axi_w   — R/W toggle bit
+//   reply_use_sw_axi_w   — R/W status bit, no functional effect since X.7
 //   reply_busy_axi_r1    — 2-FF resync of busy mirror (clk_sys)
 //   reply_rdata_axi_r1   — 2-FF resync of indirect read-back word (clk_sys)
 //
 // clk_sys side: tetra_reply_mailbox holds the 16-word shadow, exposes the
-// per-field outputs (mb_*) feeding the MLE-FSM input mux, and forwards
-// the 1-cycle GO pulse for FSM logging / Phase X.4.
+// per-field outputs (mb_*) feeding the MLE-FSM directly, and forwards
+// the 1-cycle GO pulse for FSM trigger / Phase X.4.
 // =============================================================================
 wire [3:0]  reply_index_axi_w;
 wire [31:0] reply_wdata_axi_w;
 wire        reply_we_axi_w;
 wire        reply_go_trigger_w;
 wire        reply_use_sw_axi_w;
+// X.7: reply_use_sw_axi_w is now lint-only — keep the consumer with a
+// translate_off block so synthesis prunes it cleanly.
+// synthesis translate_off
+wire _unused_reply_use_sw = reply_use_sw_axi_w;
+// synthesis translate_on
 
-// 2-FF resync of slow-changing R/W signals: index, wdata, use_sw_body.
+// 2-FF resync of slow-changing R/W signals: index, wdata.
 (* ASYNC_REG = "TRUE" *) reg [3:0]  reply_index_sys_r0;
 (* ASYNC_REG = "TRUE" *) reg [3:0]  reply_index_sys_r1;
 (* ASYNC_REG = "TRUE" *) reg [31:0] reply_wdata_sys_r0;
 (* ASYNC_REG = "TRUE" *) reg [31:0] reply_wdata_sys_r1;
-(* ASYNC_REG = "TRUE" *) reg        reply_use_sw_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg        reply_use_sw_sys_r1;
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
         reply_index_sys_r0  <= 4'd0;
         reply_index_sys_r1  <= 4'd0;
         reply_wdata_sys_r0  <= 32'd0;
         reply_wdata_sys_r1  <= 32'd0;
-        // Phase X.4 — use_sw_body reset default flipped 0 -> 1 (SW path
-        // primary).  Both the AXI-side reset (REG_REPLY_USE_SW @ 0x230)
-        // and this CDC pipe must agree so the MLE-FSM sees use_sw_body=1
-        // out of reset before SW writes the toggle.
-        reply_use_sw_sys_r0 <= 1'b1;
-        reply_use_sw_sys_r1 <= 1'b1;
     end else begin
         reply_index_sys_r0  <= reply_index_axi_w;
         reply_index_sys_r1  <= reply_index_sys_r0;
         reply_wdata_sys_r0  <= reply_wdata_axi_w;
         reply_wdata_sys_r1  <= reply_wdata_sys_r0;
-        reply_use_sw_sys_r0 <= reply_use_sw_axi_w;
-        reply_use_sw_sys_r1 <= reply_use_sw_sys_r0;
     end
 end
 

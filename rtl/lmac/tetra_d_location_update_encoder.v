@@ -1,6 +1,12 @@
 // =============================================================================
 // tetra_d_location_update_encoder.v
 //
+// Phase X.7 — Legacy 124-bit pdu_bits output + its dedicated address /
+// subscriber_class / address_extension inputs removed.  Only the
+// MM-Body wrapper output (pdu_bits_mm + pdu_len_bits) remains; that
+// is the only path the post-X.4 MLE-FSM uses to drive the shared
+// tetra_dl_pdu_builder.  M2 bit-identity guard preserved.
+//
 // Combinational bit-packer for the MM D-LOCATION UPDATE ACCEPT / REJECT PDU
 // (EN 300 392-2 §16.10.x, ETSI 16.9.2.7).  Emits the raw MM PDU MSB-aligned
 // in a 128-bit bus along with its bit-length, ready to be wrapped by the
@@ -40,25 +46,6 @@ module tetra_d_location_update_encoder (
     //                     1 = REJECT (PDU-Type 0010)
     input  wire         pdu_reject,
 
-    // Address block (legacy 124-bit path / loopback TB)
-    input  wire [2:0]   addr_type,       // EN 300 392-2 Table 21.66
-    input  wire [23:0]  ssi,             // short subscriber identity
-
-    // Location / registration (legacy 124-bit path only)
-    input  wire [13:0]  la,              // Location Area
-    input  wire [1:0]   result,          // 00=accept, 01=rej-temp, 10=rej-perm
-    input  wire [1:0]   encryption,      // encryption mode
-    input  wire [1:0]   auth_result,     // authentication result
-
-    // Subscriber class (legacy 124-bit path only — the new MM body sets
-    // p_subscriber_class=0 to match gold-ref, so this 16-bit value is not
-    // emitted into pdu_bits_mm).
-    input  wire [15:0]  subscriber_class,
-
-    // Address Extension (legacy / unused in new MM body — gold-ref Accept
-    // has p_address_extension=0).  Kept on the port for back-compat.
-    input  wire [23:0]  address_extension,
-
     // Energy Saving Information (ETSI §16.10.27 — 14 bits total):
     //   [13:11] energy_saving_mode (3 bit; 0=StayAlive)
     //   [10: 6] frame_number       (5 bit; 0 when StayAlive)
@@ -90,10 +77,6 @@ module tetra_d_location_update_encoder (
     input  wire [2:0]   gila_class,
     input  wire [1:0]   gila_lifetime,
     input  wire         gila_present,
-
-    // Legacy output — 124-bit PDU, [123] first bit on air.  Retained for the
-    // loopback TB.
-    output wire [123:0] pdu_bits,
 
     // Wrapper-oriented output — raw MM PDU, MSB-aligned to [127], explicit
     // bit-length in pdu_len_bits so MAC-RESOURCE wrapping
@@ -228,22 +211,6 @@ module tetra_d_location_update_encoder (
 
     assign pdu_bits_mm  = gila_present ? mm_with_gila_w  : mm_without_gila_w;
     assign pdu_len_bits = gila_present ? 8'd102          : 8'd36;
-
-    // -------------------------------------------------------------------------
-    // Legacy 124-bit PDU — unchanged layout, used by the loopback TB only.
-    // -------------------------------------------------------------------------
-    wire [3:0] legacy_pdu_type_w = pdu_reject ? 4'b0010 : 4'b0001;
-    assign pdu_bits = {
-        legacy_pdu_type_w,   // [123:120]  4
-        addr_type,           // [119:117]  3
-        ssi,                 // [116: 93] 24
-        la,                  // [ 92: 79] 14
-        result,              // [ 78: 77]  2
-        encryption,          // [ 76: 75]  2
-        auth_result,         // [ 74: 73]  2
-        subscriber_class,    // [ 72: 57] 16
-        57'b0                // [ 56:  0] 57
-    };
 
 endmodule
 

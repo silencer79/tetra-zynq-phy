@@ -28,15 +28,12 @@ ccflags-y := -Wall -Werror
 # Build Targets
 # =============================================================================
 
-all: tetra_sysinfo tetra_ul_mon tetra_db_mgr tetra_attach_daemon
+all: tetra_sysinfo tetra_ul_mon tetra_attach_daemon
 
 tetra_sysinfo: tetra_hal.c tetra_hal.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 tetra_ul_mon: tetra_ul_mon.c tetra_hal.h
-	$(CC) $(CFLAGS) -o $@ $<
-
-tetra_db_mgr: tetra_db_mgr.c tetra_hal.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 tetra_attach_daemon: tetra_attach_daemon.c tetra_db.c tetra_db.h tetra_hal.h
@@ -51,7 +48,7 @@ install:
 		-C $(KERNEL_SRC) M=$(PWD) modules_install
 
 clean:
-	rm -f tetra_sysinfo tetra_ul_mon tetra_db_mgr tetra_attach_daemon
+	rm -f tetra_sysinfo tetra_ul_mon tetra_attach_daemon
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \
 		-C $(KERNEL_SRC) M=$(PWD) clean 2>/dev/null || true
 	rm -f Module.symvers modules.order

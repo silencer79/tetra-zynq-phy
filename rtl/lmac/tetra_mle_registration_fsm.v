@@ -1,6 +1,7 @@
 // =============================================================================
 // tetra_mle_registration_fsm.v
 //
+// Phase X.7 — Cleanup: USE_SW mux + dead encoder-fallback latches removed.
 // Phase X.6 — SW-driven minimal trigger FSM, builder pipeline EXTERNALISED.
 //
 // X.4 made this a thin SW-trigger machine; X.6 (slice-saver refactor) now
@@ -9,13 +10,18 @@
 // in tetra_dl_pdu_builder.v and is arbitrated against
 // tetra_pre_reply_slotgrant.v at the top level.
 //
+// X.7 cleanup: the use_sw_body input mux + lat_la / lat_loc_upd_type /
+// lat_gila_* fallback latches are gone — those existed only to support
+// USE_SW=0 (legacy MLE-FSM-internal Multi-Lookup), which has been dead
+// code since X.4 made USE_SW=1 the reset default.  The encoder is now
+// driven directly from the Reply-Pull-Mailbox fields.
+//
 // Trigger flow (unchanged):
 //   1. SW pre-stages D-LOC-UPDATE-ACCEPT MM-Body fields into the Reply-
 //      Pull-Mailbox (mb_ssi, mb_addr_type, mb_gila_*, ...) via AXI-Lite
 //      REG_REPLY_INDEX/DATA.
 //   2. SW pulses REG_REPLY_GO -> 1-cycle clk_sys mb_go_pulse arrives at
-//      this FSM.  With use_sw_body=1 (default since X.4) the FSM jumps
-//      directly into S_BUILD_ACCEPT_START.
+//      this FSM, which jumps from S_IDLE into S_BUILD_ACCEPT_REQ.
 //   3. The FSM emits a 1-cycle build-request pulse (`accept_build_req`)
 //      with the request fields routed through dedicated `accept_build_*`
 //      output ports.  Top-level wiring routes those into the shared
@@ -27,14 +33,14 @@
 //
 // Detach path is still a no-op telemetry stub — owned by SW since X.5.
 //
-// M2 bit-identity guarantee: the MM-Body 124-bit payload is computed
+// M2 bit-identity guarantee: the MM-Body 102/36-bit payload is computed
 // inside this module via tetra_d_location_update_encoder (UNCHANGED — the
 // dloc encoder is single-instance, not shared) and routed verbatim into
 // `accept_build_mm_pdu_bits[127:0]`.  The builder pipeline outside this
 // module instantiates the same MAC-RESOURCE / SCH/F encoders with the
 // same flags (slot_granting=1, granting_delay=1, llc_pdu_type=BL-ADATA,
 // random_access_flag=0) — see tetra_dl_pdu_builder.v.  Verified via
-// tb_d_location_update_encoder 34/34 PASS preserved.
+// tb_d_location_update_encoder MM-body PASS preserved.
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
@@ -66,12 +72,13 @@ module tetra_mle_registration_fsm (
 
     // -----------------------------------------------------------------
     // Cell configuration (static, from AXI regs).
+    // X.7 cleanup: cfg_address_extension / cfg_subscriber_class removed
+    // (only the legacy 124-bit pdu_bits encoder path consumed them, and
+    // that path is gone from the encoder in X.7).
     // -----------------------------------------------------------------
     input  wire [13:0]                 cfg_la,
     input  wire [31:0]                 cfg_scramble_init,
     input  wire [1:0]                  cfg_mcch_tn,
-    input  wire [23:0]                 cfg_address_extension,
-    input  wire [15:0]                 cfg_subscriber_class,
     input  wire [13:0]                 cfg_energy_saving_info,
 
     // -----------------------------------------------------------------
@@ -94,7 +101,6 @@ module tetra_mle_registration_fsm (
     input  wire [1:0]                  mb_encryption,
     input  wire [1:0]                  mb_auth_result,
     input  wire                        mb_go_pulse,
-    input  wire                        use_sw_body,
 
     // -----------------------------------------------------------------
     // Phase X.6 — Build-request to shared tetra_dl_pdu_builder.
@@ -147,57 +153,48 @@ module tetra_mle_registration_fsm (
         ul_req_valid, ul_addr_type, ul_ssi, ul_la, ul_loc_upd_type,
         ul_use_l2sig, ul_llc_is_bl_data, ul_llc_ns_valid, ul_llc_ns,
         bl_ack_valid, bl_ack_nr, bl_ack_issi, slot_pulse,
-        cfg_la, cfg_address_extension, cfg_subscriber_class,
-        cfg_energy_saving_info, mb_la, mb_result, mb_encryption,
+        cfg_la, cfg_energy_saving_info, mb_la, mb_result, mb_encryption,
         mb_auth_result, 1'b0
     };
     // synthesis translate_on
 
     // -------------------------------------------------------------------------
     // Latched ACCEPT trigger fields.
-    // The shared builder consumes ssi/addr_type/etc. via the build-request
+    // The shared builder consumes ssi/addr_type via the build-request
     // ports; we latch from mb_* on the GO pulse so SW is free to start
-    // staging the next ACCEPT immediately.
+    // staging the next ACCEPT immediately.  All other MM-body fields are
+    // wired combinationally from the Reply-Pull-Mailbox (driven by SW
+    // through tetra_reply_mailbox.v).
     // -------------------------------------------------------------------------
     reg [2:0]   lat_addr_type;
     reg [23:0]  lat_ssi;
 
-    // Encoder fallback latches (only used when use_sw_body=0 — legacy path).
-    reg [13:0]  lat_la;
-    reg [2:0]   lat_loc_upd_type;
-    reg [23:0]  lat_gila_gssi;
-    reg [2:0]   lat_gila_class;
-    reg [1:0]   lat_gila_lifetime;
-    reg         lat_gila_present;
-
     reg [23:0]  lat_detach_ssi;
 
     // -------------------------------------------------------------------------
-    // D-LOCATION-UPDATE encoder — Phase X.2 input mux preserved.  This is
-    // the SINGLE-INSTANCE 124-bit MM-Body encoder; NOT shared between FSMs
-    // (only one consumer).  M2 bit-identity is rooted here.
+    // D-LOCATION-UPDATE encoder — X.7 cleanup: drives the MM body straight
+    // from the Reply-Pull-Mailbox.  This is the SINGLE-INSTANCE MM-Body
+    // encoder; NOT shared between FSMs (only one consumer).  M2 bit-
+    // identity is rooted here.
+    //
+    // loc_acc_type tied to 3'b000 — the field is part of the 102-bit MM
+    // body but the gold-ref Accept (Burst #735) uses 0 for ITSI-attach
+    // replies, and the field had no SW staging path pre-X.7 (the legacy
+    // lat_loc_upd_type latch was always 0 because ul_req_valid was never
+    // wired).  If we ever need a non-zero value, add an mb_loc_acc_type
+    // field to the Reply-Pull-Mailbox.
     // -------------------------------------------------------------------------
     wire [127:0] dloc_mm_bits_w;
     wire [7:0]   dloc_mm_len_w;
-    wire [123:0] dloc_legacy_pdu_w;     // unused — kept for linter silence
 
     tetra_d_location_update_encoder u_dloc (
         .pdu_reject        (1'b0),
-        .addr_type         (use_sw_body ? mb_addr_type : lat_addr_type),
-        .ssi               (use_sw_body ? mb_ssi      : lat_ssi),
-        .la                (use_sw_body ? mb_la       : cfg_la),
-        .result            (use_sw_body ? mb_result   : 2'b00),
-        .encryption        (use_sw_body ? mb_encryption  : 2'b00),
-        .auth_result       (use_sw_body ? mb_auth_result : 2'b01),
-        .subscriber_class  (cfg_subscriber_class),
-        .address_extension (cfg_address_extension),
         .energy_saving_info(cfg_energy_saving_info),
-        .loc_acc_type      (lat_loc_upd_type),
-        .gila_gssi         (use_sw_body ? mb_gila_gssi     : lat_gila_gssi),
-        .gila_class        (use_sw_body ? mb_gila_class    : lat_gila_class),
-        .gila_lifetime     (use_sw_body ? mb_gila_lifetime : lat_gila_lifetime),
-        .gila_present      (use_sw_body ? mb_gila_present  : lat_gila_present),
-        .pdu_bits          (dloc_legacy_pdu_w),
+        .loc_acc_type      (3'b000),
+        .gila_gssi         (mb_gila_gssi),
+        .gila_class        (mb_gila_class),
+        .gila_lifetime     (mb_gila_lifetime),
+        .gila_present      (mb_gila_present),
         .pdu_bits_mm       (dloc_mm_bits_w),
         .pdu_len_bits      (dloc_mm_len_w)
     );
@@ -245,12 +242,6 @@ module tetra_mle_registration_fsm (
             state                  <= S_IDLE;
             lat_addr_type          <= 3'd0;
             lat_ssi                <= 24'd0;
-            lat_la                 <= 14'd0;
-            lat_loc_upd_type       <= 3'd0;
-            lat_gila_gssi          <= 24'h2F4D61;   // M2 default
-            lat_gila_class         <= 3'b100;
-            lat_gila_lifetime      <= 2'b01;
-            lat_gila_present       <= 1'b1;
             lat_detach_ssi         <= 24'd0;
             accept_build_req       <= 1'b0;
             req_valid              <= 1'b0;
@@ -285,7 +276,7 @@ module tetra_mle_registration_fsm (
                     lat_detach_ssi <= ul_detach_ssi;
                     busy           <= 1'b1;
                     state          <= S_DETACH_NOOP;
-                end else if (use_sw_body && mb_go_pulse) begin
+                end else if (mb_go_pulse) begin
                     lat_ssi       <= mb_ssi;
                     lat_addr_type <= mb_addr_type;
                     busy          <= 1'b1;
