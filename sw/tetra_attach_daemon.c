@@ -219,6 +219,33 @@ static void service_grp_demand(tetra_hal_t *hal)
         }
     }
 
+    /* Y.1.fix: status-query branch.  When MS sends cnt=0 + rep=1 + atd=0
+     * (= group_identity_report=1 with no GIU records), it's asking the BS
+     * which groups it is currently registered to.  Per gold-ref Memory
+     * `reference_group_attach_bitexact.md` (5 DL-slices, alle bit-identisch
+     * im Body) sendet Gold-BS eine STATISCHE Liste aller permissioned
+     * Gruppen für die ISSI als GroupIdentityDownlink-Liste.
+     *
+     * Implementation: iterate db.tsv type=1 entries, fill up to 3 records
+     * (mailbox cap).  Skip default group 0x2F4D61 (M2-baseline-only). */
+    if (reply_count == 0u && cnt == 0u && rep == 1u && atd == 0u) {
+        uint16_t cur = 0;
+        tetra_db_entry_t entry;
+        while (reply_count < 3u
+               && tetra_db_iterate_type(&cur, 1, &entry)) {
+            if (entry.entity_id == 0x2F4D61u) continue;  /* skip M2 default */
+            reply_gssi[reply_count] = entry.entity_id;
+            reply_at  [reply_count] = 0u;     /* GSSI-only */
+            reply_lt  [reply_count] = 1u;     /* M2 default lifetime */
+            reply_adi [reply_count] = 0u;     /* attach (= "you ARE in it") */
+            reply_cls [reply_count] = 4u;     /* M2 default class_of_usage */
+            reply_count++;
+        }
+        fprintf(stderr,
+                "tetra_attach_daemon: GRP status-query → reply_cnt=%u "
+                "from db.tsv\n", reply_count);
+    }
+
     /* If the MS sent zero usable GSSIs, ACCEPT with count=0 (no records).
      * The encoder produces an 8-bit MM body in that case (REJECT-style
      * envelope but accept_reject=0).  Most MS treat empty-acceptance as

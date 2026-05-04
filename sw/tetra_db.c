@@ -258,3 +258,18 @@ uint16_t tetra_db_count(uint8_t entity_type)
     }
     return n;
 }
+
+int tetra_db_iterate_type(uint16_t *cursor, uint8_t entity_type,
+                          tetra_db_entry_t *out)
+{
+    if (!cursor || !out) return 0;
+    while (*cursor < TETRA_DB_MAX_ENTRIES) {
+        uint16_t i = *cursor;
+        (*cursor)++;
+        if (!g_db.slot_used[i]) continue;
+        if (g_db.entries[i].entity_type != entity_type) continue;
+        *out = g_db.entries[i];
+        return 1;
+    }
+    return 0;
+}

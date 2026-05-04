@@ -84,4 +84,11 @@ const tetra_db_profile_t *tetra_db_profile(uint8_t profile_id);
  * daemon for stats / log output.  type==0 → ISSI count, type==1 → GSSI. */
 uint16_t tetra_db_count(uint8_t entity_type);
 
+/* Iterate over entries with matching entity_type.  Caller initialises *cursor
+ * to 0 before the first call; the function advances it past the returned slot.
+ * Returns 1 if an entry was found (filled into *out), 0 if iteration is
+ * exhausted.  Out may NOT be NULL. */
+int tetra_db_iterate_type(uint16_t *cursor, uint8_t entity_type,
+                          tetra_db_entry_t *out);
+
 #endif /* TETRA_DB_H */
