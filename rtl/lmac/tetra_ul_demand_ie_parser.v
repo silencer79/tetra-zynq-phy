@@ -1,5 +1,5 @@
 // =============================================================================
-// tetra_ul_demand_ie_parser.v — Phase 7 F.2 (mm=2 GILD-only after Phase H.0.4)
+// tetra_ul_demand_ie_parser.v — Phase Y.1.a (mm=2 + mm=7 dispatch)
 // =============================================================================
 //
 // Parses the 129-bit reassembled MM body produced by
@@ -7,10 +7,15 @@
 // fields (mm_pdu_type==2, ETSI EN 300 392-2 §16.10.21 + bluestation
 // `mm/pdus/u_location_update_demand.rs`) as registered outputs.
 //
-// Phase H.0.4 (2026-04-27): the mm=7 U-ATTACH-DETACH-GROUP-IDENTITY
-// walker (S_GAD_*, gad_*_sys outputs, body_kind_sys dispatch) was
-// removed per the FPGA+SW split — Group-Switch flow moves to ARM SW.
-// This module is again mm=2-only.
+// Phase Y.1.a (2026-05-03): mm=7 U-ATTACH-DETACH-GROUP-IDENTITY walker
+// re-introduced for the Group-Attach FPGA path (Phase Y.1).  The mm=2
+// path is bit-identical to the prior version (additive change).
+//
+// Dispatch:
+//   - mm_pdu_type_sys[3:0] is latched at start_sys.
+//   - mm_pdu_type == 4'd2 → S_HEADER_T1 (mm=2 LOCATION-UPDATE-DEMAND).
+//   - mm_pdu_type == 4'd7 → S_GAD_HDR (mm=7 ATTACH-DETACH-GROUP-IDENTITY).
+//   - other → parse_done_sys + parse_ok_sys=0.
 //
 // Entry: pulse `start_sys` with `body_sys` / `ssi_sys` valid.  The parser
 // walks the variable-length bitstream over a few clock cycles and asserts
@@ -109,6 +114,7 @@ module tetra_ul_demand_ie_parser (
     input  wire                start_sys,
     input  wire [128:0]        body_sys,        // MSB-first; [128] = first on-air
     input  wire [23:0]         ssi_sys,
+    input  wire [3:0]          mm_pdu_type_sys, // Phase Y.1.a — mm-type branch
 
     // Type-1 / Type-2 fields
     output reg  [2:0]          location_update_type_sys,
@@ -133,6 +139,27 @@ module tetra_ul_demand_ie_parser (
 
     // SSI of the reassembled PDU (from reassembly module).
     output reg  [23:0]         pdu_ssi_sys,
+
+    // ----------------------------------------------------------------
+    // Phase Y.1.a — mm=7 U-ATTACH-DETACH-GROUP-IDENTITY outputs.
+    // Up to 3 GIU records exposed (multi-GSSI bodies stop at slot 2).
+    //   gid_count_sys                 0..3 valid GIU records
+    //   gid_attach_detach_mode_sys    1 bit (top-level mode)
+    //   gid_group_identity_report_sys 1 bit (top-level report)
+    //   gid_attach_detach_array_sys[i]    1 bit per record (0=attach,1=detach)
+    //   gid_class_array_sys[i]            3 bit per record (class_of_usage,
+    //                                                       valid only on attach)
+    //   gid_address_type_array_sys[i]     2 bit per record
+    //   gid_gssi_array_sys[i]             24 bit per record (gssi or vgssi
+    //                                                        depending on at)
+    // ----------------------------------------------------------------
+    output reg  [1:0]          gid_count_sys,
+    output reg                 gid_attach_detach_mode_sys,
+    output reg                 gid_group_identity_report_sys,
+    output reg  [2:0]          gid_attach_detach_array_sys, // 3 records, 1 bit each
+    output reg  [8:0]          gid_class_array_sys,         // 3 × 3 bit
+    output reg  [5:0]          gid_address_type_array_sys,  // 3 × 2 bit
+    output reg  [71:0]         gid_gssi_array_sys,          // 3 × 24 bit
 
     // Status
     output reg                 parse_done_sys,
@@ -169,12 +196,22 @@ module tetra_ul_demand_ie_parser (
     localparam [4:0] S_T3_PAYLOAD_GILD  = 5'd10;
     localparam [4:0] S_DONE             = 5'd11;
     localparam [4:0] S_DONE_FAIL        = 5'd12;
+    // Phase Y.1.a — mm=7 U-ATTACH-DETACH-GROUP-IDENTITY walker states
+    localparam [4:0] S_GAD_HDR          = 5'd13; // skip redundant pdu_type, latch top hdr
+    localparam [4:0] S_GAD_OBIT         = 5'd14; // optional fields o-bit
+    localparam [4:0] S_GAD_M_REP        = 5'd15; // m-bit for group_report_response
+    localparam [4:0] S_GAD_M_GIU        = 5'd16; // m-bit for group_identity_uplink
+    localparam [4:0] S_GAD_GIU_PAYLOAD  = 5'd17; // walker over GIU records (one-shot)
 
     reg [4:0] state;
 
     // Type-3 element header staging
     reg [3:0]  cur_elem_id;
     reg [10:0] cur_elem_len;     // up to 2047 bits (length is 11-bit per ETSI)
+
+    // Phase Y.1.a — mm-type latched at start (used to dispatch + ignore
+    // foreign types).
+    reg [3:0]  mm_pdu_type_lat;
 
     // -------------------------------------------------------------------------
     // GILD payload snapshot: when we encounter a Type-3 elem_id=3, we slice
@@ -222,6 +259,14 @@ module tetra_ul_demand_ie_parser (
             gild_class_of_usage_sys        <= 3'd0;
             gild_address_type_sys          <= 2'd0;
             pdu_ssi_sys                    <= 24'd0;
+            mm_pdu_type_lat                <= 4'd0;
+            gid_count_sys                  <= 2'd0;
+            gid_attach_detach_mode_sys     <= 1'b0;
+            gid_group_identity_report_sys  <= 1'b0;
+            gid_attach_detach_array_sys    <= 3'd0;
+            gid_class_array_sys            <= 9'd0;
+            gid_address_type_array_sys     <= 6'd0;
+            gid_gssi_array_sys             <= 72'd0;
             parse_done_sys                 <= 1'b0;
             parse_ok_sys                   <= 1'b0;
         end else begin
@@ -236,6 +281,7 @@ module tetra_ul_demand_ie_parser (
                     body_buf                     <= body_sys;
                     cursor                       <= 8'd129;
                     pdu_ssi_sys                  <= ssi_sys;
+                    mm_pdu_type_lat              <= mm_pdu_type_sys;
                     // Clear all output validity on a new parse cycle.
                     class_of_ms_valid_sys        <= 1'b0;
                     energy_saving_mode_valid_sys <= 1'b0;
@@ -243,7 +289,19 @@ module tetra_ul_demand_ie_parser (
                     ssi_field_valid_sys          <= 1'b0;
                     address_ext_valid_sys        <= 1'b0;
                     gild_valid_sys               <= 1'b0;
-                    state                        <= S_HEADER_T1;
+                    gid_count_sys                <= 2'd0;
+                    gid_attach_detach_mode_sys   <= 1'b0;
+                    gid_group_identity_report_sys<= 1'b0;
+                    gid_attach_detach_array_sys  <= 3'd0;
+                    gid_class_array_sys          <= 9'd0;
+                    gid_address_type_array_sys   <= 6'd0;
+                    gid_gssi_array_sys           <= 72'd0;
+                    // Phase Y.1.a — mm-type dispatch
+                    case (mm_pdu_type_sys)
+                        4'd2:    state <= S_HEADER_T1;     // mm=2 LOC-UPDATE-DEMAND
+                        4'd7:    state <= S_GAD_HDR;       // mm=7 ATTACH-DETACH-GRP-ID
+                        default: state <= S_DONE_FAIL;
+                    endcase
                 end
             end
 
@@ -517,6 +575,316 @@ module tetra_ul_demand_ie_parser (
                 // for U-ATTACH-DETACH-GROUP-IDENTITY).  Tie it off here.
                 if (atd_mode == 1'b1) begin /* future: detach path */ end
                 state <= S_T3_M;
+            end
+
+            // -----------------------------------------------------------------
+            // Phase Y.1.a — mm=7 U-ATTACH-DETACH-GROUP-IDENTITY walker
+            //
+            // Body layout (per `u_attach_detach_group_identity.rs`, MSB-first
+            // in body_sys; bit[128] = first on-air bit):
+            //   [128..125]  pdu_type (= 0111, redundant) — 4 bit, skipped
+            //   [124]       group_identity_report                          1 bit
+            //   [123]       attach_detach_mode                             1 bit
+            //   [122]       o-bit (optional fields follow)                 1 bit
+            //     if o-bit:
+            //       [121]   m_group_report_response                        1 bit
+            //         if m: [120..117] elem_id (4) + [116..106] length (11)
+            //               + length bits payload                          (skip)
+            //       [..]    m_group_identity_uplink                        1 bit
+            //         if m: elem_id(4) [expect 1000=8] + length(11)
+            //               + num_elem(6) + N×GIU records
+            // -----------------------------------------------------------------
+            S_GAD_HDR: begin : gad_hdr_blk
+                if (cursor >= 8'd7) begin
+                    // skip [128..125] = redundant pdu_type (4 bits)
+                    gid_group_identity_report_sys <= body_buf[cursor - 8'd5];
+                    gid_attach_detach_mode_sys    <= body_buf[cursor - 8'd6];
+                    cursor                        <= cursor - 8'd6;
+                    state                         <= S_GAD_OBIT;
+                end else begin
+                    state <= S_DONE_FAIL;
+                end
+            end
+
+            // -----------------------------------------------------------------
+            S_GAD_OBIT: begin
+                if (cursor == 8'd0) begin
+                    // No optional payload — only the 2-bit header (no GIU).
+                    state <= S_DONE;
+                end else if (peek1 == 1'b0) begin
+                    cursor <= cursor - 8'd1;
+                    state  <= S_DONE;
+                end else begin
+                    cursor <= cursor - 8'd1;
+                    state  <= S_GAD_M_REP;
+                end
+            end
+
+            // -----------------------------------------------------------------
+            // m_group_report_response (Type-3) — skip wholesale.
+            S_GAD_M_REP: begin : gad_m_rep_blk
+                reg [10:0] skip_len;
+                skip_len = 11'd0;
+                if (cursor == 8'd0) begin
+                    state <= S_DONE_FAIL;
+                end else if (peek1 == 1'b0) begin
+                    // not present; advance to the GIU m-bit
+                    cursor <= cursor - 8'd1;
+                    state  <= S_GAD_M_GIU;
+                end else if (cursor >= 8'd16) begin
+                    // present: skip elem_id(4) + length(11) + payload
+                    skip_len = body_buf[cursor - 8'd6 -: 11];
+                    if ({1'b0, cursor} >= ({2'b00, skip_len[7:0]} + 17)) begin
+                        cursor <= cursor - 8'd16 - skip_len[7:0];
+                        state  <= S_GAD_M_GIU;
+                    end else begin
+                        state <= S_DONE_FAIL;
+                    end
+                end else begin
+                    state <= S_DONE_FAIL;
+                end
+            end
+
+            // -----------------------------------------------------------------
+            // m_group_identity_uplink (Type-4) — drives GIU record walker.
+            S_GAD_M_GIU: begin : gad_m_giu_blk
+                reg [3:0]  sub_id;
+                reg [10:0] sub_len;
+                sub_id  = 4'd0;
+                sub_len = 11'd0;
+                if (cursor == 8'd0) begin
+                    state <= S_DONE;
+                end else if (peek1 == 1'b0) begin
+                    // GIU not present; mm=7 with no records is unusual but
+                    // accept it (spec allows; gid_count stays 0).
+                    cursor <= cursor - 8'd1;
+                    state  <= S_DONE;
+                end else if (cursor >= 8'd16) begin
+                    sub_id  = body_buf[cursor - 8'd2 -: 4];
+                    sub_len = body_buf[cursor - 8'd6 -: 11];
+                    if (sub_id == 4'd8 && {1'b0, cursor} >=
+                            ({2'b00, sub_len[7:0]} + 17)) begin
+                        // Set up payload walker — payload starts cursor-16
+                        // (after eating elem_id+length), payload size =
+                        // sub_len bits.  The walker runs in one cycle.
+                        cur_elem_len <= sub_len;
+                        cursor       <= cursor - 8'd16;
+                        state        <= S_GAD_GIU_PAYLOAD;
+                    end else begin
+                        state <= S_DONE_FAIL;
+                    end
+                end else begin
+                    state <= S_DONE_FAIL;
+                end
+            end
+
+            // -----------------------------------------------------------------
+            // GIU payload walker — single-cycle decode of up to 3 records.
+            // Payload sits in body_buf[cursor-1 .. cursor-cur_elem_len], MSB-
+            // first.  Layout: num_elem(6) + N×GIU.  Each GIU varies in size:
+            //   attach (atd=0): 1 + 3 + 2 + (24 if at∈{0,1}) + (24 if at==1)
+            //                 = 6/30/54 bits
+            //   detach (atd=1): 1 + 2 + 2 + (24 if at∈{0,1}) + (24 if at==1)
+            //                 = 5/29/53 bits
+            //   addr_type=2 (vgssi): always 24 bit
+            //
+            // We walk up to 3 records.  If any structural assumption breaks
+            // (cursor exhaust mid-record, vgssi+ae combos out of scope) we
+            // stop and emit what we have (with parse_ok_sys=1) — this lets
+            // single-GIU bodies (the common case) work even if bigger ones
+            // hit corner-case truncation.
+            // -----------------------------------------------------------------
+            S_GAD_GIU_PAYLOAD: begin : gad_giu_walk
+                reg [10:0] payload_top;   // index into body_buf for payload bit 0 (MSB)
+                reg [5:0]  num_elem;
+                reg [10:0] off;           // running offset within payload (bits consumed)
+                reg [1:0]  rec_idx;
+                reg        adi;
+                reg [1:0]  at;
+                reg [2:0]  cou;
+                reg [23:0] g24;
+                reg        ok;
+                reg        loop_done;
+                payload_top = {3'd0, cursor};
+                num_elem    = 6'd0;
+                off         = 11'd0;
+                rec_idx     = 2'd0;
+                ok          = 1'b1;
+                loop_done   = 1'b0;
+                if (cur_elem_len < 11'd6) begin
+                    state <= S_DONE_FAIL;
+                end else begin
+                    num_elem = body_buf[cursor - 8'd1 -: 6];
+                    off      = 11'd6;
+                    // Unrolled record walk (max 3).  Keeping this strictly
+                    // sequential in one cycle keeps the FSM simple; the
+                    // body buffer is 129 bits so the access pattern is bounded.
+                    if (num_elem >= 6'd1 && !loop_done) begin
+                        // Record 0 — attach_detach_type_id at payload bit `off`
+                        if ((off + 11'd1) > cur_elem_len) begin
+                            ok = 1'b0; loop_done = 1'b1;
+                        end else begin
+                            adi = body_buf[cursor - 8'd1 - off[7:0]];
+                            off = off + 11'd1;
+                            if (adi == 1'b0) begin
+                                // attach: class_of_usage(3) + address_type(2)
+                                if ((off + 11'd5) > cur_elem_len) begin
+                                    ok = 1'b0; loop_done = 1'b1;
+                                end else begin
+                                    cou = body_buf[cursor - 8'd1 - off[7:0] -: 3];
+                                    off = off + 11'd3;
+                                    at  = body_buf[cursor - 8'd1 - off[7:0] -: 2];
+                                    off = off + 11'd2;
+                                end
+                            end else begin
+                                // detach: gid_detach_uplink(2) + address_type(2)
+                                if ((off + 11'd4) > cur_elem_len) begin
+                                    ok = 1'b0; loop_done = 1'b1;
+                                end else begin
+                                    cou = 3'd0;        // not used
+                                    off = off + 11'd2; // skip gid_detach
+                                    at  = body_buf[cursor - 8'd1 - off[7:0] -: 2];
+                                    off = off + 11'd2;
+                                end
+                            end
+                            if (!loop_done) begin
+                                g24 = 24'd0;
+                                if (at == 2'b00 || at == 2'b01 || at == 2'b10) begin
+                                    if ((off + 11'd24) > cur_elem_len) begin
+                                        ok = 1'b0; loop_done = 1'b1;
+                                    end else begin
+                                        g24 = body_buf[cursor - 8'd1 - off[7:0] -: 24];
+                                        off = off + 11'd24;
+                                        // address_extension if at==1
+                                        if (at == 2'b01) begin
+                                            if ((off + 11'd24) > cur_elem_len)
+                                                loop_done = 1'b1;
+                                            else
+                                                off = off + 11'd24;
+                                        end
+                                    end
+                                end
+                                if (!loop_done) begin
+                                    gid_attach_detach_array_sys[0] <= adi;
+                                    gid_class_array_sys[2:0]       <= cou;
+                                    gid_address_type_array_sys[1:0]<= at;
+                                    gid_gssi_array_sys[23:0]       <= g24;
+                                    rec_idx = 2'd1;
+                                end
+                            end
+                        end
+                    end
+                    // Record 1
+                    if (num_elem >= 6'd2 && rec_idx == 2'd1 && !loop_done) begin
+                        if ((off + 11'd1) > cur_elem_len) begin
+                            loop_done = 1'b1;
+                        end else begin
+                            adi = body_buf[cursor - 8'd1 - off[7:0]];
+                            off = off + 11'd1;
+                            if (adi == 1'b0) begin
+                                if ((off + 11'd5) > cur_elem_len) begin
+                                    loop_done = 1'b1;
+                                end else begin
+                                    cou = body_buf[cursor - 8'd1 - off[7:0] -: 3];
+                                    off = off + 11'd3;
+                                    at  = body_buf[cursor - 8'd1 - off[7:0] -: 2];
+                                    off = off + 11'd2;
+                                end
+                            end else begin
+                                if ((off + 11'd4) > cur_elem_len) begin
+                                    loop_done = 1'b1;
+                                end else begin
+                                    cou = 3'd0;
+                                    off = off + 11'd2;
+                                    at  = body_buf[cursor - 8'd1 - off[7:0] -: 2];
+                                    off = off + 11'd2;
+                                end
+                            end
+                            if (!loop_done) begin
+                                g24 = 24'd0;
+                                if (at == 2'b00 || at == 2'b01 || at == 2'b10) begin
+                                    if ((off + 11'd24) > cur_elem_len) begin
+                                        loop_done = 1'b1;
+                                    end else begin
+                                        g24 = body_buf[cursor - 8'd1 - off[7:0] -: 24];
+                                        off = off + 11'd24;
+                                        if (at == 2'b01) begin
+                                            if ((off + 11'd24) > cur_elem_len)
+                                                loop_done = 1'b1;
+                                            else
+                                                off = off + 11'd24;
+                                        end
+                                    end
+                                end
+                                if (!loop_done) begin
+                                    gid_attach_detach_array_sys[1] <= adi;
+                                    gid_class_array_sys[5:3]       <= cou;
+                                    gid_address_type_array_sys[3:2]<= at;
+                                    gid_gssi_array_sys[47:24]      <= g24;
+                                    rec_idx = 2'd2;
+                                end
+                            end
+                        end
+                    end
+                    // Record 2
+                    if (num_elem >= 6'd3 && rec_idx == 2'd2 && !loop_done) begin
+                        if ((off + 11'd1) > cur_elem_len) begin
+                            loop_done = 1'b1;
+                        end else begin
+                            adi = body_buf[cursor - 8'd1 - off[7:0]];
+                            off = off + 11'd1;
+                            if (adi == 1'b0) begin
+                                if ((off + 11'd5) > cur_elem_len) begin
+                                    loop_done = 1'b1;
+                                end else begin
+                                    cou = body_buf[cursor - 8'd1 - off[7:0] -: 3];
+                                    off = off + 11'd3;
+                                    at  = body_buf[cursor - 8'd1 - off[7:0] -: 2];
+                                    off = off + 11'd2;
+                                end
+                            end else begin
+                                if ((off + 11'd4) > cur_elem_len) begin
+                                    loop_done = 1'b1;
+                                end else begin
+                                    cou = 3'd0;
+                                    off = off + 11'd2;
+                                    at  = body_buf[cursor - 8'd1 - off[7:0] -: 2];
+                                    off = off + 11'd2;
+                                end
+                            end
+                            if (!loop_done) begin
+                                g24 = 24'd0;
+                                if (at == 2'b00 || at == 2'b01 || at == 2'b10) begin
+                                    if ((off + 11'd24) > cur_elem_len) begin
+                                        loop_done = 1'b1;
+                                    end else begin
+                                        g24 = body_buf[cursor - 8'd1 - off[7:0] -: 24];
+                                        off = off + 11'd24;
+                                        if (at == 2'b01) begin
+                                            if ((off + 11'd24) > cur_elem_len)
+                                                loop_done = 1'b1;
+                                            else
+                                                off = off + 11'd24;
+                                        end
+                                    end
+                                end
+                                if (!loop_done) begin
+                                    gid_attach_detach_array_sys[2] <= adi;
+                                    gid_class_array_sys[8:6]       <= cou;
+                                    gid_address_type_array_sys[5:4]<= at;
+                                    gid_gssi_array_sys[71:48]      <= g24;
+                                    rec_idx = 2'd3;
+                                end
+                            end
+                        end
+                    end
+                    gid_count_sys <= rec_idx;
+                    if (ok) state <= S_DONE;
+                    else    state <= S_DONE_FAIL;
+                    // payload_top is stored only to silence the unused-warning;
+                    // tie it off here.
+                    if (payload_top == 11'h7FF) begin /* no-op */ end
+                end
             end
 
             // -----------------------------------------------------------------

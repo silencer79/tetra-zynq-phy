@@ -67,6 +67,12 @@ module tetra_dl_pdu_builder (
     input  wire [127:0] req_mm_pdu_bits,
     input  wire [7:0]   req_mm_pdu_len_bits,
     input  wire [31:0]  req_scramble_init,
+    // Phase Y.1.c' — additive LLC sequence numbers for stop-and-wait
+    // protocols (Group-Attach reply path).  Existing callers leave these
+    // tied to 0 → bit-identical to the pre-Y.1 build (tb_dl_pdu_builder
+    // 7/7 PASS preserved).  Pass-through to mac_resource_dl_builder.ns/.nr.
+    input  wire         req_ns,
+    input  wire         req_nr,
 
     // 1-cycle pulse on transition into S_DONE; `coded_bits` valid this cycle
     // and stays latched until the next request completes.
@@ -87,6 +93,8 @@ module tetra_dl_pdu_builder (
     reg [127:0] lat_mm_pdu_bits;
     reg [7:0]   lat_mm_pdu_len_bits;
     reg [31:0]  lat_scramble_init;
+    reg         lat_ns;
+    reg         lat_nr;
 
     // -------------------------------------------------------------------------
     // Stage A — basic slot-grant element (capacity_allocation=0, granting_delay=1).
@@ -115,8 +123,8 @@ module tetra_dl_pdu_builder (
         .start                        (builder_start),
         .ssi                          (lat_ssi),
         .addr_type                    (lat_addr_type),
-        .ns                           (1'b0),
-        .nr                           (1'b0),
+        .ns                           (lat_ns),
+        .nr                           (lat_nr),
         .llc_pdu_type                 (lat_llc_pdu_type),
         .random_access_flag           (lat_random_access_flag),
         .power_control_flag           (1'b0),
@@ -187,6 +195,8 @@ module tetra_dl_pdu_builder (
             lat_mm_pdu_bits        <= 128'd0;
             lat_mm_pdu_len_bits    <= 8'd0;
             lat_scramble_init      <= 32'd0;
+            lat_ns                 <= 1'b0;
+            lat_nr                 <= 1'b0;
             lat_info_bits          <= 268'd0;
             builder_start          <= 1'b0;
             encode_start           <= 1'b0;
@@ -208,6 +218,8 @@ module tetra_dl_pdu_builder (
                     lat_mm_pdu_bits        <= req_mm_pdu_bits;
                     lat_mm_pdu_len_bits    <= req_mm_pdu_len_bits;
                     lat_scramble_init      <= req_scramble_init;
+                    lat_ns                 <= req_ns;
+                    lat_nr                 <= req_nr;
                     builder_start          <= 1'b1;
                     state                  <= S_BUILD;
                 end

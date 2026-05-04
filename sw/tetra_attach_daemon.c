@@ -102,6 +102,163 @@ static uint32_t demand_read(tetra_hal_t *hal, uint32_t idx)
     return tetra_reg_read(hal, REG_DEMAND_DATA);
 }
 
+/* Phase Y.1.e — Group-Attach mm=7 mailbox helpers + per-MS NR/NS tracking. */
+static void grp_reply_write(tetra_hal_t *hal, uint32_t idx, uint32_t data)
+{
+    tetra_reg_write(hal, REG_GRP_REPLY_INDEX, idx);
+    tetra_reg_write(hal, REG_GRP_REPLY_DATA,  data);
+}
+
+static uint32_t grp_demand_read(tetra_hal_t *hal, uint32_t idx)
+{
+    tetra_reg_write(hal, REG_GRP_DEMAND_INDEX, idx);
+    return tetra_reg_read(hal, REG_GRP_DEMAND_DATA);
+}
+
+/* Tiny LLC stop-and-wait NR/NS hash (open-addressing on 24-bit SSI).
+ * 64 slots is sufficient — typical cell sees < 10 simultaneously-attaching
+ * MS, and slot eviction on collision just resets the alternation (next
+ * round NR/NS happen to flip back, MS will retry).  Each slot stores
+ * {ssi, ns, nr} as a single uint32: [31:8]=ssi, [1]=ns, [0]=nr. */
+#define GRP_NSNR_SLOTS  64u
+static uint32_t grp_nsnr_table[GRP_NSNR_SLOTS];
+
+static unsigned grp_nsnr_hash(uint32_t ssi)
+{
+    return ((ssi * 0x9E3779B1u) >> 24) & (GRP_NSNR_SLOTS - 1u);
+}
+
+static void grp_nsnr_step(uint32_t ssi, unsigned *out_ns, unsigned *out_nr)
+{
+    unsigned h = grp_nsnr_hash(ssi);
+    unsigned probe;
+    for (probe = 0; probe < GRP_NSNR_SLOTS; probe++) {
+        unsigned slot = (h + probe) & (GRP_NSNR_SLOTS - 1u);
+        uint32_t v = grp_nsnr_table[slot];
+        if (v == 0u) {
+            /* fresh slot — start NS=1 NR=0 (mirrors gold-ref first reply) */
+            grp_nsnr_table[slot] = (ssi << 8) | 0x2u;   /* ns=1 nr=0 */
+            *out_ns = 1u;
+            *out_nr = 0u;
+            return;
+        }
+        if ((v >> 8) == ssi) {
+            unsigned ns = (v >> 1) & 0x1u;
+            unsigned nr = (v >> 0) & 0x1u;
+            *out_ns = ns;
+            *out_nr = nr;
+            /* alternate for next round */
+            grp_nsnr_table[slot] = (ssi << 8) | (((~ns) & 0x1u) << 1)
+                                              | (((~nr) & 0x1u) << 0);
+            return;
+        }
+    }
+    /* table full — fall back to fixed NS=1 NR=0 */
+    *out_ns = 1u;
+    *out_nr = 0u;
+}
+
+/* Phase Y.1.e — service one Group-Attach (mm=7) demand: read MS-SSI +
+ * gid_count + GSSI list, look each GSSI up in DB (auto-enroll if policy
+ * allows), build the D-ATTACH-DETACH-GRP-ID-ACK reply, stage it into the
+ * Group-Reply mailbox, pulse GO, and ACK the demand snapshot. */
+static void service_grp_demand(tetra_hal_t *hal)
+{
+    uint32_t w0   = grp_demand_read(hal, 0);
+    uint32_t w1   = grp_demand_read(hal, 1);
+    uint32_t w2   = grp_demand_read(hal, 2);
+    uint32_t w3   = grp_demand_read(hal, 3);
+    uint32_t w4   = grp_demand_read(hal, 4);
+    uint32_t w5   = grp_demand_read(hal, 5);
+    uint32_t cnt  = (w0 >> 19) & 0x3u;
+    uint32_t atd  = (w0 >> 18) & 0x1u;
+    uint32_t rep  = (w0 >> 17) & 0x1u;
+    uint32_t ssi  = w1 & 0x00FFFFFFu;
+    uint32_t gssi[3] = { w2 & 0x00FFFFFFu,
+                          w3 & 0x00FFFFFFu,
+                          w4 & 0x00FFFFFFu };
+    uint32_t at_arr  = (w5 >> 12) & 0x3Fu;     /* 3 × 2-bit */
+    uint32_t adi_arr = (w5 >>  9) & 0x07u;     /* 3 × 1-bit */
+    uint32_t cls_arr =  w5        & 0x1FFu;    /* 3 × 3-bit */
+
+    uint32_t policy = tetra_reg_read(hal, REG_DB_POLICY);
+    int allow_gssi = (policy & DB_POLICY_ACCEPT_UNKNOWN_GSSI) != 0;
+
+    /* Build per-record reply: at=0 GSSI-only, lifetime=1 (default), class
+     * carried through from MS request when known, otherwise default 4. */
+    uint32_t reply_gssi[3] = {0, 0, 0};
+    uint32_t reply_at[3]   = {0, 0, 0};
+    uint32_t reply_lt[3]   = {0, 0, 0};
+    uint32_t reply_adi[3]  = {0, 0, 0};
+    uint32_t reply_cls[3]  = {0, 0, 0};
+    uint32_t reply_count = 0;
+
+    uint32_t actual_count = (cnt > 3u) ? 3u : cnt;
+    for (uint32_t i = 0; i < actual_count; i++) {
+        if (gssi[i] == 0u) continue;
+        int hit = tetra_db_lookup(gssi[i], 1, NULL);
+        if (!hit && allow_gssi) {
+            int slot = tetra_db_alloc(gssi[i], 1, 0);
+            if (slot >= 0) {
+                fprintf(stderr,
+                        "tetra_attach_daemon: GRP autoenroll gssi=0x%06X "
+                        "slot=%d\n", gssi[i], slot);
+                hit = 1;
+            }
+        }
+        if (hit) {
+            unsigned cls_in = (cls_arr >> (i * 3u)) & 0x07u;
+            unsigned adi_in = (adi_arr >> i) & 0x01u;
+            unsigned at_in  = (at_arr  >> (i * 2u)) & 0x03u;
+            reply_gssi[reply_count] = gssi[i];
+            reply_at  [reply_count] = at_in;
+            reply_lt  [reply_count] = 1u;       /* default lifetime */
+            reply_adi [reply_count] = adi_in;
+            reply_cls [reply_count] = cls_in ? cls_in : 4u;
+            reply_count++;
+        }
+    }
+
+    /* If the MS sent zero usable GSSIs, ACCEPT with count=0 (no records).
+     * The encoder produces an 8-bit MM body in that case (REJECT-style
+     * envelope but accept_reject=0).  Most MS treat empty-acceptance as
+     * "no groups bound" and don't fault. */
+    unsigned ns = 0u, nr = 0u;
+    grp_nsnr_step(ssi, &ns, &nr);
+
+    grp_reply_write(hal, 0, ssi & 0x00FFFFFFu);                     /* W0 ssi */
+    grp_reply_write(hal, 1, 0u);                                     /* W1 ar=0 (accept) */
+    grp_reply_write(hal, 2, reply_count);                            /* W2 count */
+    grp_reply_write(hal, 3, reply_gssi[0] & 0x00FFFFFFu);
+    grp_reply_write(hal, 4, reply_gssi[1] & 0x00FFFFFFu);
+    grp_reply_write(hal, 5, reply_gssi[2] & 0x00FFFFFFu);
+    /* W6 layout: [20:15]=at, [14:9]=lt, [8:6]=adi */
+    uint32_t w6 = ((reply_at[2] & 0x3u) << 19) | ((reply_at[1] & 0x3u) << 17)
+                | ((reply_at[0] & 0x3u) << 15)
+                | ((reply_lt[2] & 0x3u) << 13) | ((reply_lt[1] & 0x3u) << 11)
+                | ((reply_lt[0] & 0x3u) <<  9)
+                | ((reply_adi[2] & 0x1u) << 8) | ((reply_adi[1] & 0x1u) << 7)
+                | ((reply_adi[0] & 0x1u) << 6);
+    grp_reply_write(hal, 6, w6);
+    /* W7 [8:0]=class_arr */
+    uint32_t w7 = ((reply_cls[2] & 0x7u) << 6) | ((reply_cls[1] & 0x7u) << 3)
+                |  (reply_cls[0] & 0x7u);
+    grp_reply_write(hal, 7, w7);
+    /* W8 [1]=ns [0]=nr */
+    grp_reply_write(hal, 8, (ns << 1) | nr);
+
+    /* Pulse GO — RTL latches the staged body and triggers the build. */
+    tetra_reg_write(hal, REG_GRP_REPLY_GO, 0x1u);
+
+    /* Release the demand snapshot. */
+    tetra_reg_write(hal, REG_GRP_DEMAND_ACK, 0x1u);
+
+    fprintf(stderr,
+            "tetra_attach_daemon: GRP serviced ssi=0x%06X cnt=%u atd=%u "
+            "rep=%u → reply_cnt=%u ns=%u nr=%u policy=0x%X\n",
+            ssi, cnt, atd, rep, reply_count, ns, nr, policy);
+}
+
 /* Stage one body in the Reply mailbox and pulse GO. */
 static void stage_accept_body(tetra_hal_t *hal,
                               uint32_t ssi,
@@ -183,6 +340,13 @@ int main(int argc, char **argv)
     uint32_t since_reload_ms = 0;
 
     while (keep_running) {
+        /* Phase Y.1.e — service Group-Attach (mm=7) demand mailbox first.
+         * It's a separate AXI window, independent of mm=2 ITSI Attach. */
+        uint32_t grp_status = tetra_reg_read(&hal, REG_GRP_DEMAND_STATUS);
+        if (grp_status & 0x1u) {
+            service_grp_demand(&hal);
+        }
+
         uint32_t status = tetra_reg_read(&hal, REG_DEMAND_STATUS);
         uint32_t pending = status & 0x1u;
 

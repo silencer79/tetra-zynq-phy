@@ -270,6 +270,31 @@
 #define REG_REPLY_STATUS  0x22C   /* RO  [0]    busy mirror            */
 #define REG_REPLY_USE_SW  0x230   /* R/W [0]    use_sw_body field-mux  */
 
+/* Phase Y.1.f — Group-Attach mailbox extension window (mm=7 dispatch).
+ * Demand layout (RO words read via INDEX):
+ *   W0  [31:24]=0xA7 magic, [20:19]=rec_count, [18]=atd_mode,
+ *       [17]=group_identity_report, [16:0]=resv
+ *   W1  [23:0]=ssi
+ *   W2..W4 [23:0]=gssi[0..2]
+ *   W5  [17:12]=at_arr (3×2bit), [11:9]=adi_arr (3×1bit), [8:0]=class_arr (3×3bit)
+ *   W6  [15:0]=drop_cnt (debug)
+ * Reply layout (W/W via INDEX, then GO pulse):
+ *   W0  [23:0]=ssi
+ *   W1  [0]=accept_reject (0=accept, 1=reject)
+ *   W2  [1:0]=gid_count (0..3)
+ *   W3..W5 [23:0]=gssi[0..2]
+ *   W6  [20:15]=at_arr, [14:9]=lifetime_arr, [8:6]=adi_arr
+ *   W7  [8:0]=class_arr
+ *   W8  [1]=ns, [0]=nr (LLC stop-and-wait, alterniert pro Round-Trip pro MS) */
+#define REG_GRP_DEMAND_STATUS 0x240   /* RO  [31:16]=drop_cnt, [0]=pending */
+#define REG_GRP_DEMAND_INDEX  0x244   /* R/W [3:0]  word selector 0..15    */
+#define REG_GRP_DEMAND_DATA   0x248   /* RO  [31:0] indirect via INDEX     */
+#define REG_GRP_DEMAND_ACK    0x24C   /* W1S [0]    HW-clr after consume   */
+#define REG_GRP_REPLY_INDEX   0x250   /* R/W [3:0]  word selector 0..15    */
+#define REG_GRP_REPLY_DATA    0x254   /* R/W [31:0] indirect via INDEX     */
+#define REG_GRP_REPLY_GO      0x258   /* W1S [0]    pulse to encoder       */
+#define REG_GRP_REPLY_STATUS  0x25C   /* RO  [0]    busy mirror             */
+
 /* REG_DB_POLICY @ 0x1AC — auto-enroll policy bits (Phase 6 A + Phase X.3)
  *   [0] accept_unknown_issi  — 1 (default): ISSI-miss → auto-enroll
  *   [1] accept_unknown_gssi  — 1 (default): GSSI-miss → auto-enroll

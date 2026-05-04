@@ -62,6 +62,11 @@ module tb_dl_pdu_builder;
         .req_mm_pdu_bits        (req_mm_pdu_bits),
         .req_mm_pdu_len_bits    (req_mm_pdu_len_bits),
         .req_scramble_init      (req_scramble_init),
+        // Phase Y.1.c' — req_ns/req_nr default 0 to bit-id with the
+        // pre-Y.1 builder pipeline (the legacy MLE-FSM and SlotGrant
+        // callers still drive these to 0).
+        .req_ns                 (1'b0),
+        .req_nr                 (1'b0),
         .done                   (done),
         .coded_bits             (coded_bits),
         .busy                   (busy)

@@ -644,6 +644,13 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
 end
 wire [3:0] reass_t0_frames_axi_sys = reass_t0_frames_sys_r1;
 
+// Phase Y.1.a' — mm_type for the frag-1 LLC-wrapped path.  Sourced from
+// the MAC-ACCESS parser's `ul_llc_mm_pdu_type_w` (decoded inside rx_chain
+// LLC walker) — that is the bluestation-aligned mm_pdu_type, not the
+// direct one which is for unfragmented MAC-ACCESS.
+wire [3:0] frag1_mm_type_w = ul_llc_mm_pdu_type_w;
+wire [3:0] reass_mm_type_sys;
+
 tetra_ul_demand_reassembly #(
     .T0_FRAMES_DEFAULT(2)
 ) u_ul_demand_reassembly (
@@ -654,12 +661,14 @@ tetra_ul_demand_reassembly #(
     .frag1_pulse_sys      (frag1_pulse_w),
     .frag1_ssi_sys        (ul_issi_sys),
     .frag1_bits_sys       (frag1_bits_w),
+    .frag1_mm_type_sys    (frag1_mm_type_w),
     .end_hu_pulse_sys     (ul_continuation_valid_sys),
     .end_hu_ssi_sys       (ul_continuation_ssi_sys),
     .end_hu_bits_sys      (ul_continuation_bits_sys),
     .reassembled_valid_sys(reass_valid_sys),
     .reassembled_body_sys (reass_body_sys),
     .reassembled_ssi_sys  (reass_ssi_sys),
+    .reassembled_mm_type_sys(reass_mm_type_sys),
     .reassembled_cnt_sys  (reass_cnt_sys),
     .drop_cnt_sys         (reass_drop_cnt_sys),
     .busy_slots_sys       (reass_busy_slots_sys)
@@ -695,46 +704,72 @@ wire [23:0]  iep_gild_gssi_sys;
 wire [2:0]   iep_gild_class_sys;
 wire [1:0]   iep_gild_at_sys;
 wire [23:0]  iep_pdu_ssi_sys;
+// Phase Y.1.a — mm=7 outputs
+wire [1:0]   iep_gid_count_sys;
+wire         iep_gid_atd_mode_sys;
+wire         iep_gid_grp_report_sys;
+wire [2:0]   iep_gid_adi_arr_sys;
+wire [8:0]   iep_gid_class_arr_sys;
+wire [5:0]   iep_gid_at_arr_sys;
+wire [71:0]  iep_gid_gssi_arr_sys;
 wire         iep_parse_done_sys;
 wire         iep_parse_ok_sys;
 
 tetra_ul_demand_ie_parser u_ul_demand_ie_parser (
-    .clk_sys                      (clk_sys),
-    .rst_n_sys                    (rst_n_sys),
-    .start_sys                    (reass_valid_sys),
-    .body_sys                     (reass_body_sys),
-    .ssi_sys                      (reass_ssi_sys),
-    .location_update_type_sys     (iep_loc_upd_type_sys),
-    .request_to_append_la_sys     (iep_req_to_append_la_sys),
-    .cipher_control_sys           (iep_cipher_control_sys),
-    .class_of_ms_sys              (iep_class_of_ms_sys),
-    .class_of_ms_valid_sys        (iep_class_of_ms_valid_sys),
-    .energy_saving_mode_sys       (iep_esm_sys),
-    .energy_saving_mode_valid_sys (iep_esm_valid_sys),
-    .la_information_sys           (iep_la_info_sys),
-    .la_information_valid_sys     (iep_la_info_valid_sys),
-    .ssi_field_sys                (iep_ssi_field_sys),
-    .ssi_field_valid_sys          (iep_ssi_field_valid_sys),
-    .address_ext_sys              (iep_address_ext_sys),
-    .address_ext_valid_sys        (iep_address_ext_valid_sys),
-    .gild_valid_sys               (iep_gild_valid_sys),
-    .gild_gssi_sys                (iep_gild_gssi_sys),
-    .gild_class_of_usage_sys      (iep_gild_class_sys),
-    .gild_address_type_sys        (iep_gild_at_sys),
-    .pdu_ssi_sys                  (iep_pdu_ssi_sys),
-    .parse_done_sys               (iep_parse_done_sys),
-    .parse_ok_sys                 (iep_parse_ok_sys)
+    .clk_sys                       (clk_sys),
+    .rst_n_sys                     (rst_n_sys),
+    .start_sys                     (reass_valid_sys),
+    .body_sys                      (reass_body_sys),
+    .ssi_sys                       (reass_ssi_sys),
+    .mm_pdu_type_sys               (reass_mm_type_sys),
+    .location_update_type_sys      (iep_loc_upd_type_sys),
+    .request_to_append_la_sys      (iep_req_to_append_la_sys),
+    .cipher_control_sys            (iep_cipher_control_sys),
+    .class_of_ms_sys               (iep_class_of_ms_sys),
+    .class_of_ms_valid_sys         (iep_class_of_ms_valid_sys),
+    .energy_saving_mode_sys        (iep_esm_sys),
+    .energy_saving_mode_valid_sys  (iep_esm_valid_sys),
+    .la_information_sys            (iep_la_info_sys),
+    .la_information_valid_sys      (iep_la_info_valid_sys),
+    .ssi_field_sys                 (iep_ssi_field_sys),
+    .ssi_field_valid_sys           (iep_ssi_field_valid_sys),
+    .address_ext_sys               (iep_address_ext_sys),
+    .address_ext_valid_sys         (iep_address_ext_valid_sys),
+    .gild_valid_sys                (iep_gild_valid_sys),
+    .gild_gssi_sys                 (iep_gild_gssi_sys),
+    .gild_class_of_usage_sys       (iep_gild_class_sys),
+    .gild_address_type_sys         (iep_gild_at_sys),
+    .pdu_ssi_sys                   (iep_pdu_ssi_sys),
+    .gid_count_sys                 (iep_gid_count_sys),
+    .gid_attach_detach_mode_sys    (iep_gid_atd_mode_sys),
+    .gid_group_identity_report_sys (iep_gid_grp_report_sys),
+    .gid_attach_detach_array_sys   (iep_gid_adi_arr_sys),
+    .gid_class_array_sys           (iep_gid_class_arr_sys),
+    .gid_address_type_array_sys    (iep_gid_at_arr_sys),
+    .gid_gssi_array_sys            (iep_gid_gssi_arr_sys),
+    .parse_done_sys                (iep_parse_done_sys),
+    .parse_ok_sys                  (iep_parse_ok_sys)
 );
 
 // MLE-FSM demand port composition.  Only one GSSI carried for now.  The
 // demand_gssi_count goes to 1 when both the parser succeeded and a GILD
 // IE was present; otherwise 0 (MLE-FSM falls back to the legacy default-
 // GSSI path, identical to Phase D-rev).
-wire        mle_demand_parsed_valid_sys = iep_parse_done_sys & iep_parse_ok_sys;
+//
+// Phase Y.1.b — mm-type gating: only mm=2 (LOCATION-UPDATE-DEMAND) drives
+// the existing ITSI demand mailbox; mm=7 (ATTACH-DETACH-GROUP-IDENTITY)
+// drives the NEW Group-Attach demand mailbox below.  This keeps the M2
+// ITSI-Attach path bit-identical to the pre-Y.1 build.
+wire        mle_demand_parsed_valid_sys =
+    iep_parse_done_sys & iep_parse_ok_sys & (reass_mm_type_sys == 4'd2);
 wire [23:0] mle_demand_pdu_ssi_sys      = iep_pdu_ssi_sys;
 wire [2:0]  mle_demand_gssi_count_sys   = iep_gild_valid_sys ? 3'd1 : 3'd0;
 wire [71:0] mle_demand_gssi_array_sys   = {48'd0, iep_gild_gssi_sys};
 wire [8:0]  mle_demand_class_array_sys  = {6'd0, iep_gild_class_sys};
+
+// Phase Y.1.b — Group-Attach mm=7 trigger (drives new tetra_grp_demand_mailbox).
+wire        grp_demand_parsed_valid_sys =
+    iep_parse_done_sys & iep_parse_ok_sys & (reass_mm_type_sys == 4'd7);
 
 // Phase H.0.1 — Group-Attach (mm=7) trigger composition removed.  The
 // mm=7 path moves to ARM SW per the FPGA+SW split (ARCH-Pivot
@@ -1922,6 +1957,20 @@ tetra_axi_lite_regs u_axi_regs (
     .reply_rdata_axi_i         (reply_rdata_axi_r1),
     .reply_busy_axi_i          (reply_busy_axi_r1),
     .reply_use_sw_axi_o        (reply_use_sw_axi_w),
+    // Phase Y.1.f — Group-Attach mailbox extension window 0x240..0x25C
+    .grp_demand_pending_axi_i    (grp_demand_pending_axi_r1),
+    .grp_demand_drop_cnt_axi_i   (grp_demand_drop_cnt_axi_r1),
+    .grp_demand_data_word_axi_i  (grp_demand_data_word_axi_w),
+    .grp_demand_index_axi_o      (grp_demand_index_axi_w),
+    .grp_demand_ack_trigger_axi  (grp_demand_ack_trigger_axi_w),
+    .grp_demand_consume_axi      (grp_demand_consume_axi_r1),
+    .grp_reply_index_axi_o       (grp_reply_index_axi_w),
+    .grp_reply_wdata_axi_o       (grp_reply_wdata_axi_w),
+    .grp_reply_we_axi_o          (grp_reply_we_axi_w),
+    .grp_reply_go_trigger_axi_o  (grp_reply_go_trigger_w),
+    .grp_reply_go_consume_axi    (grp_reply_go_consume_axi_r1),
+    .grp_reply_rdata_axi_i       (grp_reply_rdata_axi_r1),
+    .grp_reply_busy_axi_i        (grp_reply_busy_axi_r1),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -2565,6 +2614,20 @@ wire [7:0]   sg_build_mm_pdu_len_bits_w;
 wire [31:0]  sg_build_scramble_init_w;
 wire         sg_blocked_w;
 
+// Phase Y.1.d — Group-Attach reply build-request wires (3rd producer).
+wire         grpack_build_req_w;
+wire [23:0]  grpack_build_ssi_w;
+wire [2:0]   grpack_build_addr_type_w;
+wire [3:0]   grpack_build_llc_pdu_type_w;
+wire         grpack_build_random_access_flag_w;
+wire [127:0] grpack_build_mm_pdu_bits_w;
+wire [7:0]   grpack_build_mm_pdu_len_bits_w;
+wire [31:0]  grpack_build_scramble_init_w;
+wire         grpack_build_ns_w;
+wire         grpack_build_nr_w;
+wire         grpack_done_w;
+wire [431:0] grpack_coded_w;
+
 // Shared builder wires
 wire         dl_pdu_req_valid_w;
 wire [23:0]  dl_pdu_req_ssi_w;
@@ -2574,13 +2637,16 @@ wire         dl_pdu_req_random_access_flag_w;
 wire [127:0] dl_pdu_req_mm_pdu_bits_w;
 wire [7:0]   dl_pdu_req_mm_pdu_len_bits_w;
 wire [31:0]  dl_pdu_req_scramble_init_w;
+wire         dl_pdu_req_ns_w;
+wire         dl_pdu_req_nr_w;
 wire         dl_pdu_done_w;
 wire [431:0] dl_pdu_coded_w;
 wire         dl_pdu_busy_w;
 // Done-demux: builder asserts done for the source whose request was last
-// granted by the arbiter.  We track that source in a 1-bit registered
-// "current owner" flag — see arbiter logic below.
+// granted by the arbiter.  Owner-tracking 2-bit reg below.
+//   00 = MLE, 01 = GroupAck, 10 = SlotGrant
 wire         dl_pdu_done_to_mle_w;
+wire         dl_pdu_done_to_grpack_w;
 wire         dl_pdu_done_to_sg_w;
 
 tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
@@ -2643,52 +2709,91 @@ tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
 // accepted (i.e. when builder transitioned IDLE→BUILD).
 // =============================================================================
 //
-// Owner tracking — set on the cycle the builder accepts a request, cleared
-// on the cycle the builder asserts done.  Latched value drives the done
-// demux: 1 = MLE owned this build, 0 = SlotGrant owned.
-reg dl_pdu_owner_is_mle_r;
+// Phase Y.1.d — 3-producer arbiter.  Strict priority:
+//   MLE-ACCEPT > GroupAck > SlotGrant
+//
+// Owner-tracking: 2-bit registered flag captures which producer was granted
+// the most-recent build.  The done pulse fans out via combinational decode.
+//   00 = MLE, 01 = GroupAck, 10 = SlotGrant
+reg [1:0] dl_pdu_owner_r;
 
-// Combinational arbitration: MLE wins ties; SlotGrant only fires when MLE
-// is not requesting AND the builder is idle.
-wire dl_pdu_grant_mle_w = mle_accept_build_req_w & ~dl_pdu_busy_w;
-wire dl_pdu_grant_sg_w  = sg_build_req_w & ~mle_accept_build_req_w & ~dl_pdu_busy_w;
+// Combinational arbitration with strict priority + idle gate.
+wire dl_pdu_grant_mle_w    = mle_accept_build_req_w & ~dl_pdu_busy_w;
+wire dl_pdu_grant_grpack_w = grpack_build_req_w
+                             & ~mle_accept_build_req_w
+                             & ~dl_pdu_busy_w;
+wire dl_pdu_grant_sg_w     = sg_build_req_w
+                             & ~mle_accept_build_req_w
+                             & ~grpack_build_req_w
+                             & ~dl_pdu_busy_w;
 
-assign dl_pdu_req_valid_w               = dl_pdu_grant_mle_w | dl_pdu_grant_sg_w;
-assign dl_pdu_req_ssi_w                 = dl_pdu_grant_mle_w ? mle_accept_build_ssi_w
-                                                             : sg_build_ssi_w;
-assign dl_pdu_req_addr_type_w           = dl_pdu_grant_mle_w ? mle_accept_build_addr_type_w
-                                                             : sg_build_addr_type_w;
-assign dl_pdu_req_llc_pdu_type_w        = dl_pdu_grant_mle_w ? mle_accept_build_llc_pdu_type_w
-                                                             : sg_build_llc_pdu_type_w;
-assign dl_pdu_req_random_access_flag_w  = dl_pdu_grant_mle_w ? mle_accept_build_random_access_flag_w
-                                                             : sg_build_random_access_flag_w;
-assign dl_pdu_req_mm_pdu_bits_w         = dl_pdu_grant_mle_w ? mle_accept_build_mm_pdu_bits_w
-                                                             : sg_build_mm_pdu_bits_w;
-assign dl_pdu_req_mm_pdu_len_bits_w     = dl_pdu_grant_mle_w ? mle_accept_build_mm_pdu_len_bits_w
-                                                             : sg_build_mm_pdu_len_bits_w;
-assign dl_pdu_req_scramble_init_w       = dl_pdu_grant_mle_w ? mle_accept_build_scramble_init_w
-                                                             : sg_build_scramble_init_w;
+assign dl_pdu_req_valid_w =
+    dl_pdu_grant_mle_w | dl_pdu_grant_grpack_w | dl_pdu_grant_sg_w;
 
-// SlotGrant sees grant_blocked when builder busy OR MLE wins this cycle.
-// The FSM uses this in S_IDLE to drop the Frag-1 pulse + increment drop_cnt.
-assign sg_blocked_w = dl_pdu_busy_w | (mle_accept_build_req_w & sg_build_req_w);
+assign dl_pdu_req_ssi_w =
+    dl_pdu_grant_mle_w    ? mle_accept_build_ssi_w :
+    dl_pdu_grant_grpack_w ? grpack_build_ssi_w :
+                            sg_build_ssi_w;
+assign dl_pdu_req_addr_type_w =
+    dl_pdu_grant_mle_w    ? mle_accept_build_addr_type_w :
+    dl_pdu_grant_grpack_w ? grpack_build_addr_type_w :
+                            sg_build_addr_type_w;
+assign dl_pdu_req_llc_pdu_type_w =
+    dl_pdu_grant_mle_w    ? mle_accept_build_llc_pdu_type_w :
+    dl_pdu_grant_grpack_w ? grpack_build_llc_pdu_type_w :
+                            sg_build_llc_pdu_type_w;
+assign dl_pdu_req_random_access_flag_w =
+    dl_pdu_grant_mle_w    ? mle_accept_build_random_access_flag_w :
+    dl_pdu_grant_grpack_w ? grpack_build_random_access_flag_w :
+                            sg_build_random_access_flag_w;
+assign dl_pdu_req_mm_pdu_bits_w =
+    dl_pdu_grant_mle_w    ? mle_accept_build_mm_pdu_bits_w :
+    dl_pdu_grant_grpack_w ? grpack_build_mm_pdu_bits_w :
+                            sg_build_mm_pdu_bits_w;
+assign dl_pdu_req_mm_pdu_len_bits_w =
+    dl_pdu_grant_mle_w    ? mle_accept_build_mm_pdu_len_bits_w :
+    dl_pdu_grant_grpack_w ? grpack_build_mm_pdu_len_bits_w :
+                            sg_build_mm_pdu_len_bits_w;
+assign dl_pdu_req_scramble_init_w =
+    dl_pdu_grant_mle_w    ? mle_accept_build_scramble_init_w :
+    dl_pdu_grant_grpack_w ? grpack_build_scramble_init_w :
+                            sg_build_scramble_init_w;
+// Phase Y.1.c' — req_ns/req_nr are 0 for MLE (existing behaviour) and
+// SlotGrant (existing behaviour); GroupAck supplies dynamic values from
+// its reply mailbox.
+assign dl_pdu_req_ns_w =
+    dl_pdu_grant_mle_w    ? 1'b0 :
+    dl_pdu_grant_grpack_w ? grpack_build_ns_w :
+                            1'b0;
+assign dl_pdu_req_nr_w =
+    dl_pdu_grant_mle_w    ? 1'b0 :
+    dl_pdu_grant_grpack_w ? grpack_build_nr_w :
+                            1'b0;
+
+// SlotGrant sees grant_blocked when builder busy OR a higher-priority
+// producer wins this cycle (MLE or GroupAck).
+assign sg_blocked_w = dl_pdu_busy_w |
+                      (mle_accept_build_req_w & sg_build_req_w) |
+                      (grpack_build_req_w     & sg_build_req_w);
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
-        dl_pdu_owner_is_mle_r <= 1'b0;
+        dl_pdu_owner_r <= 2'd0;
     end else begin
-        if (dl_pdu_grant_mle_w)      dl_pdu_owner_is_mle_r <= 1'b1;
-        else if (dl_pdu_grant_sg_w)  dl_pdu_owner_is_mle_r <= 1'b0;
-        // owner stays sticky until the next grant — a stale value is
-        // harmless since done is masked by busy transition timing.
+        if      (dl_pdu_grant_mle_w)    dl_pdu_owner_r <= 2'd0;
+        else if (dl_pdu_grant_grpack_w) dl_pdu_owner_r <= 2'd1;
+        else if (dl_pdu_grant_sg_w)     dl_pdu_owner_r <= 2'd2;
+        // owner stays sticky until the next grant — harmless because
+        // done is gated by the builder's busy/done timing.
     end
 end
 
-// Done-demux: route the builder's done pulse to the FSM that owned this
-// build.  Coded bus is broadcast (both FSMs see it; only the one whose
-// done is high samples it).
-assign dl_pdu_done_to_mle_w = dl_pdu_done_w &  dl_pdu_owner_is_mle_r;
-assign dl_pdu_done_to_sg_w  = dl_pdu_done_w & ~dl_pdu_owner_is_mle_r;
+// Done-demux — broadcast coded bus, gate done pulse by owner.
+assign dl_pdu_done_to_mle_w    = dl_pdu_done_w & (dl_pdu_owner_r == 2'd0);
+assign dl_pdu_done_to_grpack_w = dl_pdu_done_w & (dl_pdu_owner_r == 2'd1);
+assign dl_pdu_done_to_sg_w     = dl_pdu_done_w & (dl_pdu_owner_r == 2'd2);
+assign grpack_done_w           = dl_pdu_done_to_grpack_w;
+assign grpack_coded_w          = dl_pdu_coded_w;
 
 tetra_dl_pdu_builder u_dl_pdu_builder (
     .clk                    (clk_sys),
@@ -2701,23 +2806,34 @@ tetra_dl_pdu_builder u_dl_pdu_builder (
     .req_mm_pdu_bits        (dl_pdu_req_mm_pdu_bits_w),
     .req_mm_pdu_len_bits    (dl_pdu_req_mm_pdu_len_bits_w),
     .req_scramble_init      (dl_pdu_req_scramble_init_w),
+    .req_ns                 (dl_pdu_req_ns_w),
+    .req_nr                 (dl_pdu_req_nr_w),
     .done                   (dl_pdu_done_w),
     .coded_bits             (dl_pdu_coded_w),
     .busy                   (dl_pdu_busy_w)
 );
 
-// MLE-Producer-Slot mux: MLE-FSM req_valid takes priority over SlotGrant
-// when both pulse the same cycle (Final ACCEPT > Pre-Reply slot-grant).
-// Otherwise SlotGrant routes through to the queue's MLE input.
-wire         mle_slot_wr_valid_w     = mle_req_valid_w | slotgrant_valid_sys_w;
-wire [431:0] mle_slot_wr_coded_w     = mle_req_valid_w ? mle_req_coded_bits_w
-                                                       : slotgrant_coded_sys_w;
-wire [1:0]   mle_slot_wr_pdu_type_w  = mle_req_valid_w ? mle_req_pdu_type_w
-                                                       : slotgrant_pdu_type_sys_w;
-wire [1:0]   mle_slot_wr_target_tn_w = mle_req_valid_w ? mle_req_target_tn_w
-                                                       : slotgrant_target_tn_sys_w;
-// SlotGrant has no concat-second-PDU; only MLE-FSM uses the second_pdu_*
-// telemetry (Option B BL-ACK piggyback).  When MLE inactive these are 0.
+// MLE-Producer-Slot mux: MLE-FSM req_valid takes priority over GroupAck
+// (Phase Y.1) which takes priority over SlotGrant.  This mirrors the
+// 3-producer arbiter's strict priority for builder-side ordering, but on
+// the queue-write side they are temporally separated (different events
+// fire on different frames) so the OR is sufficient.
+wire         mle_slot_wr_valid_w     = mle_req_valid_w | grpack_queue_valid_sys_r |
+                                       slotgrant_valid_sys_w;
+wire [431:0] mle_slot_wr_coded_w     =
+    mle_req_valid_w           ? mle_req_coded_bits_w :
+    grpack_queue_valid_sys_r  ? grpack_queue_coded_sys_r :
+                                slotgrant_coded_sys_w;
+wire [1:0]   mle_slot_wr_pdu_type_w  =
+    mle_req_valid_w           ? mle_req_pdu_type_w :
+    grpack_queue_valid_sys_r  ? 2'd0 /* SCH/F */ :
+                                slotgrant_pdu_type_sys_w;
+wire [1:0]   mle_slot_wr_target_tn_w =
+    mle_req_valid_w           ? mle_req_target_tn_w :
+    grpack_queue_valid_sys_r  ? grpack_queue_target_tn_sys_r :
+                                slotgrant_target_tn_sys_w;
+// Only MLE-FSM uses the second_pdu_* telemetry (Option B BL-ACK piggyback).
+// GroupAck and SlotGrant don't have concat-second-PDUs.
 wire         mle_slot_wr_second_pdu_present_w = mle_req_valid_w ? mle_req_second_pdu_present_w : 1'b0;
 wire         mle_slot_wr_second_pdu_nr_w      = mle_req_valid_w ? mle_req_second_pdu_nr_w      : 1'b0;
 
@@ -3017,6 +3133,341 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     end else begin
         reply_go_consume_axi_r0 <= reply_go_pulse_sys_w;
         reply_go_consume_axi_r1 <= reply_go_consume_axi_r0;
+    end
+end
+
+// =============================================================================
+// Phase Y.1.b — Group-Attach Demand Mailbox (mm=7, indirect AXI window)
+//
+// AXI side (clk_axi):
+//   grp_demand_index_axi_w    — 4-bit indirect-window word selector
+//   grp_demand_ack_trigger_w  — W1S, set by SW write to REG_GRP_DEMAND_ACK,
+//                               cleared by grp_demand_consume_axi pulse
+//   grp_demand_pending_axi_r1 — 2-FF resync of pending flag (clk_sys)
+//   grp_demand_drop_cnt_axi_r1 — 2-FF resync of drop counter (clk_sys)
+//   grp_demand_data_word_axi_w — 32-bit indirect mailbox word
+//
+// clk_sys side: tetra_grp_demand_mailbox latches the IE-Parser mm=7 outputs
+// on grp_demand_parsed_valid_sys, holds them until ack_consumed_pulse_sys
+// clears pending.  Drop counter increments on overlapping pushes.
+// =============================================================================
+wire [3:0]  grp_demand_index_axi_w;
+wire        grp_demand_ack_trigger_axi_w;
+wire [31:0] grp_demand_data_word_axi_w;
+wire        grp_demand_pending_sys_w;
+wire [15:0] grp_demand_drop_cnt_sys_w;
+wire [31:0] grp_demand_data_word_sys_w;
+
+// 2-FF index resync clk_axi → clk_sys
+(* ASYNC_REG = "TRUE" *) reg [3:0] grp_demand_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0] grp_demand_index_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        grp_demand_index_sys_r0 <= 4'd0;
+        grp_demand_index_sys_r1 <= 4'd0;
+    end else begin
+        grp_demand_index_sys_r0 <= grp_demand_index_axi_w;
+        grp_demand_index_sys_r1 <= grp_demand_index_sys_r0;
+    end
+end
+
+// 2-FF ACK-trigger resync clk_axi → clk_sys with edge-detect
+(* ASYNC_REG = "TRUE" *) reg grp_demand_ack_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg grp_demand_ack_sys_r1;
+reg                          grp_demand_ack_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        grp_demand_ack_sys_r0 <= 1'b0;
+        grp_demand_ack_sys_r1 <= 1'b0;
+        grp_demand_ack_sys_r2 <= 1'b0;
+    end else begin
+        grp_demand_ack_sys_r0 <= grp_demand_ack_trigger_axi_w;
+        grp_demand_ack_sys_r1 <= grp_demand_ack_sys_r0;
+        grp_demand_ack_sys_r2 <= grp_demand_ack_sys_r1;
+    end
+end
+wire grp_demand_ack_pulse_sys_w =
+    grp_demand_ack_sys_r1 & ~grp_demand_ack_sys_r2;
+
+tetra_grp_demand_mailbox u_grp_demand_mailbox (
+    .clk_sys                       (clk_sys),
+    .rst_n_sys                     (rst_n_sys),
+    .grp_parsed_valid_sys          (grp_demand_parsed_valid_sys),
+    .grp_ul_ssi_sys                (iep_pdu_ssi_sys),
+    .grp_rec_count_sys             (iep_gid_count_sys),
+    .grp_attach_detach_mode_sys    (iep_gid_atd_mode_sys),
+    .grp_group_identity_report_sys (iep_gid_grp_report_sys),
+    .grp_gssi_array_sys            (iep_gid_gssi_arr_sys),
+    .grp_class_array_sys           (iep_gid_class_arr_sys),
+    .grp_adi_array_sys             (iep_gid_adi_arr_sys),
+    .grp_at_array_sys              (iep_gid_at_arr_sys),
+    .ack_consumed_pulse_sys        (grp_demand_ack_pulse_sys_w),
+    .index_sys                     (grp_demand_index_sys_r1),
+    .data_word_sys                 (grp_demand_data_word_sys_w),
+    .pending_sys                   (grp_demand_pending_sys_w),
+    .drop_cnt_sys                  (grp_demand_drop_cnt_sys_w)
+);
+
+// CDC: pending + drop_cnt + data_word clk_sys → clk_axi
+(* ASYNC_REG = "TRUE" *) reg         grp_demand_pending_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg         grp_demand_pending_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0]  grp_demand_drop_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0]  grp_demand_drop_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [31:0]  grp_demand_data_word_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0]  grp_demand_data_word_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        grp_demand_pending_axi_r0   <= 1'b0;
+        grp_demand_pending_axi_r1   <= 1'b0;
+        grp_demand_drop_cnt_axi_r0  <= 16'd0;
+        grp_demand_drop_cnt_axi_r1  <= 16'd0;
+        grp_demand_data_word_axi_r0 <= 32'd0;
+        grp_demand_data_word_axi_r1 <= 32'd0;
+    end else begin
+        grp_demand_pending_axi_r0   <= grp_demand_pending_sys_w;
+        grp_demand_pending_axi_r1   <= grp_demand_pending_axi_r0;
+        grp_demand_drop_cnt_axi_r0  <= grp_demand_drop_cnt_sys_w;
+        grp_demand_drop_cnt_axi_r1  <= grp_demand_drop_cnt_axi_r0;
+        grp_demand_data_word_axi_r0 <= grp_demand_data_word_sys_w;
+        grp_demand_data_word_axi_r1 <= grp_demand_data_word_axi_r0;
+    end
+end
+assign grp_demand_data_word_axi_w = grp_demand_data_word_axi_r1;
+
+// CDC: ACK-consume pulse clk_sys → clk_axi
+(* ASYNC_REG = "TRUE" *) reg grp_demand_consume_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg grp_demand_consume_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        grp_demand_consume_axi_r0 <= 1'b0;
+        grp_demand_consume_axi_r1 <= 1'b0;
+    end else begin
+        grp_demand_consume_axi_r0 <= grp_demand_ack_pulse_sys_w;
+        grp_demand_consume_axi_r1 <= grp_demand_consume_axi_r0;
+    end
+end
+
+// =============================================================================
+// Phase Y.1.b — Group-Attach Reply Mailbox (D-ATTACH-DETACH-GRP-ID-ACK staging)
+//
+// AXI side (clk_axi):
+//   grp_reply_index_axi_w    — 4-bit word selector
+//   grp_reply_wdata_axi_w    — 32-bit AXI write-data
+//   grp_reply_we_axi_w       — 1-cycle write-enable on REG_GRP_REPLY_DATA
+//   grp_reply_go_trigger_w   — W1S GO bit, cleared by go-consume pulse
+//   grp_reply_busy_axi_r1    — 2-FF resync of busy mirror (clk_sys)
+//   grp_reply_rdata_axi_r1   — 2-FF resync of indirect read-back word
+//
+// clk_sys side: tetra_grp_reply_mailbox holds the 16-word shadow + emits the
+// per-field outputs feeding the GroupAck build pipeline + the GO pulse.
+// =============================================================================
+wire [3:0]  grp_reply_index_axi_w;
+wire [31:0] grp_reply_wdata_axi_w;
+wire        grp_reply_we_axi_w;
+wire        grp_reply_go_trigger_w;
+
+(* ASYNC_REG = "TRUE" *) reg [3:0]  grp_reply_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0]  grp_reply_index_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [31:0] grp_reply_wdata_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] grp_reply_wdata_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        grp_reply_index_sys_r0 <= 4'd0;
+        grp_reply_index_sys_r1 <= 4'd0;
+        grp_reply_wdata_sys_r0 <= 32'd0;
+        grp_reply_wdata_sys_r1 <= 32'd0;
+    end else begin
+        grp_reply_index_sys_r0 <= grp_reply_index_axi_w;
+        grp_reply_index_sys_r1 <= grp_reply_index_sys_r0;
+        grp_reply_wdata_sys_r0 <= grp_reply_wdata_axi_w;
+        grp_reply_wdata_sys_r1 <= grp_reply_wdata_sys_r0;
+    end
+end
+
+// 2-FF write-enable + edge-detect → 1-cycle clk_sys pulse
+(* ASYNC_REG = "TRUE" *) reg grp_reply_we_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg grp_reply_we_sys_r1;
+reg                          grp_reply_we_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        grp_reply_we_sys_r0 <= 1'b0;
+        grp_reply_we_sys_r1 <= 1'b0;
+        grp_reply_we_sys_r2 <= 1'b0;
+    end else begin
+        grp_reply_we_sys_r0 <= grp_reply_we_axi_w;
+        grp_reply_we_sys_r1 <= grp_reply_we_sys_r0;
+        grp_reply_we_sys_r2 <= grp_reply_we_sys_r1;
+    end
+end
+wire grp_reply_we_pulse_sys_w =
+    grp_reply_we_sys_r1 & ~grp_reply_we_sys_r2;
+
+// 2-FF GO-trigger + edge-detect → 1-cycle clk_sys pulse
+(* ASYNC_REG = "TRUE" *) reg grp_reply_go_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg grp_reply_go_sys_r1;
+reg                          grp_reply_go_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        grp_reply_go_sys_r0 <= 1'b0;
+        grp_reply_go_sys_r1 <= 1'b0;
+        grp_reply_go_sys_r2 <= 1'b0;
+    end else begin
+        grp_reply_go_sys_r0 <= grp_reply_go_trigger_w;
+        grp_reply_go_sys_r1 <= grp_reply_go_sys_r0;
+        grp_reply_go_sys_r2 <= grp_reply_go_sys_r1;
+    end
+end
+wire grp_reply_go_pulse_sys_w =
+    grp_reply_go_sys_r1 & ~grp_reply_go_sys_r2;
+
+wire [31:0] grp_reply_rdata_sys_w;
+wire [23:0] grp_mb_ssi_w;
+wire        grp_mb_ar_w;
+wire [1:0]  grp_mb_count_w;
+wire [71:0] grp_mb_gssi_arr_w;
+wire [5:0]  grp_mb_at_arr_w;
+wire [5:0]  grp_mb_lt_arr_w;
+wire [2:0]  grp_mb_adi_arr_w;
+wire [8:0]  grp_mb_class_arr_w;
+wire        grp_mb_ns_w;
+wire        grp_mb_nr_w;
+wire        grp_mb_go_pulse_w;
+
+tetra_grp_reply_mailbox u_grp_reply_mailbox (
+    .clk_sys                   (clk_sys),
+    .rst_n_sys                 (rst_n_sys),
+    .index_sys                 (grp_reply_index_sys_r1),
+    .wdata_sys                 (grp_reply_wdata_sys_r1),
+    .wr_en_sys                 (grp_reply_we_pulse_sys_w),
+    .go_pulse_sys              (grp_reply_go_pulse_sys_w),
+    .rdata_sys                 (grp_reply_rdata_sys_w),
+    .mb_grp_ssi_sys            (grp_mb_ssi_w),
+    .mb_grp_accept_reject_sys  (grp_mb_ar_w),
+    .mb_grp_count_sys          (grp_mb_count_w),
+    .mb_grp_gssi_array_sys     (grp_mb_gssi_arr_w),
+    .mb_grp_at_array_sys       (grp_mb_at_arr_w),
+    .mb_grp_lifetime_array_sys (grp_mb_lt_arr_w),
+    .mb_grp_adi_array_sys      (grp_mb_adi_arr_w),
+    .mb_grp_class_array_sys    (grp_mb_class_arr_w),
+    .mb_grp_ns_sys             (grp_mb_ns_w),
+    .mb_grp_nr_sys             (grp_mb_nr_w),
+    .mb_grp_go_pulse_sys       (grp_mb_go_pulse_w)
+);
+
+// CDC: rdata + busy clk_sys → clk_axi
+(* ASYNC_REG = "TRUE" *) reg [31:0] grp_reply_rdata_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] grp_reply_rdata_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg        grp_reply_busy_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg        grp_reply_busy_axi_r1;
+// Group-Attach reply build is in-flight from go pulse to grpack_done_w.
+reg grpack_busy_sys_r;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) grpack_busy_sys_r <= 1'b0;
+    else if (grp_mb_go_pulse_w) grpack_busy_sys_r <= 1'b1;
+    else if (grpack_done_w)     grpack_busy_sys_r <= 1'b0;
+end
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        grp_reply_rdata_axi_r0 <= 32'd0;
+        grp_reply_rdata_axi_r1 <= 32'd0;
+        grp_reply_busy_axi_r0  <= 1'b0;
+        grp_reply_busy_axi_r1  <= 1'b0;
+    end else begin
+        grp_reply_rdata_axi_r0 <= grp_reply_rdata_sys_w;
+        grp_reply_rdata_axi_r1 <= grp_reply_rdata_axi_r0;
+        grp_reply_busy_axi_r0  <= grpack_busy_sys_r;
+        grp_reply_busy_axi_r1  <= grp_reply_busy_axi_r0;
+    end
+end
+
+// CDC: GO-consume pulse clk_sys → clk_axi to clear the W1S trigger
+(* ASYNC_REG = "TRUE" *) reg grp_reply_go_consume_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg grp_reply_go_consume_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        grp_reply_go_consume_axi_r0 <= 1'b0;
+        grp_reply_go_consume_axi_r1 <= 1'b0;
+    end else begin
+        grp_reply_go_consume_axi_r0 <= grp_reply_go_pulse_sys_w;
+        grp_reply_go_consume_axi_r1 <= grp_reply_go_consume_axi_r0;
+    end
+end
+
+// =============================================================================
+// Phase Y.1.c — Group-Attach reply build pipeline (inline)
+//
+// On every grp_mb_go_pulse_w (1-cycle pulse from SW staging the body), pulse
+// the build-request to the shared u_dl_pdu_builder via the 3-producer
+// arbiter.  The encoder is purely combinational, so the request fields are
+// available the same cycle the GO pulse fires.
+//
+// No FSM needed — the grp_mb_go_pulse_w is qualified by ~dl_pdu_busy_w in
+// the arbiter (grant_grpack), and the request fields are stable on the
+// reply-mailbox slices after the SW write+GO sequence (CDC settles before
+// SW pulses GO).
+//
+// Scrambling: D-ATTACH-DETACH-GRP-ID-ACK uses the cell DL scrambler seed
+// (same as MLE-FSM ACCEPT and SCH/HD AACH).
+// =============================================================================
+wire [127:0] grpack_mm_bits_w;
+wire [7:0]   grpack_mm_len_w;
+
+tetra_d_attach_detach_grp_id_ack_encoder u_grpack_encoder (
+    .accept_reject  (grp_mb_ar_w),
+    .gid_count      (grp_mb_count_w),
+    .gssi_array     (grp_mb_gssi_arr_w),
+    .at_array       (grp_mb_at_arr_w),
+    .lifetime_array (grp_mb_lt_arr_w),
+    .adi_array      (grp_mb_adi_arr_w),
+    .class_array    (grp_mb_class_arr_w),
+    .pdu_bits_mm    (grpack_mm_bits_w),
+    .pdu_len_bits   (grpack_mm_len_w)
+);
+
+// Latch the GO pulse so we keep req_valid asserted until the arbiter grants.
+// (The arbiter qualifies on ~dl_pdu_busy_w; if it's busy we wait.)
+reg grpack_req_pending_r;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        grpack_req_pending_r <= 1'b0;
+    end else if (grp_mb_go_pulse_w) begin
+        grpack_req_pending_r <= 1'b1;
+    end else if (dl_pdu_grant_grpack_w) begin
+        grpack_req_pending_r <= 1'b0;
+    end
+end
+
+assign grpack_build_req_w                = grpack_req_pending_r;
+assign grpack_build_ssi_w                = grp_mb_ssi_w;
+assign grpack_build_addr_type_w          = 3'd1;        // SSI
+assign grpack_build_llc_pdu_type_w       = 4'd0;        // BL-ADATA (carries MLE+MM)
+assign grpack_build_random_access_flag_w = 1'b0;        // no RA-piggyback
+assign grpack_build_mm_pdu_bits_w        = grpack_mm_bits_w;
+assign grpack_build_mm_pdu_len_bits_w    = grpack_mm_len_w;
+assign grpack_build_scramble_init_w      = mle_dl_scramb_init_sys;
+assign grpack_build_ns_w                 = grp_mb_ns_w;
+assign grpack_build_nr_w                 = grp_mb_nr_w;
+
+// Phase Y.1.d — Coded SCH/F output is broadcast on dl_pdu_coded_w; the
+// done pulse is gated to grpack_done_w by the owner-tracking arbiter (see
+// above).  We push the GroupAck reply into the DL-Signal-Queue's MLE
+// producer slot (same path as Pre-Reply-SlotGrant) so the scheduler picks
+// it up on the next signalling slot.
+reg          grpack_queue_valid_sys_r;
+reg [431:0]  grpack_queue_coded_sys_r;
+reg [1:0]    grpack_queue_target_tn_sys_r;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        grpack_queue_valid_sys_r     <= 1'b0;
+        grpack_queue_coded_sys_r     <= 432'd0;
+        grpack_queue_target_tn_sys_r <= 2'd0;
+    end else begin
+        grpack_queue_valid_sys_r <= 1'b0;
+        if (grpack_done_w) begin
+            grpack_queue_valid_sys_r     <= 1'b1;
+            grpack_queue_coded_sys_r     <= grpack_coded_w;
+            grpack_queue_target_tn_sys_r <= cfg_mcch_tn_sys_r1;
+        end
     end
 end
 

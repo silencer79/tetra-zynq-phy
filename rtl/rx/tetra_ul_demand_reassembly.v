@@ -63,6 +63,9 @@ module tetra_ul_demand_reassembly #(
     input  wire                frag1_pulse_sys,
     input  wire [23:0]         frag1_ssi_sys,
     input  wire [43:0]         frag1_bits_sys,   // ul0_bits[48..91], MSB-first
+    // Phase Y.1.a' — MAC-ACCESS frag=1 mm_type from LLC parser.  Latched
+    // alongside frag1_bits_sys per slot; propagated to reassembled output.
+    input  wire [3:0]          frag1_mm_type_sys,
 
     input  wire                end_hu_pulse_sys,
     input  wire [23:0]         end_hu_ssi_sys,
@@ -72,6 +75,7 @@ module tetra_ul_demand_reassembly #(
     output reg                 reassembled_valid_sys,
     output reg  [128:0]        reassembled_body_sys,
     output reg  [23:0]         reassembled_ssi_sys,
+    output reg  [3:0]          reassembled_mm_type_sys,
 
     // ------------- Counters / debug -----------------------------------------
     output reg  [15:0]         reassembled_cnt_sys,
@@ -89,11 +93,13 @@ reg          s0_occ;
 reg [23:0]   s0_ssi;
 reg [43:0]   s0_frag1;
 reg [3:0]    s0_t0_left;
+reg [3:0]    s0_mm_type;     // Phase Y.1.a' — latched at frag1
 // Slot 1
 reg          s1_occ;
 reg [23:0]   s1_ssi;
 reg [43:0]   s1_frag1;
 reg [3:0]    s1_t0_left;
+reg [3:0]    s1_mm_type;     // Phase Y.1.a' — latched at frag1
 
 assign busy_slots_sys = {s1_occ, s0_occ};
 
@@ -139,13 +145,16 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         s0_ssi                <= 24'd0;
         s0_frag1              <= 44'd0;
         s0_t0_left            <= 4'd0;
+        s0_mm_type            <= 4'd0;
         s1_occ                <= 1'b0;
         s1_ssi                <= 24'd0;
         s1_frag1              <= 44'd0;
         s1_t0_left            <= 4'd0;
+        s1_mm_type            <= 4'd0;
         reassembled_valid_sys <= 1'b0;
         reassembled_body_sys  <= 129'd0;
         reassembled_ssi_sys   <= 24'd0;
+        reassembled_mm_type_sys <= 4'd0;
         reassembled_cnt_sys   <= 16'd0;
         drop_cnt_sys          <= 16'd0;
     end else begin
@@ -181,19 +190,23 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         if (frag1_pulse_sys) begin
             if (s0_replace) begin
                 s0_frag1   <= frag1_bits_sys;
+                s0_mm_type <= frag1_mm_type_sys;
                 s0_t0_left <= t0_eff;
             end else if (s1_replace) begin
                 s1_frag1   <= frag1_bits_sys;
+                s1_mm_type <= frag1_mm_type_sys;
                 s1_t0_left <= t0_eff;
             end else if (alloc_to_s0) begin
                 s0_occ     <= 1'b1;
                 s0_ssi     <= frag1_ssi_sys;
                 s0_frag1   <= frag1_bits_sys;
+                s0_mm_type <= frag1_mm_type_sys;
                 s0_t0_left <= t0_eff;
             end else if (alloc_to_s1) begin
                 s1_occ     <= 1'b1;
                 s1_ssi     <= frag1_ssi_sys;
                 s1_frag1   <= frag1_bits_sys;
+                s1_mm_type <= frag1_mm_type_sys;
                 s1_t0_left <= t0_eff;
             end else if (drop_new) begin
                 drop_cnt_sys <= drop_cnt_sys + 16'd1;
@@ -209,13 +222,15 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
         // ---------------------------------------------------------------
         if (end_hu_pulse_sys && match_any) begin
             if (match_slot == 1'b0) begin
-                reassembled_body_sys <= reass_body_s0;
-                reassembled_ssi_sys  <= s0_ssi;
-                s0_occ               <= 1'b0;
+                reassembled_body_sys    <= reass_body_s0;
+                reassembled_ssi_sys     <= s0_ssi;
+                reassembled_mm_type_sys <= s0_mm_type;
+                s0_occ                  <= 1'b0;
             end else begin
-                reassembled_body_sys <= reass_body_s1;
-                reassembled_ssi_sys  <= s1_ssi;
-                s1_occ               <= 1'b0;
+                reassembled_body_sys    <= reass_body_s1;
+                reassembled_ssi_sys     <= s1_ssi;
+                reassembled_mm_type_sys <= s1_mm_type;
+                s1_occ                  <= 1'b0;
             end
             reassembled_valid_sys <= 1'b1;
             reassembled_cnt_sys   <= reassembled_cnt_sys + 16'd1;

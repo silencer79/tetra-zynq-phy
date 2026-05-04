@@ -430,6 +430,23 @@ module tetra_axi_lite_regs (
     input  wire        reply_busy_axi_i,
     output wire        reply_use_sw_axi_o,
 
+    // Phase Y.1.f — Group-Attach mailbox extension window 0x240..0x25C.
+    //   Demand: 0x240..0x24C  (analog Phase X.1 demand mailbox)
+    //   Reply : 0x250..0x25C  (analog Phase X.2 reply mailbox)
+    input  wire        grp_demand_pending_axi_i,
+    input  wire [15:0] grp_demand_drop_cnt_axi_i,
+    input  wire [31:0] grp_demand_data_word_axi_i,
+    output wire [3:0]  grp_demand_index_axi_o,
+    output wire        grp_demand_ack_trigger_axi,
+    input  wire        grp_demand_consume_axi,
+    output wire [3:0]  grp_reply_index_axi_o,
+    output wire [31:0] grp_reply_wdata_axi_o,
+    output wire        grp_reply_we_axi_o,
+    output wire        grp_reply_go_trigger_axi_o,
+    input  wire        grp_reply_go_consume_axi,
+    input  wire [31:0] grp_reply_rdata_axi_i,
+    input  wire        grp_reply_busy_axi_i,
+
     // ------------------------------------------------------------------
     // Phase H.7 — D-NWRK-BROADCAST periodic push.
     //   REG_NWRK_BCAST_INDEX   @ 0x1D0 [3:0]   payload word index (0..13)
@@ -764,6 +781,28 @@ localparam [6:0] REG_REPLY_STATUS  = 7'h0B; // 0x22C  RO  [0]=busy
 localparam [6:0] REG_REPLY_USE_SW  = 7'h0C; // 0x230  R/W [0]=use_sw_body
 
 // ---------------------------------------------------------------------------
+// Phase Y.1.f — Group-Attach mailboxes (mm=7) extension window 0x240..0x258.
+//   Demand side (passive RTL→SW):
+//     REG_GRP_DEMAND_STATUS @ 0x240 RO   {drop_cnt[15:0], 15'd0, pending}
+//     REG_GRP_DEMAND_INDEX  @ 0x244 R/W  [3:0]  word selector
+//     REG_GRP_DEMAND_DATA   @ 0x248 RO   [31:0] indirect via INDEX
+//     REG_GRP_DEMAND_ACK    @ 0x24C W1S  [0]    HW-clr after consume
+//   Reply side (SW→RTL):
+//     REG_GRP_REPLY_INDEX   @ 0x250 R/W  [3:0]  word selector
+//     REG_GRP_REPLY_DATA    @ 0x254 R/W  [31:0] indirect via INDEX
+//     REG_GRP_REPLY_GO      @ 0x258 W1S  [0]    1-cycle pulse to encoder
+//     REG_GRP_REPLY_STATUS  @ 0x25C RO   [0]    busy mirror (build in flight)
+// ---------------------------------------------------------------------------
+localparam [6:0] REG_GRP_DEMAND_STATUS = 7'h10; // 0x240
+localparam [6:0] REG_GRP_DEMAND_INDEX  = 7'h11; // 0x244
+localparam [6:0] REG_GRP_DEMAND_DATA   = 7'h12; // 0x248
+localparam [6:0] REG_GRP_DEMAND_ACK    = 7'h13; // 0x24C
+localparam [6:0] REG_GRP_REPLY_INDEX   = 7'h14; // 0x250
+localparam [6:0] REG_GRP_REPLY_DATA    = 7'h15; // 0x254
+localparam [6:0] REG_GRP_REPLY_GO      = 7'h16; // 0x258
+localparam [6:0] REG_GRP_REPLY_STATUS  = 7'h17; // 0x25C
+
+// ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
 // ---------------------------------------------------------------------------
 
@@ -946,6 +985,12 @@ reg [3:0]  reply_index_axi;            // 4-bit indirect-window word selector
 reg        reply_go_trigger_r;         // W1S GO trigger, HW-clr on go_consume
 reg        reply_use_sw_r;             // R/W use_sw_body toggle
 
+// Phase Y.1.f Group-Attach mailbox AXI-side state.
+reg [3:0]  grp_demand_index_axi;
+reg        grp_demand_ack_trigger_r;
+reg [3:0]  grp_reply_index_axi;
+reg        grp_reply_go_trigger_r;
+
 reg [31:0] rdata_mux_axi;
 always @(*) begin
     case (rd_addr_axi[8:2])
@@ -1123,6 +1168,17 @@ always @(*) begin
             REG_REPLY_GO:      rdata_mux_axi = {31'd0, reply_go_trigger_r};
             REG_REPLY_STATUS:  rdata_mux_axi = {31'd0, reply_busy_axi_i};
             REG_REPLY_USE_SW:  rdata_mux_axi = {31'd0, reply_use_sw_r};
+            // Phase Y.1.f — Group-Attach mailbox
+            REG_GRP_DEMAND_STATUS: rdata_mux_axi = {grp_demand_drop_cnt_axi_i,
+                                                    15'd0,
+                                                    grp_demand_pending_axi_i};
+            REG_GRP_DEMAND_INDEX:  rdata_mux_axi = {28'd0, grp_demand_index_axi};
+            REG_GRP_DEMAND_DATA:   rdata_mux_axi = grp_demand_data_word_axi_i;
+            REG_GRP_DEMAND_ACK:    rdata_mux_axi = {31'd0, grp_demand_ack_trigger_r};
+            REG_GRP_REPLY_INDEX:   rdata_mux_axi = {28'd0, grp_reply_index_axi};
+            REG_GRP_REPLY_DATA:    rdata_mux_axi = grp_reply_rdata_axi_i;
+            REG_GRP_REPLY_GO:      rdata_mux_axi = {31'd0, grp_reply_go_trigger_r};
+            REG_GRP_REPLY_STATUS:  rdata_mux_axi = {31'd0, grp_reply_busy_axi_i};
             default:           rdata_mux_axi = 32'd0;
         endcase
     end
@@ -2302,6 +2358,59 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
     else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_REPLY_USE_SW)
                           & wr_strb_axi[0])
         reply_use_sw_r <= wr_data_axi[0];
+end
+
+// ---------------------------------------------------------------------------
+// Phase Y.1.f — Group-Attach mailbox AXI-side write logic
+// ---------------------------------------------------------------------------
+// Demand side: INDEX + ACK (W1S, HW-clr on consume).
+assign grp_demand_index_axi_o     = grp_demand_index_axi;
+assign grp_demand_ack_trigger_axi = grp_demand_ack_trigger_r;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        grp_demand_index_axi <= 4'd0;
+    else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_GRP_DEMAND_INDEX)
+                          & wr_strb_axi[0])
+        grp_demand_index_axi <= wr_data_axi[3:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        grp_demand_ack_trigger_r <= 1'b0;
+    else begin
+        if (grp_demand_consume_axi)
+            grp_demand_ack_trigger_r <= 1'b0;
+        if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_GRP_DEMAND_ACK)
+                        & wr_strb_axi[0] & wr_data_axi[0])
+            grp_demand_ack_trigger_r <= 1'b1;
+    end
+end
+
+// Reply side: INDEX + DATA-write-passthrough + GO (W1S).
+assign grp_reply_index_axi_o      = grp_reply_index_axi;
+assign grp_reply_wdata_axi_o      = wr_data_axi;
+assign grp_reply_we_axi_o         = wr_en_x1_axi & (wr_addr_axi[8:2] == REG_GRP_REPLY_DATA);
+assign grp_reply_go_trigger_axi_o = grp_reply_go_trigger_r;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        grp_reply_index_axi <= 4'd0;
+    else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_GRP_REPLY_INDEX)
+                          & wr_strb_axi[0])
+        grp_reply_index_axi <= wr_data_axi[3:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        grp_reply_go_trigger_r <= 1'b0;
+    else begin
+        if (grp_reply_go_consume_axi)
+            grp_reply_go_trigger_r <= 1'b0;
+        if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_GRP_REPLY_GO)
+                        & wr_strb_axi[0] & wr_data_axi[0])
+            grp_reply_go_trigger_r <= 1'b1;
+    end
 end
 
 // ---------------------------------------------------------------------------
