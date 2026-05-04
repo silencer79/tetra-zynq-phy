@@ -477,6 +477,7 @@ wire [431:0] queue_head_coded_w;
 wire [1:0]   queue_head_pdu_type_w;
 wire [1:0]   queue_head_target_tn_w;
 wire [1:0]   queue_head_prio_w;
+wire [13:0]  queue_head_aach_pattern_w;        // Phase Z.2
 wire         queue_head_second_pdu_present_w;  // Option B telemetry (commit 6)
 wire         queue_head_second_pdu_nr_w;
 wire         popped_second_pdu_present_w;      // latched for ILA probes
@@ -499,6 +500,11 @@ wire [215:0] sched_blk2_tn3_sys_w;
 wire [3:0]   sched_ndb2_sys_w;
 wire [15:0]  sig_pop_cnt_w;
 wire [15:0]  sig_override_cnt_w;
+// Phase Z.2 — per-TN AACH override pattern bundle from scheduler
+wire [13:0]  sched_aach_override_tn0_sys_w;
+wire [13:0]  sched_aach_override_tn1_sys_w;
+wire [13:0]  sched_aach_override_tn2_sys_w;
+wire [13:0]  sched_aach_override_tn3_sys_w;
 
 // RX chain debug signals
 wire dbg_fe_valid_sys;
@@ -1201,6 +1207,7 @@ tetra_slot_content_mux #(
     .sched_blk1_tn3_sys   (sched_blk1_tn3_sys_w),
     .sched_blk2_tn3_sys   (sched_blk2_tn3_sys_w),
     .sched_ndb2_sys       (sched_ndb2_sys_w),
+    .sched_active_sys     (sched_active_sys_w),    // Phase Z.2 — dynamic-class override
     // Outputs to tetra_tx_chain
     .slot_burst_type_sys  (cm_slot_burst_type_sys),
     .slot_en_sys          (cm_slot_en_sys),
@@ -2220,6 +2227,7 @@ tetra_dl_signal_queue #(
     .wr_mle_coded     (mle_slot_wr_coded_w),
     .wr_mle_pdu_type  (mle_slot_wr_pdu_type_w),
     .wr_mle_target_tn (mle_slot_wr_target_tn_w),
+    .wr_mle_aach_pattern (mle_slot_wr_aach_pattern_w),    // Phase Z.2
     // Option B second_pdu telemetry (commit 6): propagate MLE-FSM's
     // req_second_pdu_* so the queue entry carries the BL-ACK-present
     // flag + nr for downstream ILA / AXI visibility.  SlotGrant path
@@ -2232,6 +2240,7 @@ tetra_dl_signal_queue #(
     .wr_cmce_coded    (nwrk_bcast_push_coded_sys_w),
     .wr_cmce_pdu_type (nwrk_bcast_push_pdu_type_sys_w),
     .wr_cmce_target_tn(nwrk_bcast_push_target_tn_sys_w),
+    .wr_cmce_aach_pattern (14'h0009),    // Phase Z.2 — D-NWRK-BROADCAST = signalling
     // SDS producer — repurposed for Phase X.5 Pre-Reply BL-ACK Mini-FSM.
     // The module pushes a SCH/HD-coded BL-ACK on every Frag-1 pulse so the
     // attaching MS sees an ACK on the Pre-Reply slot (1 frame after Frag-1)
@@ -2242,6 +2251,7 @@ tetra_dl_signal_queue #(
     .wr_sds_coded     (pre_reply_blck_coded_sys_w),
     .wr_sds_pdu_type  (pre_reply_blck_pdu_type_sys_w),
     .wr_sds_target_tn (pre_reply_blck_target_tn_sys_w),
+    .wr_sds_aach_pattern (14'h0009),    // Phase Z.2 — Pre-Reply BL-ACK = signalling
     // Scheduler consumer
     .pop              (sched_pop_w),
     .head_valid       (queue_head_valid_w),
@@ -2249,6 +2259,7 @@ tetra_dl_signal_queue #(
     .head_pdu_type    (queue_head_pdu_type_w),
     .head_target_tn   (queue_head_target_tn_w),
     .head_prio        (queue_head_prio_w),
+    .head_aach_pattern (queue_head_aach_pattern_w),       // Phase Z.2
     .head_second_pdu_present (queue_head_second_pdu_present_w),
     .head_second_pdu_nr      (queue_head_second_pdu_nr_w),
     // Status
@@ -2275,6 +2286,7 @@ tetra_dl_signal_scheduler u_dl_signal_scheduler (
     .head_pdu_type_sys      (queue_head_pdu_type_w),
     .head_target_tn_sys     (queue_head_target_tn_w),
     .head_prio_sys          (queue_head_prio_w),
+    .head_aach_pattern_sys  (queue_head_aach_pattern_w),  // Phase Z.2
     .head_second_pdu_present_sys   (queue_head_second_pdu_present_w),
     .head_second_pdu_nr_sys        (queue_head_second_pdu_nr_w),
     .popped_second_pdu_present_sys (popped_second_pdu_present_w),
@@ -2296,6 +2308,11 @@ tetra_dl_signal_scheduler u_dl_signal_scheduler (
     .sched_blk2_tn3_sys     (sched_blk2_tn3_sys_w),
     .sched_ndb2_sys         (sched_ndb2_sys_w),
     .sched_active_sys       (sched_active_sys_w),
+    // Phase Z.2 — per-TN AACH override pattern outputs
+    .sched_aach_override_tn0_sys (sched_aach_override_tn0_sys_w),
+    .sched_aach_override_tn1_sys (sched_aach_override_tn1_sys_w),
+    .sched_aach_override_tn2_sys (sched_aach_override_tn2_sys_w),
+    .sched_aach_override_tn3_sys (sched_aach_override_tn3_sys_w),
     // Stats
     .override_cnt_sys       (sig_override_cnt_w),
     .pop_cnt_sys            (sig_pop_cnt_w)
@@ -2839,6 +2856,12 @@ wire [1:0]   mle_slot_wr_target_tn_w =
 // GroupAck and SlotGrant don't have concat-second-PDUs.
 wire         mle_slot_wr_second_pdu_present_w = mle_req_valid_w ? mle_req_second_pdu_present_w : 1'b0;
 wire         mle_slot_wr_second_pdu_nr_w      = mle_req_valid_w ? mle_req_second_pdu_nr_w      : 1'b0;
+
+// Phase Z.2 — every MLE producer (LU-ACCEPT / GroupAck / SlotGrant) is a
+// signalling-class PDU.  Tag the queue entry with AACH pattern 0x0009
+// (signalling-active) so the AACH encoder lifts the slot's broadcast
+// from default 0x0249/0x32CB to Unalloc/Unalloc on the carrier frame.
+wire [13:0]  mle_slot_wr_aach_pattern_w = 14'h0009;
 
 // CDC: consume pulse + counter clk_sys → clk_axi
 (* ASYNC_REG = "TRUE" *) reg nwrk_bcast_consume_axi_r0;
@@ -3788,6 +3811,21 @@ end
 // =============================================================================
 // aach_coded_sys_w / aach_valid_sys_w declared earlier as forward refs
 
+// Phase Z.2 — per-tn-pattern → per-encode-cycle pattern lookup.  The AACH
+// encoder works on tx_tn_next_sys (lookahead).  Pick the matching slot's
+// override pattern; valid when the pattern is non-zero (14'd0 sentinel
+// = "use default-logic" path).
+reg  [13:0] aach_override_info_tn_sys;
+always @(*) begin
+    case (tx_tn_next_sys)
+        2'd0:    aach_override_info_tn_sys = sched_aach_override_tn0_sys_w;
+        2'd1:    aach_override_info_tn_sys = sched_aach_override_tn1_sys_w;
+        2'd2:    aach_override_info_tn_sys = sched_aach_override_tn2_sys_w;
+        default: aach_override_info_tn_sys = sched_aach_override_tn3_sys_w;
+    endcase
+end
+wire aach_override_valid_tn_sys = (aach_override_info_tn_sys != 14'd0);
+
 tetra_aach_encoder u_aach_encoder (
     .clk_sys          (clk_sys),
     .rst_n_sys        (rst_n_sys),
@@ -3805,6 +3843,9 @@ tetra_aach_encoder u_aach_encoder (
     .grant_pending_sys (aach_grant_pending_sys_r1),
     .grant_info_sys    (aach_grant_info_sys_r1),
     .grant_consume_sys (aach_grant_consume_sys_w),
+    // Phase Z.2 — Scheduler-driven AACH override (per-PDU-class pattern)
+    .aach_override_valid_sys (aach_override_valid_tn_sys),
+    .aach_override_info_sys  (aach_override_info_tn_sys),
     .encode_start_sys (tx_tdma_state_slot_pulse_sys),
     .aach_coded_sys   (aach_coded_sys_w),
     .aach_valid_sys   (aach_valid_sys_w)

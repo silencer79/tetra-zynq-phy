@@ -149,6 +149,7 @@ tetra_slot_content_mux #(
     .sched_blk1_tn3_sys   (sched_blk1_tn3_sys),
     .sched_blk2_tn3_sys   (sched_blk2_tn3_sys),
     .sched_ndb2_sys       (sched_ndb2_sys),
+    .sched_active_sys     (4'b0000),    // Phase Z.2 — pre-Z.2 behaviour
     .slot_burst_type_sys  (slot_burst_type_sys),
     .slot_en_sys          (slot_en_sys),
     .slot_ndb2_sys        (slot_ndb2_sys),

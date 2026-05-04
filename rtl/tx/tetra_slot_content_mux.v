@@ -128,6 +128,14 @@ module tetra_slot_content_mux #(
     input  wire [BLOCK_BITS-1:0]  sched_blk1_tn3_sys,
     input  wire [BLOCK_BITS-1:0]  sched_blk2_tn3_sys,
     input  wire [3:0]             sched_ndb2_sys,
+    // Phase Z.2 — dynamic-class override.  sched_active_sys[k]==1 indicates
+    // that the scheduler popped a PDU with target_tn=k for the current
+    // frame.  When the BRAM schedule entry for TN=k carries class=STATIC,
+    // this bit lifts the slot to the SIGNALLING path for one frame so the
+    // queued SCH/F or SCH/HD content is broadcast instead of the static
+    // SYSINFO/NULL-PDU default.  TNs already classified as SIGNALLING in
+    // the BRAM are unaffected (they always took the scheduler path).
+    input  wire [3:0]             sched_active_sys,
 
     // Outputs to tetra_tx_chain
     output reg  [3:0]             slot_burst_type_sys,
@@ -312,7 +320,17 @@ function [5:0] bus_idx; input [15:0] ent; begin bus_idx       = ent[11:6];      
 // Per-TN class dispatch.  For each slot the schedule entry selects ONE
 // source — STATIC_BROADCAST from the SW banks, or SIGNALLING from the
 // scheduler's per-TN bundle.  No conditional override, no layered mux.
+//
+// Phase Z.2 — dynamic-signalling override:
+//   sig_route_tn<k> = bus_is_signal(entry_k) || sched_active_sys[k]
+// When the queue popped a PDU for TN=k this frame, the slot is lifted
+// to the SIGNALLING path even if the static schedule entry says class=0.
 // =============================================================================
+wire sig_route_tn0_w = bus_is_signal(sched_entry_reg_sys0) | sched_active_sys[0];
+wire sig_route_tn1_w = bus_is_signal(sched_entry_reg_sys1) | sched_active_sys[1];
+wire sig_route_tn2_w = bus_is_signal(sched_entry_reg_sys2) | sched_active_sys[2];
+wire sig_route_tn3_w = bus_is_signal(sched_entry_reg_sys3) | sched_active_sys[3];
+
 reg [BLOCK_BITS-1:0] blk1_mux_tn0_sys;
 reg [BLOCK_BITS-1:0] blk2_mux_tn0_sys;
 reg [BLOCK_BITS-1:0] blk1_mux_tn1_sys;
@@ -324,7 +342,7 @@ reg [BLOCK_BITS-1:0] blk2_mux_tn3_sys;
 
 // TN=0
 always @(*) begin
-    if (bus_is_signal(sched_entry_reg_sys0)) begin
+    if (sig_route_tn0_w) begin
         blk1_mux_tn0_sys = sched_blk1_tn0_sys;
         blk2_mux_tn0_sys = sched_blk2_tn0_sys;
     end else begin
@@ -342,7 +360,7 @@ end
 
 // TN=1
 always @(*) begin
-    if (bus_is_signal(sched_entry_reg_sys1)) begin
+    if (sig_route_tn1_w) begin
         blk1_mux_tn1_sys = sched_blk1_tn1_sys;
         blk2_mux_tn1_sys = sched_blk2_tn1_sys;
     end else begin
@@ -360,7 +378,7 @@ end
 
 // TN=2
 always @(*) begin
-    if (bus_is_signal(sched_entry_reg_sys2)) begin
+    if (sig_route_tn2_w) begin
         blk1_mux_tn2_sys = sched_blk1_tn2_sys;
         blk2_mux_tn2_sys = sched_blk2_tn2_sys;
     end else begin
@@ -378,7 +396,7 @@ end
 
 // TN=3
 always @(*) begin
-    if (bus_is_signal(sched_entry_reg_sys3)) begin
+    if (sig_route_tn3_w) begin
         blk1_mux_tn3_sys = sched_blk1_tn3_sys;
         blk2_mux_tn3_sys = sched_blk2_tn3_sys;
     end else begin
@@ -395,16 +413,18 @@ always @(*) begin
 end
 
 // =============================================================================
-// Per-TN NDB2 selection — same class dispatch.
+// Per-TN NDB2 selection — same class dispatch (Phase Z.2: include
+// sched_active override so SCH/F SCH/HD distinction follows scheduler
+// when a queued PDU lifts a STATIC slot to SIGNALLING).
 // =============================================================================
-wire ndb2_tn0_w = bus_is_signal(sched_entry_reg_sys0) ? sched_ndb2_sys[0]
-                                                      : bus_is_ndb2(sched_entry_reg_sys0);
-wire ndb2_tn1_w = bus_is_signal(sched_entry_reg_sys1) ? sched_ndb2_sys[1]
-                                                      : bus_is_ndb2(sched_entry_reg_sys1);
-wire ndb2_tn2_w = bus_is_signal(sched_entry_reg_sys2) ? sched_ndb2_sys[2]
-                                                      : bus_is_ndb2(sched_entry_reg_sys2);
-wire ndb2_tn3_w = bus_is_signal(sched_entry_reg_sys3) ? sched_ndb2_sys[3]
-                                                      : bus_is_ndb2(sched_entry_reg_sys3);
+wire ndb2_tn0_w = sig_route_tn0_w ? sched_ndb2_sys[0]
+                                  : bus_is_ndb2(sched_entry_reg_sys0);
+wire ndb2_tn1_w = sig_route_tn1_w ? sched_ndb2_sys[1]
+                                  : bus_is_ndb2(sched_entry_reg_sys1);
+wire ndb2_tn2_w = sig_route_tn2_w ? sched_ndb2_sys[2]
+                                  : bus_is_ndb2(sched_entry_reg_sys2);
+wire ndb2_tn3_w = sig_route_tn3_w ? sched_ndb2_sys[3]
+                                  : bus_is_ndb2(sched_entry_reg_sys3);
 
 // =============================================================================
 // Registered per-slot outputs (R1: one always block per register).

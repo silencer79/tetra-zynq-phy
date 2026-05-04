@@ -68,6 +68,17 @@ module tetra_aach_encoder (
     input  wire [13:0] grant_info_sys,
     output reg         grant_consume_sys,
 
+    // Phase Z.2 — Scheduler-driven AACH override.  When
+    // aach_override_valid_sys=1 the encoder uses aach_override_info_sys
+    // instead of any default-logic / signalling_active / grant path,
+    // EXCEPT for the F18-anchor branches which still take precedence
+    // (F18 BSCH timing must not be perturbed).  This carries the
+    // per-PDU-class AACH pattern attached to a dl_signal_queue entry so
+    // the slot-class lift (STATIC → SIGNALLING for one frame) and the
+    // AACH lift (0x0249/0x32CB → 0x0009) happen in the same frame.
+    input  wire        aach_override_valid_sys,
+    input  wire [13:0] aach_override_info_sys,
+
     // Trigger — 1-cycle pulse, start new encoding
     input  wire        encode_start_sys,
 
@@ -177,7 +188,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
                 // BSCH-Anker durch.  H.6.3 grant-override wirkt nur auf den
                 // F1-17 TN=0 idle-Pfad (signalling_active=0, kein F18).
                 if (fn_sys == 5'd17) begin
-                    // F18-Bereich
+                    // F18-Bereich (BSCH timing — never perturbed by Z.2 override)
                     if (tn_sys == 2'd0 && mn_low2_sys == 2'd2)
                         info_sys <= 14'h0049;             // F18 TN=0 BSCH-Anker
                     else if (tn_sys == 2'd0)
@@ -186,6 +197,11 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
                         info_sys <= 14'h0040;             // F18 TN!=0 MN%4=1 SB
                     else
                         info_sys <= 14'h2249;             // F18 TN!=0 MN%4∈{0,2,3} Reserved
+                end else if (aach_override_valid_sys) begin
+                    // Phase Z.2 — Scheduler queued a PDU for this TN this
+                    // frame.  Use the attached AACH pattern (typically
+                    // 0x0009 signalling-active) for the addressed slot.
+                    info_sys <= aach_override_info_sys;
                 end else if (tn_sys == 2'd0 && !signalling_active_sys && grant_pending_sys) begin
                     info_sys <= grant_info_sys;
                     grant_consume_sys <= 1'b1;

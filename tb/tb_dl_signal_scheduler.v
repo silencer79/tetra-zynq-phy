@@ -63,6 +63,7 @@ module tb_dl_signal_scheduler;
         .head_pdu_type_sys     (head_pdu_type_sys),
         .head_target_tn_sys    (head_target_tn_sys),
         .head_prio_sys         (head_prio_sys),
+        .head_aach_pattern_sys (14'd0),
         .head_second_pdu_present_sys (1'b0),
         .head_second_pdu_nr_sys      (1'b0),
         .popped_second_pdu_present_sys (),
@@ -78,6 +79,11 @@ module tb_dl_signal_scheduler;
         .sched_blk1_tn3_sys    (sched_blk1_tn3_sys),
         .sched_blk2_tn3_sys    (sched_blk2_tn3_sys),
         .sched_ndb2_sys        (sched_ndb2_sys),
+        .sched_active_sys      (),
+        .sched_aach_override_tn0_sys (),
+        .sched_aach_override_tn1_sys (),
+        .sched_aach_override_tn2_sys (),
+        .sched_aach_override_tn3_sys (),
         .override_cnt_sys      (override_cnt_sys),
         .pop_cnt_sys           (pop_cnt_sys)
     );

@@ -59,6 +59,13 @@ module tetra_dl_signal_queue #(
     input  wire [431:0] wr_mle_coded,
     input  wire [1:0]   wr_mle_pdu_type,
     input  wire [1:0]   wr_mle_target_tn,
+    // Phase Z.2 — per-entry AACH override pattern.  When non-zero this
+    // value is forwarded by the scheduler to the AACH encoder for the
+    // frame that carries the popped PDU (target_tn).  Setting 14'h0009
+    // (signalling-active) flips the AACH from default 0x0249/0x32CB to
+    // signalling-active so the MS sees a SCH/F-format slot announcement.
+    // 14'h0000 keeps the encoder default-logic path (back-compat).
+    input  wire [13:0]  wr_mle_aach_pattern,
     // Option B (2026-04-24 commit 4): telemetry bits indicating that the
     // coded SCH/F block carries a concatenated BL-ACK second MAC-RESOURCE
     // (bluestation llc_bs_ms.rs schedule_outgoing_ack).  Purely
@@ -76,6 +83,7 @@ module tetra_dl_signal_queue #(
     input  wire [431:0] wr_cmce_coded,
     input  wire [1:0]   wr_cmce_pdu_type,
     input  wire [1:0]   wr_cmce_target_tn,
+    input  wire [13:0]  wr_cmce_aach_pattern,   // Phase Z.2
 
     // -------------------------------------------------------------------------
     // Producer write port — SDS (prio 10, tied off in MVP)
@@ -84,6 +92,7 @@ module tetra_dl_signal_queue #(
     input  wire [431:0] wr_sds_coded,
     input  wire [1:0]   wr_sds_pdu_type,
     input  wire [1:0]   wr_sds_target_tn,
+    input  wire [13:0]  wr_sds_aach_pattern,    // Phase Z.2
 
     // -------------------------------------------------------------------------
     // Consumer pop (single reader, single cycle latency)
@@ -94,6 +103,7 @@ module tetra_dl_signal_queue #(
     output wire [1:0]   head_pdu_type,
     output wire [1:0]   head_target_tn,
     output wire [1:0]   head_prio,
+    output wire [13:0]  head_aach_pattern,        // Phase Z.2
     output wire         head_second_pdu_present, // commit 4 telemetry
     output wire         head_second_pdu_nr,
 
@@ -112,6 +122,7 @@ module tetra_dl_signal_queue #(
     reg [1:0]   entry_pdu_type[0:DEPTH-1];
     reg [1:0]   entry_target_tn[0:DEPTH-1];
     reg [1:0]   entry_prio    [0:DEPTH-1];
+    reg [13:0]  entry_aach_pattern [0:DEPTH-1];   // Phase Z.2
     reg         entry_second_pdu_present [0:DEPTH-1];
     reg         entry_second_pdu_nr      [0:DEPTH-1];
     reg [DEPTH-1:0] entry_valid;
@@ -135,6 +146,9 @@ module tetra_dl_signal_queue #(
     wire [1:0]   arb_write_target_tn= wr_mle_valid  ? wr_mle_target_tn
                                     : wr_cmce_valid ? wr_cmce_target_tn
                                     :                 wr_sds_target_tn;
+    wire [13:0]  arb_write_aach_pattern = wr_mle_valid  ? wr_mle_aach_pattern
+                                        : wr_cmce_valid ? wr_cmce_aach_pattern
+                                        :                 wr_sds_aach_pattern;
     // Only MLE currently sets a second_pdu; CMCE/SDS default to 0.
     wire         arb_write_second_pdu_present = wr_mle_valid ? wr_mle_second_pdu_present : 1'b0;
     wire         arb_write_second_pdu_nr      = wr_mle_valid ? wr_mle_second_pdu_nr      : 1'b0;
@@ -238,6 +252,7 @@ module tetra_dl_signal_queue #(
     assign head_pdu_type  = entry_pdu_type[head_idx];
     assign head_target_tn = entry_target_tn[head_idx];
     assign head_prio      = entry_prio    [head_idx];
+    assign head_aach_pattern       = entry_aach_pattern[head_idx];
     assign head_second_pdu_present = entry_second_pdu_present[head_idx];
     assign head_second_pdu_nr      = entry_second_pdu_nr     [head_idx];
 
@@ -273,6 +288,7 @@ module tetra_dl_signal_queue #(
                 entry_pdu_type [s_i] <= 2'd0;
                 entry_target_tn[s_i] <= 2'd0;
                 entry_prio     [s_i] <= 2'd0;
+                entry_aach_pattern[s_i] <= 14'd0;
                 entry_second_pdu_present[s_i] <= 1'b0;
                 entry_second_pdu_nr     [s_i] <= 1'b0;
             end
@@ -281,6 +297,7 @@ module tetra_dl_signal_queue #(
             entry_pdu_type [free_idx] <= arb_write_pdu_type;
             entry_target_tn[free_idx] <= arb_write_target_tn;
             entry_prio     [free_idx] <= arb_write_prio;
+            entry_aach_pattern[free_idx] <= arb_write_aach_pattern;
             entry_second_pdu_present[free_idx] <= arb_write_second_pdu_present;
             entry_second_pdu_nr     [free_idx] <= arb_write_second_pdu_nr;
         end

@@ -61,6 +61,12 @@ module tetra_dl_signal_scheduler (
     input  wire [1:0]   head_pdu_type_sys,   // 00=SCH_F, 01=SCH_HD
     input  wire [1:0]   head_target_tn_sys,
     input  wire [1:0]   head_prio_sys,
+    // Phase Z.2 — AACH override pattern attached to the queued PDU.
+    // 14'h0009 (signalling-active) lifts TN!=0 default 0x32CB CapAlloc /
+    // TN=0 default 0x0249 Common-Random to 0x0009 Unalloc/Unalloc on the
+    // frame that carries the popped PDU.  14'h0000 means "use AACH-encoder
+    // default-logic path" — preserves pre-Z.2 behaviour.
+    input  wire [13:0]  head_aach_pattern_sys,
     // Option B telemetry (commit 5) — 1 iff the popped SCH/F block
     // carries a concatenated auto-BL-ACK after the D-LOC-UPDATE-ACCEPT
     // (see tetra_dl_signal_queue.v).  Mirrored to the per-pop output
@@ -94,6 +100,14 @@ module tetra_dl_signal_scheduler (
     output reg  [215:0] sched_blk2_tn3_sys,
     output reg  [3:0]   sched_ndb2_sys,
     output reg  [3:0]   sched_active_sys,
+    // Phase Z.2 — per-TN AACH override pattern.  Stable across the frame
+    // following the pop trigger.  Only the TN matching head_target_tn at
+    // the time of pop carries head_aach_pattern_sys; others reset to 0
+    // (= "use default-logic" sentinel).
+    output reg  [13:0]  sched_aach_override_tn0_sys,
+    output reg  [13:0]  sched_aach_override_tn1_sys,
+    output reg  [13:0]  sched_aach_override_tn2_sys,
+    output reg  [13:0]  sched_aach_override_tn3_sys,
 
     // -------------------------------------------------------------------------
     // Stats (to AXI regs)
@@ -134,6 +148,13 @@ module tetra_dl_signal_scheduler (
     wire [215:0] next_blk1_tn3 = tgt_tn3 ? head_coded_sys[431:216] : null_pdu_bits_sys;
     wire [215:0] next_blk2_tn3 = (tgt_tn3 && head_is_f) ? head_coded_sys[215:0] : sig_companion_sys;
     wire         next_ndb2_tn3 = tgt_tn3 ? head_is_hd : 1'b1;
+
+    // Phase Z.2 — AACH override pattern: only the addressed TN gets the
+    // queued pattern; idle TNs reset to 14'd0 = "use AACH-encoder default".
+    wire [13:0] next_aach_ovr_tn0 = tgt_tn0 ? head_aach_pattern_sys : 14'd0;
+    wire [13:0] next_aach_ovr_tn1 = tgt_tn1 ? head_aach_pattern_sys : 14'd0;
+    wire [13:0] next_aach_ovr_tn2 = tgt_tn2 ? head_aach_pattern_sys : 14'd0;
+    wire [13:0] next_aach_ovr_tn3 = tgt_tn3 ? head_aach_pattern_sys : 14'd0;
 
     // -------------------------------------------------------------------------
     // pop_sys — 1-cycle strobe on the trigger when a PDU is available.
@@ -199,6 +220,25 @@ module tetra_dl_signal_scheduler (
         else if (pop_trigger)
             sched_active_sys <= have_pdu ? {tgt_tn3, tgt_tn2, tgt_tn1, tgt_tn0}
                                          : 4'b0000;
+    end
+
+    // Phase Z.2 — per-TN AACH override patterns, latched on pop_trigger.
+    // Each TN holds its pattern stable across the entire next frame.
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)        sched_aach_override_tn0_sys <= 14'd0;
+        else if (pop_trigger)  sched_aach_override_tn0_sys <= next_aach_ovr_tn0;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)        sched_aach_override_tn1_sys <= 14'd0;
+        else if (pop_trigger)  sched_aach_override_tn1_sys <= next_aach_ovr_tn1;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)        sched_aach_override_tn2_sys <= 14'd0;
+        else if (pop_trigger)  sched_aach_override_tn2_sys <= next_aach_ovr_tn2;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)        sched_aach_override_tn3_sys <= 14'd0;
+        else if (pop_trigger)  sched_aach_override_tn3_sys <= next_aach_ovr_tn3;
     end
 
     // -------------------------------------------------------------------------
