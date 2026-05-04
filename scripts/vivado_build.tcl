@@ -192,6 +192,12 @@ add_files -fileset constrs_1 -norecurse [list \
  $PROJ_DIR/constraints/adi_cdc_async_reg.xdc \
 ]
 
+# Phase Z.3 — register include path for tetra_pdu_class.vh.
+# All RTL modules use `\`include "tetra_pdu_class.vh"` for PDU-Class-Tupel
+# constants. Vivado needs the include dir in the synthesis fileset so the
+# preprocessor finds it during HDL parsing.
+set_property include_dirs [list $PROJ_DIR/rtl/include] [get_filesets sources_1]
+
 # Update compile order before BD creation (needed for module reference)
 update_compile_order -fileset sources_1
 
