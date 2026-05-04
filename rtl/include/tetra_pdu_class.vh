@@ -11,7 +11,8 @@
 //
 //   Class                          | Slot     | AACH    | TN   | LLC          | RA | Encoder
 //   -------------------------------+----------+---------+------+--------------+----+---------------
-//   PDUC_PRE_REPLY_SLOTGRANT       | SCH/HD   | 0x0009  | mcch | AL-SETUP (8) | 1  | sch_hd 124→216
+//   PDUC_PRE_REPLY_SLOTGRANT_LU    | SCH/F    | 0x0009  | mcch | AL-SETUP (8) | 1  | sch_f  268→432
+//   PDUC_PRE_REPLY_SLOTGRANT_GRP   | SCH/HD   | 0x0009  | mcch | AL-SETUP (8) | 1  | sch_hd 124→216
 //   PDUC_FINAL_LU_ACCEPT           | SCH/F    | 0x0009  | mcch | BL-ADATA (0) | 0  | sch_f  268→432
 //   PDUC_FINAL_LU_REJECT           | SCH/HD   | 0x0009  | mcch | BL-ADATA (0) | 0  | sch_hd 124→216
 //   PDUC_GROUP_ACK                 | SCH/F    | 0x0009  | mcch | BL-ADATA (0) | 0  | sch_f  268→432
@@ -70,17 +71,31 @@
 //   AL-SETUP  — 7-octet wrapper
 
 // =============================================================================
-// PDUC_PRE_REPLY_SLOTGRANT
+// PDUC_PRE_REPLY_SLOTGRANT_LU
 //   - mm=2 ITSI-Attach Pre-Reply LI=7 AL-SETUP
-//   - mm=7 Group-Switch  Pre-Reply LI=7 AL-SETUP (identical bit-pattern,
-//     reference_gold_group_switch_burst_timeline.md)
-//   - SCH/HD slot, AACH 0x0009 (signalling-active, MS expects SCH/HD payload)
+//   - SCH/F slot, AACH 0x0009 (signalling-active).  Historic working path
+//     for the MTP3550 in our cell — pre-Z.3 mm=2 used SCH/F via shared
+//     dl_pdu_builder with hardcoded slot_granting_flag=1 + element=0x01
+//     (cad69e0).  Reverting Z.3's mm=2-on-SCH/HD attempt that broke the
+//     MS's Frag-2 trigger.
 // =============================================================================
-`define PDUC_PRE_REPLY_SLOTGRANT_FMT       `PDUC_SLOTFMT_SCH_HD
-`define PDUC_PRE_REPLY_SLOTGRANT_AACH      `PDUC_AACH_SIGNALLING_ACTIVE
-`define PDUC_PRE_REPLY_SLOTGRANT_ADDRTYPE  `PDUC_ADDRTYPE_SSI
-`define PDUC_PRE_REPLY_SLOTGRANT_LLC       `PDUC_LLC_AL_SETUP
-`define PDUC_PRE_REPLY_SLOTGRANT_RA        1'b1
+`define PDUC_PRE_REPLY_SLOTGRANT_LU_FMT       `PDUC_SLOTFMT_SCH_F
+`define PDUC_PRE_REPLY_SLOTGRANT_LU_AACH      `PDUC_AACH_SIGNALLING_ACTIVE
+`define PDUC_PRE_REPLY_SLOTGRANT_LU_ADDRTYPE  `PDUC_ADDRTYPE_SSI
+`define PDUC_PRE_REPLY_SLOTGRANT_LU_LLC       `PDUC_LLC_AL_SETUP
+`define PDUC_PRE_REPLY_SLOTGRANT_LU_RA        1'b1
+
+// =============================================================================
+// PDUC_PRE_REPLY_SLOTGRANT_GRP
+//   - mm=7 Group-Switch Pre-Reply LI=7 AL-SETUP
+//   - SCH/HD slot, AACH 0x0009 (Gold-conform per
+//     reference_gold_group_switch_burst_timeline.md), sg_flag=1 sg_element=0x00.
+// =============================================================================
+`define PDUC_PRE_REPLY_SLOTGRANT_GRP_FMT       `PDUC_SLOTFMT_SCH_HD
+`define PDUC_PRE_REPLY_SLOTGRANT_GRP_AACH      `PDUC_AACH_SIGNALLING_ACTIVE
+`define PDUC_PRE_REPLY_SLOTGRANT_GRP_ADDRTYPE  `PDUC_ADDRTYPE_SSI
+`define PDUC_PRE_REPLY_SLOTGRANT_GRP_LLC       `PDUC_LLC_AL_SETUP
+`define PDUC_PRE_REPLY_SLOTGRANT_GRP_RA        1'b1
 
 // =============================================================================
 // PDUC_FINAL_LU_ACCEPT — mm=2 Final D-LOC-UPDATE-ACCEPT LI=21 SCH/F

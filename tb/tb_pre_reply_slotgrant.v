@@ -1,48 +1,55 @@
 // =============================================================================
-// tb_pre_reply_slotgrant.v — Phase Z.3 Pre-Reply Slot-Grant Mini-FSM regression
+// tb_pre_reply_slotgrant.v — Phase Z.4 Pre-Reply Slot-Grant Mini-FSM regression
 //
-// Z.3 (Gold-conform refactor): the FSM no longer goes through the shared
-// SCH/F builder.  It now packs a 124-bit MAC-RESOURCE LI=7 AL-SETUP PDU
-// with `slot_granting_flag=0` (Gold bit-identity per
-// reference_gold_full_attach_timeline.md) and SCH/HD-encodes it to 216
-// bits.  The TB drives a parallel reference chain (mac_resource_dl_builder
-// PDU_BITS=124 + sch_hd_encoder) and asserts bit-identity of
-// wr_slotgrant_coded_sys[215:0] against it.
+// Z.4 (dual-path): the FSM switches reply class at runtime based on
+// `mm_pdu_type`:
+//   mm=2 (LU)  → SCH/F 432-bit via SHARED tetra_dl_pdu_builder
+//                (slot_granting_flag=1, sg_element=0x01 — pre-Z.3 cad69e0
+//                 working pattern that the MTP3550 in our cell expects).
+//   mm=7 (GRP) → SCH/HD 216-bit via INTERNAL mac_resource_dl_builder + sch_hd
+//                (slot_granting_flag=1, sg_element=0x00 — Gold-Ref bit-pattern
+//                 per reference_gold_group_switch_burst_timeline.md).
 //
 // Coverage:
-//   TC1  reset baseline                — all outputs 0, drop_cnt=0
-//   TC2  frag1_pulse with ssi=0x282FF4 → wr_slotgrant_valid pulses 1 cyc,
-//        wr_slotgrant_pdu_type=01 (SCH_HD), target_tn=cfg_mcch_tn,
-//        wr_slotgrant_coded[215:0] equals SCH/HD-encoded MAC-RESOURCE
-//        AL-SETUP (bit-exact via reference chain in parallel),
-//        wr_slotgrant_coded[431:216] = 0
-//        Plus Gold-Bit-Pattern-Spotcheck on the FIRST 40 bits of the
-//        builder PDU (MSB-first):
-//          [123]    PDUtype[1]      = 0
-//          [122]    PDUtype[0]      = 0
-//          [121]    FillBit         = 1
-//          [120]    PosOfGrant      = 0
-//          [119]    Encr[1]         = 0
-//          [118]    Encr[0]         = 0
-//          [117]    RandAccFlag     = 1
-//          [116:111] LengthInd      = 6'd7    ← LI=7 octets
-//          [110:108] AddrType       = 3'b001
-//          [107: 84] SSI            = 24'h282FF4
-//          [83]    pc_flag          = 0
-//          [82]    sg_flag          = 0       ← Gold flags=000
-//          [81]    ca_flag          = 0
-//          [80:77] LLC AL-SETUP type = 4'b1000
-//   TC3  frag1_pulse with ssi=0xCAFE42 → fresh push, different coded bits
-//        (sanity: SSI swap propagates), push_cnt += 1
-//   TC4  collision drop: trigger second frag1_pulse while pipeline busy
-//        in S_BUILD/S_ENC → drop_cnt += 1
-//   TC5  fresh push after IDLE recovery, push_cnt monotonic
+//   TC1   reset baseline                — all outputs 0, drop_cnt=0
+//   TC2   mm=2 frag1_pulse, ssi=0x282FF4
+//         → wr_slotgrant_valid=1 cyc, pdu_type=00 (SCH_F),
+//           target_tn=cfg_mcch_tn,
+//           coded[431:0] equals reference SCH/F build (bit-exact via
+//           parallel tetra_dl_pdu_builder reference instance).
+//   TC3   mm=7 frag1_pulse, ssi=0xCAFE42
+//         → wr_slotgrant_valid=1 cyc, pdu_type=01 (SCH_HD),
+//           target_tn=cfg_mcch_tn,
+//           coded[215:0] equals SCH/HD reference (bit-exact via parallel
+//           mac_resource_dl_builder PDU_BITS=124 + sch_hd_encoder),
+//           coded[431:216]=0,
+//           Gold-Bit-Pattern spotcheck on the FIRST 40 bits of the builder
+//           PDU (MSB-first):
+//              [123:122] PDUtype  = 00
+//              [121]     FillBit  = 1
+//              [120]     PoG      = 0
+//              [119:118] Encr     = 00
+//              [117]     RA       = 1
+//              [116:111] LI       = 6'd7
+//              [110:108] AddrType = 3'b001
+//              [107:84]  SSI      = 24'hCAFE42
+//              [83]      pc_flag  = 0
+//              [82]      sg_flag  = 1
+//              [81:74]   sg_elem  = 8'h00
+//              [73]      ca_flag  = 0
+//              [72:69]   AL-SETUP = 4'b1000
+//   TC4   collision drop (mm=2 path) — second frag1_pulse during S_BUILD
+//         → drop_cnt += 1
+//   TC5   fresh push after busy clears (mm=7 path) — push_cnt monotonic
 //
 // Run:
 //   iverilog -g2001 -I rtl/include -o /tmp/tb_sg \
 //          tb/tb_pre_reply_slotgrant.v \
 //          rtl/lmac/tetra_pre_reply_slotgrant.v \
+//          rtl/lmac/tetra_dl_pdu_builder.v \
+//          rtl/lmac/tetra_basic_slotgrant_encoder.v \
 //          rtl/lmac/tetra_mac_resource_dl_builder.v \
+//          rtl/lmac/tetra_sch_f_encoder.v \
 //          rtl/lmac/tetra_sch_hd_encoder.v \
 //          rtl/lmac/tetra_crc16.v \
 //          rtl/lmac/tetra_interleaver.v
@@ -60,8 +67,24 @@ module tb_pre_reply_slotgrant;
     // DUT inputs
     reg         frag1_pulse       = 1'b0;
     reg  [23:0] ul_ssi            = 24'd0;
+    reg  [3:0]  mm_pdu_type       = 4'd0;
     reg  [1:0]  cfg_mcch_tn       = 2'd1;
     reg  [31:0] cfg_scramble_init = 32'd0;  // TB uses 0 so reference encoder matches
+
+    // DUT shared-builder port (mm=2 SCH/F path).  Drive these from the
+    // reference tetra_dl_pdu_builder so the DUT actually completes its
+    // S_BUILD wait when mm=2.
+    wire         dut_sg_build_req_w;
+    wire [23:0]  dut_sg_build_ssi_w;
+    wire [2:0]   dut_sg_build_addr_type_w;
+    wire [3:0]   dut_sg_build_llc_pdu_type_w;
+    wire         dut_sg_build_random_access_flag_w;
+    wire [127:0] dut_sg_build_mm_pdu_bits_w;
+    wire [7:0]   dut_sg_build_mm_pdu_len_bits_w;
+    wire [31:0]  dut_sg_build_scramble_init_w;
+    wire         dut_dl_pdu_done_w;
+    wire [431:0] dut_dl_pdu_coded_w;
+    wire         dut_dl_pdu_busy_w;
 
     // DUT outputs
     wire         wr_slotgrant_valid_sys;
@@ -72,22 +95,82 @@ module tb_pre_reply_slotgrant;
     wire [15:0]  drop_cnt_sys;
 
     tetra_pre_reply_slotgrant dut (
-        .clk_sys                  (clk),
-        .rst_n_sys                (rst_n),
-        .frag1_pulse              (frag1_pulse),
-        .ul_ssi                   (ul_ssi),
-        .cfg_mcch_tn              (cfg_mcch_tn),
-        .cfg_scramble_init        (cfg_scramble_init),
-        .wr_slotgrant_valid_sys   (wr_slotgrant_valid_sys),
-        .wr_slotgrant_coded_sys   (wr_slotgrant_coded_sys),
-        .wr_slotgrant_pdu_type_sys(wr_slotgrant_pdu_type_sys),
-        .wr_slotgrant_target_tn_sys(wr_slotgrant_target_tn_sys),
-        .push_cnt_sys             (push_cnt_sys),
-        .drop_cnt_sys             (drop_cnt_sys)
+        .clk_sys                            (clk),
+        .rst_n_sys                          (rst_n),
+        .frag1_pulse                        (frag1_pulse),
+        .ul_ssi                             (ul_ssi),
+        .mm_pdu_type                        (mm_pdu_type),
+        .cfg_mcch_tn                        (cfg_mcch_tn),
+        .cfg_scramble_init                  (cfg_scramble_init),
+        // Shared SCH/F builder bus
+        .slotgrant_build_req                (dut_sg_build_req_w),
+        .slotgrant_build_ssi                (dut_sg_build_ssi_w),
+        .slotgrant_build_addr_type          (dut_sg_build_addr_type_w),
+        .slotgrant_build_llc_pdu_type       (dut_sg_build_llc_pdu_type_w),
+        .slotgrant_build_random_access_flag (dut_sg_build_random_access_flag_w),
+        .slotgrant_build_mm_pdu_bits        (dut_sg_build_mm_pdu_bits_w),
+        .slotgrant_build_mm_pdu_len_bits    (dut_sg_build_mm_pdu_len_bits_w),
+        .slotgrant_build_scramble_init      (dut_sg_build_scramble_init_w),
+        .slotgrant_build_done               (dut_dl_pdu_done_w),
+        .slotgrant_build_coded              (dut_dl_pdu_coded_w),
+        .slotgrant_build_grant_blocked      (dut_dl_pdu_busy_w),
+        .wr_slotgrant_valid_sys             (wr_slotgrant_valid_sys),
+        .wr_slotgrant_coded_sys             (wr_slotgrant_coded_sys),
+        .wr_slotgrant_pdu_type_sys          (wr_slotgrant_pdu_type_sys),
+        .wr_slotgrant_target_tn_sys         (wr_slotgrant_target_tn_sys),
+        .push_cnt_sys                       (push_cnt_sys),
+        .drop_cnt_sys                       (drop_cnt_sys)
+    );
+
+    // Shared SCH/F builder (used by DUT for mm=2 path, exactly like top.v)
+    tetra_dl_pdu_builder u_dut_dl_pdu_builder (
+        .clk                    (clk),
+        .rst_n                  (rst_n),
+        .req_valid              (dut_sg_build_req_w),
+        .req_ssi                (dut_sg_build_ssi_w),
+        .req_addr_type          (dut_sg_build_addr_type_w),
+        .req_llc_pdu_type       (dut_sg_build_llc_pdu_type_w),
+        .req_random_access_flag (dut_sg_build_random_access_flag_w),
+        .req_mm_pdu_bits        (dut_sg_build_mm_pdu_bits_w),
+        .req_mm_pdu_len_bits    (dut_sg_build_mm_pdu_len_bits_w),
+        .req_scramble_init      (dut_sg_build_scramble_init_w),
+        .req_ns                 (1'b0),
+        .req_nr                 (1'b0),
+        .done                   (dut_dl_pdu_done_w),
+        .coded_bits             (dut_dl_pdu_coded_w),
+        .busy                   (dut_dl_pdu_busy_w)
     );
 
     // -------------------------------------------------------------------------
-    // Reference encoder chain — mac_resource_dl_builder PDU_BITS=124 +
+    // mm=2 reference SCH/F chain — independent tetra_dl_pdu_builder driven
+    // separately so we can pre-compute expected 432-bit coded bits.
+    // -------------------------------------------------------------------------
+    reg          ref_schf_req       = 1'b0;
+    reg  [23:0]  ref_schf_ssi       = 24'd0;
+    wire         ref_schf_done_w;
+    wire [431:0] ref_schf_coded_w;
+    wire         ref_schf_busy_w;
+
+    tetra_dl_pdu_builder u_ref_schf (
+        .clk                    (clk),
+        .rst_n                  (rst_n),
+        .req_valid              (ref_schf_req),
+        .req_ssi                (ref_schf_ssi),
+        .req_addr_type          (3'd1),         // SSI
+        .req_llc_pdu_type       (4'd8),         // AL-SETUP
+        .req_random_access_flag (1'b1),         // RA
+        .req_mm_pdu_bits        (128'd0),
+        .req_mm_pdu_len_bits    (8'd0),
+        .req_scramble_init      (32'd0),
+        .req_ns                 (1'b0),
+        .req_nr                 (1'b0),
+        .done                   (ref_schf_done_w),
+        .coded_bits             (ref_schf_coded_w),
+        .busy                   (ref_schf_busy_w)
+    );
+
+    // -------------------------------------------------------------------------
+    // mm=7 reference SCH/HD chain — mac_resource_dl_builder PDU_BITS=124 +
     // sch_hd_encoder.  Driven from a separate ref_start so we can pre-
     // compute expected coded bits for any SSI before kicking the DUT.
     // -------------------------------------------------------------------------
@@ -111,7 +194,7 @@ module tb_pre_reply_slotgrant;
         .random_access_flag           (1'b1),
         .power_control_flag           (1'b0),
         .power_control_element        (4'd0),
-        .slot_granting_flag           (1'b1),       // Gold raw bits: flags=010
+        .slot_granting_flag           (1'b1),       // Gold raw bits flags=010
         .slot_granting_element        (8'h00),      // Gold sg_element=0x00
         .chan_alloc_flag              (1'b0),
         .chan_alloc_element           (32'd0),
@@ -150,9 +233,10 @@ module tb_pre_reply_slotgrant;
         .coded_valid   (ref_coded_valid_w)
     );
 
-    // Build the reference SCH/HD-coded 216-bit payload for `s`, plus return
-    // the 124-bit info bits for spot-checks.  Blocking task in TB context.
-    task automatic compute_ref;
+    // -------------------------------------------------------------------------
+    // Reference helpers
+    // -------------------------------------------------------------------------
+    task automatic compute_ref_schhd;
         input  [23:0]  s;
         output [215:0] out_coded;
         output [123:0] out_info;
@@ -172,7 +256,6 @@ module tb_pre_reply_slotgrant;
             end
             cap_pdu = ref_pdu_w;
 
-            // One cycle gap: drop builder valid, latch PDU, then start enc.
             @(posedge clk);
             ref_enc_info  <= cap_pdu;
             ref_enc_start <= 1'b1;
@@ -189,6 +272,29 @@ module tb_pre_reply_slotgrant;
             @(posedge clk);
             out_coded = cap;
             out_info  = cap_pdu;
+        end
+    endtask
+
+    task automatic compute_ref_schf;
+        input  [23:0]  s;
+        output [431:0] out_coded;
+        integer        guard;
+        reg [431:0]    cap;
+        begin
+            ref_schf_ssi <= s;
+            ref_schf_req <= 1'b1;
+            @(posedge clk);
+            ref_schf_req <= 1'b0;
+
+            guard = 0;
+            cap   = 432'd0;
+            while (!ref_schf_done_w && guard < 4000) begin
+                @(posedge clk);
+                guard = guard + 1;
+            end
+            cap = ref_schf_coded_w;
+            @(posedge clk);
+            out_coded = cap;
         end
     endtask
 
@@ -235,7 +341,7 @@ module tb_pre_reply_slotgrant;
         input [431:0]  exp;
         begin
             if (got === exp) begin
-                $display("  PASS  %0s  coded[215:192]=0x%06h", tag, got[215:192]);
+                $display("  PASS  %0s  coded[431:408]=0x%06h", tag, got[431:408]);
                 pass_cnt = pass_cnt + 1;
             end else begin
                 $display("  FAIL  %0s", tag);
@@ -267,8 +373,10 @@ module tb_pre_reply_slotgrant;
 
     task automatic pulse_frag1;
         input [23:0] s;
+        input [3:0]  mm;
         begin
             ul_ssi      <= s;
+            mm_pdu_type <= mm;
             frag1_pulse <= 1'b1;
             @(posedge clk);
             frag1_pulse <= 1'b0;
@@ -278,20 +386,19 @@ module tb_pre_reply_slotgrant;
     // -------------------------------------------------------------------------
     // Test cases
     // -------------------------------------------------------------------------
-    reg [431:0] exp_coded_a;
-    reg [431:0] exp_coded_b;
-    reg [431:0] got_coded_a;
-    reg [431:0] got_coded_b;
-    reg [215:0] ref_coded_a;
-    reg [215:0] ref_coded_b;
-    reg [123:0] ref_info_a;
-    reg [123:0] ref_info_b;
+    reg [431:0] exp_coded_lu;
+    reg [431:0] exp_coded_grp;
+    reg [431:0] got_coded_lu;
+    reg [431:0] got_coded_grp;
+    reg [215:0] ref_coded_grp;
+    reg [123:0] ref_info_grp;
     integer hit_a, hit_b, hit_x;
 
     initial begin
         rst_n       = 1'b0;
         frag1_pulse = 1'b0;
         ul_ssi      = 24'd0;
+        mm_pdu_type = 4'd0;
         cfg_mcch_tn = 2'd1;
         repeat (4) @(posedge clk);
         rst_n = 1'b1;
@@ -310,158 +417,146 @@ module tb_pre_reply_slotgrant;
         end
 
         // -----------------------------------------------------------------
-        $display("---- TC2 single push, ssi=0x282FF4 (Gold-MS) ----");
-        compute_ref(24'h282FF4, ref_coded_a, ref_info_a);
-        exp_coded_a = {216'd0, ref_coded_a};
+        $display("---- TC2 mm=2 SCH/F push, ssi=0x282FF4 ----");
+        compute_ref_schf(24'h282FF4, exp_coded_lu);
         @(posedge clk);
         cfg_mcch_tn = 2'd1;
 
-        // Gold-bit-pattern spot-check on the reference info-bits (MSB=[123])
-        $display("  REF-PDU[123:80] = %b", ref_info_a[123:80]);
-        // [123:122] PDUtype = 00
-        if (ref_info_a[123:122] === 2'b00) begin
+        pulse_frag1(24'h282FF4, 4'd2);
+        wait_push(4000, hit_a);
+        if (hit_a == 0) begin
+            $display("  FAIL  no wr_slotgrant_valid_sys within 4000 cyc (mm=2)");
+            fail_cnt = fail_cnt + 1;
+        end else begin
+            got_coded_lu = wr_slotgrant_coded_sys;
+            check_eq2  ("pdu_type=00 (SCH_F)",     wr_slotgrant_pdu_type_sys,  2'd0);
+            check_eq2  ("target_tn=cfg_mcch_tn",   wr_slotgrant_target_tn_sys, 2'd1);
+            check_eq432("coded[431:0] bit-exact",  got_coded_lu, exp_coded_lu);
+            check_eq32 ("push_cnt=1",              {16'd0, push_cnt_sys}, 32'd1);
+        end
+
+        // -----------------------------------------------------------------
+        $display("---- TC3 mm=7 SCH/HD push, ssi=0xCAFE42 ----");
+        compute_ref_schhd(24'hCAFE42, ref_coded_grp, ref_info_grp);
+        exp_coded_grp = {216'd0, ref_coded_grp};
+        @(posedge clk);
+        cfg_mcch_tn = 2'd2;
+
+        // Gold-bit-pattern spot-check on the 124-bit reference info-bits
+        $display("  REF-PDU[123:80] = %b", ref_info_grp[123:80]);
+        if (ref_info_grp[123:122] === 2'b00) begin
             $display("  PASS  PDUtype=00"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  PDUtype expected 00 got %b", ref_info_a[123:122]);
+            $display("  FAIL  PDUtype expected 00 got %b", ref_info_grp[123:122]);
             fail_cnt = fail_cnt + 1;
         end
-        // [121] FillBit = 1
-        if (ref_info_a[121] === 1'b1) begin
+        if (ref_info_grp[121] === 1'b1) begin
             $display("  PASS  FillBit=1"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  FillBit expected 1 got %b", ref_info_a[121]);
+            $display("  FAIL  FillBit expected 1 got %b", ref_info_grp[121]);
             fail_cnt = fail_cnt + 1;
         end
-        // [120] PosOfGrant = 0
-        if (ref_info_a[120] === 1'b0) begin
+        if (ref_info_grp[120] === 1'b0) begin
             $display("  PASS  PosOfGrant=0"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  PosOfGrant expected 0 got %b", ref_info_a[120]);
+            $display("  FAIL  PosOfGrant expected 0 got %b", ref_info_grp[120]);
             fail_cnt = fail_cnt + 1;
         end
-        // [119:118] Encr = 00
-        if (ref_info_a[119:118] === 2'b00) begin
+        if (ref_info_grp[119:118] === 2'b00) begin
             $display("  PASS  Encr=00"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  Encr expected 00 got %b", ref_info_a[119:118]);
+            $display("  FAIL  Encr expected 00 got %b", ref_info_grp[119:118]);
             fail_cnt = fail_cnt + 1;
         end
-        // [117] RandAccFlag = 1
-        if (ref_info_a[117] === 1'b1) begin
+        if (ref_info_grp[117] === 1'b1) begin
             $display("  PASS  RandAccFlag=1"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  RandAccFlag expected 1 got %b", ref_info_a[117]);
+            $display("  FAIL  RandAccFlag expected 1 got %b", ref_info_grp[117]);
             fail_cnt = fail_cnt + 1;
         end
-        // [116:111] LengthInd = 6'd7  (Gold LI=7)
-        if (ref_info_a[116:111] === 6'd7) begin
+        if (ref_info_grp[116:111] === 6'd7) begin
             $display("  PASS  LengthInd=7"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  LengthInd expected 7 got %0d", ref_info_a[116:111]);
+            $display("  FAIL  LengthInd expected 7 got %0d", ref_info_grp[116:111]);
             fail_cnt = fail_cnt + 1;
         end
-        // [110:108] AddrType = 001 (SSI)
-        if (ref_info_a[110:108] === 3'b001) begin
+        if (ref_info_grp[110:108] === 3'b001) begin
             $display("  PASS  AddrType=001 (SSI)"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  AddrType expected 001 got %b", ref_info_a[110:108]);
+            $display("  FAIL  AddrType expected 001 got %b", ref_info_grp[110:108]);
             fail_cnt = fail_cnt + 1;
         end
-        // [107:84] SSI = 0x282FF4
-        if (ref_info_a[107:84] === 24'h282FF4) begin
-            $display("  PASS  SSI=0x282FF4"); pass_cnt = pass_cnt + 1;
+        if (ref_info_grp[107:84] === 24'hCAFE42) begin
+            $display("  PASS  SSI=0xCAFE42"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  SSI expected 282FF4 got %h", ref_info_a[107:84]);
+            $display("  FAIL  SSI expected CAFE42 got %h", ref_info_grp[107:84]);
             fail_cnt = fail_cnt + 1;
         end
-        // [83] pc_flag=0  [82] sg_flag=1  → triple [83:82,73] later
-        if (ref_info_a[83] === 1'b0) begin
+        if (ref_info_grp[83] === 1'b0) begin
             $display("  PASS  pc_flag=0"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  pc_flag expected 0 got %b", ref_info_a[83]);
+            $display("  FAIL  pc_flag expected 0 got %b", ref_info_grp[83]);
             fail_cnt = fail_cnt + 1;
         end
-        if (ref_info_a[82] === 1'b1) begin
+        if (ref_info_grp[82] === 1'b1) begin
             $display("  PASS  sg_flag=1 (Gold raw bits)"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  sg_flag expected 1 got %b", ref_info_a[82]);
+            $display("  FAIL  sg_flag expected 1 got %b", ref_info_grp[82]);
             fail_cnt = fail_cnt + 1;
         end
-        // [81:74] sg_element = 8'h00 (Gold)
-        if (ref_info_a[81:74] === 8'h00) begin
-            $display("  PASS  sg_element=0x00"); pass_cnt = pass_cnt + 1;
+        if (ref_info_grp[81:74] === 8'h00) begin
+            $display("  PASS  sg_element=0x00 (mm=7 GRP)"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  sg_element expected 0x00 got 0x%h", ref_info_a[81:74]);
+            $display("  FAIL  sg_element expected 0x00 got 0x%h", ref_info_grp[81:74]);
             fail_cnt = fail_cnt + 1;
         end
-        // [73] ca_flag = 0
-        if (ref_info_a[73] === 1'b0) begin
+        if (ref_info_grp[73] === 1'b0) begin
             $display("  PASS  ca_flag=0"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  ca_flag expected 0 got %b", ref_info_a[73]);
+            $display("  FAIL  ca_flag expected 0 got %b", ref_info_grp[73]);
             fail_cnt = fail_cnt + 1;
         end
-        // [72:69] AL-SETUP llc_pdu_type = 1000 (4'd8)
-        if (ref_info_a[72:69] === 4'b1000) begin
+        if (ref_info_grp[72:69] === 4'b1000) begin
             $display("  PASS  AL-SETUP type=1000"); pass_cnt = pass_cnt + 1;
         end else begin
-            $display("  FAIL  AL-SETUP expected 1000 got %b", ref_info_a[72:69]);
+            $display("  FAIL  AL-SETUP expected 1000 got %b", ref_info_grp[72:69]);
             fail_cnt = fail_cnt + 1;
         end
 
-        // Now drive DUT and compare against reference coded
-        pulse_frag1(24'h282FF4);
-        wait_push(4000, hit_a);
-        if (hit_a == 0) begin
-            $display("  FAIL  no wr_slotgrant_valid_sys within 4000 cyc");
+        // Drive DUT mm=7 path
+        pulse_frag1(24'hCAFE42, 4'd7);
+        wait_push(4000, hit_b);
+        if (hit_b == 0) begin
+            $display("  FAIL  no wr_slotgrant_valid_sys within 4000 cyc (mm=7)");
             fail_cnt = fail_cnt + 1;
         end else begin
-            got_coded_a = wr_slotgrant_coded_sys;
-            check_eq2 ("pdu_type=01 (SCH_HD)",        wr_slotgrant_pdu_type_sys,  2'd1);
-            check_eq2 ("target_tn=cfg_mcch_tn",       wr_slotgrant_target_tn_sys, 2'd1);
-            check_eq432("coded[431:0] bit-exact",     got_coded_a, exp_coded_a);
-            // upper 216 bits must be zero
-            if (got_coded_a[431:216] === 216'd0) begin
+            got_coded_grp = wr_slotgrant_coded_sys;
+            check_eq2  ("pdu_type=01 (SCH_HD)",      wr_slotgrant_pdu_type_sys,  2'd1);
+            check_eq2  ("target_tn=cfg_mcch_tn",     wr_slotgrant_target_tn_sys, 2'd2);
+            check_eq432("coded[431:0] bit-exact",    got_coded_grp, exp_coded_grp);
+            if (got_coded_grp[431:216] === 216'd0) begin
                 $display("  PASS  coded[431:216]=0 (LSB-aligned)");
                 pass_cnt = pass_cnt + 1;
             end else begin
-                $display("  FAIL  coded[431:216] != 0, got %h", got_coded_a[431:216]);
+                $display("  FAIL  coded[431:216] != 0, got %h", got_coded_grp[431:216]);
                 fail_cnt = fail_cnt + 1;
             end
-            check_eq32 ("push_cnt=1",                {16'd0, push_cnt_sys}, 32'd1);
-        end
-
-        // -----------------------------------------------------------------
-        $display("---- TC3 second push, ssi=0xCAFE42 ----");
-        compute_ref(24'hCAFE42, ref_coded_b, ref_info_b);
-        exp_coded_b = {216'd0, ref_coded_b};
-        @(posedge clk);
-        cfg_mcch_tn = 2'd2;
-        pulse_frag1(24'hCAFE42);
-        wait_push(4000, hit_b);
-        if (hit_b == 0) begin
-            $display("  FAIL  no wr_slotgrant_valid_sys within 4000 cyc");
-            fail_cnt = fail_cnt + 1;
-        end else begin
-            got_coded_b = wr_slotgrant_coded_sys;
-            check_eq2 ("target_tn=2",             wr_slotgrant_target_tn_sys, 2'd2);
-            check_eq432("coded[431:0] bit-exact", got_coded_b, exp_coded_b);
-            check_eq32 ("push_cnt=2",             {16'd0, push_cnt_sys}, 32'd2);
-            if (got_coded_a !== got_coded_b) begin
-                $display("  PASS  SSI swap ⇒ coded payload differs");
+            if (got_coded_lu !== got_coded_grp) begin
+                $display("  PASS  mm=2 vs mm=7 → coded payload differs");
                 pass_cnt = pass_cnt + 1;
             end else begin
-                $display("  FAIL  SSI swap did NOT change coded payload");
+                $display("  FAIL  mm=2 vs mm=7 produced identical payloads (regression)");
                 fail_cnt = fail_cnt + 1;
             end
+            check_eq32 ("push_cnt=2",                {16'd0, push_cnt_sys}, 32'd2);
         end
 
         // -----------------------------------------------------------------
-        $display("---- TC4 collision drop ----");
+        $display("---- TC4 collision drop (mm=2 path) ----");
         cfg_mcch_tn = 2'd1;
-        pulse_frag1(24'hAA0001);
+        pulse_frag1(24'hAA0001, 4'd2);
         repeat (5) @(posedge clk);
-        pulse_frag1(24'hBB0002);   // during S_BUILD/S_ENC
+        pulse_frag1(24'hBB0002, 4'd2);   // during S_BUILD
         wait_push(4000, hit_x);
         if (hit_x == 0) begin
             $display("  FAIL  busy-mode first push never delivered");
@@ -477,9 +572,9 @@ module tb_pre_reply_slotgrant;
         end
 
         // -----------------------------------------------------------------
-        $display("---- TC5 fresh push after busy clears ----");
+        $display("---- TC5 fresh push after busy clears (mm=7 path) ----");
         repeat (50) @(posedge clk);
-        pulse_frag1(24'h123456);
+        pulse_frag1(24'h123456, 4'd7);
         wait_push(4000, hit_x);
         if (hit_x == 1) begin
             $display("  PASS  fresh push delivered after IDLE recovery");
@@ -506,7 +601,7 @@ module tb_pre_reply_slotgrant;
     end
 
     initial begin
-        #10_000_000;
+        #20_000_000;
         $display("ERROR: TB watchdog timeout");
         $finish;
     end

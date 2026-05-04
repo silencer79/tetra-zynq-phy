@@ -2624,10 +2624,20 @@ wire [1:0]   slotgrant_target_tn_sys_w;
 wire [15:0]  slotgrant_push_cnt_sys_w;
 wire [15:0]  slotgrant_drop_cnt_sys_w;
 
-// Phase Z.3 — SlotGrant has its own internal SCH/HD pipeline (124→216),
-// no longer routed through the shared SCH/F builder.  Pre-Z.3 these
-// wires fed u_dl_pdu_builder via the 3-way arbiter; the arbiter is now
-// 2-way (MLE + GroupAck).  Wires removed.
+// Phase Z.4 — SlotGrant is dual-path: mm=2 ITSI-Attach uses the SHARED
+// SCH/F u_dl_pdu_builder (via these sg_build_* wires + 3-way arbiter),
+// mm=7 Group-Switch uses the SCH/HD pipeline INTERNAL to the slotgrant
+// module.  The arbiter is back to 3-way (MLE + GroupAck + SlotGrant)
+// for the mm=2 case.
+wire         sg_build_req_w;
+wire [23:0]  sg_build_ssi_w;
+wire [2:0]   sg_build_addr_type_w;
+wire [3:0]   sg_build_llc_pdu_type_w;
+wire         sg_build_random_access_flag_w;
+wire [127:0] sg_build_mm_pdu_bits_w;
+wire [7:0]   sg_build_mm_pdu_len_bits_w;
+wire [31:0]  sg_build_scramble_init_w;
+wire         sg_blocked_w;
 
 // Phase Y.1.d — Group-Attach reply build-request wires (3rd producer).
 wire         grpack_build_req_w;
@@ -2658,10 +2668,12 @@ wire         dl_pdu_done_w;
 wire [431:0] dl_pdu_coded_w;
 wire         dl_pdu_busy_w;
 // Done-demux: builder asserts done for the source whose request was last
-// granted by the arbiter.  Owner-tracking 1-bit reg below.
-//   0 = MLE, 1 = GroupAck   (Z.3: SlotGrant moved to its own pipeline)
+// granted by the arbiter.  Owner-tracking 2-bit reg below (Phase Z.4
+// 3-way: MLE / GroupAck / SlotGrant-LU).
+//   2'd0 = MLE, 2'd1 = GroupAck, 2'd2 = SlotGrant-LU
 wire         dl_pdu_done_to_mle_w;
 wire         dl_pdu_done_to_grpack_w;
+wire         dl_pdu_done_to_sg_w;
 
 tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
     .clk_sys                  (clk_sys),
@@ -2669,10 +2681,25 @@ tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
     // Frag-1 trigger from MAC-ACCESS parser (Step 2 — post-Frag-1 slot-grant).
     .frag1_pulse              (frag1_pulse_w),
     .ul_ssi                   (ul_issi_sys),
+    // Phase Z.4 — mm-type latched the same cycle as frag1_pulse_w.  Selects
+    // mm=2 SCH/F-via-shared-builder vs mm=7 SCH/HD-via-internal-pipeline.
+    .mm_pdu_type              (frag1_mm_type_w),
     .cfg_mcch_tn              (cfg_mcch_tn_sys_r1),
     .cfg_scramble_init        (mle_dl_scramb_init_sys),
-    // Phase Z.3 — internal SCH/HD pipeline; no shared builder hookup.
-    // 216-bit SCH/HD-coded MAC-RESOURCE LI=7 AL-SETUP, MLE-slot-class
+    // mm=2 path — shared SCH/F builder request bus.
+    .slotgrant_build_req                (sg_build_req_w),
+    .slotgrant_build_ssi                (sg_build_ssi_w),
+    .slotgrant_build_addr_type          (sg_build_addr_type_w),
+    .slotgrant_build_llc_pdu_type       (sg_build_llc_pdu_type_w),
+    .slotgrant_build_random_access_flag (sg_build_random_access_flag_w),
+    .slotgrant_build_mm_pdu_bits        (sg_build_mm_pdu_bits_w),
+    .slotgrant_build_mm_pdu_len_bits    (sg_build_mm_pdu_len_bits_w),
+    .slotgrant_build_scramble_init      (sg_build_scramble_init_w),
+    .slotgrant_build_done               (dl_pdu_done_to_sg_w),
+    .slotgrant_build_coded              (dl_pdu_coded_w),
+    .slotgrant_build_grant_blocked      (sg_blocked_w),
+    // Queue-side outputs: 432-bit coded (mm=2 SCH/F or mm=7 SCH/HD
+    // LSB-aligned), pdu_type=SCH/F or SCH/HD per latched mm-type.
     .wr_slotgrant_valid_sys   (slotgrant_valid_sys_w),
     .wr_slotgrant_coded_sys   (slotgrant_coded_sys_w),
     .wr_slotgrant_pdu_type_sys(slotgrant_pdu_type_sys_w),
@@ -2682,7 +2709,7 @@ tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
 );
 
 // =============================================================================
-// Phase Z.3 — Shared DL-PDU build pipeline + 2-way arbiter
+// Phase Z.4 — Shared DL-PDU build pipeline + 3-way arbiter
 //
 // History:
 //   - Pre-X.6: each producer FSM had its own SCH/F encoder (97.65% slice).
@@ -2691,74 +2718,100 @@ tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
 //   - Z.3:     SlotGrant migrated to its OWN SCH/HD pipeline (Gold-conform —
 //             Pre-Reply LI=7 lives on SCH/HD blk1, not SCH/F).  Arbiter is
 //             back to 2-way (MLE + GroupAck), both producing SCH/F PDUs.
+//   - Z.4:     SlotGrant becomes dual-path inside its own module — mm=2
+//             ITSI-Attach uses the shared SCH/F builder (third arbiter port
+//             restored), mm=7 Group-Switch uses its internal SCH/HD pipeline.
+//             The arbiter is 3-way again (MLE + GroupAck + SlotGrant-LU).
 //
 // Conflict profile: MLE-ACCEPT fires after SW completes the IE-parser
 // reassembly (≥14 ms after Frag-1).  GroupAck fires on grp_mb_go_pulse,
-// also post-Frag-2.  Collisions between the two are very rare in real
-// traffic (only one mm-type per attach cycle).  The arbiter still
-// implements strict priority + ownership tracking so the done pulse
-// is routed back to the correct producer.
+// also post-Frag-2.  SlotGrant fires on Frag-1 directly.  All three events
+// are temporally separated by frame-grid distances; collisions are very
+// rare in real traffic.  The arbiter implements strict priority + 2-bit
+// owner-tracking so the done pulse is routed back to the correct producer.
 //
-// Strict priority:  MLE-ACCEPT > GroupAck.
+// Strict priority:  MLE-ACCEPT > GroupAck > SlotGrant-LU.
 //
-// Owner-tracking: 1-bit registered flag captures which producer was granted
+// Owner-tracking: 2-bit registered flag captures which producer was granted
 // the most-recent build.  The done pulse fans out via combinational decode.
-//   0 = MLE, 1 = GroupAck
-reg dl_pdu_owner_r;
+//   2'd0 = MLE, 2'd1 = GroupAck, 2'd2 = SlotGrant-LU
+reg [1:0] dl_pdu_owner_r;
 
 // Combinational arbitration with strict priority + idle gate.
 wire dl_pdu_grant_mle_w    = mle_accept_build_req_w & ~dl_pdu_busy_w;
 wire dl_pdu_grant_grpack_w = grpack_build_req_w
                              & ~mle_accept_build_req_w
                              & ~dl_pdu_busy_w;
+wire dl_pdu_grant_sg_w     = sg_build_req_w
+                             & ~mle_accept_build_req_w
+                             & ~grpack_build_req_w
+                             & ~dl_pdu_busy_w;
 
 assign dl_pdu_req_valid_w =
-    dl_pdu_grant_mle_w | dl_pdu_grant_grpack_w;
+    dl_pdu_grant_mle_w | dl_pdu_grant_grpack_w | dl_pdu_grant_sg_w;
 
 assign dl_pdu_req_ssi_w =
     dl_pdu_grant_mle_w    ? mle_accept_build_ssi_w :
-                            grpack_build_ssi_w;
+    dl_pdu_grant_grpack_w ? grpack_build_ssi_w :
+                            sg_build_ssi_w;
 assign dl_pdu_req_addr_type_w =
     dl_pdu_grant_mle_w    ? mle_accept_build_addr_type_w :
-                            grpack_build_addr_type_w;
+    dl_pdu_grant_grpack_w ? grpack_build_addr_type_w :
+                            sg_build_addr_type_w;
 assign dl_pdu_req_llc_pdu_type_w =
     dl_pdu_grant_mle_w    ? mle_accept_build_llc_pdu_type_w :
-                            grpack_build_llc_pdu_type_w;
+    dl_pdu_grant_grpack_w ? grpack_build_llc_pdu_type_w :
+                            sg_build_llc_pdu_type_w;
 assign dl_pdu_req_random_access_flag_w =
     dl_pdu_grant_mle_w    ? mle_accept_build_random_access_flag_w :
-                            grpack_build_random_access_flag_w;
+    dl_pdu_grant_grpack_w ? grpack_build_random_access_flag_w :
+                            sg_build_random_access_flag_w;
 assign dl_pdu_req_mm_pdu_bits_w =
     dl_pdu_grant_mle_w    ? mle_accept_build_mm_pdu_bits_w :
-                            grpack_build_mm_pdu_bits_w;
+    dl_pdu_grant_grpack_w ? grpack_build_mm_pdu_bits_w :
+                            sg_build_mm_pdu_bits_w;
 assign dl_pdu_req_mm_pdu_len_bits_w =
     dl_pdu_grant_mle_w    ? mle_accept_build_mm_pdu_len_bits_w :
-                            grpack_build_mm_pdu_len_bits_w;
+    dl_pdu_grant_grpack_w ? grpack_build_mm_pdu_len_bits_w :
+                            sg_build_mm_pdu_len_bits_w;
 assign dl_pdu_req_scramble_init_w =
     dl_pdu_grant_mle_w    ? mle_accept_build_scramble_init_w :
-                            grpack_build_scramble_init_w;
-// Phase Y.1.c' — req_ns/req_nr are 0 for MLE (existing behaviour);
-// GroupAck supplies dynamic values from its reply mailbox.
+    dl_pdu_grant_grpack_w ? grpack_build_scramble_init_w :
+                            sg_build_scramble_init_w;
+// Phase Y.1.c' — req_ns/req_nr are 0 for MLE (existing behaviour) and
+// SlotGrant (existing behaviour); GroupAck supplies dynamic values from
+// its reply mailbox.
 assign dl_pdu_req_ns_w =
     dl_pdu_grant_mle_w    ? 1'b0 :
-                            grpack_build_ns_w;
+    dl_pdu_grant_grpack_w ? grpack_build_ns_w :
+                            1'b0;
 assign dl_pdu_req_nr_w =
     dl_pdu_grant_mle_w    ? 1'b0 :
-                            grpack_build_nr_w;
+    dl_pdu_grant_grpack_w ? grpack_build_nr_w :
+                            1'b0;
+
+// SlotGrant sees grant_blocked when builder busy OR a higher-priority
+// producer wins this cycle (MLE or GroupAck).
+assign sg_blocked_w = dl_pdu_busy_w |
+                      (mle_accept_build_req_w & sg_build_req_w) |
+                      (grpack_build_req_w     & sg_build_req_w);
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) begin
-        dl_pdu_owner_r <= 1'b0;
+        dl_pdu_owner_r <= 2'd0;
     end else begin
-        if      (dl_pdu_grant_mle_w)    dl_pdu_owner_r <= 1'b0;
-        else if (dl_pdu_grant_grpack_w) dl_pdu_owner_r <= 1'b1;
+        if      (dl_pdu_grant_mle_w)    dl_pdu_owner_r <= 2'd0;
+        else if (dl_pdu_grant_grpack_w) dl_pdu_owner_r <= 2'd1;
+        else if (dl_pdu_grant_sg_w)     dl_pdu_owner_r <= 2'd2;
         // owner stays sticky until the next grant — harmless because
         // done is gated by the builder's busy/done timing.
     end
 end
 
 // Done-demux — broadcast coded bus, gate done pulse by owner.
-assign dl_pdu_done_to_mle_w    = dl_pdu_done_w & (dl_pdu_owner_r == 1'b0);
-assign dl_pdu_done_to_grpack_w = dl_pdu_done_w & (dl_pdu_owner_r == 1'b1);
+assign dl_pdu_done_to_mle_w    = dl_pdu_done_w & (dl_pdu_owner_r == 2'd0);
+assign dl_pdu_done_to_grpack_w = dl_pdu_done_w & (dl_pdu_owner_r == 2'd1);
+assign dl_pdu_done_to_sg_w     = dl_pdu_done_w & (dl_pdu_owner_r == 2'd2);
 assign grpack_done_w           = dl_pdu_done_to_grpack_w;
 assign grpack_coded_w          = dl_pdu_coded_w;
 
@@ -2804,13 +2857,14 @@ wire [1:0]   mle_slot_wr_target_tn_w =
 wire         mle_slot_wr_second_pdu_present_w = mle_req_valid_w ? mle_req_second_pdu_present_w : 1'b0;
 wire         mle_slot_wr_second_pdu_nr_w      = mle_req_valid_w ? mle_req_second_pdu_nr_w      : 1'b0;
 
-// Phase Z.3 — every MLE producer (LU-ACCEPT / GroupAck / SlotGrant) is a
-// signalling-class PDU.  Tag the queue entry with AACH pattern 0x0009
-// (signalling-active) so the AACH encoder lifts the slot's broadcast
-// from default 0x0249/0x32CB to Unalloc/Unalloc on the carrier frame.
-// All three sources share the same AACH symbol because the spec table
-// in tetra_pdu_class.vh has them aligned (`PDUC_FINAL_LU_ACCEPT_AACH ==
-// PDUC_GROUP_ACK_AACH == PDUC_PRE_REPLY_SLOTGRANT_AACH).
+// Phase Z.4 — every MLE producer (LU-ACCEPT / GroupAck / SlotGrant-LU /
+// SlotGrant-GRP) is a signalling-class PDU.  Tag the queue entry with
+// AACH pattern 0x0009 (signalling-active) so the AACH encoder lifts the
+// slot's broadcast from default 0x0249/0x32CB to Unalloc/Unalloc on the
+// carrier frame.  All four sources share the same AACH symbol because
+// the spec table in tetra_pdu_class.vh has them aligned
+// (`PDUC_FINAL_LU_ACCEPT_AACH == `PDUC_GROUP_ACK_AACH ==
+// `PDUC_PRE_REPLY_SLOTGRANT_LU_AACH == `PDUC_PRE_REPLY_SLOTGRANT_GRP_AACH).
 wire [13:0]  mle_slot_wr_aach_pattern_w = `PDUC_FINAL_LU_ACCEPT_AACH;
 
 // CDC: consume pulse + counter clk_sys → clk_axi
