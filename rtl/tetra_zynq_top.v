@@ -461,6 +461,16 @@ wire         mle_retransmit_pulse_w;
 wire         mle_lost_pulse_w;
 wire         mle_detach_pulse_w;             // Phase 6 B
 
+// Phase X.6 — MLE-FSM build-request to shared tetra_dl_pdu_builder.
+wire         mle_accept_build_req_w;
+wire [23:0]  mle_accept_build_ssi_w;
+wire [2:0]   mle_accept_build_addr_type_w;
+wire [3:0]   mle_accept_build_llc_pdu_type_w;
+wire         mle_accept_build_random_access_flag_w;
+wire [127:0] mle_accept_build_mm_pdu_bits_w;
+wire [7:0]   mle_accept_build_mm_pdu_len_bits_w;
+wire [31:0]  mle_accept_build_scramble_init_w;
+
 // Queue ↔ scheduler wiring
 wire         queue_head_valid_w;
 wire [431:0] queue_head_coded_w;
@@ -2122,7 +2132,18 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
     .mb_encryption       (mb_encryption_sys_w),
     .mb_auth_result      (mb_auth_result_sys_w),
     .mb_go_pulse         (mb_go_pulse_sys_w),
-    .use_sw_body         (reply_use_sw_sys_r1)
+    .use_sw_body         (reply_use_sw_sys_r1),
+    // Phase X.6 — Build-request to shared tetra_dl_pdu_builder via arbiter.
+    .accept_build_req                (mle_accept_build_req_w),
+    .accept_build_ssi                (mle_accept_build_ssi_w),
+    .accept_build_addr_type          (mle_accept_build_addr_type_w),
+    .accept_build_llc_pdu_type       (mle_accept_build_llc_pdu_type_w),
+    .accept_build_random_access_flag (mle_accept_build_random_access_flag_w),
+    .accept_build_mm_pdu_bits        (mle_accept_build_mm_pdu_bits_w),
+    .accept_build_mm_pdu_len_bits    (mle_accept_build_mm_pdu_len_bits_w),
+    .accept_build_scramble_init      (mle_accept_build_scramble_init_w),
+    .accept_build_done               (dl_pdu_done_to_mle_w),
+    .accept_build_coded              (dl_pdu_coded_w)
 );
 
 // =============================================================================
@@ -2532,6 +2553,36 @@ wire [1:0]   slotgrant_target_tn_sys_w;
 wire [15:0]  slotgrant_push_cnt_sys_w;
 wire [15:0]  slotgrant_drop_cnt_sys_w;
 
+// Phase X.6 — SlotGrant build-request wires (driven by u_pre_reply_slotgrant,
+// arbitrated against MLE-FSM and routed into shared u_dl_pdu_builder).
+wire         sg_build_req_w;
+wire [23:0]  sg_build_ssi_w;
+wire [2:0]   sg_build_addr_type_w;
+wire [3:0]   sg_build_llc_pdu_type_w;
+wire         sg_build_random_access_flag_w;
+wire [127:0] sg_build_mm_pdu_bits_w;
+wire [7:0]   sg_build_mm_pdu_len_bits_w;
+wire [31:0]  sg_build_scramble_init_w;
+wire         sg_blocked_w;
+
+// Shared builder wires
+wire         dl_pdu_req_valid_w;
+wire [23:0]  dl_pdu_req_ssi_w;
+wire [2:0]   dl_pdu_req_addr_type_w;
+wire [3:0]   dl_pdu_req_llc_pdu_type_w;
+wire         dl_pdu_req_random_access_flag_w;
+wire [127:0] dl_pdu_req_mm_pdu_bits_w;
+wire [7:0]   dl_pdu_req_mm_pdu_len_bits_w;
+wire [31:0]  dl_pdu_req_scramble_init_w;
+wire         dl_pdu_done_w;
+wire [431:0] dl_pdu_coded_w;
+wire         dl_pdu_busy_w;
+// Done-demux: builder asserts done for the source whose request was last
+// granted by the arbiter.  We track that source in a 1-bit registered
+// "current owner" flag — see arbiter logic below.
+wire         dl_pdu_done_to_mle_w;
+wire         dl_pdu_done_to_sg_w;
+
 tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
     .clk_sys                  (clk_sys),
     .rst_n_sys                (rst_n_sys),
@@ -2540,6 +2591,18 @@ tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
     .ul_ssi                   (ul_issi_sys),
     .cfg_mcch_tn              (cfg_mcch_tn_sys_r1),
     .cfg_scramble_init        (mle_dl_scramb_init_sys),
+    // Phase X.6 — Build-request to shared tetra_dl_pdu_builder via arbiter.
+    .slotgrant_build_req                (sg_build_req_w),
+    .slotgrant_build_ssi                (sg_build_ssi_w),
+    .slotgrant_build_addr_type          (sg_build_addr_type_w),
+    .slotgrant_build_llc_pdu_type       (sg_build_llc_pdu_type_w),
+    .slotgrant_build_random_access_flag (sg_build_random_access_flag_w),
+    .slotgrant_build_mm_pdu_bits        (sg_build_mm_pdu_bits_w),
+    .slotgrant_build_mm_pdu_len_bits    (sg_build_mm_pdu_len_bits_w),
+    .slotgrant_build_scramble_init      (sg_build_scramble_init_w),
+    .slotgrant_build_done               (dl_pdu_done_to_sg_w),
+    .slotgrant_build_coded              (dl_pdu_coded_w),
+    .slotgrant_build_grant_blocked      (sg_blocked_w),
     // 432-bit SCH/F-coded MAC-RESOURCE + slot_grant + AL-SETUP, MLE-slot-class
     .wr_slotgrant_valid_sys   (slotgrant_valid_sys_w),
     .wr_slotgrant_coded_sys   (slotgrant_coded_sys_w),
@@ -2547,6 +2610,100 @@ tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
     .wr_slotgrant_target_tn_sys(slotgrant_target_tn_sys_w),
     .push_cnt_sys             (slotgrant_push_cnt_sys_w),
     .drop_cnt_sys             (slotgrant_drop_cnt_sys_w)
+);
+
+// =============================================================================
+// Phase X.6 — Shared DL-PDU build pipeline + arbiter
+//
+// Both u_mle_registration_fsm (Final ACCEPT, mb_go_pulse-fired ~14 ms after
+// Frag-2 reassembly) and u_pre_reply_slotgrant (Pre-Reply slot-grant, fired
+// on Frag-1 immediately) need a {basic_slotgrant_encoder + mac_resource_dl_
+// builder + sch_f_encoder} pipeline.  Pre-X.6 each FSM had its own copy
+// (97.65 % slice util).  X.6 collapses to ONE shared u_dl_pdu_builder
+// arbitrated by priority — MLE-ACCEPT > SlotGrant.
+//
+// Conflict profile: MLE-ACCEPT fires after SW completes the IE-parser
+// reassembly (≥14 ms after Frag-1).  SlotGrant fires on Frag-1 directly.
+// The two events are temporally separated by the entire Frag-1→Frag-2
+// reassembly window plus SW-attach-daemon latency — collisions are
+// essentially impossible at the slot grid.  The arbiter still implements
+// strict priority + ownership tracking so that:
+//   (a) if MLE asserts during a SlotGrant build-in-flight, MLE waits its
+//       turn (the FSM is idempotent — accept_build_req is held in the
+//       FSM-level queue via S_BUILD_ACCEPT_WAIT);
+//   (b) if SlotGrant asserts during a MLE build-in-flight, the slotgrant
+//       pulse is dropped (drop_cnt++ inside u_pre_reply_slotgrant via
+//       slotgrant_build_grant_blocked feedback);
+//   (c) if both pulse the same cycle while builder idle, MLE wins; the
+//       SlotGrant FSM sees grant_blocked=1 that cycle and counts the drop.
+//
+// The arbiter is registered (1-bit owner flag) so the demux works even if
+// the MLE-FSM's S_BUILD_ACCEPT_REQ pulse arrives during a previous Slot-
+// Grant request — the owner is captured at the cycle the request was
+// accepted (i.e. when builder transitioned IDLE→BUILD).
+// =============================================================================
+//
+// Owner tracking — set on the cycle the builder accepts a request, cleared
+// on the cycle the builder asserts done.  Latched value drives the done
+// demux: 1 = MLE owned this build, 0 = SlotGrant owned.
+reg dl_pdu_owner_is_mle_r;
+
+// Combinational arbitration: MLE wins ties; SlotGrant only fires when MLE
+// is not requesting AND the builder is idle.
+wire dl_pdu_grant_mle_w = mle_accept_build_req_w & ~dl_pdu_busy_w;
+wire dl_pdu_grant_sg_w  = sg_build_req_w & ~mle_accept_build_req_w & ~dl_pdu_busy_w;
+
+assign dl_pdu_req_valid_w               = dl_pdu_grant_mle_w | dl_pdu_grant_sg_w;
+assign dl_pdu_req_ssi_w                 = dl_pdu_grant_mle_w ? mle_accept_build_ssi_w
+                                                             : sg_build_ssi_w;
+assign dl_pdu_req_addr_type_w           = dl_pdu_grant_mle_w ? mle_accept_build_addr_type_w
+                                                             : sg_build_addr_type_w;
+assign dl_pdu_req_llc_pdu_type_w        = dl_pdu_grant_mle_w ? mle_accept_build_llc_pdu_type_w
+                                                             : sg_build_llc_pdu_type_w;
+assign dl_pdu_req_random_access_flag_w  = dl_pdu_grant_mle_w ? mle_accept_build_random_access_flag_w
+                                                             : sg_build_random_access_flag_w;
+assign dl_pdu_req_mm_pdu_bits_w         = dl_pdu_grant_mle_w ? mle_accept_build_mm_pdu_bits_w
+                                                             : sg_build_mm_pdu_bits_w;
+assign dl_pdu_req_mm_pdu_len_bits_w     = dl_pdu_grant_mle_w ? mle_accept_build_mm_pdu_len_bits_w
+                                                             : sg_build_mm_pdu_len_bits_w;
+assign dl_pdu_req_scramble_init_w       = dl_pdu_grant_mle_w ? mle_accept_build_scramble_init_w
+                                                             : sg_build_scramble_init_w;
+
+// SlotGrant sees grant_blocked when builder busy OR MLE wins this cycle.
+// The FSM uses this in S_IDLE to drop the Frag-1 pulse + increment drop_cnt.
+assign sg_blocked_w = dl_pdu_busy_w | (mle_accept_build_req_w & sg_build_req_w);
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        dl_pdu_owner_is_mle_r <= 1'b0;
+    end else begin
+        if (dl_pdu_grant_mle_w)      dl_pdu_owner_is_mle_r <= 1'b1;
+        else if (dl_pdu_grant_sg_w)  dl_pdu_owner_is_mle_r <= 1'b0;
+        // owner stays sticky until the next grant — a stale value is
+        // harmless since done is masked by busy transition timing.
+    end
+end
+
+// Done-demux: route the builder's done pulse to the FSM that owned this
+// build.  Coded bus is broadcast (both FSMs see it; only the one whose
+// done is high samples it).
+assign dl_pdu_done_to_mle_w = dl_pdu_done_w &  dl_pdu_owner_is_mle_r;
+assign dl_pdu_done_to_sg_w  = dl_pdu_done_w & ~dl_pdu_owner_is_mle_r;
+
+tetra_dl_pdu_builder u_dl_pdu_builder (
+    .clk                    (clk_sys),
+    .rst_n                  (rst_n_sys),
+    .req_valid              (dl_pdu_req_valid_w),
+    .req_ssi                (dl_pdu_req_ssi_w),
+    .req_addr_type          (dl_pdu_req_addr_type_w),
+    .req_llc_pdu_type       (dl_pdu_req_llc_pdu_type_w),
+    .req_random_access_flag (dl_pdu_req_random_access_flag_w),
+    .req_mm_pdu_bits        (dl_pdu_req_mm_pdu_bits_w),
+    .req_mm_pdu_len_bits    (dl_pdu_req_mm_pdu_len_bits_w),
+    .req_scramble_init      (dl_pdu_req_scramble_init_w),
+    .done                   (dl_pdu_done_w),
+    .coded_bits             (dl_pdu_coded_w),
+    .busy                   (dl_pdu_busy_w)
 );
 
 // MLE-Producer-Slot mux: MLE-FSM req_valid takes priority over SlotGrant

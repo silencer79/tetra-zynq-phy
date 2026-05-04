@@ -1,5 +1,13 @@
 // =============================================================================
-// tb_pre_reply_slotgrant.v — Phase X.5b Pre-Reply Slot-Grant Mini-FSM regression
+// tb_pre_reply_slotgrant.v — Phase X.6 Pre-Reply Slot-Grant Mini-FSM regression
+//
+// X.6 (slice-saver refactor): the FSM no longer instantiates the
+// {basic_slotgrant_encoder + mac_resource_dl_builder + sch_f_encoder}
+// triple — those are now in tetra_dl_pdu_builder.v shared with the
+// MLE-FSM via a top-level arbiter.  This TB instantiates the shared
+// builder externally (no arbiter needed in TB — only one consumer) and
+// verifies bit-identity against an independent reference chain that
+// drives parallel instances of the same encoders with identical inputs.
 // =============================================================================
 //
 // Coverage:
@@ -7,24 +15,20 @@
 //   TC2  frag1_pulse with ssi=0x282F91 → wr_slotgrant_valid pulses 1 cyc,
 //        wr_slotgrant_pdu_type=00 (SCH_F), target_tn=cfg_mcch_tn,
 //        wr_slotgrant_coded[431:0] equals SCH/F-encoded MAC-RESOURCE
-//        AL-SETUP+slot_grant (bit-exact via reference instances driven
-//        in parallel from the same SSI)
+//        AL-SETUP+slot_grant (bit-exact via reference chain in parallel)
 //   TC3  frag1_pulse with ssi=0xCAFE42 → fresh push, different coded bits
 //        (sanity: SSI swap propagates), push_cnt += 1
 //   TC4  collision drop: trigger second frag1_pulse while pipeline busy
-//        in S_BUILD/S_ENC → drop_cnt += 1
+//        in S_REQ/S_WAIT → drop_cnt += 1
 //   TC5  push_cnt monotonic: after 4 successful pushes (TC2..TC5) push_cnt>=4
 //
 // Run:
 //   iverilog -g2001 -o /tmp/tb_sg tb/tb_pre_reply_slotgrant.v \
 //          rtl/lmac/tetra_pre_reply_slotgrant.v \
+//          rtl/lmac/tetra_dl_pdu_builder.v \
 //          rtl/lmac/tetra_basic_slotgrant_encoder.v \
 //          rtl/lmac/tetra_mac_resource_dl_builder.v \
-//          rtl/lmac/tetra_sch_f_encoder.v \
-//          rtl/lmac/tetra_crc16.v \
-//          rtl/lmac/tetra_rcpc_encoder.v \
-//          rtl/lmac/tetra_interleaver.v \
-//          rtl/lmac/tetra_scrambler.v
+//          rtl/lmac/tetra_sch_f_encoder.v
 //   vvp /tmp/tb_sg
 //
 // =============================================================================
@@ -50,6 +54,24 @@ module tb_pre_reply_slotgrant;
     wire [15:0]  push_cnt_sys;
     wire [15:0]  drop_cnt_sys;
 
+    // Build-request wires from DUT to shared builder
+    wire         sg_build_req_w;
+    wire [23:0]  sg_build_ssi_w;
+    wire [2:0]   sg_build_addr_type_w;
+    wire [3:0]   sg_build_llc_pdu_type_w;
+    wire         sg_build_random_access_flag_w;
+    wire [127:0] sg_build_mm_pdu_bits_w;
+    wire [7:0]   sg_build_mm_pdu_len_bits_w;
+    wire [31:0]  sg_build_scramble_init_w;
+
+    // Shared builder outputs
+    wire         dl_pdu_done_w;
+    wire [431:0] dl_pdu_coded_w;
+    wire         dl_pdu_busy_w;
+
+    // TB has only one consumer — grant_blocked tied to busy.
+    wire         sg_blocked_w = dl_pdu_busy_w;
+
     tetra_pre_reply_slotgrant dut (
         .clk_sys                  (clk),
         .rst_n_sys                (rst_n),
@@ -57,6 +79,17 @@ module tb_pre_reply_slotgrant;
         .ul_ssi                   (ul_ssi),
         .cfg_mcch_tn              (cfg_mcch_tn),
         .cfg_scramble_init        (cfg_scramble_init),
+        .slotgrant_build_req                (sg_build_req_w),
+        .slotgrant_build_ssi                (sg_build_ssi_w),
+        .slotgrant_build_addr_type          (sg_build_addr_type_w),
+        .slotgrant_build_llc_pdu_type       (sg_build_llc_pdu_type_w),
+        .slotgrant_build_random_access_flag (sg_build_random_access_flag_w),
+        .slotgrant_build_mm_pdu_bits        (sg_build_mm_pdu_bits_w),
+        .slotgrant_build_mm_pdu_len_bits    (sg_build_mm_pdu_len_bits_w),
+        .slotgrant_build_scramble_init      (sg_build_scramble_init_w),
+        .slotgrant_build_done               (dl_pdu_done_w),
+        .slotgrant_build_coded              (dl_pdu_coded_w),
+        .slotgrant_build_grant_blocked      (sg_blocked_w),
         .wr_slotgrant_valid_sys   (wr_slotgrant_valid_sys),
         .wr_slotgrant_coded_sys   (wr_slotgrant_coded_sys),
         .wr_slotgrant_pdu_type_sys(wr_slotgrant_pdu_type_sys),
@@ -65,10 +98,28 @@ module tb_pre_reply_slotgrant;
         .drop_cnt_sys             (drop_cnt_sys)
     );
 
+    // Shared builder (single-consumer in TB).
+    tetra_dl_pdu_builder u_dl_pdu_builder (
+        .clk                    (clk),
+        .rst_n                  (rst_n),
+        .req_valid              (sg_build_req_w),
+        .req_ssi                (sg_build_ssi_w),
+        .req_addr_type          (sg_build_addr_type_w),
+        .req_llc_pdu_type       (sg_build_llc_pdu_type_w),
+        .req_random_access_flag (sg_build_random_access_flag_w),
+        .req_mm_pdu_bits        (sg_build_mm_pdu_bits_w),
+        .req_mm_pdu_len_bits    (sg_build_mm_pdu_len_bits_w),
+        .req_scramble_init      (sg_build_scramble_init_w),
+        .done                   (dl_pdu_done_w),
+        .coded_bits             (dl_pdu_coded_w),
+        .busy                   (dl_pdu_busy_w)
+    );
+
     // -------------------------------------------------------------------------
-    // Reference encoder chain — same parameters as DUT, driven from a separate
-    // ref_start so we can pre-compute expected coded bits for any SSI before
-    // kicking the DUT.
+    // Reference encoder chain — same parameters as DUT-builder, driven from a
+    // separate ref_start so we can pre-compute expected coded bits for any SSI
+    // before kicking the DUT.  This is the "independent" path — bit-identity
+    // failures here would catch a builder regression.
     // -------------------------------------------------------------------------
     reg          ref_builder_start = 1'b0;
     reg  [23:0]  ref_ssi           = 24'd0;
@@ -343,7 +394,7 @@ module tb_pre_reply_slotgrant;
         cfg_mcch_tn = 2'd1;
         pulse_frag1(24'hAA0001);
         repeat (5) @(posedge clk);
-        pulse_frag1(24'hBB0002);   // during S_BUILD or later
+        pulse_frag1(24'hBB0002);   // during S_REQ/S_WAIT
         wait_push(4000, hit_x);
         if (hit_x == 0) begin
             $display("  FAIL  busy-mode first push never delivered");
