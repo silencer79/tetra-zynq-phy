@@ -1805,12 +1805,23 @@ int main(int argc, char *argv[])
     tetra_reg_write(&hal, REG_REASSEMBLY_T0, 1);
     printf("REASSEMBLY_T0 set to 1 frame (Phase H.3.2d — Gold-tight)\n");
 
-    /* Phase H.7-AF: enable RTL Auto-Fire of D-NWRK-BROADCAST every 10 MFs
-     * (~10.2 s — Gold-Cell cadence).  Reset-default in axi_lite_regs is
-     * already 5'd10, so this write is belt-and-suspenders against future
-     * default drift.  Setting to 0 falls back to legacy SW-Trigger mode. */
+    /* Phase H.7-AF: enable RTL Auto-Fire of D-NWRK-BROADCAST every 10 MFs.
+     *
+     * Sprint-A verification (2026-05-04): one ETSI multiframe = 18 frames
+     * x 4 slots x (510/36) ms = 18 x 56.667 ms = 1.020 s.  Therefore:
+     *   PERIOD_MF = 10  ->  10 x 1.020 s = 10.20 s on-air cadence.
+     * Gold-Cell observed cadence (Memory `reference_gold_full_attach_
+     * timeline.md`): exactly 10.03 s +/- 30 ms across 11 bursts.
+     * Delta = +170 ms vs Gold — within MS resync tolerance (MS treats
+     * D-NWRK as a low-priority cell-heartbeat, not a bit-exact timer).
+     * PERIOD_MF=10 is the closest 5-bit value (REG is 5-bit, max 31) to
+     * 10.0 s; PERIOD_MF=9 = 9.18 s would be further off.  Reset-default
+     * in axi_lite_regs is already 5'd10, so this write is belt-and-
+     * suspenders against future default drift.  Setting to 0 falls back
+     * to legacy SW-Trigger mode. */
     tetra_reg_write(&hal, REG_NWRK_BCAST_PERIOD_MF, 10);
-    printf("NWRK_BCAST_PERIOD_MF set to 10 multiframes (Phase H.7-AF)\n");
+    printf("NWRK_BCAST_PERIOD_MF set to 10 multiframes "
+           "(10 x 1.020 s = 10.20 s; Gold = 10.03 s, Phase H.7-AF)\n");
 
     printf("Boot-init complete — RTL drives DL carrier autonomously.\n");
 

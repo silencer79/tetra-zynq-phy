@@ -215,31 +215,29 @@ static void service_grp_demand(tetra_hal_t *hal)
         }
     }
 
-    /* Y.1.fix: status-query branch.  When MS sends cnt=0 + rep=1 + atd=0
-     * (= group_identity_report=1 with no GIU records), it's asking the BS
-     * which groups it is currently registered to.  Per gold-ref Memory
-     * `reference_group_attach_bitexact.md` (5 DL-slices, alle bit-identisch
-     * im Body) sendet Gold-BS eine STATISCHE Liste aller permissioned
-     * Gruppen für die ISSI als GroupIdentityDownlink-Liste.
+    /* Sprint B (2026-05-04): status-query branch is a COMPLETE SKIP.
      *
-     * Implementation: iterate db.tsv type=1 entries, fill up to 3 records
-     * (mailbox cap).  Skip default group 0x2F4D61 (M2-baseline-only). */
-    if (reply_count == 0u && cnt == 0u && rep == 1u && atd == 0u) {
-        uint16_t cur = 0;
-        tetra_db_entry_t entry;
-        while (reply_count < 3u
-               && tetra_db_iterate_type(&cur, 1, &entry)) {
-            if (entry.entity_id == 0x2F4D61u) continue;  /* skip M2 default */
-            reply_gssi[reply_count] = entry.entity_id;
-            reply_at  [reply_count] = 0u;     /* GSSI-only */
-            reply_lt  [reply_count] = 1u;     /* M2 default lifetime */
-            reply_adi [reply_count] = 0u;     /* attach (= "you ARE in it") */
-            reply_cls [reply_count] = 4u;     /* M2 default class_of_usage */
-            reply_count++;
-        }
+     * When MS sends cnt=0 + rep=1 + atd=0 (= group_identity_report=1 with no
+     * GIU records), it is asking the BS which groups it is currently
+     * registered to.  Memory `reference_gold_group_switch_burst_timeline.md`
+     * F7 documents that **Gold-MS NEVER sends status-query in the reference
+     * capture** — all real demands carry cnt=2 (detach old + attach new).
+     *
+     * Empirical: when our daemon answered status-queries with 3 GSSIs from
+     * db.tsv, MTP3550 concluded "I am already in groups → no switch needed"
+     * and stopped initiating real Group-Switch.
+     *
+     * Cure: ACK the demand snapshot (release the HW slot) but do NOT stage a
+     * reply and do NOT pulse GO.  MS sees no DL response, falls back to
+     * "I'm in no groups", and triggers a real Group-Attach.  This is also
+     * the Gold-conformant behaviour — Gold simply never produces a reply
+     * because Gold-MS never sends the request. */
+    if (cnt == 0u && rep == 1u && atd == 0u) {
+        tetra_reg_write(hal, REG_GRP_DEMAND_ACK, 0x1u);
         fprintf(stderr,
-                "tetra_attach_daemon: GRP status-query → reply_cnt=%u "
-                "from db.tsv\n", reply_count);
+                "tetra_attach_daemon: GRP status-query (ssi=0x%06X) → "
+                "skip (Gold-conformant)\n", ssi);
+        return;
     }
 
     /* If the MS sent zero usable GSSIs, ACCEPT with count=0 (no records).
