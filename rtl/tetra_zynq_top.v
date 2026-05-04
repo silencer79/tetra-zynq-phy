@@ -2887,8 +2887,8 @@ wire [31:0] reply_wdata_axi_w;
 wire        reply_we_axi_w;
 wire        reply_go_trigger_w;
 wire        reply_use_sw_axi_w;
-// X.7: reply_use_sw_axi_w is now lint-only — keep the consumer with a
-// translate_off block so synthesis prunes it cleanly.
+// X.7: reply_use_sw_axi_w is now lint-only — keep the consumer in a
+// sim-only block so synthesis prunes it cleanly.
 // synthesis translate_off
 wire _unused_reply_use_sw = reply_use_sw_axi_w;
 // synthesis translate_on
