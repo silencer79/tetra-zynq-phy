@@ -1609,7 +1609,14 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         ul_llc_pdu_type_axi_r1        <= ul_llc_pdu_type_axi_r0;
         ul_mle_disc_axi_r0            <= ul_mle_disc_sys;
         ul_mle_disc_axi_r1            <= ul_mle_disc_axi_r0;
-        ul_mm_pdu_type_axi_r0         <= ul_mm_pdu_type_sys;
+        // Drift-Fix 2026-05-05: REG_UL_PDU_STATUS_2[11:8] muss den LLC-
+        // wrapped mm_type liefern (Bits[44..47] des 92-bit-Bursts).  Vorher
+        // wurde der "direct mm_type" (Bits[36..39]) genutzt — der zeigt für
+        // BL-DATA-wrapped MS-Demands immer "1" (=BL-DATA) statt des echten
+        // mm_type.  Das Group-Demand-Routing nutzt schon den richtigen Pfad
+        // (ul_llc_mm_pdu_type_w → frag1_mm_type_w → IE-Parser); nur die
+        // AXI-Anzeige war falsch verdrahtet.
+        ul_mm_pdu_type_axi_r0         <= ul_llc_mm_pdu_type_sys;
         ul_mm_pdu_type_axi_r1         <= ul_mm_pdu_type_axi_r0;
         // Phase 7 F.3 — reassembly counters; clk_sys → clk_axi
         reass_reassembled_cnt_axi_r0  <= reass_cnt_sys;

@@ -184,35 +184,24 @@ module tb_ul_demand_ie_parser_mm7;
     endtask
 
     // -------------------------------------------------------------------------
-    // Build a synthetic mm=7 body with the gold-ref U-ATTACH-DETACH-GRP-ID
-    // layout, single-GIU attach record (gssi=0x282FF4 class=4 at=0).
+    // Build a synthetic mm=7 body using the REAL reassembly layout: the
+    // upstream LLC parser strips the 4-bit on-air pdu_type, so body_sys
+    // starts at the first MM-body bit.
     //
-    // Body header (14 bit):
-    //   [128:125] redundant pdu_type=0111 (4 bit)
-    //   [124]     group_identity_report = 1
-    //   [123]     attach_detach_mode    = 0
-    //   [122]     o-bit                 = 1
-    //   [121]     m_group_report_resp   = 0  (skipped)
-    //   [120]     m_group_identity_uplink = 1
-    //   [119:116] elem_id               = 1000 (= 8) GroupIdentityUplink
-    //   [115:105] length                = 30 (6 num_elem + 6/30 GIU bits, but
-    //                                          we use 30 for {6 num_elem +
-    //                                          1 adi + 3 cou + 2 at + 24 gssi
-    //                                          - matches a 30-bit GIU plus
-    //                                          a 6-bit num_elem header}
-    //                                          BUT note: ETSI: length = bits
-    //                                          inside the Type-4 payload,
-    //                                          which IS num_elem(6) + GIU = 36
-    //   Adjust: 1 record with at=0 attach = 1+3+2+24 = 30 bit; total length
-    //   inside Type-4 payload = 6 (num_elem) + 30 = 36 bit.
-    //   [104: 99]  num_elem = 1
-    //   [ 98]      adi = 0 (attach)
-    //   [ 97: 95]  class_of_usage = 100 (=4)
-    //   [ 94: 93]  address_type = 00
-    //   [ 92: 69]  gssi = 0x282FF4
-    //   [ 68]      m_proprietary = 0
-    //   [ 67]      trailing m-bit = 0
-    //   [ 66:  0]  padding
+    // Body header (10 bit):
+    //   [128]     group_identity_report = 1
+    //   [127]     attach_detach_mode    = 0
+    //   [126]     o-bit                 = 1
+    //   [125]     m-bit (shared with GIU walker)        = 1
+    //   [124:121] elem_id               = 1000 (= 8) GroupIdentityUplink
+    //   [120:110] length                = 36 (= 6 num_elem + 30 GIU)
+    //   [109:104] num_elem              = 1
+    //   GIU#0 (30 bit):
+    //     [103]    adi = 0 (attach)
+    //     [102:100] class_of_usage = cou
+    //     [ 99: 98] address_type = at
+    //     [ 97: 74] gssi (24)
+    //   trailing pad
     // -------------------------------------------------------------------------
     function automatic [128:0] mm7_body_1rec_attach;
         input [23:0] g;
@@ -221,20 +210,17 @@ module tb_ul_demand_ie_parser_mm7;
         reg [128:0]  b;
         begin
             b = 129'd0;
-            b[128:125] = 4'b0111;        // redundant pdu_type
-            b[124]     = 1'b1;            // group_identity_report
-            b[123]     = 1'b0;            // atd_mode
-            b[122]     = 1'b1;            // o-bit
-            b[121]     = 1'b0;            // m_group_report_resp
-            b[120]     = 1'b1;            // m_giu
-            b[119:116] = 4'd8;            // elem_id
-            b[115:105] = 11'd36;          // length
-            b[104:99]  = 6'd1;            // num_elem
-            b[98]      = 1'b0;            // adi=attach
-            b[97:95]   = cou;             // class_of_usage
-            b[94:93]   = at;              // address_type
-            b[92:69]   = g;               // gssi
-            // [68] m_proprietary stays 0, [67] trailing m-bit stays 0
+            b[128]     = 1'b1;            // group_identity_report
+            b[127]     = 1'b0;            // atd_mode
+            b[126]     = 1'b1;            // o-bit
+            b[125]     = 1'b1;            // m_giu
+            b[124:121] = 4'd8;            // elem_id
+            b[120:110] = 11'd36;          // length = 6 + 30
+            b[109:104] = 6'd1;            // num_elem
+            b[103]     = 1'b0;            // adi=attach
+            b[102:100] = cou;             // class_of_usage
+            b[ 99: 98] = at;              // address_type
+            b[ 97: 74] = g;               // gssi
             mm7_body_1rec_attach = b;
         end
     endfunction
@@ -245,25 +231,23 @@ module tb_ul_demand_ie_parser_mm7;
         reg [128:0]  b;
         begin
             b = 129'd0;
-            b[128:125] = 4'b0111;
-            b[124]     = 1'b1;
-            b[123]     = 1'b0;
-            b[122]     = 1'b1;
-            b[121]     = 1'b0;
-            b[120]     = 1'b1;
-            b[119:116] = 4'd8;
-            b[115:105] = 11'd66;          // length = 6 + 2*30
-            b[104:99]  = 6'd2;            // num_elem
+            b[128]     = 1'b1;
+            b[127]     = 1'b0;
+            b[126]     = 1'b1;
+            b[125]     = 1'b1;
+            b[124:121] = 4'd8;
+            b[120:110] = 11'd66;          // length = 6 + 2*30
+            b[109:104] = 6'd2;
             // record 0
-            b[98]      = 1'b0;
-            b[97:95]   = 3'd4;
-            b[94:93]   = 2'd0;
-            b[92:69]   = g0;
+            b[103]     = 1'b0;
+            b[102:100] = 3'd4;
+            b[ 99: 98] = 2'd0;
+            b[ 97: 74] = g0;
             // record 1
-            b[68]      = 1'b0;
-            b[67:65]   = 3'd5;
-            b[64:63]   = 2'd0;
-            b[62:39]   = g1;
+            b[ 73]     = 1'b0;
+            b[ 72: 70] = 3'd5;
+            b[ 69: 68] = 2'd0;
+            b[ 67: 44] = g1;
             mm7_body_2rec_attach = b;
         end
     endfunction
@@ -273,19 +257,17 @@ module tb_ul_demand_ie_parser_mm7;
         reg [128:0]  b;
         begin
             b = 129'd0;
-            b[128:125] = 4'b0111;
-            b[124]     = 1'b0;
-            b[123]     = 1'b1;            // atd_mode = 1 (replace)
-            b[122]     = 1'b1;
-            b[121]     = 1'b0;
-            b[120]     = 1'b1;
-            b[119:116] = 4'd8;
-            b[115:105] = 11'd35;          // length = 6 + 1+2+2+24 = 35
-            b[104:99]  = 6'd1;
-            b[98]      = 1'b1;            // adi=detach
-            b[97:96]   = 2'd0;            // gid_detachment
-            b[95:94]   = 2'd0;            // address_type
-            b[93:70]   = g;               // gssi
+            b[128]     = 1'b0;            // grp_report=0
+            b[127]     = 1'b1;            // atd_mode=1 (replace)
+            b[126]     = 1'b1;            // o-bit
+            b[125]     = 1'b1;            // m_giu
+            b[124:121] = 4'd8;
+            b[120:110] = 11'd35;          // length = 6 + (1+2+2+24)=35
+            b[109:104] = 6'd1;
+            b[103]     = 1'b1;            // adi=detach
+            b[102:101] = 2'd0;            // gid_detachment
+            b[100: 99] = 2'd0;            // address_type
+            b[ 98: 75] = g;               // gssi
             mm7_body_1rec_detach = b;
         end
     endfunction
@@ -295,11 +277,77 @@ module tb_ul_demand_ie_parser_mm7;
         reg [128:0]  b;
         begin
             b = 129'd0;
-            b[128:125] = 4'b0111;
-            b[124]     = 1'b0;            // grp_report=0
-            b[123]     = 1'b1;            // atd_mode=1
-            b[122]     = 1'b0;            // o-bit=0 (no opt fields)
+            b[128]     = 1'b0;            // grp_report=0
+            b[127]     = 1'b1;            // atd_mode=1
+            b[126]     = 1'b0;            // o-bit=0 (no opt fields)
             mm7_body_obit_zero = b;
+        end
+    endfunction
+
+    // -------------------------------------------------------------------------
+    // Bluestation peek-and-id corner case: m-bit==1 with elem_id != GRR (=4),
+    // so S_GAD_M_REP must NOT consume the m-bit; it belongs to the GIU walker.
+    // This is exactly the mm=7 Gold-MS pattern (one m-bit, elem_id=8 directly).
+    // -------------------------------------------------------------------------
+    function automatic [128:0] mm7_body_grr_present;
+        input [23:0] g;
+        reg [128:0]  b;
+        begin
+            // GRR present: m=1 elem_id=4 length=8 payload=0x55, then GIU.
+            b = 129'd0;
+            b[128]     = 1'b0;
+            b[127]     = 1'b0;
+            b[126]     = 1'b1;            // o-bit
+            // GRR  m=1 id=4 len=8 payload=0x55
+            b[125]     = 1'b1;
+            b[124:121] = 4'd4;
+            b[120:110] = 11'd8;
+            b[109:102] = 8'h55;
+            // GIU  m=1 id=8 len=36 num=1 attach class=4 at=0 gssi=g
+            b[101]     = 1'b1;            // m-bit
+            b[100: 97] = 4'd8;            // elem_id
+            b[ 96: 86] = 11'd36;          // length
+            b[ 85: 80] = 6'd1;            // num_elem
+            b[ 79]     = 1'b0;            // adi=attach
+            b[ 78: 76] = 3'd4;            // class
+            b[ 75: 74] = 2'd0;            // at
+            b[ 73: 50] = g;               // gssi
+            mm7_body_grr_present = b;
+        end
+    endfunction
+
+    // -------------------------------------------------------------------------
+    // Gold-Ref Group-Switch #1 (UL#11+UL#12 reassembled), 129-bit body
+    // (mm_pdu_type stripped):
+    //   GIR=0 atd=0 obit=1 m=1 id=8 len=65 num=2
+    //   GIU#0 attach class=4 at=0 gssi=0x2F4D64
+    //   GIU#1 detach gid_det=2 at=0 gssi=0x2F4D63
+    //   m_proprietary=0 trailing=0
+    // -------------------------------------------------------------------------
+    function automatic [128:0] mm7_body_gold_gs1;
+        input        dummy;
+        reg [128:0]  b;
+        begin
+            b = 129'd0;
+            b[128]     = 1'b0;            // GIR=0
+            b[127]     = 1'b0;            // atd_mode=0
+            b[126]     = 1'b1;            // o-bit
+            b[125]     = 1'b1;            // m-bit (GIU)
+            b[124:121] = 4'd8;            // elem_id GIU
+            b[120:110] = 11'd65;          // length=65
+            b[109:104] = 6'd2;            // num_elem=2
+            // GIU#0 attach class=4 at=0 gssi=0x2F4D64
+            b[103]     = 1'b0;            // adi=attach
+            b[102:100] = 3'd4;            // class
+            b[ 99: 98] = 2'd0;            // at
+            b[ 97: 74] = 24'h2F4D64;      // gssi
+            // GIU#1 detach gid_det=2 at=0 gssi=0x2F4D63
+            b[ 73]     = 1'b1;            // adi=detach
+            b[ 72: 71] = 2'd2;            // group_id_detachment
+            b[ 70: 69] = 2'd0;            // at
+            b[ 68: 45] = 24'h2F4D63;      // gssi
+            // [44] m_proprietary=0, [43] trailing m-bit=0
+            mm7_body_gold_gs1 = b;
         end
     endfunction
 
@@ -418,6 +466,34 @@ module tb_ul_demand_ie_parser_mm7;
         $display("TC6  mm=4 (foreign) — parse_done + parse_ok=0");
         do_parse(4'd4, 129'd0);
         check    ("TC6.parse_ok=0",      parse_ok_lat,                   1'b0);
+
+        // ---- TC7 — Bluestation peek-and-id corner case ----
+        $display("");
+        $display("TC7  mm=7 GRR present (m=1 id=4) then GIU (m=1 id=8)");
+        do_parse(4'd7, mm7_body_grr_present(24'h123456));
+        check    ("TC7.parse_ok",        parse_ok_lat,                   1'b1);
+        check_int("TC7.gid_count",       gid_count,                      1);
+        check_h  ("TC7.gssi[0]",         gid_gssi_arr[23:0],             24'h123456);
+        check_int("TC7.class[0]",        gid_class_arr[2:0],             4);
+        check    ("TC7.adi[0]",          gid_adi_arr[0],                 1'b0);
+
+        // ---- TC8 — Gold-Ref Group-Switch #1 (Memory bit-exact) ----
+        $display("");
+        $display("TC8  mm=7 Gold GS#1 — attach 0x2F4D64 + detach 0x2F4D63");
+        do_parse(4'd7, mm7_body_gold_gs1(1'b0));
+        check    ("TC8.parse_ok",        parse_ok_lat,                   1'b1);
+        check_int("TC8.gid_count",       gid_count,                      2);
+        // Record 0: attach 0x2F4D64 class=4
+        check    ("TC8.adi[0]",          gid_adi_arr[0],                 1'b0);
+        check_int("TC8.class[0]",        gid_class_arr[2:0],             4);
+        check_int("TC8.at[0]",           gid_at_arr[1:0],                0);
+        check_h  ("TC8.gssi[0]",         gid_gssi_arr[23:0],             24'h2F4D64);
+        // Record 1: detach 0x2F4D63
+        check    ("TC8.adi[1]",          gid_adi_arr[1],                 1'b1);
+        check_int("TC8.at[1]",           gid_at_arr[3:2],                0);
+        check_h  ("TC8.gssi[1]",         gid_gssi_arr[47:24],            24'h2F4D63);
+        check    ("TC8.atd_mode",        gid_atd_mode,                   1'b0);
+        check    ("TC8.grp_report",      gid_grp_report,                 1'b0);
 
         $display("");
         $display("=========================================================");

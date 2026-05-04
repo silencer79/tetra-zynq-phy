@@ -22,7 +22,11 @@
 // `parse_done_sys` for one cycle when finished.  `parse_ok_sys` is high
 // during the same cycle when the stream parsed cleanly.
 //
-// Body layout (MSB-first; bit[128] = first on-air bit, == ul0_bits[48]):
+// Body layout (MSB-first; bit[128] = first on-air bit, == ul0_bits[48]).
+// NOTE: the 4-bit mm_pdu_type that appears on-air at info_bits[44..47] is
+// stripped by the upstream LLC parser BEFORE the 129-bit body is built —
+// so bit[128] is the FIRST bit of the MM body proper (= bit immediately
+// after pdu_type on-air).  All offsets below assume this strip.
 //
 //   [128:126] location_update_type        (3 bit)
 //   [125]     request_to_append_la        (1 bit)
@@ -614,25 +618,34 @@ module tetra_ul_demand_ie_parser (
             // Phase Y.1.a — mm=7 U-ATTACH-DETACH-GROUP-IDENTITY walker
             //
             // Body layout (per `u_attach_detach_group_identity.rs`, MSB-first
-            // in body_sys; bit[128] = first on-air bit):
-            //   [128..125]  pdu_type (= 0111, redundant) — 4 bit, skipped
-            //   [124]       group_identity_report                          1 bit
-            //   [123]       attach_detach_mode                             1 bit
-            //   [122]       o-bit (optional fields follow)                 1 bit
+            // in body_sys; bit[128] = first MM-body bit AFTER pdu_type strip).
+            // The 4-bit pdu_type that appears on-air at info_bits[44..47] is
+            // already removed by the LLC layer before the 129-bit body is
+            // assembled; it is therefore NOT present in body_sys.
+            //
+            //   [128]       group_identity_report                          1 bit
+            //   [127]       attach_detach_mode                             1 bit
+            //   [126]       o-bit (optional fields follow)                 1 bit
             //     if o-bit:
-            //       [121]   m_group_report_response                        1 bit
-            //         if m: [120..117] elem_id (4) + [116..106] length (11)
-            //               + length bits payload                          (skip)
-            //       [..]    m_group_identity_uplink                        1 bit
-            //         if m: elem_id(4) [expect 1000=8] + length(11)
-            //               + num_elem(6) + N×GIU records
+            //       [125]   m-bit shared by parse_type3_generic(GRR=4)
+            //               and parse_type4_struct(GIU=8) per bluestation
+            //               peek_type34_mbit_and_id semantics.  GRR (elem
+            //               id=4) is consumed only when m=1 AND the next
+            //               4 bits == 4'd4; otherwise the m-bit stays for
+            //               the GIU walker to peek again.
+            //         if GRR present: [124..121] elem_id=0100 + [120..110]
+            //               length(11) + length bits payload (skip)
+            //       [..]    m-bit for GIU
+            //         if m=1 && elem_id=1000: 4-bit id + 11-bit length
+            //               + 6-bit num_elem + N×GIU records
             // -----------------------------------------------------------------
             S_GAD_HDR: begin : gad_hdr_blk
-                if (cursor >= 8'd7) begin
-                    // skip [128..125] = redundant pdu_type (4 bits)
-                    gid_group_identity_report_sys <= body_buf[cursor - 8'd5];
-                    gid_attach_detach_mode_sys    <= body_buf[cursor - 8'd6];
-                    cursor                        <= cursor - 8'd6;
+                // Reassembly already stripped the on-air pdu_type, so the
+                // top of body_buf is GIR + atd_mode directly.
+                if (cursor >= 8'd3) begin
+                    gid_group_identity_report_sys <= body_buf[cursor - 8'd1];
+                    gid_attach_detach_mode_sys    <= body_buf[cursor - 8'd2];
+                    cursor                        <= cursor - 8'd2;
                     state                         <= S_GAD_OBIT;
                 end else begin
                     state <= S_DONE_FAIL;
@@ -654,22 +667,42 @@ module tetra_ul_demand_ie_parser (
             end
 
             // -----------------------------------------------------------------
-            // m_group_report_response (Type-3) — skip wholesale.
+            // m-bit for GroupReportResponse (Type-3, elem_id=4) — bluestation
+            // peek_type34_mbit_and_id semantics: only consume the m-bit when
+            // it is 1 AND the trailing 4-bit elem_id == expected (=4).  When
+            // m-bit==0 we still consume it (GRR not present, fall through to
+            // GIU); when m-bit==1 with elem_id != 4 the m-bit BELONGS to the
+            // following Type-4 (GIU) walker, so we DO NOT consume — just hand
+            // over with cursor untouched.
             S_GAD_M_REP: begin : gad_m_rep_blk
                 reg [10:0] skip_len;
+                reg [3:0]  peek_id;
                 skip_len = 11'd0;
+                peek_id  = 4'd0;
                 if (cursor == 8'd0) begin
                     state <= S_DONE_FAIL;
                 end else if (peek1 == 1'b0) begin
-                    // not present; advance to the GIU m-bit
+                    // m-bit explicitly 0 — consume the bit, GRR not present.
                     cursor <= cursor - 8'd1;
                     state  <= S_GAD_M_GIU;
-                end else if (cursor >= 8'd16) begin
-                    // present: skip elem_id(4) + length(11) + payload
-                    skip_len = body_buf[cursor - 8'd6 -: 11];
-                    if ({1'b0, cursor} >= ({2'b00, skip_len[7:0]} + 17)) begin
-                        cursor <= cursor - 8'd16 - skip_len[7:0];
-                        state  <= S_GAD_M_GIU;
+                end else if (cursor >= 8'd5) begin
+                    // m-bit == 1: peek elem_id WITHOUT consuming the m-bit.
+                    peek_id = body_buf[cursor - 8'd2 -: 4];
+                    if (peek_id != 4'd4) begin
+                        // elem_id != GroupReportResponse — the m-bit is for
+                        // the upcoming GIU element; leave cursor untouched.
+                        state <= S_GAD_M_GIU;
+                    end else if (cursor >= 8'd16) begin
+                        // GRR present: consume m-bit + elem_id(4) + len(11)
+                        // + length bits of opaque payload.
+                        skip_len = body_buf[cursor - 8'd6 -: 11];
+                        if ({1'b0, cursor} >=
+                                ({2'b00, skip_len[7:0]} + 17)) begin
+                            cursor <= cursor - 8'd16 - skip_len[7:0];
+                            state  <= S_GAD_M_GIU;
+                        end else begin
+                            state <= S_DONE_FAIL;
+                        end
                     end else begin
                         state <= S_DONE_FAIL;
                     end
