@@ -1616,7 +1616,7 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         // mm_type.  Das Group-Demand-Routing nutzt schon den richtigen Pfad
         // (ul_llc_mm_pdu_type_w → frag1_mm_type_w → IE-Parser); nur die
         // AXI-Anzeige war falsch verdrahtet.
-        ul_mm_pdu_type_axi_r0         <= ul_llc_mm_pdu_type_sys;
+        ul_mm_pdu_type_axi_r0         <= ul_llc_mm_pdu_type_w;
         ul_mm_pdu_type_axi_r1         <= ul_mm_pdu_type_axi_r0;
         // Phase 7 F.3 — reassembly counters; clk_sys → clk_axi
         reass_reassembled_cnt_axi_r0  <= reass_cnt_sys;
