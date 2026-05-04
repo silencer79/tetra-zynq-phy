@@ -36,8 +36,10 @@ tetra_sysinfo: tetra_hal.c tetra_hal.h
 tetra_ul_mon: tetra_ul_mon.c tetra_hal.h
 	$(CC) $(CFLAGS) -o $@ $<
 
-tetra_attach_daemon: tetra_attach_daemon.c tetra_db.c tetra_db.h tetra_hal.h
-	$(CC) $(CFLAGS) -o $@ tetra_attach_daemon.c tetra_db.c
+tetra_attach_daemon: tetra_attach_daemon.c tetra_db.c tetra_db.h \
+                     tetra_tx_transport.c tetra_tx_transport.h tetra_hal.h
+	$(CC) $(CFLAGS) -o $@ tetra_attach_daemon.c tetra_db.c \
+		tetra_tx_transport.c
 
 module:
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \

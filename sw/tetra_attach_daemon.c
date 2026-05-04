@@ -28,6 +28,7 @@
 
 #include "tetra_hal.h"
 #include "tetra_db.h"
+#include "tetra_tx_transport.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -87,26 +88,12 @@ static void on_sigint(int sig)
     keep_running = 0;
 }
 
-/* Indirect-write helper for the Reply mailbox window.  Sequence is
- * INDEX → DATA so the FPGA latches `data` at word `idx`. */
-static void reply_write(tetra_hal_t *hal, uint32_t idx, uint32_t data)
-{
-    tetra_reg_write(hal, REG_REPLY_INDEX, idx);
-    tetra_reg_write(hal, REG_REPLY_DATA,  data);
-}
-
-/* Indirect-read helper for the Demand mailbox window. */
+/* Indirect-read helpers for the Demand mailbox windows.  Reply staging is
+ * delegated to tetra_tx_transport (Phase Z.1). */
 static uint32_t demand_read(tetra_hal_t *hal, uint32_t idx)
 {
     tetra_reg_write(hal, REG_DEMAND_INDEX, idx);
     return tetra_reg_read(hal, REG_DEMAND_DATA);
-}
-
-/* Phase Y.1.e — Group-Attach mm=7 mailbox helpers + per-MS NR/NS tracking. */
-static void grp_reply_write(tetra_hal_t *hal, uint32_t idx, uint32_t data)
-{
-    tetra_reg_write(hal, REG_GRP_REPLY_INDEX, idx);
-    tetra_reg_write(hal, REG_GRP_REPLY_DATA,  data);
 }
 
 static uint32_t grp_demand_read(tetra_hal_t *hal, uint32_t idx)
@@ -253,29 +240,20 @@ static void service_grp_demand(tetra_hal_t *hal)
     unsigned ns = 0u, nr = 0u;
     grp_nsnr_step(ssi, &ns, &nr);
 
-    grp_reply_write(hal, 0, ssi & 0x00FFFFFFu);                     /* W0 ssi */
-    grp_reply_write(hal, 1, 0u);                                     /* W1 ar=0 (accept) */
-    grp_reply_write(hal, 2, reply_count);                            /* W2 count */
-    grp_reply_write(hal, 3, reply_gssi[0] & 0x00FFFFFFu);
-    grp_reply_write(hal, 4, reply_gssi[1] & 0x00FFFFFFu);
-    grp_reply_write(hal, 5, reply_gssi[2] & 0x00FFFFFFu);
-    /* W6 layout: [20:15]=at, [14:9]=lt, [8:6]=adi */
-    uint32_t w6 = ((reply_at[2] & 0x3u) << 19) | ((reply_at[1] & 0x3u) << 17)
-                | ((reply_at[0] & 0x3u) << 15)
-                | ((reply_lt[2] & 0x3u) << 13) | ((reply_lt[1] & 0x3u) << 11)
-                | ((reply_lt[0] & 0x3u) <<  9)
-                | ((reply_adi[2] & 0x1u) << 8) | ((reply_adi[1] & 0x1u) << 7)
-                | ((reply_adi[0] & 0x1u) << 6);
-    grp_reply_write(hal, 6, w6);
-    /* W7 [8:0]=class_arr */
-    uint32_t w7 = ((reply_cls[2] & 0x7u) << 6) | ((reply_cls[1] & 0x7u) << 3)
-                |  (reply_cls[0] & 0x7u);
-    grp_reply_write(hal, 7, w7);
-    /* W8 [1]=ns [0]=nr */
-    grp_reply_write(hal, 8, (ns << 1) | nr);
-
-    /* Pulse GO — RTL latches the staged body and triggers the build. */
-    tetra_reg_write(hal, REG_GRP_REPLY_GO, 0x1u);
+    tx_pdu_meta_t meta = {0};
+    meta.target_ssi   = ssi;
+    meta.accept_reject = 0u;
+    meta.reply_count  = (uint8_t)reply_count;
+    meta.ns           = (uint8_t)ns;
+    meta.nr           = (uint8_t)nr;
+    for (unsigned i = 0; i < 3; i++) {
+        meta.gssi[i]     = reply_gssi[i];
+        meta.at[i]       = (uint8_t)reply_at[i];
+        meta.lifetime[i] = (uint8_t)reply_lt[i];
+        meta.adi[i]      = (uint8_t)reply_adi[i];
+        meta.cls[i]      = (uint8_t)reply_cls[i];
+    }
+    tetra_tx_submit(hal, TX_GRP_ATTACH_ACK, &meta);
 
     /* Release the demand snapshot. */
     tetra_reg_write(hal, REG_GRP_DEMAND_ACK, 0x1u);
@@ -286,7 +264,7 @@ static void service_grp_demand(tetra_hal_t *hal)
             ssi, cnt, atd, rep, reply_count, ns, nr, policy);
 }
 
-/* Stage one body in the Reply mailbox and pulse GO. */
+/* Stage one body in the Reply mailbox via tetra_tx_transport. */
 static void stage_accept_body(tetra_hal_t *hal,
                               uint32_t ssi,
                               uint32_t la,
@@ -296,19 +274,20 @@ static void stage_accept_body(tetra_hal_t *hal,
                               uint32_t gila_lifetime,
                               uint32_t gila_present)
 {
-    reply_write(hal, 0, ssi & 0x00FFFFFFu);                 /* W0 ssi      */
-    reply_write(hal, 1, la  & 0x3FFFu);                      /* W1 la       */
-    reply_write(hal, 2, M2_DEFAULT_ADDR_TYPE);               /* W2 addrtype */
-    reply_write(hal, 3, result & 0x3u);                      /* W3 result   */
-    reply_write(hal, 4, gila_gssi & 0x00FFFFFFu);            /* W4 gssi     */
-    reply_write(hal, 5, ((gila_class    & 0x7u) << 2)
-                       | (gila_lifetime & 0x3u));            /* W5 class/life */
-    reply_write(hal, 6, gila_present & 0x1u);                /* W6 gilaPres */
-    reply_write(hal, 7, M2_DEFAULT_ENCRYPTION);              /* W7 enc      */
-    reply_write(hal, 8, M2_DEFAULT_AUTH_RESULT);             /* W8 auth     */
+    tx_pdu_meta_t meta = {0};
+    meta.target_ssi    = ssi;
+    meta.la            = (uint16_t)la;
+    meta.result        = (uint8_t)result;
+    meta.gila_gssi     = gila_gssi;
+    meta.gila_class    = (uint8_t)gila_class;
+    meta.gila_lifetime = (uint8_t)gila_lifetime;
+    meta.gila_present  = (uint8_t)gila_present;
+    meta.encryption    = M2_DEFAULT_ENCRYPTION;
+    meta.auth_result   = M2_DEFAULT_AUTH_RESULT;
 
-    /* GO pulse — HW-clears after consume */
-    tetra_reg_write(hal, REG_REPLY_GO, 0x1u);
+    tx_pdu_class_t cls = (result == M2_DEFAULT_RESULT_OK) ? TX_LU_ACCEPT
+                                                          : TX_LU_REJECT;
+    tetra_tx_submit(hal, cls, &meta);
 }
 
 static void usage(const char *a0)
