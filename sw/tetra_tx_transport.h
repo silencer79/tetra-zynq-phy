@@ -21,10 +21,10 @@
 #include "tetra_hal.h"
 
 typedef enum {
-    TX_LU_ACCEPT       = 0,   /* mm=1, LI=21, SCH/F (Z.2) → mcch          */
-    TX_LU_REJECT       = 1,   /* mm=4, LI=7,  SCH/HD blk1 → mcch          */
-    TX_GRP_ATTACH_ACK  = 2,   /* mm=11, LI=16, SCH/F (Z.2) → mcch         */
-    /* Future (Z.2+):
+    TX_LU_ACCEPT       = 0,   /* mm=1, LI=21, SCH/F   → mcch              */
+    TX_LU_REJECT       = 1,   /* mm=4, LI=7,  SCH/HD blk1 → mcch (Z.5)    */
+    TX_GRP_ATTACH_ACK  = 2,   /* mm=11, LI=16, SCH/F  → mcch              */
+    /* Future:
      * TX_BL_ACK_LI7, TX_NWRK_BCAST, TX_CALL_PROCEEDING, TX_TX_GRANTED,
      * TX_DETACH_ACK
      */

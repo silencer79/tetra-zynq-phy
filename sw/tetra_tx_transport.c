@@ -33,10 +33,11 @@ static void grp_reply_write(tetra_hal_t *hal, uint32_t idx, uint32_t data)
 
 /* mm=1 / mm=4 — D-LOC-UPDATE-ACCEPT / -REJECT body.
  *
- * For REJECT (result != 0) the legacy daemon zeros gila_gssi/class/
- * lifetime/present.  Caller is expected to do that, but we mirror the
- * suppression here as a safety net (matches stage_accept_body() result
- * branch). */
+ * For REJECT (result != 0) the GILA fields are zeroed — the RTL REJECT
+ * encoder (rtl/lmac/tetra_d_location_update_reject_encoder.v) builds an
+ * 8-bit MM body (PDU-Type=7 + 3-bit cause + o-bit=0) without GILA, and
+ * the MLE-FSM Z.5 dual-branch FSM picks the REJECT branch when W3 != 0.
+ * Mirror the suppression here as a safety net. */
 static int submit_lu(tetra_hal_t *hal, const tx_pdu_meta_t *m,
                      uint32_t result)
 {
@@ -48,7 +49,9 @@ static int submit_lu(tetra_hal_t *hal, const tx_pdu_meta_t *m,
     reply_write(hal, 0, m->target_ssi & 0x00FFFFFFu);
     reply_write(hal, 1, m->la & 0x3FFFu);
     reply_write(hal, 2, 0x1u);                   /* addr_type = Ssi+EventLabel */
-    reply_write(hal, 3, result & 0x3u);
+    reply_write(hal, 3, result & 0x3u);          /* W3 selects ACCEPT(=0) vs
+                                                  * REJECT(!=0) branch in the
+                                                  * MLE-FSM (Z.5 dual-branch). */
     reply_write(hal, 4, gila_gssi);
     reply_write(hal, 5, (gila_class << 2) | gila_lifetime);
     reply_write(hal, 6, gila_present);

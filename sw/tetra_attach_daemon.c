@@ -296,21 +296,14 @@ static void stage_accept_body(tetra_hal_t *hal,
                                                           : TX_LU_REJECT;
     tetra_tx_submit(hal, cls, &meta);
 
-    /* Phase Z.3 backlog: TX_LU_REJECT routes through the same Reply-Mailbox
-     * path as TX_LU_ACCEPT (see sw/tetra_tx_transport.c::submit_lu).  The
-     * RTL D-LOC-UPDATE-REJECT encoder (rtl/lmac/tetra_d_location_update_
-     * reject_encoder.v) is currently dead-code — not instantiated in
-     * tetra_zynq_top.v.  Result: the on-air ACCEPT/REJECT are both routed
-     * through the ACCEPT encoder with body suppression (gila fields zeroed).
+    /* Phase Z.5 — TX_LU_REJECT now drives the dedicated mm=4 D-LOC-UPDATE-
+     * REJECT path inside the MLE-FSM (8-bit MM body, SCH/HD blk1 per
+     * PDUC_FINAL_LU_REJECT_FMT).  The mailbox W3 result bit selects the
+     * ACCEPT vs REJECT branch; W4..W6 (GILA) are ignored for REJECT.
      *
-     * This works for "reject-temp" cause=1 because the MS treats an empty
-     * GILA as a rejection trigger, but it is NOT bit-genau Gold for mm=4
-     * D-LOC-UPDATE-REJECT (PDU-type=7 + 3-bit cause + 1-bit o-bit, total 8
-     * bits, SCH/HD blk1 LI=7).  Phase Z.4 will:
-     *   - instantiate the existing reject encoder in top.v as a parallel
-     *     MLE-slot producer,
-     *   - extend tx_pdu_meta_t with `is_reject` + `reject_cause`,
-     *   - route TX_LU_REJECT to a new RTL reject-mux branch.
+     * mb_result -> ETSI Table 16.43 reject_cause mapping (RTL-side):
+     *   1 (reject-temp) -> 3'd2 "no resources available"
+     *   2 (reject-perm) -> 3'd1 "illegal MS"
      */
 }
 
