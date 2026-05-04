@@ -9,7 +9,7 @@
 //
 //   Case A (default, no queue pop)
 //     BRAM TN=1 = STATIC NDB2 SYSINFO (idx=0, ndb2=1)
-//     Queue empty → frame stays NDB2-SYSINFO, AACH defaults to 0x32CB
+//     Queue empty → frame stays NDB2-SYSINFO, AACH defaults to 0x3000
 //     CapAlloc on TN=1 (per ETSI gold-cell schedule for F1-17 traffic
 //     slots, see tetra_aach_encoder.v).
 //
@@ -32,7 +32,7 @@
 //     slot pattern in Phase H.7).  Queue popping for TN=1 does NOT
 //     change TN=2's behaviour — TN=2 still routes the scheduler
 //     bundle's null-pdu idle blk1 (= NULL-PDU SCH/HD), and the AACH for
-//     TN=2 takes the encoder-default-logic path (0x32CB CapAlloc).
+//     TN=2 takes the encoder-default-logic path (0x3000 CapAlloc idle).
 //
 // Self-checking: each case asserts via $display + errors counter; on
 // non-zero errors the TB calls $stop.
@@ -570,8 +570,9 @@ initial begin
     check_eq_int({18'd0, sched_aach_override_tn1_sys}, 32'd0, "A.aach_ovr_tn1");
 
     // Trigger AACH encode for TN=1 fn=0 (F1 in ETSI, traffic slot)
+    // Default for F1-17 TN!=0 idle traffic-slot: 0x3000 (Gold-Audit 2026-05-04).
     aach_kick_at(2'd1, 5'd0, 6'd0);
-    check_eq_int({18'd0, dut_aach_info_sys}, 32'h32CB, "A.aach_info_default_capalloc");
+    check_eq_int({18'd0, dut_aach_info_sys}, 32'h3000, "A.aach_info_default_capalloc");
 
     // ------------------------------------------------------------------
     // Case B — Queue pop SCH/F target_tn=1, aach=0x0009
@@ -643,9 +644,10 @@ initial begin
     // AACH for TN=2 falls into encoder default-logic path (override
     // valid=0).  In the simplified TB harness signalling_active_sys=0
     // and grant_pending=0, fn=1 mn=0 tn=2 → MN%4=0, fn=5'd1=ETSI FN 2,
-    // not in the FN=3..13 MN%4=1 reserved window, so default 0x32CB.
+    // not in the FN=3..13 MN%4=1 reserved window, so default 0x3000
+    // (Gold-bit-genau 2026-05-04 Audit; vorher 0x32CB war Drift).
     aach_kick_at(2'd2, 5'd1, 6'd0);
-    check_eq_int({18'd0, dut_aach_info_sys}, 32'h32CB, "D.aach_info_tn2_default");
+    check_eq_int({18'd0, dut_aach_info_sys}, 32'h3000, "D.aach_info_tn2_default");
 
     // Also confirm the queued PDU for TN=1 still fired correctly in this
     // frame (no regression caused by D's class=SIGNALLING TN=2 entry).

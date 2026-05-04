@@ -50,6 +50,12 @@
 // -----------------------------------------------------------------------------
 `define PDUC_AACH_SIGNALLING_ACTIVE  14'h0009
 `define PDUC_AACH_IDLE               14'h0249
+// PDUC_AACH_TRAFFIC_IDLE — AACH for F1-17 TN!=0 idle traffic-slots.
+// Gold-cell capture (2026-05-04 audit) zeigt konstantes
+//   header=11 (CapAlloc) + Field1=000000 + Field2=000000 = 14'h3000
+// unabhängig von cell-CC, MNC, MCC.  Vor dem Audit hatte der Encoder
+// hier 14'h32CB = CapAlloc f1=11 f2=11 — das war Drift gegen Gold.
+`define PDUC_AACH_TRAFFIC_IDLE       14'h3000
 
 // -----------------------------------------------------------------------------
 // Address-type ETSI EN 300 392-2 Table 21.66

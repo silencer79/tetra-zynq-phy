@@ -130,9 +130,9 @@ initial begin
     repeat (3) @(posedge clk_sys);
 
     // TC1-TC4 entfernt: alte gen_aach_reference.py-Vektoren basierten auf
-    // info=0x3000 / 0x0040.  Mit der 2026-05-02 AACH-Schedule-Erweiterung
-    // (Gold-Pattern auf TN!=0) gibt das DUT jetzt info=0x3CCB / 0x2249 für
-    // dieselben Slot-Positionen.  Die info-Werte werden via TC13-TC17
+    // info=0x3000 / 0x0040.  Nach der 2026-05-04 Gold-Audit-Korrektur
+    // ist 0x3000 wieder das default für F1-17 TN!=0 idle Traffic-Slots
+    // (vorherige 32CB-Drift war Bug).  Die info-Werte werden via TC13-TC17
     // direkt asserted; der RM-Encoder-Pfad ist durch den unveränderten
     // RM-encode-Code abgedeckt.
 
@@ -215,13 +215,17 @@ initial begin
     // ------------------------------------------------------------------
     // 2026-05-02 Erweiterung: Gold-Pattern auf TN!=0 nach FN/MN%4
     // ------------------------------------------------------------------
-    $display("=== TC13 F1 TN=2 MN%%4=0 → info14=0x3CCB (CapAlloc f1=11 f2=11) ===");
+    // TC13 — Gold-Audit 2026-05-04: F1-17 TN!=0 idle Traffic-Slot ist
+    // konstant 0x3000 (CapAlloc f1=0 f2=0), unabhängig von cell-CC.
+    // Vorher Memory `8f679ae` und 1c5d1a8 dokumentierten 0x3CCB / 0x32CB —
+    // beides war Drift gegen Gold und wird hier auf 0x3000 korrigiert.
+    $display("=== TC13 F1 TN=2 MN%%4=0 → info14=0x3000 (CapAlloc f1=0 f2=0, Gold-bit-genau) ===");
     run_encode(5'd0, 2'd2, 2'd0, 6'd9, 10'd901, 14'd9998);
-    if (u_dut.info_sys == 14'h3CCB) begin
+    if (u_dut.info_sys == 14'h3000) begin
         $display("PASS TC13: info14=0x%04x", u_dut.info_sys);
         pass_cnt = pass_cnt + 1;
     end else begin
-        $display("FAIL TC13: info14=0x%04x  expected 0x3CCB", u_dut.info_sys);
+        $display("FAIL TC13: info14=0x%04x  expected 0x3000", u_dut.info_sys);
         fail_cnt = fail_cnt + 1;
     end
 
