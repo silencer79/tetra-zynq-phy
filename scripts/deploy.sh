@@ -214,8 +214,12 @@ ssh_cmd "killall tetra_sysinfo 2>/dev/null || true; killall tetra_ul_mon 2>/dev/
 # tetra_autoenroll) if any old binaries / scripts are still running on the
 # board.  These are no longer uploaded; this kill is purely hygienic so a
 # fresh deploy doesn't leave orphan processes from a pre-X.7 board state.
-# pkill-Pattern mit Bracket-Trick (`[t]etra_*`) verhindert Match auf
-# der eigenen ssh/bash-cmdline — sonst killt pkill seine Shell selbst.
+# Bracket-Trick `[t]` schützt vor pkill-self-kill: procps-pkill -f matched
+# auf dem Board (3.3.17) die volle Shell-cmdline inkl. seiner parent ssh-
+# bash, deren argv den string `tetra_dbsync` enthält → pkill killt seine
+# eigene Shell → ssh-Disconnect → deploy.sh exit 255. Mit `[t]etra_*` ist
+# das Pattern als Regex weiter `tetra_*`, aber die literale argv-Sequenz
+# matched sich nicht selbst. Standard-Linux-Idiom.
 ssh_cmd "pkill -f '[t]etra_db_mgr' 2>/dev/null; pkill -f '[t]etra_dbsync' 2>/dev/null; pkill -f '[t]etra_autoenroll' 2>/dev/null; true"
 
 # Upload bitstream
