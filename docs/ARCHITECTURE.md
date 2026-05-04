@@ -81,8 +81,16 @@ Slice-Druck stieg auf 97.82 % nach Phase 7 F.7 (MLE-FSM allein 10172 LUTs). Phas
 - ✅ X.1 Demand-Push-Mailbox FPGA-seitig (commit `baa40b0`) — passive Anzapfung der IE-Parser-Outputs, kein Behavior-Change am MLE-FSM
 - ✅ X.2 Reply-Pull-Mailbox + `sw/tetra_attach_daemon.c` (commits `ecb3677` + `25c8962`) — fixe M2-Replik, toggleable via `REG_REPLY_USE_SW`. **Live-verifiziert 2026-05-03 22:01:** MTP3550 Frag-1+Frag-2 → SW-Daemon serviced #1 → Encoder via Mux → ACCEPT on-air → MS akzeptiert (`reass_ok=1, ul_req:accept=4:4`).
 - ✅ X.3 SW-DB-Lookup + Auto-Enroll (commits `baeb9e2` + `2711bd0`) — `sw/tetra_db.[ch]` 256-Slot-DB mit atomic db.tsv-write + mtime-reload, Host-TB 59/59 PASS. `REG_DB_POLICY` Bit 0/1 (`accept_unknown_issi`/`gssi`). Polish: W1 LA aus REG_CELL_LA, deploy.sh --init startet Daemon. **Live-verifiziert 2026-05-03 22:35:** MTP3550 GSSI-Wunsch `0x000001` (nicht in DB) → AUTOENROLL → db.tsv appendet → GILA spiegelt MS-Wunsch. **Phase-D-rev "MS-GSSI-Wunsch ignoriert" Bug damit architektonisch gelöst.**
-- ⏳ X.4 RTL-Cleanup: EntityTable + ProfileTable + AST + MLE-FSM Multi-Lookup-Pfade löschen — Slice-Bilanz ≈ −1670 (92.57 % → 79.8 %)
-- ⏳ X.5 Pre-Reply BL-ACK Mini-FSM + AACH-Anpassung + alte SW-Daemons (`tetra_db_mgr`, `dbsync.sh`, `autoenroll.sh`) entfernen
+- ✅ X.4 RTL-Cleanup (commit `75c639a`) — EntityTable + ProfileTable + ActiveSessionTable + 7 TBs gelöscht. MLE-FSM States 35→7 (Multi-Lookup raus, profile0_m2_guard raus). REG_REPLY_USE_SW Reset 0→1. LOC −3804. Slice 92.57%→91.75%. **Regression entdeckt:** S_BUILD_SHORT_*-Pfad versehentlich mitgelöscht, der die Slot-Grant-Pre-Reply baute → MS bekam keinen Frag-2-Slot. Fix in X.5b.
+- ✅ X.4.5 WebUI Cleanup + DB-Edit (commit `9ef14a7`) — entities.cgi direktes db.tsv-Editing (atomic), policy.cgi Bit-1, sessions.cgi AST-Reads raus + Mailbox-Status, profiles.cgi gelöscht (Profile SW-hardcoded), index.html Profiles-Tab raus + DB-Status-Block. LOC −237.
+- ✅ X.5+X.5b Pre-Reply Sequenz (commits `778d4d5`+`1fcf121`) — zwei parallele Mini-FSMs für die volle 6-Schritt-Gold-Sequenz:
+  - **`tetra_pre_reply_slotgrant`** (X.5b NEU) auf `frag1_pulse_w` → SCH/F MAC-RESOURCE mit `slot_grant_packed (capacity_allocation=0, granting_delay=1)`. Pipeline: existing `basic_slotgrant_encoder` + `mac_resource_dl_builder` + `sch_f_encoder`. Gibt MS einen UL-Slot für Frag-2.
+  - **`tetra_pre_reply_blck`** (X.5 mit korrigiertem Trigger) auf `mle_demand_parsed_valid_sys` → BL-ACK LI=7 als ACK auf das Frag-1+Frag-2-Pair. Triggert MS' Frag-3.
+  - Mux am MLE-Producer-Slot in DL-Signal-Queue: MLE-Final-ACCEPT priorisiert (mb_go_pulse-Pfad), SlotGrant fallback. Kein dl_signal_queue.v-Touch.
+  - TBs: tb_pre_reply_blck 15/15 PASS, tb_pre_reply_slotgrant 14/14 PASS bit-exact.
+  - Slice 91.75%→**97.65%** (+5.9 ppt, kritisch). Build durch, WNS +0.006 ns. Builder-Duplikate sind der Schmerzpunkt.
+  - **Live-verifiziert 2026-05-04 01:18 BST:** MTP3550 Frag-1 → SlotGrant → Frag-2 → BL-ACK → Frag-3 → ACCEPT → eingebucht. `tetra_attach_daemon: serviced #1 ssi=0x282F91 la=0x0001 lut=3 cnt=1 gila_gssi=0x000001 (profile=0, issi=hit, gssi=ok)`. **Phase-X-Migration komplett, MS-Anmeldung End-to-End funktional.**
+- ⏳ X.6 optional: alte SW-Daemons (`tetra_db_mgr`, `tetra_dbsync.sh`, `tetra_autoenroll.sh`) entfernen, AACH-Pre-Reply-Slot-Pattern auf Gold-Optimum tweaken, Builder-Sharing zwischen Pre-Reply und MLE-FSM-Final-ACCEPT für Slice-Reduktion (97.65%→~85%) vor M3 Group-Call.
 
 **Latency-Budget:** Reply-Slot 2 Frames nach Frag-2-RX = ~56 ms. SW-Roundtrip ~2–12 ms. Margin ~44 ms.
 
