@@ -2552,10 +2552,13 @@ wire [15:0]  pre_reply_blck_drop_cnt_sys_w;
 tetra_pre_reply_blck u_pre_reply_blck (
     .clk_sys              (clk_sys),
     .rst_n_sys            (rst_n_sys),
-    // Reassembly+IEP-Done trigger (Step 4 — post-Frag-2 BL-ACK).  Bound
-    // to `mle_demand_parsed_valid_sys` (= iep_parse_done_sys &
-    // iep_parse_ok_sys, defined ~line 723).
-    .trigger_valid        (mle_demand_parsed_valid_sys),
+    // Reassembly+IEP-Done trigger (Step 4 — post-Frag-2 BL-ACK).
+    // Y.1.fix: feuert für mm=2 (ITSI-Attach) UND mm=7 (Group-Attach).
+    // Memory reference_gold_full_attach_timeline.md zeigt für beide
+    // mm-Types das gleiche 5-Schritt-Pattern: Frag-1 → Frag-2 →
+    // Pre-Reply BL-ACK LI=7 → MS-Frag-3 BL-ACK → finaler ACK.
+    .trigger_valid        (mle_demand_parsed_valid_sys |
+                           grp_demand_parsed_valid_sys),
     .ul_ssi               (ul_issi_sys),
     // Target TN = MCCH slot (where the MS expects the BL-ACK).
     .cfg_mcch_tn          (cfg_mcch_tn_sys_r1),
