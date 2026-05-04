@@ -559,9 +559,11 @@ module tetra_mac_resource_dl_builder #(
                                 lat_mm_bits,          // 128
                                 12'd0};               // pad
                 end else if (lat_llc_pdu_type == LLC_PDUT_AL_SETUP) begin
-                    // 4 header bits, rest zero
-                    llc_buf <= {LLC_PDUT_AL_SETUP,    // 4
-                                140'd0};
+                    // 4 header bits, rest zero — pad sized from parameter so
+                    // smaller buffers (e.g. LLC_BUF_BITS=16 for the SCH/HD
+                    // PDU_BITS=124 path) work without literal-overflow.
+                    llc_buf <= { LLC_PDUT_AL_SETUP,                // 4
+                                {(LLC_BUF_BITS - 4){1'b0}} };      // pad
                 end else if (lat_llc_pdu_type == {2'b00, LLC_PDUT_BL_ADATA}) begin
                     // 1+1+2+1+1 + 3 + 128 = 137, pad 7 → 144
                     llc_buf <= {LLC_LINK_TYPE_BL,     // 1

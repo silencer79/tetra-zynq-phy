@@ -214,7 +214,9 @@ ssh_cmd "killall tetra_sysinfo 2>/dev/null || true; killall tetra_ul_mon 2>/dev/
 # tetra_autoenroll) if any old binaries / scripts are still running on the
 # board.  These are no longer uploaded; this kill is purely hygienic so a
 # fresh deploy doesn't leave orphan processes from a pre-X.7 board state.
-ssh_cmd "pkill -f tetra_db_mgr 2>/dev/null; pkill -f tetra_dbsync 2>/dev/null; pkill -f tetra_autoenroll 2>/dev/null; true"
+# pkill-Pattern mit Bracket-Trick (`[t]etra_*`) verhindert Match auf
+# der eigenen ssh/bash-cmdline — sonst killt pkill seine Shell selbst.
+ssh_cmd "pkill -f '[t]etra_db_mgr' 2>/dev/null; pkill -f '[t]etra_dbsync' 2>/dev/null; pkill -f '[t]etra_autoenroll' 2>/dev/null; true"
 
 # Upload bitstream
 echo "Uploading bitstream..."
@@ -311,7 +313,7 @@ if $DO_INIT; then
     # (accept_unknown_issi+gssi) and starts the daemon.  Daemon flips
     # REG_REPLY_USE_SW=1 on entry, =0 on shutdown (status-only since X.7 —
     # the FPGA MLE-FSM no longer consumes the bit, see Phase X.7 cleanup).
-    ssh_cmd "pkill -f tetra_attach_daemon 2>/dev/null; true"
+    ssh_cmd "pkill -f '[t]etra_attach_daemon' 2>/dev/null; true"
     ssh_cmd "test -f /root/db.tsv || cp /root/db.tsv.default /root/db.tsv"
     ssh_cmd "devmem 0x43C001AC 32 0x3"
     ssh_cmd "setsid /root/tetra_attach_daemon < /dev/null > /tmp/tetra_attach_daemon.log 2>&1 &"

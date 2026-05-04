@@ -123,10 +123,13 @@ static void grp_nsnr_step(uint32_t ssi, unsigned *out_ns, unsigned *out_nr)
         unsigned slot = (h + probe) & (GRP_NSNR_SLOTS - 1u);
         uint32_t v = grp_nsnr_table[slot];
         if (v == 0u) {
-            /* fresh slot — start NS=1 NR=0 (mirrors gold-ref first reply) */
-            grp_nsnr_table[slot] = (ssi << 8) | 0x2u;   /* ns=1 nr=0 */
-            *out_ns = 1u;
-            *out_nr = 0u;
+            /* Fresh slot — first ACK sends NS=0 NR=1 per Gold-Ref
+             * `reference_gold_group_switch_burst_timeline.md` (GS#1 NR=1 NS=0
+             * mit alterning Pattern). Vorher war Initial-State NS=1 NR=0
+             * → entspricht Gold-GS#2-Pattern statt -GS#1. */
+            grp_nsnr_table[slot] = (ssi << 8) | 0x1u;   /* ns=0 nr=1 */
+            *out_ns = 0u;
+            *out_nr = 1u;
             return;
         }
         if ((v >> 8) == ssi) {
@@ -183,6 +186,12 @@ static void service_grp_demand(tetra_hal_t *hal)
     uint32_t actual_count = (cnt > 3u) ? 3u : cnt;
     for (uint32_t i = 0; i < actual_count; i++) {
         if (gssi[i] == 0u) continue;
+        /* Gold-Pattern: BS echoed nur ATTACH-Records (adi=0).  Memory
+         * `reference_gold_group_switch_burst_timeline.md` F4: "BS akzeptiert
+         * Attach <gssi>. Der Detach-Record aus dem Demand wird stillschweigend
+         * übergangen."  Filter DETACH-Records hier raus, sonst landet ein
+         * 95-bit-2-Record-Body on-air statt Gold's 64-bit-1-Record. */
+        if (((adi_arr >> i) & 0x01u) != 0u) continue;
         int hit = tetra_db_lookup(gssi[i], 1, NULL);
         if (!hit && allow_gssi) {
             int slot = tetra_db_alloc(gssi[i], 1, 0);
@@ -288,6 +297,23 @@ static void stage_accept_body(tetra_hal_t *hal,
     tx_pdu_class_t cls = (result == M2_DEFAULT_RESULT_OK) ? TX_LU_ACCEPT
                                                           : TX_LU_REJECT;
     tetra_tx_submit(hal, cls, &meta);
+
+    /* Phase Z.3 backlog: TX_LU_REJECT routes through the same Reply-Mailbox
+     * path as TX_LU_ACCEPT (see sw/tetra_tx_transport.c::submit_lu).  The
+     * RTL D-LOC-UPDATE-REJECT encoder (rtl/lmac/tetra_d_location_update_
+     * reject_encoder.v) is currently dead-code — not instantiated in
+     * tetra_zynq_top.v.  Result: the on-air ACCEPT/REJECT are both routed
+     * through the ACCEPT encoder with body suppression (gila fields zeroed).
+     *
+     * This works for "reject-temp" cause=1 because the MS treats an empty
+     * GILA as a rejection trigger, but it is NOT bit-genau Gold for mm=4
+     * D-LOC-UPDATE-REJECT (PDU-type=7 + 3-bit cause + 1-bit o-bit, total 8
+     * bits, SCH/HD blk1 LI=7).  Phase Z.4 will:
+     *   - instantiate the existing reject encoder in top.v as a parallel
+     *     MLE-slot producer,
+     *   - extend tx_pdu_meta_t with `is_reject` + `reject_cause`,
+     *   - route TX_LU_REJECT to a new RTL reject-mux branch.
+     */
 }
 
 static void usage(const char *a0)

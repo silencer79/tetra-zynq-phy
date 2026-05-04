@@ -1,48 +1,68 @@
 // =============================================================================
 // tetra_pre_reply_slotgrant.v
 //
-// Phase X.6 — Pre-Reply Slot-Grant Mini-FSM, builder pipeline EXTERNALISED.
+// Phase Z.3 — Pre-Reply Slot-Grant Mini-FSM, SCH/HD path (Gold-conform).
 //
-// X.5b kept the {basic_slotgrant_encoder, mac_resource_dl_builder,
-// sch_f_encoder} triple inline; X.6 (slice-saver refactor) pulls them
-// out and shares one instance with tetra_mle_registration_fsm.v via
-// tetra_dl_pdu_builder.v + a top-level arbiter.
+// Trigger: `frag1_pulse` (1-cycle pulse from MAC-ACCESS parser on Frag-1
+// detection, mm=2 ITSI-Attach **and** mm=7 Group-Switch — both share the
+// same Pre-Reply LI=7 AL-SETUP pattern per
+// reference_gold_group_switch_burst_timeline.md).
 //
-// Trigger flow (unchanged):
-//   On every Frag-1 detection (`frag1_pulse` 1-cycle pulse from the
-//   MAC-ACCESS parser at top.v) build a 268-bit MAC-RESOURCE AL-SETUP PDU
-//   that carries `slot_granting_flag=1` + `slot_granting_element=0x01`
-//   (capacity_allocation=0, granting_delay=1 — Phase H.3.2 Gold-Ref-bit-
-//   identity), SCH/F-encode it to 432 bits, and push it to the DL-Signal-
-//   Queue's MLE producer slot (muxed at top.v against the MLE-FSM's Final-
-//   ACCEPT output, which fires on a much later mb_go_pulse).
+// Per-Gold raw bit decode (reference_gold_full_attach_timeline.md Z. 95-100):
 //
-//   Without this slot-grant, the MS receives Frag-1 unacknowledged and
-//   has no slot reservation for Frag-2 — it retries Frag-1 indefinitely.
+//   bits: 0010001 000111001 001010000010111111110100 010 0000000 0...
+//                                                    ^^^ ^^^^^^^^
+//                                                  flags  sg_element
 //
-// Architecture (sequential pipeline, builder external):
-//   frag1_pulse (edge-detect) ──► slotgrant_build_req (1-cyc pulse)
-//                                      │  + req_*  field plane
-//                                      ▼
-//                        [shared tetra_dl_pdu_builder, arbitrated at top]
-//                                      │  basic_slotgrant + mac_resource +
-//                                      │  sch_f all run sequentially
-//                                      ▼
-//                                 slotgrant_build_done (1-cyc pulse)
-//                                      │  + 432-bit coded
-//                                      ▼
-//                                 wr_slotgrant_*  (queue MLE slot)
+//   MAC-RESOURCE pdu=00 fill=1 pog=0 enc=00 ra=1 LI=7
+//                addr=SSI=0x282FF4 flags=010   (sg_flag=1, NOT 0!)
+//                slot_granting_element=0x00     (8 zero bits)
+//   LLC: AL-SETUP (type=8) — 7-octet wrapper, kein MM body inline
 //
-// Builder request fields (constant, identical to pre-X.6 inline encoder
-// inputs — H.3.2 Gold-Ref-Bit-Identity):
-//   addr_type            = 3'd1   (SSI)
-//   llc_pdu_type         = 4'd8   (AL-SETUP)
-//   random_access_flag   = 1'b1   (RA-piggyback)
-//   mm_pdu_bits          = 0      (AL-SETUP carries no MM body)
-//   mm_pdu_len_bits      = 0
-//   slot_granting_flag   = 1'b1, granting_delay=1, cap_alloc=0
-//                          → packed_element=0x01 (hardcoded inside the
-//                            shared builder).
+// Note 2026-05-04: the human comment "kein slot_grant" / "flags=000" in the
+// memory file was a misread — the raw bit stream right above it clearly
+// shows `010` for flag-triple and `00000000` for sg_element.  Z.3 honours
+// the bits, not the human label: slot_granting_flag=1 + sg_element=0x00 is
+// what Gold sends, giving LI=7 (51-bit header + 4-bit LLC = 55 bits → 7
+// octets).
+//
+// Pre-Z.3 this module ran through tetra_dl_pdu_builder which hardcoded
+// slot_granting_flag=1 + element=0x01.  That generated SCH/F 432-bit output
+// on a slot whose AACH expected SCH/HD — bit-drift caught by Z.3 audit.
+// Z.3 fix:
+//   - keep slot_granting_flag=1 (Gold-bit-identity, contradicts the misread
+//     memory note),
+//   - drop element from 0x01 to 0x00 (matches raw bit stream),
+//   - migrate slot format SCH/F → SCH/HD (matches AACH 0x0009 + LI=7
+//     short-PDU expectation).
+//
+// Architecture (sequential pipeline, builder INTERNAL):
+//   frag1_pulse (edge-detect) ──► tetra_mac_resource_dl_builder #(124)
+//                                      └─► 124-bit padded MAC-RESOURCE
+//                                          └─► tetra_sch_hd_encoder
+//                                              └─► 216-bit SCH/HD coded
+//                                                  └─► wr_slotgrant_*  (queue)
+//
+// Bit-identity to Gold:
+//   - addr_type            = SSI (3'd1)
+//   - LI                   = 7 octets (4 hdr + AL-SETUP 4-bit fits 1 byte;
+//                            48 total bits → 6 octets — but Gold reports
+//                            LI=7 octets for LI=7 textual MAC-header field;
+//                            see ETSI Table 21.56 → LengthInd = total octets
+//                            = ceil((43+4)/8) = 6, then bluestation fill
+//                            adds +1 = 7).  Matches builder math
+//                            `mac_total_octets = (47+7)>>3 = 6`, but with
+//                            fill_bit_ind=1 in S_PAD bumps post-pad → 7
+//                            (cf. mac_resource_dl_builder S_PAD comment).
+//   - random_access_flag   = 1 (RA-piggyback)
+//   - slot_granting_flag   = 0  ← Gold bit-identity, not 1 like pre-Z.3
+//   - llc_pdu_type         = 4'd8 (AL-SETUP)
+//
+// Slot-format / AACH:
+//   pdu_type = SCH_HD    → 124 → 216 coded bits
+//   AACH on this slot is set to PDUC_PRE_REPLY_SLOTGRANT_AACH (=0x0009)
+//   by the queue's MLE-slot AACH override at top.v.  MS sees signalling-
+//   active AACH on the next-frame Pre-Reply slot.
 //
 // Coding rules (Verilog-2001 strict):
 //   R1   one always block per FSM
@@ -51,6 +71,8 @@
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
+
+`include "tetra_pdu_class.vh"
 
 module tetra_pre_reply_slotgrant (
     input  wire         clk_sys,
@@ -64,26 +86,8 @@ module tetra_pre_reply_slotgrant (
     input  wire [1:0]   cfg_mcch_tn,
     input  wire [31:0]  cfg_scramble_init,
 
-    // Phase X.6 — Build-request to shared tetra_dl_pdu_builder via arbiter.
-    //   slotgrant_build_req           1-cyc pulse
-    //   slotgrant_build_*             field plane (constants + lat_ssi)
-    //   slotgrant_build_done          1-cyc pulse from builder
-    //   slotgrant_build_coded         432-bit SCH/F coded
-    output reg          slotgrant_build_req,
-    output wire [23:0]  slotgrant_build_ssi,
-    output wire [2:0]   slotgrant_build_addr_type,
-    output wire [3:0]   slotgrant_build_llc_pdu_type,
-    output wire         slotgrant_build_random_access_flag,
-    output wire [127:0] slotgrant_build_mm_pdu_bits,
-    output wire [7:0]   slotgrant_build_mm_pdu_len_bits,
-    output wire [31:0]  slotgrant_build_scramble_init,
-    input  wire         slotgrant_build_done,
-    input  wire [431:0] slotgrant_build_coded,
-    // High while a Frag-1-triggered build is queued/in-flight (used by the
-    // top-level arbiter to drop concurrent SlotGrant pulses while busy).
-    input  wire         slotgrant_build_grant_blocked,
-
-    // DL-Signal-Queue producer (MLE slot — muxed at top.v with MLE-FSM)
+    // DL-Signal-Queue producer (MLE slot — muxed at top.v with MLE-FSM,
+    // GroupAck queue-side path).
     output reg          wr_slotgrant_valid_sys,
     output wire [431:0] wr_slotgrant_coded_sys,
     output wire [1:0]   wr_slotgrant_pdu_type_sys,
@@ -109,34 +113,90 @@ module tetra_pre_reply_slotgrant (
     // -------------------------------------------------------------------------
     // Latches
     // -------------------------------------------------------------------------
-    reg [23:0] lat_ssi;
-    reg [1:0]  lat_target_tn;
-    reg [31:0] lat_scramble_init;
-    reg [431:0] lat_coded;
+    reg [23:0]  lat_ssi;
+    reg [1:0]   lat_target_tn;
+    reg [31:0]  lat_scramble_init;
 
     // -------------------------------------------------------------------------
-    // Build-request field plane — constants per H.3.2 Gold-Ref except SSI
-    // and scramble_init which are latched from frag1 trigger time.
+    // Internal MAC-RESOURCE 124-bit builder (PDU_BITS=124, LLC_BUF_BITS=16
+    // — AL-SETUP needs only the 4-bit LLC header).
     // -------------------------------------------------------------------------
-    assign slotgrant_build_ssi                = lat_ssi;
-    assign slotgrant_build_addr_type          = 3'd1;       // SSI
-    assign slotgrant_build_llc_pdu_type       = 4'd8;       // AL-SETUP
-    assign slotgrant_build_random_access_flag = 1'b1;       // RA-piggyback
-    assign slotgrant_build_mm_pdu_bits        = 128'd0;     // AL-SETUP no MM
-    assign slotgrant_build_mm_pdu_len_bits    = 8'd0;
-    assign slotgrant_build_scramble_init      = lat_scramble_init;
+    reg          builder_start;
+    wire [123:0] builder_pdu_w;
+    wire         builder_valid_w;
+
+    tetra_mac_resource_dl_builder #(
+        .PDU_BITS(124),
+        .LLC_BUF_BITS(16)
+    ) u_mac_res (
+        .clk                          (clk_sys),
+        .rst_n                        (rst_n_sys),
+        .start                        (builder_start),
+        .ssi                          (lat_ssi),
+        .addr_type                    (`PDUC_PRE_REPLY_SLOTGRANT_ADDRTYPE),
+        .ns                           (1'b0),
+        .nr                           (1'b0),
+        .llc_pdu_type                 (`PDUC_PRE_REPLY_SLOTGRANT_LLC),
+        .random_access_flag           (`PDUC_PRE_REPLY_SLOTGRANT_RA),
+        .power_control_flag           (1'b0),
+        .power_control_element        (4'd0),
+        // Z.3: Gold raw bits decode to flags=010 (sg_flag=1) +
+        // sg_element=0x00.  See module-header comment for forensic detail.
+        .slot_granting_flag           (1'b1),
+        .slot_granting_element        (8'h00),
+        .chan_alloc_flag              (1'b0),
+        .chan_alloc_element           (32'd0),
+        .chan_alloc_element_len       (5'd0),
+        .second_pdu_valid             (1'b0),
+        .second_pdu_length_ind        (6'd0),
+        .second_pdu_random_access_flag(1'b0),
+        .second_pdu_addr_type         (3'd0),
+        .second_pdu_ssi               (24'd0),
+        .second_pdu_tl_sdu            (80'd0),
+        .second_pdu_tl_sdu_len        (7'd0),
+        .second_pdu_pc_flag           (1'b0),
+        .second_pdu_pc_element        (4'd0),
+        .second_pdu_sg_flag           (1'b0),
+        .second_pdu_sg_element        (8'd0),
+        .second_pdu_ca_flag           (1'b0),
+        .second_pdu_ca_element        (32'd0),
+        .second_pdu_ca_element_len    (5'd0),
+        .mm_pdu_bits                  (128'd0),
+        .mm_pdu_len_bits              (8'd0),
+        .pdu_bits                     (builder_pdu_w),
+        .valid                        (builder_valid_w)
+    );
+
+    // -------------------------------------------------------------------------
+    // Internal SCH/HD encoder (124 → 216 type-5 coded bits).
+    // -------------------------------------------------------------------------
+    reg          encode_start;
+    wire [215:0] coded_w;
+    wire         coded_valid_w;
+
+    tetra_sch_hd_encoder u_sch_hd (
+        .clk           (clk_sys),
+        .rst_n         (rst_n_sys),
+        .encode_start  (encode_start),
+        .info_bits     (builder_pdu_w),
+        .scramble_init (lat_scramble_init),
+        .coded_bits    (coded_w),
+        .coded_valid   (coded_valid_w)
+    );
+
+    reg [215:0] lat_coded_blk1;
 
     // -------------------------------------------------------------------------
     // FSM
-    //   S_IDLE      — wait for frag1_edge_w
-    //   S_REQ       — pulse slotgrant_build_req for 1 cycle
-    //   S_WAIT      — wait for slotgrant_build_done (counts collisions)
-    //   S_PUSH      — pulse wr_slotgrant_valid_sys for 1 cycle
+    //   S_IDLE   — wait for frag1_edge_w
+    //   S_BUILD  — wait for builder.valid → kick SCH/HD encoder
+    //   S_ENC    — wait for sch_hd_encoder.coded_valid → latch coded
+    //   S_PUSH   — pulse wr_slotgrant_valid_sys for 1 cycle
     // -------------------------------------------------------------------------
-    localparam [1:0] S_IDLE = 2'd0;
-    localparam [1:0] S_REQ  = 2'd1;
-    localparam [1:0] S_WAIT = 2'd2;
-    localparam [1:0] S_PUSH = 2'd3;
+    localparam [1:0] S_IDLE  = 2'd0;
+    localparam [1:0] S_BUILD = 2'd1;
+    localparam [1:0] S_ENC   = 2'd2;
+    localparam [1:0] S_PUSH  = 2'd3;
 
     reg [1:0] state;
 
@@ -146,47 +206,44 @@ module tetra_pre_reply_slotgrant (
             lat_ssi                <= 24'd0;
             lat_target_tn          <= 2'd0;
             lat_scramble_init      <= 32'd0;
-            lat_coded              <= 432'd0;
-            slotgrant_build_req    <= 1'b0;
+            lat_coded_blk1         <= 216'd0;
+            builder_start          <= 1'b0;
+            encode_start           <= 1'b0;
             wr_slotgrant_valid_sys <= 1'b0;
             push_cnt_sys           <= 16'd0;
             drop_cnt_sys           <= 16'd0;
         end else begin
-            // Default strobes (1-cycle pulses)
-            slotgrant_build_req    <= 1'b0;
+            // Default 1-cycle strobes
+            builder_start          <= 1'b0;
+            encode_start           <= 1'b0;
             wr_slotgrant_valid_sys <= 1'b0;
 
             case (state)
             S_IDLE: begin
                 if (frag1_edge_w) begin
-                    if (slotgrant_build_grant_blocked) begin
-                        // Arbiter says builder busy / MLE wins — drop this
-                        // Frag-1 pre-reply.
-                        if (drop_cnt_sys != 16'hFFFF)
-                            drop_cnt_sys <= drop_cnt_sys + 16'd1;
-                    end else begin
-                        lat_ssi             <= ul_ssi;
-                        lat_target_tn       <= cfg_mcch_tn;
-                        lat_scramble_init   <= cfg_scramble_init;
-                        slotgrant_build_req <= 1'b1;
-                        state               <= S_REQ;
-                    end
+                    lat_ssi             <= ul_ssi;
+                    lat_target_tn       <= cfg_mcch_tn;
+                    lat_scramble_init   <= cfg_scramble_init;
+                    builder_start       <= 1'b1;
+                    state               <= S_BUILD;
                 end
             end
 
-            S_REQ: begin
-                // Drop concurrent Frag-1 pulses while pipeline busy.
+            S_BUILD: begin
                 if (frag1_edge_w && drop_cnt_sys != 16'hFFFF)
                     drop_cnt_sys <= drop_cnt_sys + 16'd1;
-                state <= S_WAIT;
+                if (builder_valid_w) begin
+                    encode_start <= 1'b1;
+                    state        <= S_ENC;
+                end
             end
 
-            S_WAIT: begin
+            S_ENC: begin
                 if (frag1_edge_w && drop_cnt_sys != 16'hFFFF)
                     drop_cnt_sys <= drop_cnt_sys + 16'd1;
-                if (slotgrant_build_done) begin
-                    lat_coded <= slotgrant_build_coded;
-                    state     <= S_PUSH;
+                if (coded_valid_w) begin
+                    lat_coded_blk1 <= coded_w;
+                    state          <= S_PUSH;
                 end
             end
 
@@ -203,13 +260,14 @@ module tetra_pre_reply_slotgrant (
     end
 
     // -------------------------------------------------------------------------
-    // Combinational outputs to DL-Signal-Queue (MLE slot, muxed at top.v).
-    //   coded[431:0]   = SCH/F type-5 coded bits, [431] = first on air
-    //   pdu_type[1:0]  = 2'd0  (SCH_F)
+    // Combinational outputs to DL-Signal-Queue
+    //   coded[431:0]   = SCH/HD LSB-aligned (queue convention; same as
+    //                    tetra_pre_reply_blck.v output)
+    //   pdu_type[1:0]  = `PDUC_PRE_REPLY_SLOTGRANT_FMT  (= SCH_HD = 2'd1)
     //   target_tn[1:0] = latched cfg_mcch_tn
     // -------------------------------------------------------------------------
-    assign wr_slotgrant_coded_sys     = lat_coded;
-    assign wr_slotgrant_pdu_type_sys  = 2'd0;          // SCH/F
+    assign wr_slotgrant_coded_sys     = {216'd0, lat_coded_blk1};
+    assign wr_slotgrant_pdu_type_sys  = `PDUC_PRE_REPLY_SLOTGRANT_FMT;
     assign wr_slotgrant_target_tn_sys = lat_target_tn;
 
 endmodule

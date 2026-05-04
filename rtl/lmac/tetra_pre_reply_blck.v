@@ -38,6 +38,8 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
+`include "tetra_pdu_class.vh"
+
 module tetra_pre_reply_blck (
     input  wire         clk_sys,
     input  wire         rst_n_sys,
@@ -107,8 +109,8 @@ module tetra_pre_reply_blck (
         .rst_n              (rst_n_sys),
         .start              (builder_start),
         .ssi                (lat_ssi),
-        .addr_type          (3'd1),       // SSI (ETSI EN 300 392-2 Table 21.66)
-        .random_access_flag (1'b0),
+        .addr_type          (`PDUC_BL_ACK_POST_FRAG2_ADDRTYPE),
+        .random_access_flag (`PDUC_BL_ACK_POST_FRAG2_RA),
         .nr                 (1'b0),       // first BL-ACK
         .pdu_bits           (builder_pdu_w),
         .valid              (builder_valid_w)
@@ -205,7 +207,7 @@ module tetra_pre_reply_blck (
     //   target_tn[1:0] = latched cfg_mcch_tn
     // -------------------------------------------------------------------------
     assign wr_blck_coded_sys     = {216'd0, lat_coded_blk1};
-    assign wr_blck_pdu_type_sys  = 2'd1;
+    assign wr_blck_pdu_type_sys  = `PDUC_BL_ACK_POST_FRAG2_FMT;
     assign wr_blck_target_tn_sys = lat_target_tn;
 
 endmodule

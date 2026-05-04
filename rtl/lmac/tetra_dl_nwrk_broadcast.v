@@ -33,6 +33,8 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
+`include "tetra_pdu_class.vh"
+
 module tetra_dl_nwrk_broadcast (
     input  wire         clk_sys,
     input  wire         rst_n_sys,
@@ -115,7 +117,7 @@ end
 // Combinational: payload + pdu_type + target_tn pass-through.  The
 // DL-Signal-Queue samples them on the cycle wr_cmce_valid_sys is high.
 assign wr_cmce_coded_sys     = payload_sys;
-assign wr_cmce_pdu_type_sys  = 2'd0;            // 00 = SCH_F (NDB1)
+assign wr_cmce_pdu_type_sys  = `PDUC_NWRK_BCAST_FMT;   // SCH_F (NDB1)
 assign wr_cmce_target_tn_sys = cfg_mcch_tn_sys;
 
 endmodule

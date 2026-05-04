@@ -45,6 +45,8 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
+`include "tetra_pdu_class.vh"
+
 module tetra_mle_registration_fsm (
     input  wire                        clk,
     input  wire                        rst_n,
@@ -215,8 +217,8 @@ module tetra_mle_registration_fsm (
     // -------------------------------------------------------------------------
     assign accept_build_ssi                = lat_ssi;
     assign accept_build_addr_type          = lat_addr_type;
-    assign accept_build_llc_pdu_type       = 4'd0;     // BL-ADATA
-    assign accept_build_random_access_flag = 1'b0;
+    assign accept_build_llc_pdu_type       = `PDUC_FINAL_LU_ACCEPT_LLC;
+    assign accept_build_random_access_flag = `PDUC_FINAL_LU_ACCEPT_RA;
     assign accept_build_mm_pdu_bits        = dloc_mm_bits_w;
     assign accept_build_mm_pdu_len_bits    = dloc_mm_len_w;
     assign accept_build_scramble_init      = cfg_scramble_init;
@@ -299,7 +301,7 @@ module tetra_mle_registration_fsm (
             S_BUILD_ACCEPT_WAIT: begin
                 if (accept_build_done) begin
                     req_coded_bits         <= accept_build_coded;
-                    req_pdu_type           <= 2'd0;       // SCH_F
+                    req_pdu_type           <= `PDUC_FINAL_LU_ACCEPT_FMT;  // SCH_F
                     req_target_tn          <= cfg_mcch_tn;
                     req_second_pdu_present <= 1'b0;
                     req_second_pdu_nr      <= 1'b0;
