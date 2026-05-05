@@ -69,6 +69,7 @@ module tb_dl_signal_queue;
         .wr_mle_aach_pattern (wr_mle_aach_pattern),
         .wr_mle_second_pdu_present (1'b0),
         .wr_mle_second_pdu_nr      (1'b0),
+        .wr_mle_origin_grpack      (1'b0),                  // Phase Z.17 tie-off
         .wr_cmce_valid    (wr_cmce_valid),
         .wr_cmce_coded    (wr_cmce_coded),
         .wr_cmce_pdu_type (wr_cmce_pdu_type),
@@ -88,6 +89,9 @@ module tb_dl_signal_queue;
         .head_aach_pattern (head_aach_pattern),
         .head_second_pdu_present (),
         .head_second_pdu_nr      (),
+        .head_origin_grpack      (),                        // Phase Z.17 unconnected
+        .install_grpack_pulse    (),
+        .pop_grpack_pulse        (),
         .depth_valid_mask (depth_valid_mask),
         .depth_count      (depth_count),
         .drop_cnt         (drop_cnt),

@@ -476,12 +476,35 @@ module tetra_axi_lite_regs (
     // Diagnose-Logik: mb_go=N grant=0 → Arbiter blockiert; grant=N done<N →
     // Encoder hängt; done=N push<N → Done-Demux drop; lost>0 → Queue-Mux-
     // Kollision (mle_req hat Vorrang vor grpack_queue).
+    // Phase Z.17 (4 zusätzliche RO 16-bit Counter, CDC unten in top.v):
+    //   REG_GRP_POP_SCHF_TN0_CNT  @ 0x274 RO {16'd0, pop_schf_tn0_cnt[15:0]}
+    //   REG_GRP_POP_SCHHD_TN0_CNT @ 0x278 RO {16'd0, pop_schhd_tn0_cnt[15:0]}
+    //   REG_GRP_INSTALL_CNT       @ 0x27C RO {16'd0, install_cnt[15:0]}
+    //   REG_GRP_POP_ORIGIN_CNT    @ 0x280 RO {16'd0, pop_origin_cnt[15:0]}
     // ------------------------------------------------------------------
     input  wire [15:0] grp_mb_go_cnt_axi,
     input  wire [15:0] grp_build_grant_cnt_axi,
     input  wire [15:0] grp_build_done_cnt_axi,
     input  wire [15:0] grp_queue_push_cnt_axi,
     input  wire [15:0] grp_queue_lost_cnt_axi,
+
+    // ------------------------------------------------------------------
+    // Phase Z.17 — Pop-Pfad-Telemetrie für GROUPack-Diagnose
+    //   REG_GRP_POP_SCHF_TN0_CNT  @ 0x274 RO  pop fires for SCH/F  on TN=0
+    //   REG_GRP_POP_SCHHD_TN0_CNT @ 0x278 RO  pop fires for SCH/HD on TN=0
+    //   REG_GRP_INSTALL_CNT       @ 0x27C RO  install_grpack_pulse events
+    //   REG_GRP_POP_ORIGIN_CNT    @ 0x280 RO  pop_grpack_pulse events
+    // CDC: 2-FF resync done in tetra_zynq_top (clk_sys → clk_axi).
+    // Diagnose:
+    //   install_cnt    = mb_go_cnt    → push installiert echt
+    //   pop_origin_cnt = install_cnt  → pop fires für GROUPack
+    //   schf_tn0 vs schhd_tn0 vs origin_cnt → trennt GROUPack/ACCEPT (SCH/F)
+    //                                          von BL-ACK (SCH/HD)
+    // ------------------------------------------------------------------
+    input  wire [15:0] grp_pop_schf_tn0_cnt_axi,
+    input  wire [15:0] grp_pop_schhd_tn0_cnt_axi,
+    input  wire [15:0] grp_install_cnt_axi,
+    input  wire [15:0] grp_pop_origin_cnt_axi,
 
     // ------------------------------------------------------------------
     // Phase H.7 — D-NWRK-BROADCAST periodic push.
@@ -840,6 +863,11 @@ localparam [6:0] REG_REPLY_USE_SW  = 7'h0C; // 0x230  R/W [0]=use_sw_body
 //     REG_GRP_BUILD_DONE_CNT  @ 0x268 RO   grpack_done_w               events
 //     REG_GRP_QUEUE_PUSH_CNT  @ 0x26C RO   grpack_queue_valid rising   events
 //     REG_GRP_QUEUE_LOST_CNT  @ 0x270 RO   queue-mux MLE-collision     events
+// Phase Z.17 — Pop-Pfad-Telemetrie (4x 16-bit RO):
+//     REG_GRP_POP_SCHF_TN0_CNT  @ 0x274 RO  pop fires for SCH/F  on TN=0
+//     REG_GRP_POP_SCHHD_TN0_CNT @ 0x278 RO  pop fires for SCH/HD on TN=0
+//     REG_GRP_INSTALL_CNT       @ 0x27C RO  install_grpack_pulse events
+//     REG_GRP_POP_ORIGIN_CNT    @ 0x280 RO  pop_grpack_pulse events
 // ---------------------------------------------------------------------------
 localparam [6:0] REG_GRP_DEMAND_STATUS = 7'h10; // 0x240
 localparam [6:0] REG_GRP_DEMAND_INDEX  = 7'h11; // 0x244
@@ -858,6 +886,14 @@ localparam [6:0] REG_GRP_BUILD_GRANT_CNT  = 7'h19; // 0x264
 localparam [6:0] REG_GRP_BUILD_DONE_CNT   = 7'h1A; // 0x268
 localparam [6:0] REG_GRP_QUEUE_PUSH_CNT   = 7'h1B; // 0x26C
 localparam [6:0] REG_GRP_QUEUE_LOST_CNT   = 7'h1C; // 0x270
+
+// ---------------------------------------------------------------------------
+// Phase Z.17 — Pop-Pfad-Telemetrie (Bank-1, 0x274..0x280 = word 7'h1D..7'h20).
+// ---------------------------------------------------------------------------
+localparam [6:0] REG_GRP_POP_SCHF_TN0_CNT  = 7'h1D; // 0x274
+localparam [6:0] REG_GRP_POP_SCHHD_TN0_CNT = 7'h1E; // 0x278
+localparam [6:0] REG_GRP_INSTALL_CNT       = 7'h1F; // 0x27C
+localparam [6:0] REG_GRP_POP_ORIGIN_CNT    = 7'h20; // 0x280
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -1253,6 +1289,11 @@ always @(*) begin
             REG_GRP_BUILD_DONE_CNT:  rdata_mux_axi = {16'd0, grp_build_done_cnt_axi};
             REG_GRP_QUEUE_PUSH_CNT:  rdata_mux_axi = {16'd0, grp_queue_push_cnt_axi};
             REG_GRP_QUEUE_LOST_CNT:  rdata_mux_axi = {16'd0, grp_queue_lost_cnt_axi};
+            // Phase Z.17 — Pop-Pfad-Telemetrie
+            REG_GRP_POP_SCHF_TN0_CNT:  rdata_mux_axi = {16'd0, grp_pop_schf_tn0_cnt_axi};
+            REG_GRP_POP_SCHHD_TN0_CNT: rdata_mux_axi = {16'd0, grp_pop_schhd_tn0_cnt_axi};
+            REG_GRP_INSTALL_CNT:       rdata_mux_axi = {16'd0, grp_install_cnt_axi};
+            REG_GRP_POP_ORIGIN_CNT:    rdata_mux_axi = {16'd0, grp_pop_origin_cnt_axi};
             default:           rdata_mux_axi = 32'd0;
         endcase
     end

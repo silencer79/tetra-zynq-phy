@@ -92,6 +92,13 @@ module tetra_dl_signal_queue #(
     // observe on-air which slots ship an auto-ACK.
     input  wire         wr_mle_second_pdu_present,
     input  wire         wr_mle_second_pdu_nr,
+    // Phase Z.17 — origin-Flag for MLE-Producer-Mux (top-level merges
+    // MLE-FSM-ACCEPT, GroupAck-reply, SlotGrant onto a single MLE write
+    // port).  Set to 1 when the current write originates from the
+    // GroupAck path, 0 otherwise.  Stored per entry; surfaced to the
+    // top-level via `head_origin_grpack` + the install/pop pulse outputs
+    // so we can localise where the GROUPack reply gets dropped.
+    input  wire         wr_mle_origin_grpack,
 
     // -------------------------------------------------------------------------
     // Producer write port — CMCE (prio 01, used by NWRK-Bcast / Group-Ack)
@@ -123,6 +130,15 @@ module tetra_dl_signal_queue #(
     output wire [13:0]  head_aach_pattern,        // Phase Z.2
     output wire         head_second_pdu_present, // commit 4 telemetry
     output wire         head_second_pdu_nr,
+    // Phase Z.17 — origin-Flag at head + 1-cycle install/pop pulses.
+    //   head_origin_grpack    — current head's origin (1=GroupAck push)
+    //   install_grpack_pulse  — 1-cycle pulse on the cycle a GroupAck
+    //                           push is accepted into the queue
+    //   pop_grpack_pulse      — 1-cycle pulse on the cycle the consumer
+    //                           pops a GroupAck-origin entry
+    output wire         head_origin_grpack,
+    output wire         install_grpack_pulse,
+    output wire         pop_grpack_pulse,
 
     // -------------------------------------------------------------------------
     // Status / debug
@@ -150,6 +166,8 @@ module tetra_dl_signal_queue #(
     reg [13:0]  entry_aach_pattern [0:DEPTH-1];   // Phase Z.2
     reg         entry_second_pdu_present [0:DEPTH-1];
     reg         entry_second_pdu_nr      [0:DEPTH-1];
+    // Phase Z.17 — per-entry origin-Flag (1=GroupAck push, 0=other).
+    reg [DEPTH-1:0] entry_origin_grpack;
     reg [DEPTH-1:0] entry_valid;
 
     assign depth_valid_mask = entry_valid;
@@ -177,6 +195,8 @@ module tetra_dl_signal_queue #(
     // Only MLE currently sets a second_pdu; CMCE/SDS default to 0.
     wire         arb_write_second_pdu_present = wr_mle_valid ? wr_mle_second_pdu_present : 1'b0;
     wire         arb_write_second_pdu_nr      = wr_mle_valid ? wr_mle_second_pdu_nr      : 1'b0;
+    // Phase Z.17 — origin-Flag (only MLE-port carries it; CMCE/SDS = 0).
+    wire         arb_write_origin_grpack      = wr_mle_valid ? wr_mle_origin_grpack      : 1'b0;
 
     // Count producers that attempted this cycle — used for drop-on-collision
     wire [1:0] write_attempts = {1'b0, wr_mle_valid}
@@ -280,6 +300,10 @@ module tetra_dl_signal_queue #(
     assign head_aach_pattern       = entry_aach_pattern[head_idx];
     assign head_second_pdu_present = entry_second_pdu_present[head_idx];
     assign head_second_pdu_nr      = entry_second_pdu_nr     [head_idx];
+    // Phase Z.17 — origin-Flag at head + install/pop pulses.
+    assign head_origin_grpack      = entry_origin_grpack[head_idx];
+    assign install_grpack_pulse    = write_accepted & arb_write_origin_grpack;
+    assign pop_grpack_pulse        = pop & head_found & entry_origin_grpack[head_idx];
 
     // =========================================================================
     // Storage updates — single always block per slot register-set
@@ -325,6 +349,23 @@ module tetra_dl_signal_queue #(
             entry_aach_pattern[free_idx] <= arb_write_aach_pattern;
             entry_second_pdu_present[free_idx] <= arb_write_second_pdu_present;
             entry_second_pdu_nr     [free_idx] <= arb_write_second_pdu_nr;
+        end
+    end
+
+    // Phase Z.17 — Origin-Flag bit-vector update.  Reset on rst_n, set on
+    // write_accepted to arb_write_origin_grpack at free_idx.  Cleared on
+    // pop only via the entry_valid bit (we don't strictly need to clear
+    // entry_origin_grpack[head_idx] because head_origin_grpack is only
+    // sampled when entry_valid[head_idx]==1, but we do it for safety so
+    // a stale flag never feeds the pulse logic).
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            entry_origin_grpack <= {DEPTH{1'b0}};
+        end else begin
+            if (pop && head_valid)
+                entry_origin_grpack[head_idx] <= 1'b0;
+            if (write_accepted)
+                entry_origin_grpack[free_idx] <= arb_write_origin_grpack;
         end
     end
 

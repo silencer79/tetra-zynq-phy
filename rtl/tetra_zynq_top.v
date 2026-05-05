@@ -484,6 +484,9 @@ wire         queue_head_second_pdu_present_w;  // Option B telemetry (commit 6)
 wire         queue_head_second_pdu_nr_w;
 wire         popped_second_pdu_present_w;      // latched for ILA probes
 wire         popped_second_pdu_nr_w;
+wire         queue_head_origin_grpack_w;       // Phase Z.17 — head's origin
+wire         grp_install_pulse_w;              // Phase Z.17 — push-acc grpack
+wire         grp_pop_origin_pulse_w;           // Phase Z.17 — pop grpack-entry
 wire         sched_pop_w;
 wire [3:0]   queue_depth_mask_w;
 wire [2:0]   queue_depth_count_w;
@@ -2090,6 +2093,11 @@ tetra_axi_lite_regs u_axi_regs (
     .grp_build_done_cnt_axi      (grp_build_done_cnt_axi_r1),
     .grp_queue_push_cnt_axi      (grp_queue_push_cnt_axi_r1),
     .grp_queue_lost_cnt_axi      (grp_queue_lost_cnt_axi_r1),
+    // Phase Z.17 — Pop-Pfad-Telemetrie (4 RO Counter, CDC oben)
+    .grp_pop_schf_tn0_cnt_axi    (grp_pop_schf_tn0_cnt_axi_r1),
+    .grp_pop_schhd_tn0_cnt_axi   (grp_pop_schhd_tn0_cnt_axi_r1),
+    .grp_install_cnt_axi         (grp_install_cnt_axi_r1),
+    .grp_pop_origin_cnt_axi      (grp_pop_origin_cnt_axi_r1),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -2347,6 +2355,7 @@ tetra_dl_signal_queue #(
     // inactive.
     .wr_mle_second_pdu_present (mle_slot_wr_second_pdu_present_w),
     .wr_mle_second_pdu_nr      (mle_slot_wr_second_pdu_nr_w),
+    .wr_mle_origin_grpack      (mle_slot_wr_origin_grpack_w),    // Phase Z.17
     // CMCE producer — Phase H.7 D-NWRK-BROADCAST periodic push
     .wr_cmce_valid    (nwrk_bcast_push_valid_sys_w),
     .wr_cmce_coded    (nwrk_bcast_push_coded_sys_w),
@@ -2374,6 +2383,10 @@ tetra_dl_signal_queue #(
     .head_aach_pattern (queue_head_aach_pattern_w),       // Phase Z.2
     .head_second_pdu_present (queue_head_second_pdu_present_w),
     .head_second_pdu_nr      (queue_head_second_pdu_nr_w),
+    // Phase Z.17 — origin-Flag + install/pop pulses (Diagnose-Counter)
+    .head_origin_grpack      (queue_head_origin_grpack_w),
+    .install_grpack_pulse    (grp_install_pulse_w),
+    .pop_grpack_pulse        (grp_pop_origin_pulse_w),
     // Status
     .depth_valid_mask (queue_depth_mask_w),
     .depth_count      (queue_depth_count_w),
@@ -2599,6 +2612,97 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         grp_queue_push_cnt_axi_r1  <= grp_queue_push_cnt_axi_r0;
         grp_queue_lost_cnt_axi_r0  <= grp_queue_lost_cnt_sys;
         grp_queue_lost_cnt_axi_r1  <= grp_queue_lost_cnt_axi_r0;
+    end
+end
+
+// =============================================================================
+// Phase Z.17 — Pop-Pfad-Telemetrie für GROUPack-Diagnose
+//
+// Vier zusätzliche 16-bit Counter (saturating bei 0xFFFF) im clk_sys-Domain,
+// 2-FF nach clk_axi resynced.  Lokalisieren ob:
+//   (a) Pop fires nicht für GROUPack-Entries → Bug in Pop-Trigger / Scheduler
+//   (b) Pop fires aber Body-Pfad zum Air bricht → Bug in slot_content_mux /
+//       burst_mux
+//
+//   grp_install_cnt_sys      → install_grpack_pulse (queue acked GROUPack push)
+//                              REG_GRP_INSTALL_CNT       0x27C
+//   grp_pop_origin_cnt_sys   → pop_grpack_pulse (pop fires for GROUPack entry)
+//                              REG_GRP_POP_ORIGIN_CNT    0x280
+//   grp_pop_schf_tn0_cnt_sys → pop fires AND head was SCH/F on TN=0
+//                              REG_GRP_POP_SCHF_TN0_CNT  0x274
+//   grp_pop_schhd_tn0_cnt_sys→ pop fires AND head was SCH/HD on TN=0
+//                              REG_GRP_POP_SCHHD_TN0_CNT 0x278
+//
+// Diagnose-Logik:
+//   install_cnt = mb_go_cnt?            → push installiert echt
+//   pop_origin_cnt = install_cnt?        → pop fires für GROUPack
+//   pop_schf_tn0 vs pop_schhd_tn0 vs
+//   pop_origin_cnt                       → SCH/F-pops zählt GROUPack+ACCEPT,
+//                                          SCH/HD-pops zählt BL-ACK
+// =============================================================================
+reg [15:0] grp_install_cnt_sys;
+reg [15:0] grp_pop_origin_cnt_sys;
+reg [15:0] grp_pop_schf_tn0_cnt_sys;
+reg [15:0] grp_pop_schhd_tn0_cnt_sys;
+
+// Pop-classification by head metadata at the cycle of pop.  The queue head
+// outputs are combinational from entry[head_idx], so they are valid until
+// the next clock edge — i.e. on the same cycle sched_pop_w fires they still
+// reflect the entry that's about to be cleared.
+wire pop_schf_tn0_pulse_w  = sched_pop_w & queue_head_valid_w
+                           & (queue_head_target_tn_w == 2'd0)
+                           & (queue_head_pdu_type_w  == 2'd0); // SCH_F
+wire pop_schhd_tn0_pulse_w = sched_pop_w & queue_head_valid_w
+                           & (queue_head_target_tn_w == 2'd0)
+                           & (queue_head_pdu_type_w  == 2'd1); // SCH_HD
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        grp_install_cnt_sys       <= 16'd0;
+        grp_pop_origin_cnt_sys    <= 16'd0;
+        grp_pop_schf_tn0_cnt_sys  <= 16'd0;
+        grp_pop_schhd_tn0_cnt_sys <= 16'd0;
+    end else begin
+        if (grp_install_pulse_w     && grp_install_cnt_sys       != 16'hFFFF)
+            grp_install_cnt_sys       <= grp_install_cnt_sys       + 16'd1;
+        if (grp_pop_origin_pulse_w  && grp_pop_origin_cnt_sys    != 16'hFFFF)
+            grp_pop_origin_cnt_sys    <= grp_pop_origin_cnt_sys    + 16'd1;
+        if (pop_schf_tn0_pulse_w    && grp_pop_schf_tn0_cnt_sys  != 16'hFFFF)
+            grp_pop_schf_tn0_cnt_sys  <= grp_pop_schf_tn0_cnt_sys  + 16'd1;
+        if (pop_schhd_tn0_pulse_w   && grp_pop_schhd_tn0_cnt_sys != 16'hFFFF)
+            grp_pop_schhd_tn0_cnt_sys <= grp_pop_schhd_tn0_cnt_sys + 16'd1;
+    end
+end
+
+// CDC clk_sys → clk_axi, 2-FF resync per counter (gleicher Pattern wie Z.16).
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_install_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_install_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_pop_origin_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_pop_origin_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_pop_schf_tn0_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_pop_schf_tn0_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_pop_schhd_tn0_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_pop_schhd_tn0_cnt_axi_r1;
+
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        grp_install_cnt_axi_r0       <= 16'd0;
+        grp_install_cnt_axi_r1       <= 16'd0;
+        grp_pop_origin_cnt_axi_r0    <= 16'd0;
+        grp_pop_origin_cnt_axi_r1    <= 16'd0;
+        grp_pop_schf_tn0_cnt_axi_r0  <= 16'd0;
+        grp_pop_schf_tn0_cnt_axi_r1  <= 16'd0;
+        grp_pop_schhd_tn0_cnt_axi_r0 <= 16'd0;
+        grp_pop_schhd_tn0_cnt_axi_r1 <= 16'd0;
+    end else begin
+        grp_install_cnt_axi_r0       <= grp_install_cnt_sys;
+        grp_install_cnt_axi_r1       <= grp_install_cnt_axi_r0;
+        grp_pop_origin_cnt_axi_r0    <= grp_pop_origin_cnt_sys;
+        grp_pop_origin_cnt_axi_r1    <= grp_pop_origin_cnt_axi_r0;
+        grp_pop_schf_tn0_cnt_axi_r0  <= grp_pop_schf_tn0_cnt_sys;
+        grp_pop_schf_tn0_cnt_axi_r1  <= grp_pop_schf_tn0_cnt_axi_r0;
+        grp_pop_schhd_tn0_cnt_axi_r0 <= grp_pop_schhd_tn0_cnt_sys;
+        grp_pop_schhd_tn0_cnt_axi_r1 <= grp_pop_schhd_tn0_cnt_axi_r0;
     end
 end
 
@@ -3014,6 +3118,13 @@ wire [1:0]   mle_slot_wr_target_tn_w =
 // GroupAck and SlotGrant don't have concat-second-PDUs.
 wire         mle_slot_wr_second_pdu_present_w = mle_req_valid_w ? mle_req_second_pdu_present_w : 1'b0;
 wire         mle_slot_wr_second_pdu_nr_w      = mle_req_valid_w ? mle_req_second_pdu_nr_w      : 1'b0;
+
+// Phase Z.17 — origin-Flag for the merged MLE write port.  Set to 1 when
+// the GroupAck producer wins the mux (no MLE-FSM-ACCEPT in the same cycle),
+// 0 otherwise.  Stored per entry by the queue and surfaced via three new
+// telemetry outputs (head_origin_grpack, install_grpack_pulse,
+// pop_grpack_pulse) that drive the Z.17 install/pop counters below.
+wire         mle_slot_wr_origin_grpack_w = grpack_queue_valid_sys_r & ~mle_req_valid_w;
 
 // Phase Z.9 — every MLE producer (LU-ACCEPT / GroupAck / SlotGrant) is a
 // signalling-class PDU.  Tag the queue entry with AACH pattern 0x0009

@@ -311,6 +311,17 @@
 #define REG_GRP_QUEUE_PUSH_CNT   0x26C   /* RO [15:0] queue-push rising events     */
 #define REG_GRP_QUEUE_LOST_CNT   0x270   /* RO [15:0] mux-collision drop events    */
 
+/* Phase Z.17 — Pop-Pfad-Telemetrie für GROUPack-Diagnose (4x 16-bit RO).
+ * Lokalisiert ob GROUPack-Push installiert wird und ob der Pop fired:
+ *   install_cnt    = mb_go_cnt    → push installiert echt
+ *   pop_origin_cnt = install_cnt  → pop fires für GROUPack
+ *   schf_tn0 / schhd_tn0 / origin_cnt → trennt SCH/F (GROUPack+ACCEPT) von
+ *                                       SCH/HD (BL-ACK) auf TN=0           */
+#define REG_GRP_POP_SCHF_TN0_CNT  0x274  /* RO [15:0] pop fires SCH/F  TN=0  */
+#define REG_GRP_POP_SCHHD_TN0_CNT 0x278  /* RO [15:0] pop fires SCH/HD TN=0  */
+#define REG_GRP_INSTALL_CNT       0x27C  /* RO [15:0] install_grpack_pulse   */
+#define REG_GRP_POP_ORIGIN_CNT    0x280  /* RO [15:0] pop_grpack_pulse       */
+
 /* REG_DB_POLICY @ 0x1AC — auto-enroll policy bits (Phase 6 A + Phase X.3)
  *   [0] accept_unknown_issi  — 1 (default): ISSI-miss → auto-enroll
  *   [1] accept_unknown_gssi  — 1 (default): GSSI-miss → auto-enroll
