@@ -34,6 +34,55 @@
 // solve a race that no longer exists once we eliminate the scheduler
 // bundle-latch (also removed in Z.13).
 //
+// Phase Z.14 (2026-05-04): added a single explicit pipeline-stage on the
+// queue head outputs (`head_pipe_*`).  Z.13's combinational head fan-out
+// drove a deep XOR/mux network into:
+//
+//     queue head arbitration      (~prio-tree + idx-mux)
+//   → head_aach_pattern           (combinational queue output)
+//   → tetra_aach_rm_encoder       (14×30 RM XOR-tree + 30-step LFSR XOR-tree)
+//   → aach_coded_slot_sys_w       (top-level slot AACH select mux)
+//   → tetra_slot_content_mux      (registered into sb_bb_data_sys)
+//
+// and a parallel deep path for the 432-bit body:
+//
+//     queue head arb → head_coded → scheduler per-TN fan-out
+//   → tetra_slot_content_mux blk1/blk2 mux → tx_blk1_slotK_sys (FF)
+//
+// At 100 MHz target clk_sys, Vivado P&R reported WNS = -0.832 ns (TNS
+// = -34.5 ns) with failing endpoints in `u_dl_signal_queue/entry_valid_
+// reg[3]` and `u_tx_tdma_timebase/aach_grant_info_sys_r1_reg`.  Both
+// roots traced back to the queue-arbitration + RM-encoder combinational
+// chain.
+//
+// The fix is structural, not patchy: a single registered pipeline stage
+// inside the queue captures the arbitrated head on every `slot_pulse`.
+// `head_pipe_*` becomes the source-of-truth for ALL slot-encode-side
+// consumers (scheduler fan-out, slot AACH RM encoder, `head_match_aach_sys`).
+// `head_*` (combinational) remain available for diagnose / TB use only.
+//
+// Pop semantics under Z.14:
+//   * Capture trigger : `slot_pulse` (every slot, once per pulse).
+//                       `head_pipe_idx` records WHICH entry slot the
+//                       pipeline image came from.
+//   * Pop trigger     : driven by tetra_dl_signal_scheduler from
+//                       `slot_pulse_sys && head_pipe_target_tn == tn_sys`.
+//                       The queue clears `entry_valid[head_pipe_idx]` —
+//                       NOT `head_idx` — so the entry that matches the
+//                       pipelined image is freed (the only correct slot
+//                       whether or not the prio-arb head has changed
+//                       combinationally during the pipe's lifetime).
+//   * Race-safety     : pipeline updates and pop happen on the same
+//                       posedge.  Non-blocking semantics: `entry_valid
+//                       [head_pipe_idx] <= 0` and `head_pipe_* <= head_*`
+//                       both use the values at the clock edge.  Result:
+//                       on the cycle of the pop, head_pipe still reflects
+//                       the popped entry (correct — that entry's body /
+//                       AACH go on-air on this slot).  On the NEXT
+//                       slot_pulse, head_pipe captures the NEW arbitrated
+//                       head (post-clear).  No bundle-latch-at-wrap, no
+//                       Z.11/Z.12-style off-by-one phase race.
+//
 // Arbitration on pop:
 //   Scan all 4 slots, find the (valid && lowest prio-number) entry.  Ties
 //   broken by slot index (lower index wins).  Fully combinational — the
@@ -66,6 +115,15 @@ module tetra_dl_signal_queue #(
 )(
     input  wire         clk,
     input  wire         rst_n,
+
+    // -------------------------------------------------------------------------
+    // Z.14 pipeline-stage capture trigger.  Once per slot_pulse the
+    // arbitrated head_* combinational outputs are sampled into the
+    // `head_pipe_*` registered outputs.  `slot_pulse` runs on `clk` (the
+    // queue is single-clock — top.v wires this from `tx_tdma_state_slot_
+    // pulse_sys`).
+    // -------------------------------------------------------------------------
+    input  wire         slot_pulse,
 
     // -------------------------------------------------------------------------
     // Producer write port — MLE registration FSM (prio 00)
@@ -123,6 +181,24 @@ module tetra_dl_signal_queue #(
     output wire [13:0]  head_aach_pattern,        // Phase Z.2
     output wire         head_second_pdu_present, // commit 4 telemetry
     output wire         head_second_pdu_nr,
+
+    // -------------------------------------------------------------------------
+    // Z.14 pipelined head — registered image of the head_* combinational
+    // outputs sampled on `slot_pulse`.  THESE are the consumer-facing
+    // outputs in the production (top.v) build: scheduler-fan-out, slot
+    // AACH RM-encoder, slot match-aach all read head_pipe_*.  `head_*`
+    // (combinational, above) remain wired only for legacy TB / debug use.
+    //
+    // After reset:  head_pipe_valid = 0 until the first slot_pulse.
+    // -------------------------------------------------------------------------
+    output reg          head_pipe_valid,
+    output reg  [431:0] head_pipe_coded,
+    output reg  [1:0]   head_pipe_pdu_type,
+    output reg  [1:0]   head_pipe_target_tn,
+    output reg  [1:0]   head_pipe_prio,
+    output reg  [13:0]  head_pipe_aach_pattern,
+    output reg          head_pipe_second_pdu_present,
+    output reg          head_pipe_second_pdu_nr,
 
     // -------------------------------------------------------------------------
     // Status / debug
@@ -282,14 +358,62 @@ module tetra_dl_signal_queue #(
     assign head_second_pdu_nr      = entry_second_pdu_nr     [head_idx];
 
     // =========================================================================
+    // Z.14 pipeline-stage capture
+    //
+    // On each `slot_pulse` we register the arbitrated head_* outputs into
+    // `head_pipe_*` and remember which entry slot the image came from in
+    // `head_pipe_idx_reg`.  All slot-encode-side consumers (scheduler
+    // fan-out, slot AACH RM-encoder, `head_match_aach`) read head_pipe_*.
+    // The pipeline holds its image steady between slot_pulses — that's
+    // the entire point: it breaks the long combinational chain
+    //
+    //     queue-arb → head_aach_pattern → RM-encoder → slot mux → FF
+    //
+    // into a registered fan-out so Vivado P&R can hit the 100 MHz target.
+    // =========================================================================
+    reg [2:0] head_pipe_idx_reg;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            head_pipe_valid              <= 1'b0;
+            head_pipe_coded              <= 432'd0;
+            head_pipe_pdu_type           <= 2'd0;
+            head_pipe_target_tn          <= 2'd0;
+            head_pipe_prio               <= 2'd0;
+            head_pipe_aach_pattern       <= 14'd0;
+            head_pipe_second_pdu_present <= 1'b0;
+            head_pipe_second_pdu_nr      <= 1'b0;
+            head_pipe_idx_reg            <= 3'd0;
+        end else if (slot_pulse) begin
+            head_pipe_valid              <= head_found;
+            head_pipe_coded              <= entry_coded   [head_idx];
+            head_pipe_pdu_type           <= entry_pdu_type[head_idx];
+            head_pipe_target_tn          <= entry_target_tn[head_idx];
+            head_pipe_prio               <= entry_prio    [head_idx];
+            head_pipe_aach_pattern       <= entry_aach_pattern[head_idx];
+            head_pipe_second_pdu_present <= entry_second_pdu_present[head_idx];
+            head_pipe_second_pdu_nr      <= entry_second_pdu_nr     [head_idx];
+            head_pipe_idx_reg            <= head_idx;
+        end
+    end
+
+    // =========================================================================
     // Storage updates — single always block per slot register-set
     //
     // Semantics (each posedge):
-    //   1. If `pop && head_valid`, clear entry[head_idx].valid
-    //   2. If `write_accepted`, install new entry into entry[free_idx]
+    //   1. If `pop` is asserted AND a pipelined head image exists
+    //      (head_pipe_valid=1), clear entry[head_pipe_idx_reg].valid.
+    //      Z.14: pop is driven by the scheduler combinationally on
+    //      `slot_pulse_sys && head_pipe_target_tn == tn_sys && head_pipe_valid`,
+    //      so the entry to free is the one whose IMAGE the consumer is
+    //      currently shipping on-air — i.e. head_pipe_idx_reg.
+    //   2. Fallback: `pop && head_valid && !head_pipe_valid` clears
+    //      entry[head_idx].  Used by direct-pop unit tests that drive
+    //      pop without first running a slot_pulse to prime the pipeline.
+    //   3. If `write_accepted`, install new entry into entry[free_idx].
     //
     // Pop and write can happen the same cycle; they target different slots
-    // because pop's head_idx is a valid slot and write's free_idx is !valid.
+    // because pop's idx is a valid slot and write's free_idx is !valid.
     // =========================================================================
     integer s_i;
 
@@ -298,7 +422,9 @@ module tetra_dl_signal_queue #(
         if (!rst_n) begin
             entry_valid <= {DEPTH{1'b0}};
         end else begin
-            if (pop && head_valid)
+            if (pop && head_pipe_valid)
+                entry_valid[head_pipe_idx_reg] <= 1'b0;
+            else if (pop && head_valid)
                 entry_valid[head_idx] <= 1'b0;
             if (write_accepted)
                 entry_valid[free_idx] <= 1'b1;

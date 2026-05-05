@@ -473,7 +473,9 @@ wire [127:0] mle_accept_build_mm_pdu_bits_w;
 wire [7:0]   mle_accept_build_mm_pdu_len_bits_w;
 wire [31:0]  mle_accept_build_scramble_init_w;
 
-// Queue ↔ scheduler wiring
+// Queue ↔ scheduler wiring (Z.14: combinational head_* kept as diagnostic
+// reference; the registered head_pipe_* group is the real consumer-facing
+// path — used by the scheduler fan-out and the slot AACH RM-encoder mux.)
 wire         queue_head_valid_w;
 wire [431:0] queue_head_coded_w;
 wire [1:0]   queue_head_pdu_type_w;
@@ -482,6 +484,20 @@ wire [1:0]   queue_head_prio_w;
 wire [13:0]  queue_head_aach_pattern_w;        // Phase Z.2 (Z.13: 14-bit only)
 wire         queue_head_second_pdu_present_w;  // Option B telemetry (commit 6)
 wire         queue_head_second_pdu_nr_w;
+// Phase Z.14 — registered pipeline image of the queue head, captured
+// once per slot_pulse.  Breaks the deep
+//     queue-arb → head_aach_pattern → RM-encoder → slot mux → FF
+// combinational chain at the queue boundary.  All slot-encode-side
+// consumers (scheduler fan-out, slot-AACH mux, head_match_aach) read
+// queue_head_pipe_*_w instead of queue_head_*_w.
+wire         queue_head_pipe_valid_w;
+wire [431:0] queue_head_pipe_coded_w;
+wire [1:0]   queue_head_pipe_pdu_type_w;
+wire [1:0]   queue_head_pipe_target_tn_w;
+wire [1:0]   queue_head_pipe_prio_w;
+wire [13:0]  queue_head_pipe_aach_pattern_w;
+wire         queue_head_pipe_second_pdu_present_w;
+wire         queue_head_pipe_second_pdu_nr_w;
 wire         popped_second_pdu_present_w;      // latched for ILA probes
 wire         popped_second_pdu_nr_w;
 wire         sched_pop_w;
@@ -2327,6 +2343,8 @@ tetra_dl_signal_queue #(
 ) u_dl_signal_queue (
     .clk              (clk_sys),
     .rst_n            (rst_n_sys),
+    // Z.14 pipeline-stage capture trigger (sampled once per slot_pulse).
+    .slot_pulse       (tx_tdma_state_slot_pulse_sys),
     // MLE producer — muxed (MLE-FSM Final-ACCEPT priority over Phase X.5b
     // SlotGrant Pre-Reply, see mux just above the queue instantiation).
     .wr_mle_valid     (mle_slot_wr_valid_w),
@@ -2368,6 +2386,15 @@ tetra_dl_signal_queue #(
     .head_aach_pattern (queue_head_aach_pattern_w),       // Phase Z.2
     .head_second_pdu_present (queue_head_second_pdu_present_w),
     .head_second_pdu_nr      (queue_head_second_pdu_nr_w),
+    // Z.14 registered pipeline image of head_* (consumer-facing).
+    .head_pipe_valid              (queue_head_pipe_valid_w),
+    .head_pipe_coded              (queue_head_pipe_coded_w),
+    .head_pipe_pdu_type           (queue_head_pipe_pdu_type_w),
+    .head_pipe_target_tn          (queue_head_pipe_target_tn_w),
+    .head_pipe_prio               (queue_head_pipe_prio_w),
+    .head_pipe_aach_pattern       (queue_head_pipe_aach_pattern_w),
+    .head_pipe_second_pdu_present (queue_head_pipe_second_pdu_present_w),
+    .head_pipe_second_pdu_nr      (queue_head_pipe_second_pdu_nr_w),
     // Status
     .depth_valid_mask (queue_depth_mask_w),
     .depth_count      (queue_depth_count_w),
@@ -2390,14 +2417,19 @@ tetra_dl_signal_scheduler u_dl_signal_scheduler (
     .slot_pulse_sys         (tx_tdma_state_slot_pulse_sys),
     // Queue head + pop (Phase Z.13: pop fires at slot_pulse@target_tn,
     // not at slot_pulse@tn==3.  Module no longer latches a bundle.)
+    //
+    // Phase Z.14: scheduler now reads the queue's REGISTERED pipeline
+    // image (head_pipe_*).  Wire-name mapping is mechanical — the
+    // scheduler module's `head_*_sys` ports stay unchanged; only the
+    // upstream wires switch from queue_head_*_w to queue_head_pipe_*_w.
     .pop_sys                (sched_pop_w),
-    .head_valid_sys         (queue_head_valid_w),
-    .head_coded_sys         (queue_head_coded_w),
-    .head_pdu_type_sys      (queue_head_pdu_type_w),
-    .head_target_tn_sys     (queue_head_target_tn_w),
-    .head_prio_sys          (queue_head_prio_w),
-    .head_second_pdu_present_sys   (queue_head_second_pdu_present_w),
-    .head_second_pdu_nr_sys        (queue_head_second_pdu_nr_w),
+    .head_valid_sys         (queue_head_pipe_valid_w),
+    .head_coded_sys         (queue_head_pipe_coded_w),
+    .head_pdu_type_sys      (queue_head_pipe_pdu_type_w),
+    .head_target_tn_sys     (queue_head_pipe_target_tn_w),
+    .head_prio_sys          (queue_head_pipe_prio_w),
+    .head_second_pdu_present_sys   (queue_head_pipe_second_pdu_present_w),
+    .head_second_pdu_nr_sys        (queue_head_pipe_second_pdu_nr_w),
     .popped_second_pdu_present_sys (popped_second_pdu_present_w),
     .popped_second_pdu_nr_sys      (popped_second_pdu_nr_w),
     // Idle default sources (SW-driven banks, CDC-synced)
@@ -3915,8 +3947,15 @@ end
 // AACH encoder (consistent with sb1_encoder); head_target_tn_sys is
 // stable as long as the queue doesn't pop, so this match is single-cycle
 // stable across the AACH encoder's ~33-cycle FSM.
-wire head_match_aach_sys = queue_head_valid_w
-                        && (queue_head_target_tn_w == tx_tn_next_sys);
+//
+// Phase Z.14: the match (and the slot-AACH RM-encoder below) reads the
+// REGISTERED queue pipeline image, not the combinational head.  The
+// `slot_pulse → head_pipe capture` cycle leaves head_pipe stable across
+// the AACH encoder's FSM because the next pipeline update is at the
+// next slot_pulse — which only fires AFTER the encoder has finished
+// (its ~33-cycle FSM completes well before the next slot's encode_start).
+wire head_match_aach_sys = queue_head_pipe_valid_w
+                        && (queue_head_pipe_target_tn_w == tx_tn_next_sys);
 
 // Shared scrambler-init pack — identical to the one tetra_aach_encoder
 // derives internally; we keep cell-cfg static so this pack is also
@@ -3927,10 +3966,13 @@ wire [31:0] aach_lfsr_init_sys_w = {cell_cfg_mcc_sys_r1,
                                     2'b11};
 
 // Combinational RM(30,14)+scrambler — encodes the queue head's
-// aach_pattern in zero cycles.
+// aach_pattern in zero cycles.  Phase Z.14: info_w is fed from the
+// pipeline-registered head_pipe_aach_pattern so the deep RM-XOR tree
+// no longer concatenates with the queue arbitration combinational
+// network.
 wire [29:0] head_aach_coded_sys_w;
 tetra_aach_rm_encoder u_aach_rm_slot (
-    .info_w      (queue_head_aach_pattern_w),
+    .info_w      (queue_head_pipe_aach_pattern_w),
     .lfsr_init_w (aach_lfsr_init_sys_w),
     .coded_w     (head_aach_coded_sys_w)
 );
