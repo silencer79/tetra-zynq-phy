@@ -4,10 +4,17 @@
 // Phase Z.13 (2026-05-04): the scheduler is now a pure combinational fan-out
 // of queue.head — no bundle latch.  Pop fires at slot_pulse@target_tn (the
 // slot that actually transmits the popped PDU), not at slot_pulse@tn==3.
-// The slot_content_mux's tx_blk1_slotK_sys outputs continuously follow
-// the queue.head combinationally (via blk1_mux_tnK_sys), with one cycle
-// of clock latency.  As long as queue.head stays valid, tx_blk1_slot2 =
-// head_coded[431:216].
+//
+// Phase Z.18 (2026-05-05): tx_blk*_slot*_sys are no longer free-running
+// registers.  They latch ONCE per frame, at slot_content_mux's S_CAP3 state
+// (~5 sys cycles after slot_pulse@tn=3).  This eliminates a body-latch race
+// where a free-running register could overwrite the queue.head body in the
+// same cycle that pop drained it (~14% body-yield observed live).  TB
+// implication: after pushing into the queue, drive a full slot_pulse@tn=3
+// (advance_slot(2'd3)) before checking tx_blk*_slot* — only then has the
+// S_CAP3 latch fired with the new head value.  After the pop fires
+// (slot_pulse@target_tn), drive another slot_pulse@tn=3 to capture the
+// post-pop idle defaults.
 //
 // Schedule stub drives class=SIGNALLING (16'h100C) for every slot so that
 // mux outputs tx_blk*_slot* equal the scheduler's per-TN outputs.
@@ -326,15 +333,15 @@ module tb_dl_signal_integration;
         check_eq_int({28'd0, slot_ndb2}, 4'b1111, "T1.ndb2_all_idle");
 
         // -----------------------------------------------------------------
-        // T2 — push SCH/F targeting TN=2.  Queue.head is valid combinationally;
-        // tx_blk1_slot2 follows it through blk1_mux_tn2 (1 clock latency).
-        // We check BEFORE the pop fires (i.e. on slot_pulses for TN!=2).
+        // T2 — push SCH/F targeting TN=2.  With Z.18, tx_blk*_slot* latch
+        // only at S_CAP3 (after slot_pulse@tn=3) — drive a full frame so
+        // the new head value lands in the slot registers BEFORE the pop.
         // -----------------------------------------------------------------
         push_mle(coded_schf, 2'd0, 2'd2);
-        // Step a tn=0 slot_pulse so the registered tx_blk1_slot2 picks up
-        // the head value (1 clock for the mux register to settle).
-        advance_slot(2'd0);
-        // Target TN=2 carries PDU content (registered from queue.head)
+        // Drive slot_pulse@tn=3 → mux refresh FSM runs through S_RD0..S_CAP3
+        // and latches the new tx_blk1_slot2 = queue.head_coded[431:216].
+        advance_slot(2'd3);
+        // Target TN=2 carries PDU content (latched from queue.head at S_CAP3)
         check_eq_blk(tx_blk1_slot2, coded_schf[431:216], "T2.tn2_blk1");
         check_eq_blk(tx_blk2_slot2, coded_schf[215:  0], "T2.tn2_blk2");
         // Other TNs hold NULL-PDU idle default
@@ -346,19 +353,19 @@ module tb_dl_signal_integration;
         check_eq_blk(tx_blk2_slot3, sigcomp, "T2.tn3_blk2_idle");
         // slot_ndb2 — TN=2 bit is 0 (NTS1 for SCH/F), others 1
         check_eq_int({28'd0, slot_ndb2}, 4'b1011, "T2.slot_ndb2_mask");
-        // Now fire slot_pulse@tn=2 → pop fires.
+        // Now fire slot_pulse@tn=2 → pop fires; queue empties.
+        advance_slot(2'd0);
         advance_slot(2'd1);
         advance_slot(2'd2);          // pops the queue
-        advance_slot(2'd3);          // mux refresh trigger; head=0 by now → defaults
-        // After the pop fires, the next frame reverts to idle.
-        advance_slot(2'd0);
+        advance_slot(2'd3);          // S_CAP3 latches post-pop idle defaults
+        // After the pop fires, tx_blk1_slot2 is back to NULL-PDU idle.
         check_eq_blk(tx_blk1_slot2, nullp,   "T2.reverts_after_pop_tn2");
 
         // -----------------------------------------------------------------
         // T3 — push SCH/HD targeting TN=1 (queue empty after T2 pop)
         // -----------------------------------------------------------------
         push_mle(coded_schhd, 2'd1, 2'd1);
-        advance_slot(2'd0);          // tn=0 doesn't pop; tx_blk1_slot1 settles
+        advance_slot(2'd3);          // S_CAP3 latches new head into tx_blk*_slot1
         // SCH/HD: TN=1 blk1 = coded[431:216], blk2 = sig_companion
         check_eq_blk(tx_blk1_slot1, coded_schhd[431:216], "T3.tn1_blk1");
         check_eq_blk(tx_blk2_slot1, sigcomp,              "T3.tn1_blk2_companion");
@@ -369,10 +376,10 @@ module tb_dl_signal_integration;
         // slot_ndb2 all 1 (SCH/HD on TN=1 is NTS2; others idle NTS2)
         check_eq_int({28'd0, slot_ndb2}, 4'b1111, "T3.slot_ndb2_all1");
         // Pop fires on slot_pulse@tn=1.
+        advance_slot(2'd0);
         advance_slot(2'd1);          // pops
         advance_slot(2'd2);
-        advance_slot(2'd3);
-        advance_slot(2'd0);
+        advance_slot(2'd3);          // S_CAP3 latches post-pop idle defaults
         check_eq_blk(tx_blk1_slot1, nullp,   "T3.reverts_after_pop_tn1");
 
         // -----------------------------------------------------------------
