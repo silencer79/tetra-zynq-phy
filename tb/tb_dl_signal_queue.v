@@ -62,11 +62,6 @@ module tb_dl_signal_queue;
     tetra_dl_signal_queue #(.DEPTH(4)) dut (
         .clk              (clk),
         .rst_n            (rst_n),
-        // Z.14 pipeline-stage capture — TB uses the legacy direct-pop
-        // semantic (clear entry_valid[head_idx] when head_pipe_valid=0
-        // fallback fires).  slot_pulse stays low so head_pipe_valid
-        // stays 0 throughout this TB; pop hits the fallback branch.
-        .slot_pulse       (1'b0),
         .wr_mle_valid     (wr_mle_valid),
         .wr_mle_coded     (wr_mle_coded),
         .wr_mle_pdu_type  (wr_mle_pdu_type),
@@ -93,16 +88,6 @@ module tb_dl_signal_queue;
         .head_aach_pattern (head_aach_pattern),
         .head_second_pdu_present (),
         .head_second_pdu_nr      (),
-        // Z.14 pipeline-stage outputs — left unconnected; this unit-TB
-        // exercises the queue's combinational head + fallback-pop path.
-        .head_pipe_valid              (),
-        .head_pipe_coded              (),
-        .head_pipe_pdu_type           (),
-        .head_pipe_target_tn          (),
-        .head_pipe_prio               (),
-        .head_pipe_aach_pattern       (),
-        .head_pipe_second_pdu_present (),
-        .head_pipe_second_pdu_nr      (),
         .depth_valid_mask (depth_valid_mask),
         .depth_count      (depth_count),
         .drop_cnt         (drop_cnt),

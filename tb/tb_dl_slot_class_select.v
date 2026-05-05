@@ -101,21 +101,9 @@ wire [1:0]   queue_head_prio;
 wire [13:0]  queue_head_aach_pattern;
 wire         sched_pop;
 
-// Z.14 — pipeline image of queue head (registered consumer-facing
-// outputs).  Scheduler + slot-AACH-mux read these instead of the
-// combinational head_*.  Mirrors top.v wiring.
-wire         queue_head_pipe_valid;
-wire [431:0] queue_head_pipe_coded;
-wire [1:0]   queue_head_pipe_pdu_type;
-wire [1:0]   queue_head_pipe_target_tn;
-wire [1:0]   queue_head_pipe_prio;
-wire [13:0]  queue_head_pipe_aach_pattern;
-
 tetra_dl_signal_queue #(.DEPTH(4)) u_q (
     .clk              (clk),
     .rst_n            (rst_n),
-    // Z.14 capture trigger
-    .slot_pulse       (slot_pulse_sys),
     .wr_mle_valid     (q_wr_mle_valid),
     .wr_mle_coded     (q_wr_mle_coded),
     .wr_mle_pdu_type  (q_wr_mle_pdu_type),
@@ -142,15 +130,6 @@ tetra_dl_signal_queue #(.DEPTH(4)) u_q (
     .head_aach_pattern (queue_head_aach_pattern),
     .head_second_pdu_present (),
     .head_second_pdu_nr      (),
-    // Z.14 pipeline outputs — feed scheduler + slot AACH RM-encoder
-    .head_pipe_valid              (queue_head_pipe_valid),
-    .head_pipe_coded              (queue_head_pipe_coded),
-    .head_pipe_pdu_type           (queue_head_pipe_pdu_type),
-    .head_pipe_target_tn          (queue_head_pipe_target_tn),
-    .head_pipe_prio               (queue_head_pipe_prio),
-    .head_pipe_aach_pattern       (queue_head_pipe_aach_pattern),
-    .head_pipe_second_pdu_present (),
-    .head_pipe_second_pdu_nr      (),
     .depth_valid_mask (),
     .depth_count     (),
     .drop_cnt         ()
@@ -174,19 +153,17 @@ wire [BLOCK_BITS-1:0] sched_blk1_tn3_sys, sched_blk2_tn3_sys;
 wire [3:0]            sched_ndb2_sys;
 wire [3:0]            sched_active_sys;
 
-// Z.14 — scheduler reads pipeline image (registered head) — same wiring
-// pattern as tetra_zynq_top.v.
 tetra_dl_signal_scheduler u_s (
     .clk_sys                       (clk),
     .rst_n_sys                     (rst_n),
     .tn_sys                        (tn_sys),
     .slot_pulse_sys                (slot_pulse_sys),
     .pop_sys                       (sched_pop),
-    .head_valid_sys                (queue_head_pipe_valid),
-    .head_coded_sys                (queue_head_pipe_coded),
-    .head_pdu_type_sys             (queue_head_pipe_pdu_type),
-    .head_target_tn_sys            (queue_head_pipe_target_tn),
-    .head_prio_sys                 (queue_head_pipe_prio),
+    .head_valid_sys                (queue_head_valid),
+    .head_coded_sys                (queue_head_coded),
+    .head_pdu_type_sys             (queue_head_pdu_type),
+    .head_target_tn_sys            (queue_head_target_tn),
+    .head_prio_sys                 (queue_head_prio),
     .head_second_pdu_present_sys   (1'b0),
     .head_second_pdu_nr_sys        (1'b0),
     .popped_second_pdu_present_sys (),
@@ -288,10 +265,9 @@ localparam [5:0]  CC_CC  = 6'd49;
 
 wire [31:0] aach_lfsr_init_w = {CC_MCC, CC_MNC, CC_CC, 2'b11};
 
-// Z.14 — slot-AACH RM-encoder reads pipeline image (registered).
 wire [29:0] head_aach_coded_w;
 tetra_aach_rm_encoder u_aach_rm_slot (
-    .info_w      (queue_head_pipe_aach_pattern),
+    .info_w      (queue_head_aach_pattern),
     .lfsr_init_w (aach_lfsr_init_w),
     .coded_w     (head_aach_coded_w)
 );
@@ -319,9 +295,9 @@ tetra_aach_encoder u_aach (
 );
 
 // Slot-side AACH select.  In the real top.v the lookahead is tx_tn_next_sys;
-// for TB simplicity we use tn_sys directly.  Z.14: use pipeline image.
-wire head_match_aach = queue_head_pipe_valid
-                    && (queue_head_pipe_target_tn == tn_sys);
+// for TB simplicity we use tn_sys directly.
+wire head_match_aach = queue_head_valid
+                    && (queue_head_target_tn == tn_sys);
 wire [29:0] aach_slot_coded_w = head_match_aach
                               ? head_aach_coded_w
                               : aach_default_coded_out;

@@ -3,15 +3,6 @@
 //
 // Downlink signalling scheduler — combinational head-fan-out + pop strobe.
 //
-// Phase Z.14 (2026-05-04) — Vivado P&R timing-fix.  Module signature
-// unchanged; the meaning of `head_*_sys` inputs is now "registered queue
-// pipeline image" (head_pipe_*_sys in tetra_dl_signal_queue.v) rather
-// than the queue's combinational head outputs.  Top.v wires this in.
-// All scheduler logic stays purely combinational — the deep XOR/mux
-// chain that was failing 100 MHz timing is now broken at the queue's
-// pipeline register, NOT inside this module.  The TBs continue to drive
-// these inputs directly so module-level coverage is unchanged.
-//
 // Phase Z.13 (2026-05-04) refactor — clean architectural rewrite:
 //
 //   The previous Z.11/Z.12 design used a single-bundle latch on each

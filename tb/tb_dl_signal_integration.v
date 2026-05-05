@@ -98,20 +98,9 @@ module tb_dl_signal_integration;
     // -------------------------------------------------------------------------
     // DUT: queue + scheduler + mux
     // -------------------------------------------------------------------------
-    // Z.14 — pipeline-image of the queue head, captured once per
-    // slot_pulse.  Scheduler reads these instead of the combinational
-    // head_*.  Match the wiring used by tetra_zynq_top.v.
-    wire         qh_pipe_valid;
-    wire [431:0] qh_pipe_coded;
-    wire [1:0]   qh_pipe_pdu_type;
-    wire [1:0]   qh_pipe_target_tn;
-    wire [1:0]   qh_pipe_prio;
-
     tetra_dl_signal_queue #(.DEPTH(4)) u_q (
         .clk              (clk),
         .rst_n            (rst_n),
-        // Z.14 capture trigger
-        .slot_pulse       (slot_pulse),
         .wr_mle_valid     (q_wr_valid),
         .wr_mle_coded     (q_wr_coded),
         .wr_mle_pdu_type  (q_wr_pdu_type),
@@ -138,15 +127,6 @@ module tb_dl_signal_integration;
         .head_aach_pattern       (),
         .head_second_pdu_present (),
         .head_second_pdu_nr      (),
-        // Z.14 pipeline outputs
-        .head_pipe_valid              (qh_pipe_valid),
-        .head_pipe_coded              (qh_pipe_coded),
-        .head_pipe_pdu_type           (qh_pipe_pdu_type),
-        .head_pipe_target_tn          (qh_pipe_target_tn),
-        .head_pipe_prio               (qh_pipe_prio),
-        .head_pipe_aach_pattern       (),
-        .head_pipe_second_pdu_present (),
-        .head_pipe_second_pdu_nr      (),
         .depth_valid_mask (queue_depth_mask),
         .depth_count      (queue_depth_count),
         .drop_cnt         (queue_drop_cnt)
@@ -159,19 +139,17 @@ module tb_dl_signal_integration;
     // input still needs to be tied properly.
     wire [3:0] s_active;
 
-    // Z.14: scheduler reads pipeline image (registered head), not the
-    // combinational head — same wiring as in tetra_zynq_top.v.
     tetra_dl_signal_scheduler u_s (
         .clk_sys               (clk),
         .rst_n_sys             (rst_n),
         .tn_sys                (tn),
         .slot_pulse_sys        (slot_pulse),
         .pop_sys               (sched_pop),
-        .head_valid_sys        (qh_pipe_valid),
-        .head_coded_sys        (qh_pipe_coded),
-        .head_pdu_type_sys     (qh_pipe_pdu_type),
-        .head_target_tn_sys    (qh_pipe_target_tn),
-        .head_prio_sys         (qh_pipe_prio),
+        .head_valid_sys        (queue_head_valid),
+        .head_coded_sys        (queue_head_coded),
+        .head_pdu_type_sys     (queue_head_pdu_type),
+        .head_target_tn_sys    (queue_head_target_tn),
+        .head_prio_sys         (queue_head_prio),
         .head_second_pdu_present_sys (1'b0),
         .head_second_pdu_nr_sys      (1'b0),
         .popped_second_pdu_present_sys (),
