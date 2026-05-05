@@ -1,11 +1,13 @@
 // =============================================================================
 // tb_dl_signal_integration.v — end-to-end queue + scheduler + slot_content_mux
 //
-// Stimulus emits queue-writes on the MLE producer port (MVP has only the MLE
-// producer active).  The scheduler pops at tn==3 slot_pulse and drives the
-// per-TN signalling block bundle; slot_content_mux routes that bundle for
-// every class=SIGNALLING schedule entry (no override mux — the schedule
-// entry's class field is the dispatch).
+// Phase Z.13 (2026-05-04): the scheduler is now a pure combinational fan-out
+// of queue.head — no bundle latch.  Pop fires at slot_pulse@target_tn (the
+// slot that actually transmits the popped PDU), not at slot_pulse@tn==3.
+// The slot_content_mux's tx_blk1_slotK_sys outputs continuously follow
+// the queue.head combinationally (via blk1_mux_tnK_sys), with one cycle
+// of clock latency.  As long as queue.head stays valid, tx_blk1_slot2 =
+// head_coded[431:216].
 //
 // Schedule stub drives class=SIGNALLING (16'h100C) for every slot so that
 // mux outputs tx_blk*_slot* equal the scheduler's per-TN outputs.
@@ -13,12 +15,11 @@
 // Coverage:
 //   T1 No queue traffic → every TN carries NULL-PDU idle default
 //        (tx_blk1 = null_pdu_bits, tx_blk2 = sig_companion, slot_ndb2 = 1111)
-//   T2 Push SCH/F @ target_tn=2 → after tn==3 trigger, next-frame TN=2
-//        carries coded[431:216]/coded[215:0]; other TNs stay on NULL-PDU
-//        idle; slot_ndb2[2]=0 (NTS1), others=1
-//   T3 Push SCH/HD @ target_tn=1 → TN=1 blk1=coded[431:216],
-//        blk2=sig_companion, slot_ndb2[1]=1 (NTS2), others idle
-//   T4 Queue drained → override_cnt stays, next tn==3 re-latches idle
+//   T2 Push SCH/F @ target_tn=2 → tx_blk1_slot2/blk2_slot2 carry coded;
+//        other TNs stay on NULL-PDU idle; slot_ndb2[2]=0, others=1
+//   T3 Push SCH/HD @ target_tn=1 → TN=1 blk1=coded[431:216], blk2=companion,
+//        slot_ndb2[1]=1; others idle
+//   T4 After slot_pulse@target_tn pops the queue, next frame reverts to idle
 // =============================================================================
 `timescale 1ns / 1ps
 `default_nettype none
@@ -131,6 +132,13 @@ module tb_dl_signal_integration;
         .drop_cnt         (queue_drop_cnt)
     );
 
+    // Phase Z.13 — sched_active_sys is now a real output (combinational
+    // one-hot from head_target_tn).  We need it locally to drive
+    // slot_content_mux's dynamic-class lift, since the schedule stub
+    // already declares class=SIGNALLING for every slot but the mux
+    // input still needs to be tied properly.
+    wire [3:0] s_active;
+
     tetra_dl_signal_scheduler u_s (
         .clk_sys               (clk),
         .rst_n_sys             (rst_n),
@@ -142,7 +150,6 @@ module tb_dl_signal_integration;
         .head_pdu_type_sys     (queue_head_pdu_type),
         .head_target_tn_sys    (queue_head_target_tn),
         .head_prio_sys         (queue_head_prio),
-        .head_aach_pattern_sys (14'd0),
         .head_second_pdu_present_sys (1'b0),
         .head_second_pdu_nr_sys      (1'b0),
         .popped_second_pdu_present_sys (),
@@ -158,11 +165,7 @@ module tb_dl_signal_integration;
         .sched_blk1_tn3_sys    (s_blk1_tn3),
         .sched_blk2_tn3_sys    (s_blk2_tn3),
         .sched_ndb2_sys        (s_ndb2),
-        .sched_active_sys      (),
-        .sched_aach_override_tn0_sys (),
-        .sched_aach_override_tn1_sys (),
-        .sched_aach_override_tn2_sys (),
-        .sched_aach_override_tn3_sys (),
+        .sched_active_sys      (s_active),
         .override_cnt_sys      (ov_override_cnt),
         .pop_cnt_sys           (ov_pop_cnt)
     );
@@ -201,7 +204,7 @@ module tb_dl_signal_integration;
         .sched_blk1_tn3_sys   (s_blk1_tn3),
         .sched_blk2_tn3_sys   (s_blk2_tn3),
         .sched_ndb2_sys       (s_ndb2),
-        .sched_active_sys     (4'b0000),
+        .sched_active_sys     (s_active),
         .slot_burst_type_sys  (slot_burst_type),
         .slot_en_sys          (slot_en),
         .slot_ndb2_sys        (slot_ndb2),
@@ -319,13 +322,15 @@ module tb_dl_signal_integration;
         check_eq_int({28'd0, slot_ndb2}, 4'b1111, "T1.ndb2_all_idle");
 
         // -----------------------------------------------------------------
-        // T2 — push SCH/F targeting TN=2.
+        // T2 — push SCH/F targeting TN=2.  Queue.head is valid combinationally;
+        // tx_blk1_slot2 follows it through blk1_mux_tn2 (1 clock latency).
+        // We check BEFORE the pop fires (i.e. on slot_pulses for TN!=2).
         // -----------------------------------------------------------------
         push_mle(coded_schf, 2'd0, 2'd2);
-        full_frame();  // triggers pop at tn==3
-
+        // Step a tn=0 slot_pulse so the registered tx_blk1_slot2 picks up
+        // the head value (1 clock for the mux register to settle).
         advance_slot(2'd0);
-        // Target TN=2 carries PDU content
+        // Target TN=2 carries PDU content (registered from queue.head)
         check_eq_blk(tx_blk1_slot2, coded_schf[431:216], "T2.tn2_blk1");
         check_eq_blk(tx_blk2_slot2, coded_schf[215:  0], "T2.tn2_blk2");
         // Other TNs hold NULL-PDU idle default
@@ -337,14 +342,19 @@ module tb_dl_signal_integration;
         check_eq_blk(tx_blk2_slot3, sigcomp, "T2.tn3_blk2_idle");
         // slot_ndb2 — TN=2 bit is 0 (NTS1 for SCH/F), others 1
         check_eq_int({28'd0, slot_ndb2}, 4'b1011, "T2.slot_ndb2_mask");
+        // Now fire slot_pulse@tn=2 → pop fires.
+        advance_slot(2'd1);
+        advance_slot(2'd2);          // pops the queue
+        advance_slot(2'd3);          // mux refresh trigger; head=0 by now → defaults
+        // After the pop fires, the next frame reverts to idle.
+        advance_slot(2'd0);
+        check_eq_blk(tx_blk1_slot2, nullp,   "T2.reverts_after_pop_tn2");
 
         // -----------------------------------------------------------------
         // T3 — push SCH/HD targeting TN=1 (queue empty after T2 pop)
         // -----------------------------------------------------------------
         push_mle(coded_schhd, 2'd1, 2'd1);
-        full_frame();
-
-        advance_slot(2'd0);
+        advance_slot(2'd0);          // tn=0 doesn't pop; tx_blk1_slot1 settles
         // SCH/HD: TN=1 blk1 = coded[431:216], blk2 = sig_companion
         check_eq_blk(tx_blk1_slot1, coded_schhd[431:216], "T3.tn1_blk1");
         check_eq_blk(tx_blk2_slot1, sigcomp,              "T3.tn1_blk2_companion");
@@ -354,6 +364,12 @@ module tb_dl_signal_integration;
         check_eq_blk(tx_blk1_slot3, nullp,   "T3.tn3_idle");
         // slot_ndb2 all 1 (SCH/HD on TN=1 is NTS2; others idle NTS2)
         check_eq_int({28'd0, slot_ndb2}, 4'b1111, "T3.slot_ndb2_all1");
+        // Pop fires on slot_pulse@tn=1.
+        advance_slot(2'd1);          // pops
+        advance_slot(2'd2);
+        advance_slot(2'd3);
+        advance_slot(2'd0);
+        check_eq_blk(tx_blk1_slot1, nullp,   "T3.reverts_after_pop_tn1");
 
         // -----------------------------------------------------------------
         // T4 — queue drained, next full frame → idle re-latches everywhere

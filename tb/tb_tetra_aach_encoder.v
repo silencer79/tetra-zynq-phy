@@ -51,8 +51,9 @@ tetra_aach_encoder u_dut (
     .grant_pending_sys     (grant_pending_sys),
     .grant_info_sys        (grant_info_sys),
     .grant_consume_sys     (grant_consume_sys),
-    .aach_override_valid_sys (1'b0),
-    .aach_override_info_sys  (14'd0),
+    // Phase Z.13: aach_override_valid_sys / aach_override_info_sys
+    // inputs were removed — queued-PDU AACH is now produced by a
+    // separate combinational tetra_aach_rm_encoder at top-level.
     .encode_start_sys      (encode_start_sys),
     .aach_coded_sys        (aach_coded_sys),
     .aach_valid_sys        (aach_valid_sys)

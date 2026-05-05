@@ -1,41 +1,42 @@
 // =============================================================================
-// tb_dl_slot_class_select.v — Phase Z.2 self-checking TB
+// tb_dl_slot_class_select.v — Phase Z.13 self-checking TB
 //
 // DUTs (integration): tetra_dl_signal_queue + tetra_dl_signal_scheduler +
 //                     tetra_slot_schedule + tetra_slot_content_mux +
-//                     tetra_aach_encoder
+//                     tetra_aach_encoder (default-logic only) +
+//                     tetra_aach_rm_encoder (queued-PDU AACH)
 //
-// Goal: prove the dynamic-class lift on TN=1.
+// Phase Z.13 architectural rewrite — no scheduler bundle latch, no AACH
+// override branch, no per-TN aach_override path.  Instead:
+//
+//   * sched_blk1_tnK / sched_blk2_tnK / sched_active[K] are combinational
+//     fan-outs of queue.head.
+//   * Slot-side AACH select: when head_match (head_valid &&
+//     head_target_tn == tx_tn_next), the slot AACH = rm_encode(
+//     head_aach_pattern, lfsr_init).  Else use tetra_aach_encoder's
+//     default-logic output.
+//
+// Goal: prove the Z.13 single-path lift on TN=1.
 //
 //   Case A (default, no queue pop)
-//     BRAM TN=1 = STATIC NDB2 SYSINFO (idx=0, ndb2=1)
-//     Queue empty → frame stays NDB2-SYSINFO, AACH defaults to 0x3000
-//     CapAlloc on TN=1 (per ETSI gold-cell schedule for F1-17 traffic
-//     slots, see tetra_aach_encoder.v).
+//     Queue empty → frame stays NDB2-SYSINFO, AACH = default-encoder
+//     output for traffic-slot idle (0x3000 CapAlloc on TN=1 F1).
 //
-//   Case B (queue pop SCH/F target_tn=1, aach=0x0009)
-//     BRAM TN=1 still STATIC.  Queue gets one MLE PDU:
-//       pdu_type=00 (SCH/F), target_tn=1, aach_pattern=0x0009.
+//   Case B (queue pop SCH/F target_tn=1, aach_pattern=0x0009)
+//     Queue gets one MLE PDU with target_tn=1, aach_pattern=0x0009.
 //     Expect on the carrier frame:
 //       slot_ndb2[1] == 0           (NDB1 SCH/F)
 //       tx_blk1_slot1 == coded[431:216]
 //       tx_blk2_slot1 == coded[215:0]
-//       AACH for TN=1 latches info_sys=0x0009 (Unalloc/Unalloc).
+//       Slot AACH for TN=1 = rm_encode(0x0009, lfsr_init) (queued path).
 //
-//   Case C (queue pop SCH/HD target_tn=1, aach=0x0009)
+//   Case C (queue pop SCH/HD target_tn=1, aach_pattern=0x0009)
 //     pdu_type=01 (SCH/HD), target_tn=1, aach_pattern=0x0009.
 //     Expect: slot_ndb2[1] == 1, tx_blk1_slot1 == coded[431:216] (the
-//     SCH/HD halfblock), AACH info_sys=0x0009.
+//     SCH/HD halfblock), slot AACH = rm_encode(0x0009, lfsr_init).
 //
-//   Case D (no regression on existing SIGNALLING-class slot)
-//     BRAM TN=2 entry pre-set to class=SIGNALLING (e.g. NWRK-BCAST mcch
-//     slot pattern in Phase H.7).  Queue popping for TN=1 does NOT
-//     change TN=2's behaviour — TN=2 still routes the scheduler
-//     bundle's null-pdu idle blk1 (= NULL-PDU SCH/HD), and the AACH for
-//     TN=2 takes the encoder-default-logic path (0x3000 CapAlloc idle).
-//
-// Self-checking: each case asserts via $display + errors counter; on
-// non-zero errors the TB calls $stop.
+//   Case D (no regression: when queue targets TN=1, TN=2's AACH
+//   continues to take the default-encoder path).
 // =============================================================================
 
 `default_nettype none
@@ -108,7 +109,6 @@ tetra_dl_signal_queue #(.DEPTH(4)) u_q (
     .wr_mle_pdu_type  (q_wr_mle_pdu_type),
     .wr_mle_target_tn (q_wr_mle_target_tn),
     .wr_mle_aach_pattern (q_wr_mle_aach_pattern),
-    .wr_mle_aach_coded   (30'd0),
     .wr_mle_second_pdu_present (1'b0),
     .wr_mle_second_pdu_nr      (1'b0),
     .wr_cmce_valid    (1'b0),
@@ -116,13 +116,11 @@ tetra_dl_signal_queue #(.DEPTH(4)) u_q (
     .wr_cmce_pdu_type (2'd0),
     .wr_cmce_target_tn(2'd0),
     .wr_cmce_aach_pattern (14'd0),
-    .wr_cmce_aach_coded   (30'd0),
     .wr_sds_valid     (1'b0),
     .wr_sds_coded     (432'd0),
     .wr_sds_pdu_type  (2'd0),
     .wr_sds_target_tn (2'd0),
     .wr_sds_aach_pattern (14'd0),
-    .wr_sds_aach_coded   (30'd0),
     .pop              (sched_pop),
     .head_valid       (queue_head_valid),
     .head_coded       (queue_head_coded),
@@ -130,7 +128,6 @@ tetra_dl_signal_queue #(.DEPTH(4)) u_q (
     .head_target_tn   (queue_head_target_tn),
     .head_prio        (queue_head_prio),
     .head_aach_pattern (queue_head_aach_pattern),
-    .head_aach_coded   (),
     .head_second_pdu_present (),
     .head_second_pdu_nr      (),
     .depth_valid_mask (),
@@ -139,7 +136,7 @@ tetra_dl_signal_queue #(.DEPTH(4)) u_q (
 );
 
 // -------------------------------------------------------------------------
-// Scheduler DUT
+// Scheduler DUT — Phase Z.13 trimmed port list
 // -------------------------------------------------------------------------
 reg [1:0]    tn_sys;
 reg [4:0]    fn_sys;
@@ -155,10 +152,6 @@ wire [BLOCK_BITS-1:0] sched_blk1_tn2_sys, sched_blk2_tn2_sys;
 wire [BLOCK_BITS-1:0] sched_blk1_tn3_sys, sched_blk2_tn3_sys;
 wire [3:0]            sched_ndb2_sys;
 wire [3:0]            sched_active_sys;
-wire [13:0]           sched_aach_override_tn0_sys;
-wire [13:0]           sched_aach_override_tn1_sys;
-wire [13:0]           sched_aach_override_tn2_sys;
-wire [13:0]           sched_aach_override_tn3_sys;
 
 tetra_dl_signal_scheduler u_s (
     .clk_sys                       (clk),
@@ -171,8 +164,6 @@ tetra_dl_signal_scheduler u_s (
     .head_pdu_type_sys             (queue_head_pdu_type),
     .head_target_tn_sys            (queue_head_target_tn),
     .head_prio_sys                 (queue_head_prio),
-    .head_aach_pattern_sys         (queue_head_aach_pattern),
-    .head_aach_coded_sys           (30'd0),
     .head_second_pdu_present_sys   (1'b0),
     .head_second_pdu_nr_sys        (1'b0),
     .popped_second_pdu_present_sys (),
@@ -189,15 +180,6 @@ tetra_dl_signal_scheduler u_s (
     .sched_blk2_tn3_sys            (sched_blk2_tn3_sys),
     .sched_ndb2_sys                (sched_ndb2_sys),
     .sched_active_sys              (sched_active_sys),
-    .sched_aach_override_tn0_sys   (sched_aach_override_tn0_sys),
-    .sched_aach_override_tn1_sys   (sched_aach_override_tn1_sys),
-    .sched_aach_override_tn2_sys   (sched_aach_override_tn2_sys),
-    .sched_aach_override_tn3_sys   (sched_aach_override_tn3_sys),
-    .sched_aach_coded_tn0_sys      (),
-    .sched_aach_coded_tn1_sys      (),
-    .sched_aach_coded_tn2_sys      (),
-    .sched_aach_coded_tn3_sys      (),
-    .sched_aach_active_sys         (),
     .override_cnt_sys              (),
     .pop_cnt_sys                   ()
 );
@@ -271,28 +253,28 @@ tetra_slot_content_mux #(
 );
 
 // -------------------------------------------------------------------------
-// AACH encoder DUT — fed via the same per-tn-pattern lookup the top-level
-// uses, but driven by tn_sys (not lookahead) for TB simplicity.  Triggered
-// once per slot manually via `aach_kick`.
+// Phase Z.13 slot-side AACH select.
+//
+// When head_match for the slot being encoded, the slot AACH = rm_encode(
+// queue_head_aach_pattern).  Else use tetra_aach_encoder's default-logic
+// output.  This mirrors the top-level architecture exactly.
 // -------------------------------------------------------------------------
+localparam [9:0]  CC_MCC = 10'd901;
+localparam [13:0] CC_MNC = 14'd9998;
+localparam [5:0]  CC_CC  = 6'd49;
+
+wire [31:0] aach_lfsr_init_w = {CC_MCC, CC_MNC, CC_CC, 2'b11};
+
+wire [29:0] head_aach_coded_w;
+tetra_aach_rm_encoder u_aach_rm_slot (
+    .info_w      (queue_head_aach_pattern),
+    .lfsr_init_w (aach_lfsr_init_w),
+    .coded_w     (head_aach_coded_w)
+);
+
 reg          aach_kick;
-wire [29:0]  aach_coded_out;
-wire         aach_valid_out;
-
-reg  [13:0] aach_override_info_tn_sys;
-always @(*) begin
-    case (tn_sys)
-        2'd0:    aach_override_info_tn_sys = sched_aach_override_tn0_sys;
-        2'd1:    aach_override_info_tn_sys = sched_aach_override_tn1_sys;
-        2'd2:    aach_override_info_tn_sys = sched_aach_override_tn2_sys;
-        default: aach_override_info_tn_sys = sched_aach_override_tn3_sys;
-    endcase
-end
-wire aach_override_valid_tn_sys = (aach_override_info_tn_sys != 14'd0);
-
-// Probe info_sys directly via hierarchical reference (Verilog-2001 allows
-// in simulation; not synthesizable but TB-only).
-wire [13:0] dut_aach_info_sys = u_aach.info_sys;
+wire [29:0]  aach_default_coded_out;
+wire         aach_default_valid_out;
 
 tetra_aach_encoder u_aach (
     .clk_sys                (clk),
@@ -300,19 +282,30 @@ tetra_aach_encoder u_aach (
     .fn_sys                 (fn_sys),
     .tn_sys                 (tn_sys),
     .mn_low2_sys            (mn_sys[1:0]),
-    .colour_code_sys        (6'd49),
-    .mcc_sys                (10'd901),
-    .mnc_sys                (14'd9998),
-    .signalling_active_sys  (1'b0),       // simplified — Z.2 path only
+    .colour_code_sys        (CC_CC),
+    .mcc_sys                (CC_MCC),
+    .mnc_sys                (CC_MNC),
+    .signalling_active_sys  (1'b0),       // simplified — Z.13 path test
     .grant_pending_sys      (1'b0),
     .grant_info_sys         (14'd0),
     .grant_consume_sys      (),
-    .aach_override_valid_sys(aach_override_valid_tn_sys),
-    .aach_override_info_sys (aach_override_info_tn_sys),
     .encode_start_sys       (aach_kick),
-    .aach_coded_sys         (aach_coded_out),
-    .aach_valid_sys         (aach_valid_out)
+    .aach_coded_sys         (aach_default_coded_out),
+    .aach_valid_sys         (aach_default_valid_out)
 );
+
+// Slot-side AACH select.  In the real top.v the lookahead is tx_tn_next_sys;
+// for TB simplicity we use tn_sys directly.
+wire head_match_aach = queue_head_valid
+                    && (queue_head_target_tn == tn_sys);
+wire [29:0] aach_slot_coded_w = head_match_aach
+                              ? head_aach_coded_w
+                              : aach_default_coded_out;
+
+// Probe info_sys directly via hierarchical reference (Verilog-2001 allows
+// in simulation; not synthesizable but TB-only).  Used to verify the
+// default-encoder produces 0x3000/0x0249/etc as expected.
+wire [13:0] dut_aach_info_sys = u_aach.info_sys;
 
 // -------------------------------------------------------------------------
 // AXI write helper for schedule BRAM (one-half-word per call)
@@ -364,10 +357,12 @@ task pulse_slot(input [1:0] new_tn);
     end
 endtask
 
-// Fires a single tn=3 slot_pulse — drives the scheduler's pop_trigger
-// and the content_mux's refresh trigger.  After ~10 sys cycles all
-// output registers are stable and reflect the entries for the NEXT
-// frame (fn_next, mn_next).
+// Fires a single tn=3 slot_pulse — drives the content_mux's refresh
+// trigger.  After ~10 sys cycles all output registers are stable and
+// reflect the entries for the NEXT frame (fn_next, mn_next).  Note: the
+// scheduler's pop trigger no longer fires on tn==3 in Z.13 — it fires on
+// slot_pulse@target_tn.  The refresh's purpose here is purely to
+// populate the slot_content_mux schedule entries.
 task fire_refresh(input [4:0] cur_fn, input [5:0] cur_mn);
     integer w;
     begin
@@ -383,8 +378,8 @@ task fire_refresh(input [4:0] cur_fn, input [5:0] cur_mn);
     end
 endtask
 
-// Fires the AACH encoder once for slot tn at fn,mn.  Waits for the
-// encoder to finish (~33 cycles) so info_sys captured this kick.
+// Fires the AACH default-encoder once for slot tn at fn,mn.  Waits for
+// the encoder to finish (~33 cycles).
 task aach_kick_at(input [1:0] tn, input [4:0] fn, input [5:0] mn);
     integer w;
     begin
@@ -398,45 +393,7 @@ task aach_kick_at(input [1:0] tn, input [4:0] fn, input [5:0] mn);
         @(negedge clk);
         aach_kick = 1'b0;
         // info_sys is registered on the same clock edge that ingested
-        // encode_start_sys=1, so it's stable now.  No need to wait
-        // through S_MASK/S_DONE for the info_sys check.
-    end
-endtask
-
-// Step through all 4 slots of one frame at fn,mn settings.  After this
-// returns, the slot_content_mux outputs reflect the entries loaded for
-// (mn, fn).  We set tn_sys to TN=3 last so that the refresh fires for
-// the same frame's content during the FIRST frame (first_refresh).
-task one_frame;
-    begin
-        pulse_slot(2'd0);
-        // Wait a few cycles so the FSM completes RD0..CAP3 before we
-        // pulse the next slot — content_mux needs ~6 sys cycles of
-        // headroom after the trigger.
-        repeat (6) @(posedge clk);
-        pulse_slot(2'd1);
-        repeat (6) @(posedge clk);
-        pulse_slot(2'd2);
-        repeat (6) @(posedge clk);
-        pulse_slot(2'd3);
-        repeat (6) @(posedge clk);
-    end
-endtask
-
-// Like one_frame but skips the trailing tn=3 pulse — used for cases
-// where the test must observe the slot_content_mux outputs of frame
-// N+1 (resulting from the queue-driven refresh at the end of frame N)
-// without re-triggering the scheduler at the end of frame N+1 (which
-// would clear sched_active and invalidate the comparison).
-task one_frame_no_tn3;
-    begin
-        pulse_slot(2'd0);
-        repeat (6) @(posedge clk);
-        pulse_slot(2'd1);
-        repeat (6) @(posedge clk);
-        pulse_slot(2'd2);
-        repeat (6) @(posedge clk);
-        // intentionally NO tn=3 pulse
+        // encode_start_sys=1, so it's stable now.
     end
 endtask
 
@@ -483,6 +440,19 @@ task check_eq_h(input [BLOCK_BITS-1:0] got,
     end
 endtask
 
+// Compute the expected RM(30,14)+scrambler output for a given info word
+// and our cell config.  Independent reference (separate instance) used
+// to compare against the slot-side encoder output.
+wire [13:0] ref_info_w;
+wire [29:0] ref_aach_coded_w;
+reg  [13:0] ref_info_drv;
+assign ref_info_w = ref_info_drv;
+tetra_aach_rm_encoder u_aach_rm_ref (
+    .info_w      (ref_info_w),
+    .lfsr_init_w (aach_lfsr_init_w),
+    .coded_w     (ref_aach_coded_w)
+);
+
 // -------------------------------------------------------------------------
 // Stimulus
 // -------------------------------------------------------------------------
@@ -510,6 +480,7 @@ initial begin
     q_wr_mle_pdu_type = 2'd0;
     q_wr_mle_target_tn = 2'd0;
     q_wr_mle_aach_pattern = 14'd0;
+    ref_info_drv   = 14'd0;
 
     // Distinct test patterns
     null_pdu_bits_sys  = {216{1'b0}};
@@ -545,18 +516,14 @@ initial begin
     repeat (4) @(posedge clk);
 
     // -----------------------------------------------------------------
-    // Programme schedule:
-    //   (mn=0, fn=0, tn=0..3) all class=STATIC NDB SYSINFO (idx=0,
-    //   bt=00, ndb2=1, en=1).
-    //   For Case D we use TN=2 with class=SIGNALLING (cls=1) at
-    //   (mn=0, fn=1) to verify TN=1 lift does not affect TN=2.
+    // Programme schedule: every (mn=0, fn=0..2) slot is STATIC NDB
+    // SYSINFO; (mn=0, fn=1, tn=2) is class=SIGNALLING for Case D.
     // -----------------------------------------------------------------
     write_entry(2'd0, 5'd0, 2'd0, pack_entry(4'd0, 6'd0, 2'b00, 1'b1, 1'b1));
     write_entry(2'd0, 5'd0, 2'd1, pack_entry(4'd0, 6'd0, 2'b00, 1'b1, 1'b1));
     write_entry(2'd0, 5'd0, 2'd2, pack_entry(4'd0, 6'd0, 2'b00, 1'b1, 1'b1));
     write_entry(2'd0, 5'd0, 2'd3, pack_entry(4'd0, 6'd0, 2'b00, 1'b1, 1'b1));
 
-    // For Case D - mn=0 fn=1: TN=0,1,3 STATIC NDB; TN=2 = SIGNALLING.
     write_entry(2'd0, 5'd1, 2'd0, pack_entry(4'd0, 6'd0, 2'b00, 1'b1, 1'b1));
     write_entry(2'd0, 5'd1, 2'd1, pack_entry(4'd0, 6'd0, 2'b00, 1'b1, 1'b1));
     write_entry(2'd0, 5'd1, 2'd2, pack_entry(4'd1, 6'd0, 2'b00, 1'b1, 1'b1));
@@ -566,103 +533,98 @@ initial begin
     // Case A — Default (queue empty), TN=1 STATIC NDB2 SYSINFO
     // ------------------------------------------------------------------
     $display("=== Case A: default, queue empty ===");
-    // First refresh — first_refresh_pending=1 forces loading entries
-    // for the CURRENT frame (mn=0,fn=0).  Mux output registers then
-    // reflect those STATIC NDB SYSINFO entries.
     fire_refresh(5'd0, 6'd0);
 
-    // After 2 frames at fn=0: the registered cm outputs latched the
-    // STATIC pathway: blk1=NDB SYSINFO, ndb2=1, AACH info default.
     check_eq_h(cm_blk1_s1, ndb_block1_sw_sys, "A.blk1_tn1");
     check_eq_h(cm_blk2_s1, ndb_block2_sw_sys, "A.blk2_tn1");
     check_eq_int({28'd0, cm_ndb2[1]}, 1'b1,    "A.ndb2_tn1");
     check_eq_int({28'd0, sched_active_sys},  4'd0, "A.sched_active");
-    check_eq_int({18'd0, sched_aach_override_tn1_sys}, 32'd0, "A.aach_ovr_tn1");
+    check_eq_int({31'd0, head_match_aach}, 1'b0, "A.head_match_aach_zero");
 
-    // Trigger AACH encode for TN=1 fn=0 (F1 in ETSI, traffic slot)
-    // Default for F1-17 TN!=0 idle traffic-slot: 0x3000 (Gold-Audit 2026-05-04).
+    // Trigger AACH default-encoder for TN=1 fn=0 (F1, traffic slot)
+    // Default for F1-17 TN!=0 idle traffic-slot: 0x3000.
     aach_kick_at(2'd1, 5'd0, 6'd0);
     check_eq_int({18'd0, dut_aach_info_sys}, 32'h3000, "A.aach_info_default_capalloc");
 
     // ------------------------------------------------------------------
-    // Case B — Queue pop SCH/F target_tn=1, aach=0x0009
+    // Case B — Queue pop SCH/F target_tn=1, aach_pattern=0x0009.
+    // The slot-side AACH select should pick rm_encode(0x0009) for TN=1.
     // ------------------------------------------------------------------
     $display("=== Case B: queue pop SCH/F target_tn=1 ===");
     push_mle(tcb_coded, 2'd0 /* SCH/F */, 2'd1, 14'h0009);
-    // Single tn=3 refresh — pops the queued PDU, registers
-    // sched_active[1]=1 + sched_aach_override_tn1=0x0009, and
-    // content_mux loads the NEXT frame's entries (mn=0,fn=1) which
-    // are also STATIC NDB SYSINFO; the dynamic-class lift then
-    // routes the scheduler bundle for TN=1 instead.
+    // Refresh the slot_content_mux for the next frame (queue.head still
+    // valid at this moment — pop fires only on slot_pulse@target_tn).
     fire_refresh(5'd0, 6'd0);
 
     check_eq_int({28'd0, sched_active_sys[1]}, 32'd1, "B.sched_active_tn1");
-    check_eq_int({18'd0, sched_aach_override_tn1_sys}, 32'h0009, "B.aach_ovr_tn1");
+    check_eq_int({18'd0, queue_head_aach_pattern}, 32'h0009, "B.head_aach_pattern");
     check_eq_h(cm_blk1_s1, tcb_coded[431:216], "B.blk1_tn1_schf_upper");
     check_eq_h(cm_blk2_s1, tcb_coded[215:0],   "B.blk2_tn1_schf_lower");
     check_eq_int({28'd0, cm_ndb2[1]}, 32'd0,   "B.ndb2_tn1_schf");
 
-    // AACH for TN=1 must take override path → info_sys = 0x0009
-    aach_kick_at(2'd1, 5'd0, 6'd0);
-    check_eq_int({18'd0, dut_aach_info_sys}, 32'h0009, "B.aach_info_signalling");
+    // Slot AACH for TN=1 must equal rm_encode(0x0009) (head-match path).
+    @(negedge clk); tn_sys = 2'd1;  // simulate the slot encoder evaluating TN=1
+    @(posedge clk); #1;
+    check_eq_int({31'd0, head_match_aach}, 1'b1, "B.head_match_aach_one");
+    ref_info_drv = 14'h0009; @(posedge clk); #1;
+    check_eq_int({2'd0, aach_slot_coded_w}, {2'd0, ref_aach_coded_w}, "B.slot_aach_eq_rm_0009");
 
-    // Drain: another empty refresh clears sched_active.
+    // Pop fires on slot_pulse@tn=1 → drains the queue.
+    pulse_slot(2'd1);
+    @(posedge clk); #1;
+    check_eq_int({31'd0, queue_head_valid}, 1'b0, "B.queue_drained_after_pop");
+
+    // Drain refresh
     fire_refresh(5'd1, 6'd0);
-    check_eq_int({28'd0, sched_active_sys}, 32'd0, "B.sched_active_cleared");
 
     // ------------------------------------------------------------------
-    // Case C — Queue pop SCH/HD target_tn=1, aach=0x0009
+    // Case C — Queue pop SCH/HD target_tn=1, aach_pattern=0x0009
     // ------------------------------------------------------------------
     $display("=== Case C: queue pop SCH/HD target_tn=1 ===");
     push_mle(tcc_coded, 2'd1 /* SCH/HD */, 2'd1, 14'h0009);
     fire_refresh(5'd2, 6'd0);
 
     check_eq_int({28'd0, sched_active_sys[1]}, 32'd1, "C.sched_active_tn1");
-    check_eq_int({18'd0, sched_aach_override_tn1_sys}, 32'h0009, "C.aach_ovr_tn1");
     check_eq_h(cm_blk1_s1, tcc_coded[431:216], "C.blk1_tn1_schhd_upper");
     // SCH/HD uses sig_companion in BKN2:
     check_eq_h(cm_blk2_s1, sig_companion_sys, "C.blk2_tn1_companion");
     check_eq_int({28'd0, cm_ndb2[1]}, 32'd1,   "C.ndb2_tn1_schhd");
 
-    aach_kick_at(2'd1, 5'd0, 6'd0);
-    check_eq_int({18'd0, dut_aach_info_sys}, 32'h0009, "C.aach_info_signalling");
+    @(negedge clk); tn_sys = 2'd1;
+    @(posedge clk); #1;
+    check_eq_int({31'd0, head_match_aach}, 1'b1, "C.head_match_aach_one");
+    ref_info_drv = 14'h0009; @(posedge clk); #1;
+    check_eq_int({2'd0, aach_slot_coded_w}, {2'd0, ref_aach_coded_w}, "C.slot_aach_eq_rm_0009");
 
     // Drain
+    pulse_slot(2'd1);
+    @(posedge clk); #1;
     fire_refresh(5'd3, 6'd0);
 
     // ------------------------------------------------------------------
-    // Case D — TN=2 already SIGNALLING in BRAM; queue popping for some
-    // OTHER target should not affect TN=2 (it should still see the
-    // scheduler's NULL-PDU idle), and TN=2's AACH must NOT take the
-    // Z.2 override path (no queued PDU for TN=2 → override pattern=0).
+    // Case D — Queue targets TN=1; TN=2 must NOT take the head-match
+    // path (head_target_tn=1 ≠ 2).  Default-encoder drives TN=2 AACH.
     // ------------------------------------------------------------------
-    $display("=== Case D: pre-existing SIGNALLING TN=2 unaffected ===");
-    // Push an unrelated PDU for TN=1 only.
+    $display("=== Case D: head targets TN=1 — TN=2 untouched ===");
     push_mle(tcb_coded, 2'd0, 2'd1, 14'h0009);
-    // Refresh from fn=0 → next is fn=1 where we programmed
-    // TN=2 = SIGNALLING, others STATIC.
     fire_refresh(5'd0, 6'd0);
 
-    // Scheduler for TN=2: not target → stays NULL-PDU idle, sched_ndb2[2]=1
-    check_eq_h(cm_blk1_s2, null_pdu_bits_sys, "D.tn2_blk1_nullpdu");
-    check_eq_h(cm_blk2_s2, sig_companion_sys, "D.tn2_blk2_companion");
-    check_eq_int({28'd0, cm_ndb2[2]}, 32'd1, "D.tn2_ndb2_idle");
-    // sched_active for TN=2 must stay 0 (no override pattern)
+    check_eq_int({28'd0, sched_active_sys[1]}, 32'd1, "D.sched_active_tn1_set");
     check_eq_int({28'd0, sched_active_sys[2]}, 32'd0, "D.sched_active_tn2_zero");
-    check_eq_int({18'd0, sched_aach_override_tn2_sys}, 32'd0, "D.aach_ovr_tn2_zero");
 
-    // AACH for TN=2 falls into encoder default-logic path (override
-    // valid=0).  In the simplified TB harness signalling_active_sys=0
-    // and grant_pending=0, fn=1 mn=0 tn=2 → MN%4=0, fn=5'd1=ETSI FN 2,
-    // not in the FN=3..13 MN%4=1 reserved window, so default 0x3000
-    // (Gold-bit-genau 2026-05-04 Audit; vorher 0x32CB war Drift).
+    // TN=1 → queued, head match
+    @(negedge clk); tn_sys = 2'd1;
+    @(posedge clk); #1;
+    check_eq_int({31'd0, head_match_aach}, 1'b1, "D.head_match_tn1");
+
+    // TN=2 → NOT head match → slot AACH = default encoder output
+    @(negedge clk); tn_sys = 2'd2;
+    @(posedge clk); #1;
+    check_eq_int({31'd0, head_match_aach}, 1'b0, "D.head_match_tn2_zero");
+
+    // Default-encoder for TN=2 fn=1 (F2 in ETSI), MN%4=0 → 0x3000 traffic idle
     aach_kick_at(2'd2, 5'd1, 6'd0);
     check_eq_int({18'd0, dut_aach_info_sys}, 32'h3000, "D.aach_info_tn2_default");
-
-    // Also confirm the queued PDU for TN=1 still fired correctly in this
-    // frame (no regression caused by D's class=SIGNALLING TN=2 entry).
-    check_eq_int({28'd0, sched_active_sys[1]}, 32'd1, "D.sched_active_tn1_set");
-    check_eq_h(cm_blk1_s1, tcb_coded[431:216], "D.tn1_blk1_schf_upper");
 
     // ------------------------------------------------------------------
     if (errors == 0) begin

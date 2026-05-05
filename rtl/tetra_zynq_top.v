@@ -479,8 +479,7 @@ wire [431:0] queue_head_coded_w;
 wire [1:0]   queue_head_pdu_type_w;
 wire [1:0]   queue_head_target_tn_w;
 wire [1:0]   queue_head_prio_w;
-wire [13:0]  queue_head_aach_pattern_w;        // Phase Z.2
-wire [29:0]  queue_head_aach_coded_w;          // Phase Z.12
+wire [13:0]  queue_head_aach_pattern_w;        // Phase Z.2 (Z.13: 14-bit only)
 wire         queue_head_second_pdu_present_w;  // Option B telemetry (commit 6)
 wire         queue_head_second_pdu_nr_w;
 wire         popped_second_pdu_present_w;      // latched for ILA probes
@@ -515,17 +514,10 @@ wire [215:0] sched_blk2_tn3_sys_w;
 wire [3:0]   sched_ndb2_sys_w;
 wire [15:0]  sig_pop_cnt_w;
 wire [15:0]  sig_override_cnt_w;
-// Phase Z.2 — per-TN AACH override pattern bundle from scheduler
-wire [13:0]  sched_aach_override_tn0_sys_w;
-wire [13:0]  sched_aach_override_tn1_sys_w;
-wire [13:0]  sched_aach_override_tn2_sys_w;
-wire [13:0]  sched_aach_override_tn3_sys_w;
-// Phase Z.12 — atomic pre-coded AACH per TN
-wire [29:0]  sched_aach_coded_tn0_sys_w;
-wire [29:0]  sched_aach_coded_tn1_sys_w;
-wire [29:0]  sched_aach_coded_tn2_sys_w;
-wire [29:0]  sched_aach_coded_tn3_sys_w;
-wire [3:0]   sched_aach_active_sys_w;
+// Phase Z.13 — Z.2/Z.12 per-TN AACH override + per-TN pre-coded AACH
+// bundles deleted.  AACH info now selected combinationally at the slot-
+// encoder side from queue.head_aach_pattern (when head_target_tn matches
+// tx_tn_next_sys), with a single shared tetra_aach_rm_encoder instance.
 
 // RX chain debug signals
 wire dbg_fe_valid_sys;
@@ -1144,8 +1136,12 @@ wire [215:0] bnch_block2_data_sys;
 wire [15:0]  schedule_entry_sys_w;   // from u_tx_slot_schedule (Port B)
 wire [119:0] sb1_coded_sys_w;        // from u_sb1_encoder
 wire         sb1_valid_sys_w;
-wire [29:0]  aach_coded_sys_w;       // from u_aach_encoder
+wire [29:0]  aach_coded_sys_w;       // from u_aach_encoder (default-logic)
 wire         aach_valid_sys_w;
+// Phase Z.13 — slot AACH select (head pre-coded vs default-encoder).
+// Driven by an `assign` near tetra_aach_encoder; declared here for
+// `default_nettype none clean forward reference at slot_content_mux.
+wire [29:0]  aach_coded_slot_sys_w;
 
 // 2-FF CDC: null_pdu_bits_axi (s_axi_aclk) → null_pdu_bits_sys (clk_sys).
 // This is a slow-changing 216-bit bus (SW writes once at boot), so a
@@ -1206,11 +1202,11 @@ tetra_slot_content_mux #(
     // RTL encoder outputs
     .sb1_coded_sys        (sb1_coded_sys_w),
     .sb1_valid_sys        (sb1_valid_sys_w),
-    // Phase Z.12 — atomic AACH per slot.  When the scheduler bundle
-    // covers tx_tn_next, source AACH from the pre-coded bundle field
-    // (single-cycle race-free), else use the AACH-encoder default-FSM
-    // output for idle/F18/grant patterns.
-    .aach_coded_sys       (aach_coded_atomic_sys_w),
+    // Phase Z.13 — slot AACH select.  Combinational mux at slot-encoder
+    // side: queue-head pre-coded AACH when head matches tx_tn_next, else
+    // tetra_aach_encoder's default-logic output (idle/F18/grant).  See
+    // declaration of `aach_coded_slot_sys_w` near tetra_aach_encoder.
+    .aach_coded_sys       (aach_coded_slot_sys_w),
     .aach_valid_sys       (aach_valid_sys_w),
     // SW payload banks
     .ndb_block1_sw_sys    (ndb_block1_data_sys),
@@ -2338,7 +2334,6 @@ tetra_dl_signal_queue #(
     .wr_mle_pdu_type  (mle_slot_wr_pdu_type_w),
     .wr_mle_target_tn (mle_slot_wr_target_tn_w),
     .wr_mle_aach_pattern (mle_slot_wr_aach_pattern_w),    // Phase Z.2
-    .wr_mle_aach_coded   (mle_slot_wr_aach_coded_w),      // Phase Z.12
     // Option B second_pdu telemetry (commit 6): propagate MLE-FSM's
     // req_second_pdu_* so the queue entry carries the BL-ACK-present
     // flag + nr for downstream ILA / AXI visibility.  SlotGrant path
@@ -2352,7 +2347,6 @@ tetra_dl_signal_queue #(
     .wr_cmce_pdu_type (nwrk_bcast_push_pdu_type_sys_w),
     .wr_cmce_target_tn(nwrk_bcast_push_target_tn_sys_w),
     .wr_cmce_aach_pattern (`PDUC_NWRK_BCAST_AACH),    // Phase Z.3 — Gold: 0x0249 idle
-    .wr_cmce_aach_coded   (cmce_slot_wr_aach_coded_w),   // Phase Z.12
     // SDS producer — repurposed for Phase X.5 Pre-Reply BL-ACK Mini-FSM.
     // The module pushes a SCH/HD-coded BL-ACK on every Frag-1 pulse so the
     // attaching MS sees an ACK on the Pre-Reply slot (1 frame after Frag-1)
@@ -2364,7 +2358,6 @@ tetra_dl_signal_queue #(
     .wr_sds_pdu_type  (pre_reply_blck_pdu_type_sys_w),
     .wr_sds_target_tn (pre_reply_blck_target_tn_sys_w),
     .wr_sds_aach_pattern (`PDUC_BL_ACK_POST_FRAG2_AACH),    // Phase Z.3 — Gold: 0x0249 idle
-    .wr_sds_aach_coded   (sds_slot_wr_aach_coded_w),         // Phase Z.12
     // Scheduler consumer
     .pop              (sched_pop_w),
     .head_valid       (queue_head_valid_w),
@@ -2373,7 +2366,6 @@ tetra_dl_signal_queue #(
     .head_target_tn   (queue_head_target_tn_w),
     .head_prio        (queue_head_prio_w),
     .head_aach_pattern (queue_head_aach_pattern_w),       // Phase Z.2
-    .head_aach_coded   (queue_head_aach_coded_w),         // Phase Z.12
     .head_second_pdu_present (queue_head_second_pdu_present_w),
     .head_second_pdu_nr      (queue_head_second_pdu_nr_w),
     // Status
@@ -2396,15 +2388,14 @@ tetra_dl_signal_scheduler u_dl_signal_scheduler (
     .rst_n_sys              (rst_n_sys),
     .tn_sys                 (tx_tdma_state_tn_sys),
     .slot_pulse_sys         (tx_tdma_state_slot_pulse_sys),
-    // Queue head + pop
+    // Queue head + pop (Phase Z.13: pop fires at slot_pulse@target_tn,
+    // not at slot_pulse@tn==3.  Module no longer latches a bundle.)
     .pop_sys                (sched_pop_w),
     .head_valid_sys         (queue_head_valid_w),
     .head_coded_sys         (queue_head_coded_w),
     .head_pdu_type_sys      (queue_head_pdu_type_w),
     .head_target_tn_sys     (queue_head_target_tn_w),
     .head_prio_sys          (queue_head_prio_w),
-    .head_aach_pattern_sys  (queue_head_aach_pattern_w),  // Phase Z.2
-    .head_aach_coded_sys    (queue_head_aach_coded_w),    // Phase Z.12
     .head_second_pdu_present_sys   (queue_head_second_pdu_present_w),
     .head_second_pdu_nr_sys        (queue_head_second_pdu_nr_w),
     .popped_second_pdu_present_sys (popped_second_pdu_present_w),
@@ -2415,7 +2406,7 @@ tetra_dl_signal_scheduler u_dl_signal_scheduler (
     //                  — same SYSINFO/BNCH content used for NDB2 broadcast.
     .null_pdu_bits_sys      (null_pdu_bits_sys_r1),
     .sig_companion_sys      (ndb_block2_data_sys),
-    // Per-TN signalling bundle → slot_content_mux
+    // Per-TN signalling bundle → slot_content_mux (combinational from head)
     .sched_blk1_tn0_sys     (sched_blk1_tn0_sys_w),
     .sched_blk2_tn0_sys     (sched_blk2_tn0_sys_w),
     .sched_blk1_tn1_sys     (sched_blk1_tn1_sys_w),
@@ -2426,17 +2417,6 @@ tetra_dl_signal_scheduler u_dl_signal_scheduler (
     .sched_blk2_tn3_sys     (sched_blk2_tn3_sys_w),
     .sched_ndb2_sys         (sched_ndb2_sys_w),
     .sched_active_sys       (sched_active_sys_w),
-    // Phase Z.2 — per-TN AACH override pattern outputs
-    .sched_aach_override_tn0_sys (sched_aach_override_tn0_sys_w),
-    .sched_aach_override_tn1_sys (sched_aach_override_tn1_sys_w),
-    .sched_aach_override_tn2_sys (sched_aach_override_tn2_sys_w),
-    .sched_aach_override_tn3_sys (sched_aach_override_tn3_sys_w),
-    // Phase Z.12 — pre-coded AACH per TN, atomic with body bundle
-    .sched_aach_coded_tn0_sys (sched_aach_coded_tn0_sys_w),
-    .sched_aach_coded_tn1_sys (sched_aach_coded_tn1_sys_w),
-    .sched_aach_coded_tn2_sys (sched_aach_coded_tn2_sys_w),
-    .sched_aach_coded_tn3_sys (sched_aach_coded_tn3_sys_w),
-    .sched_aach_active_sys    (sched_aach_active_sys_w),
     // Stats
     .override_cnt_sys       (sig_override_cnt_w),
     .pop_cnt_sys            (sig_pop_cnt_w)
@@ -2945,46 +2925,25 @@ wire         mle_slot_wr_second_pdu_nr_w      = mle_req_valid_w ? mle_req_second
 wire [13:0]  mle_slot_wr_aach_pattern_w = `PDUC_FINAL_LU_ACCEPT_AACH;
 
 // =============================================================================
-// Phase Z.12 — Producer-side AACH pre-coding
+// Phase Z.13 (2026-05-04) — producer-side AACH pre-coding REMOVED.
 //
-// Each producer (MLE-FSM/GroupAck/SlotGrant, NWRK-Bcast, BL-ACK Pre-Reply)
-// pushes a 30-bit pre-coded AACH (RM(30,14) + scrambler) into the queue
-// alongside the 432-bit body.  The scheduler latches both atomically in a
-// single bundle, so the slot AACH output and the slot body output ride the
-// same single-cycle latch — eliminates the Z.11 single-cycle race between
-// scheduler-latch and AACH-encoder-FSM.
+// The Z.12 design instantiated three combinational tetra_aach_rm_encoder
+// blocks (MLE/CMCE/SDS) at the queue write ports so each producer would
+// store a pre-computed 30-bit coded AACH alongside the 432-bit body.
+// The downstream race that justified this (scheduler bundle-latch vs
+// AACH-encoder FSM) was itself an artefact of the Z.11 multi-latch
+// design — both have been eliminated in Z.13:
 //
-// Implementation: shared scrambler-init pack (identical to the on-line
-// AACH encoder) feeds three combinational tetra_aach_rm_encoder
-// instances, one per queue producer port.  Cell-cfg is static so the
-// outputs are stable inputs to the queue.
+//   * scheduler bundle-latch removed     → ~451 FFs back
+//   * per-TN aach_override latches       → ~56 FFs back
+//   * 3× producer-side aach_rm_encoder   → ~LUTs back
+//   * queue-entry aach_coded[29:0] field → 30*4 = 120 FFs back
+//
+// AACH for queued PDUs is now encoded by ONE shared tetra_aach_rm_encoder
+// instance at the slot-encoder side, in the same combinational fan-out
+// path as the body bundle.  See `aach_coded_slot_sys_w` declaration near
+// tetra_aach_encoder.
 // =============================================================================
-wire [31:0] aach_lfsr_init_sys_w = {cell_cfg_mcc_sys_r1,
-                                    cell_cfg_mnc_sys_r1,
-                                    colour_code_sys_r1,
-                                    2'b11};
-
-wire [29:0] mle_slot_wr_aach_coded_w;
-wire [29:0] cmce_slot_wr_aach_coded_w;
-wire [29:0] sds_slot_wr_aach_coded_w;
-
-tetra_aach_rm_encoder u_aach_rm_mle (
-    .info_w      (mle_slot_wr_aach_pattern_w),
-    .lfsr_init_w (aach_lfsr_init_sys_w),
-    .coded_w     (mle_slot_wr_aach_coded_w)
-);
-
-tetra_aach_rm_encoder u_aach_rm_cmce (
-    .info_w      (`PDUC_NWRK_BCAST_AACH),
-    .lfsr_init_w (aach_lfsr_init_sys_w),
-    .coded_w     (cmce_slot_wr_aach_coded_w)
-);
-
-tetra_aach_rm_encoder u_aach_rm_sds (
-    .info_w      (`PDUC_BL_ACK_POST_FRAG2_AACH),
-    .lfsr_init_w (aach_lfsr_init_sys_w),
-    .coded_w     (sds_slot_wr_aach_coded_w)
-);
 
 // CDC: consume pulse + counter clk_sys → clk_axi
 (* ASYNC_REG = "TRUE" *) reg nwrk_bcast_consume_axi_r0;
@@ -3934,62 +3893,50 @@ end
 // =============================================================================
 // aach_coded_sys_w / aach_valid_sys_w declared earlier as forward refs
 
-// Phase Z.2 — per-tn-pattern → per-encode-cycle pattern lookup.  The AACH
-// encoder works on tx_tn_next_sys (lookahead).  Pick the matching slot's
-// override pattern; valid when the pattern is non-zero (14'd0 sentinel
-// = "use default-logic" path).
-reg  [13:0] aach_override_info_tn_sys;
-always @(*) begin
-    case (tx_tn_next_sys)
-        2'd0:    aach_override_info_tn_sys = sched_aach_override_tn0_sys_w;
-        2'd1:    aach_override_info_tn_sys = sched_aach_override_tn1_sys_w;
-        2'd2:    aach_override_info_tn_sys = sched_aach_override_tn2_sys_w;
-        default: aach_override_info_tn_sys = sched_aach_override_tn3_sys_w;
-    endcase
-end
-wire aach_override_valid_tn_sys = (aach_override_info_tn_sys != 14'd0);
-
 // =============================================================================
-// Phase Z.12 — atomic AACH select.  When the scheduler bundle covers
-// tx_tn_next, source AACH from the pre-coded bundle field (atomic with
-// the body bundle, single-cycle race-free).  Else fall through to the
-// AACH-encoder FSM output for default/F18/grant patterns.
+// Phase Z.13 (2026-05-04) — Single-path slot AACH select.
 //
-// `sched_aach_active_sys_w[k]` is registered combinationally from the
-// single bundle latch in tetra_dl_signal_scheduler.v — it reflects the
-// SAME bundle whose body went into sched_blk1_tnK_sys / sched_blk2_tnK_sys
-// → no possibility of body and AACH disagreeing.
+// One linear path:
+//   * If the queue head targets the slot being encoded (tx_tn_next_sys),
+//     drive the slot's AACH from a SHARED tetra_aach_rm_encoder fed by
+//     head_aach_pattern.  Body and AACH come from the SAME queue entry,
+//     no latch, no bundle.
+//   * Otherwise the slot AACH is the default-logic output of
+//     tetra_aach_encoder (idle 0x0249 / TN!=0 traffic / F18 anchor /
+//     grant_pending).
+//
+// The Z.2/Z.12 layered-override design (per-TN aach_override_pattern,
+// per-TN aach_coded bundle, scheduler bundle latch, atomic-bypass mux,
+// 3× producer-side aach_rm_encoders) is GONE.
 // =============================================================================
-reg [29:0] sched_aach_coded_tn_sys_r;
-reg        sched_aach_active_tn_sys_r;
-always @(*) begin
-    case (tx_tn_next_sys)
-        2'd0: begin
-            sched_aach_coded_tn_sys_r  = sched_aach_coded_tn0_sys_w;
-            sched_aach_active_tn_sys_r = sched_aach_active_sys_w[0];
-        end
-        2'd1: begin
-            sched_aach_coded_tn_sys_r  = sched_aach_coded_tn1_sys_w;
-            sched_aach_active_tn_sys_r = sched_aach_active_sys_w[1];
-        end
-        2'd2: begin
-            sched_aach_coded_tn_sys_r  = sched_aach_coded_tn2_sys_w;
-            sched_aach_active_tn_sys_r = sched_aach_active_sys_w[2];
-        end
-        default: begin
-            sched_aach_coded_tn_sys_r  = sched_aach_coded_tn3_sys_w;
-            sched_aach_active_tn_sys_r = sched_aach_active_sys_w[3];
-        end
-    endcase
-end
 
-// Atomic AACH out — feeds slot_content_mux directly (replaces
-// aach_coded_sys_w as the input to that module).  Body and AACH come
-// from the same bundle latch when sched_aach_active_tn=1.
-wire [29:0] aach_coded_atomic_sys_w = sched_aach_active_tn_sys_r
-                                    ? sched_aach_coded_tn_sys_r
-                                    : aach_coded_sys_w;
+// Match between queue head and the slot tetra_aach_encoder will encode
+// this cycle.  tx_tn_next_sys is the 1-frame-ahead lookahead used by the
+// AACH encoder (consistent with sb1_encoder); head_target_tn_sys is
+// stable as long as the queue doesn't pop, so this match is single-cycle
+// stable across the AACH encoder's ~33-cycle FSM.
+wire head_match_aach_sys = queue_head_valid_w
+                        && (queue_head_target_tn_w == tx_tn_next_sys);
 
+// Shared scrambler-init pack — identical to the one tetra_aach_encoder
+// derives internally; we keep cell-cfg static so this pack is also
+// stable.  (Caller handles the lfsr=0 degeneracy inside the RM encoder.)
+wire [31:0] aach_lfsr_init_sys_w = {cell_cfg_mcc_sys_r1,
+                                    cell_cfg_mnc_sys_r1,
+                                    colour_code_sys_r1,
+                                    2'b11};
+
+// Combinational RM(30,14)+scrambler — encodes the queue head's
+// aach_pattern in zero cycles.
+wire [29:0] head_aach_coded_sys_w;
+tetra_aach_rm_encoder u_aach_rm_slot (
+    .info_w      (queue_head_aach_pattern_w),
+    .lfsr_init_w (aach_lfsr_init_sys_w),
+    .coded_w     (head_aach_coded_sys_w)
+);
+
+// Default-logic AACH encoder (idle 0x0249 / TN!=0 traffic 0x3000 / F18
+// anchor / grant_pending).  No override inputs in Z.13.
 tetra_aach_encoder u_aach_encoder (
     .clk_sys          (clk_sys),
     .rst_n_sys        (rst_n_sys),
@@ -4003,17 +3950,23 @@ tetra_aach_encoder u_aach_encoder (
     .mcc_sys          (cell_cfg_mcc_sys_r1),
     .mnc_sys          (cell_cfg_mnc_sys_r1),
     .signalling_active_sys (sched_reply_active_by_content_w[tx_tn_next_sys]),
-    // Phase H.6.3 — UL-Slot-Grant override
+    // Phase H.6.3 — UL-Slot-Grant override (kept; only fires on TN=0
+    // idle when head_match=0, no overlap with queued-PDU path).
     .grant_pending_sys (aach_grant_pending_sys_r1),
     .grant_info_sys    (aach_grant_info_sys_r1),
     .grant_consume_sys (aach_grant_consume_sys_w),
-    // Phase Z.2 — Scheduler-driven AACH override (per-PDU-class pattern)
-    .aach_override_valid_sys (aach_override_valid_tn_sys),
-    .aach_override_info_sys  (aach_override_info_tn_sys),
     .encode_start_sys (tx_tdma_state_slot_pulse_sys),
     .aach_coded_sys   (aach_coded_sys_w),
     .aach_valid_sys   (aach_valid_sys_w)
 );
+
+// Single linear if/else: queued-PDU AACH wins on its target slot, else
+// default-encoder output.  This is the ONLY mux on the AACH path —
+// no per-TN bundle, no atomic-bypass, no aach_override_info latches.
+// (Wire forward-declared near `aach_coded_sys_w`.)
+assign aach_coded_slot_sys_w = head_match_aach_sys
+                             ? head_aach_coded_sys_w
+                             : aach_coded_sys_w;
 
 (* mark_debug = "true", keep = "true" *) reg [29:0] dbg_aach_coded_sys;
 (* mark_debug = "true", keep = "true" *) reg        dbg_aach_valid_sys;

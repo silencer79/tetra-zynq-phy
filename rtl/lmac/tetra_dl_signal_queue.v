@@ -3,9 +3,10 @@
 //
 // Downlink signalling queue — buffers coded SCH/F or SCH/HD PDUs produced
 // by higher-layer FSMs (MLE registration, future CMCE, future SDS) and
-// hands them to tetra_dl_signal_scheduler one at a time.
+// hands them to the slot-encoder one at a time.
 //
-// Design decisions locked in the 2026-04-23 architecture review:
+// Design decisions locked in the 2026-04-23 architecture review (revised
+// 2026-05-04 for Phase Z.13 — single linear path, no bundle latch):
 //   * DEPTH = 4          (enough for 2 parallel MS registrations + reserve)
 //   * Overflow           drop-newest (retry is the MS's problem, not ours)
 //   * Priority           strict prio: MLE-Accept (0) > CMCE (1) > SDS (2)
@@ -13,16 +14,30 @@
 //                         queue is a pure byte-transport, zero PHY logic)
 //
 // Entry layout (register array, not BRAM — 4*~440 bits is tiny):
-//   coded_bits[431:0]   SCH/F full 432b or SCH/HD LSB-aligned in [215:0]
-//   pdu_type[1:0]       00 = SCH_F, 01 = SCH_HD, 10/11 = reserved
-//   target_tn[1:0]      0..3 — which TN of the next frame to inject on
-//   prio[1:0]           00 = MLE, 01 = CMCE, 10 = SDS, 11 = reserved
-//   valid               slot occupancy
+//   coded_bits[431:0]    SCH/F full 432b or SCH/HD LSB-aligned in [215:0]
+//   pdu_type[1:0]        00 = SCH_F, 01 = SCH_HD, 10/11 = reserved
+//   target_tn[1:0]       0..3 — which TN of the next frame to inject on
+//   prio[1:0]            00 = MLE, 01 = CMCE, 10 = SDS, 11 = reserved
+//   aach_pattern[13:0]   AACH info word for the slot that carries this PDU
+//                        (Phase Z.2; Z.13 RM-encodes once at consumer)
+//   second_pdu_present   Option B BL-ACK piggyback telemetry (commit 4)
+//   second_pdu_nr        ditto
+//   valid                slot occupancy
+//
+// Phase Z.13 (2026-05-04): the per-entry pre-coded AACH (Z.12 storage
+// `entry_aach_coded`) was removed.  It was never necessary — the AACH
+// RM(30,14)+scrambler is a combinational function of the 14-bit pattern
+// and the static cell config, so a single encoder instance at the slot-
+// consumer side produces the pre-coded 30 bits the same cycle the slot
+// is being emitted.  Storing the pre-coded form per producer cost 30*4
+// FFs per producer port and added 30 bits to every queue entry, all to
+// solve a race that no longer exists once we eliminate the scheduler
+// bundle-latch (also removed in Z.13).
 //
 // Arbitration on pop:
 //   Scan all 4 slots, find the (valid && lowest prio-number) entry.  Ties
 //   broken by slot index (lower index wins).  Fully combinational — the
-//   scheduler samples the head on its trigger cycle and asserts `pop` the
+//   slot encoder samples the head on its slot_pulse and asserts `pop` the
 //   same cycle; the queue clears the entry on the next posedge.
 //
 // Arbitration on write:
@@ -59,47 +74,42 @@ module tetra_dl_signal_queue #(
     input  wire [431:0] wr_mle_coded,
     input  wire [1:0]   wr_mle_pdu_type,
     input  wire [1:0]   wr_mle_target_tn,
-    // Phase Z.2 — per-entry AACH override pattern.  When non-zero this
-    // value is forwarded by the scheduler to the AACH encoder for the
-    // frame that carries the popped PDU (target_tn).  Setting 14'h0009
-    // (signalling-active) flips the AACH from default 0x0249/0x32CB to
-    // signalling-active so the MS sees a SCH/F-format slot announcement.
-    // 14'h0000 keeps the encoder default-logic path (back-compat).
+    // Phase Z.2 — per-entry AACH info pattern.  This is the 14-bit AACH
+    // info word that should be transmitted on the slot carrying the
+    // popped PDU.  Examples (see tetra_pdu_class.vh):
+    //   14'h0009  signalling-active (Unalloc/Unalloc) — Pre-Reply slots,
+    //             Final-LU-Accept slot, Group-Ack slot
+    //   14'h0249  Common/Random idle filler — NWRK-Bcast, post-Frag-2 Null
+    //   14'h0000  sentinel, "use AACH-encoder default-logic path"
+    //             (back-compat — should not be used by Z.13 producers).
     input  wire [13:0]  wr_mle_aach_pattern,
-    // Phase Z.12 — pre-coded AACH (RM(30,14) + scrambler) computed by the
-    // producer at push time.  Stored in the queue alongside the body so
-    // scheduler can deliver body+AACH atomically (one queue entry, one
-    // bundle latch).  Width 30 bits matches BB on-air format.
-    input  wire [29:0]  wr_mle_aach_coded,
     // Option B (2026-04-24 commit 4): telemetry bits indicating that the
     // coded SCH/F block carries a concatenated BL-ACK second MAC-RESOURCE
     // (bluestation llc_bs_ms.rs schedule_outgoing_ack).  Purely
     // informational — the actual 2-PDU concat is already baked into the
     // 432-bit wr_mle_coded payload by tetra_mac_resource_dl_builder.  The
-    // scheduler forwards these to top-level ILA probes / AXI debug regs
-    // so we can observe on-air which slots ship an auto-ACK.
+    // top-level forwards these to ILA probes / AXI debug regs so we can
+    // observe on-air which slots ship an auto-ACK.
     input  wire         wr_mle_second_pdu_present,
     input  wire         wr_mle_second_pdu_nr,
 
     // -------------------------------------------------------------------------
-    // Producer write port — CMCE (prio 01, tied off in MVP)
+    // Producer write port — CMCE (prio 01, used by NWRK-Bcast / Group-Ack)
     // -------------------------------------------------------------------------
     input  wire         wr_cmce_valid,
     input  wire [431:0] wr_cmce_coded,
     input  wire [1:0]   wr_cmce_pdu_type,
     input  wire [1:0]   wr_cmce_target_tn,
     input  wire [13:0]  wr_cmce_aach_pattern,   // Phase Z.2
-    input  wire [29:0]  wr_cmce_aach_coded,     // Phase Z.12
 
     // -------------------------------------------------------------------------
-    // Producer write port — SDS (prio 10, tied off in MVP)
+    // Producer write port — SDS (prio 10, repurposed for Pre-Reply BL-ACK)
     // -------------------------------------------------------------------------
     input  wire         wr_sds_valid,
     input  wire [431:0] wr_sds_coded,
     input  wire [1:0]   wr_sds_pdu_type,
     input  wire [1:0]   wr_sds_target_tn,
     input  wire [13:0]  wr_sds_aach_pattern,    // Phase Z.2
-    input  wire [29:0]  wr_sds_aach_coded,      // Phase Z.12
 
     // -------------------------------------------------------------------------
     // Consumer pop (single reader, single cycle latency)
@@ -111,7 +121,6 @@ module tetra_dl_signal_queue #(
     output wire [1:0]   head_target_tn,
     output wire [1:0]   head_prio,
     output wire [13:0]  head_aach_pattern,        // Phase Z.2
-    output wire [29:0]  head_aach_coded,          // Phase Z.12 — pre-coded AACH
     output wire         head_second_pdu_present, // commit 4 telemetry
     output wire         head_second_pdu_nr,
 
@@ -139,7 +148,6 @@ module tetra_dl_signal_queue #(
     reg [1:0]   entry_target_tn[0:DEPTH-1];
     reg [1:0]   entry_prio    [0:DEPTH-1];
     reg [13:0]  entry_aach_pattern [0:DEPTH-1];   // Phase Z.2
-    reg [29:0]  entry_aach_coded   [0:DEPTH-1];   // Phase Z.12
     reg         entry_second_pdu_present [0:DEPTH-1];
     reg         entry_second_pdu_nr      [0:DEPTH-1];
     reg [DEPTH-1:0] entry_valid;
@@ -166,9 +174,6 @@ module tetra_dl_signal_queue #(
     wire [13:0]  arb_write_aach_pattern = wr_mle_valid  ? wr_mle_aach_pattern
                                         : wr_cmce_valid ? wr_cmce_aach_pattern
                                         :                 wr_sds_aach_pattern;
-    wire [29:0]  arb_write_aach_coded   = wr_mle_valid  ? wr_mle_aach_coded
-                                        : wr_cmce_valid ? wr_cmce_aach_coded
-                                        :                 wr_sds_aach_coded;
     // Only MLE currently sets a second_pdu; CMCE/SDS default to 0.
     wire         arb_write_second_pdu_present = wr_mle_valid ? wr_mle_second_pdu_present : 1'b0;
     wire         arb_write_second_pdu_nr      = wr_mle_valid ? wr_mle_second_pdu_nr      : 1'b0;
@@ -273,7 +278,6 @@ module tetra_dl_signal_queue #(
     assign head_target_tn = entry_target_tn[head_idx];
     assign head_prio      = entry_prio    [head_idx];
     assign head_aach_pattern       = entry_aach_pattern[head_idx];
-    assign head_aach_coded         = entry_aach_coded  [head_idx];
     assign head_second_pdu_present = entry_second_pdu_present[head_idx];
     assign head_second_pdu_nr      = entry_second_pdu_nr     [head_idx];
 
@@ -310,7 +314,6 @@ module tetra_dl_signal_queue #(
                 entry_target_tn[s_i] <= 2'd0;
                 entry_prio     [s_i] <= 2'd0;
                 entry_aach_pattern[s_i] <= 14'd0;
-                entry_aach_coded  [s_i] <= 30'd0;
                 entry_second_pdu_present[s_i] <= 1'b0;
                 entry_second_pdu_nr     [s_i] <= 1'b0;
             end
@@ -320,7 +323,6 @@ module tetra_dl_signal_queue #(
             entry_target_tn[free_idx] <= arb_write_target_tn;
             entry_prio     [free_idx] <= arb_write_prio;
             entry_aach_pattern[free_idx] <= arb_write_aach_pattern;
-            entry_aach_coded  [free_idx] <= arb_write_aach_coded;
             entry_second_pdu_present[free_idx] <= arb_write_second_pdu_present;
             entry_second_pdu_nr     [free_idx] <= arb_write_second_pdu_nr;
         end
