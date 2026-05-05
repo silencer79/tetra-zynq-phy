@@ -49,6 +49,9 @@ module tb_dl_signal_queue;
     wire [3:0]   depth_valid_mask;
     wire [2:0]   depth_count;
     wire [15:0]  drop_cnt;
+    wire [7:0]   drop_cnt_mle;
+    wire [7:0]   drop_cnt_cmce;
+    wire [7:0]   drop_cnt_sds;
 
     integer      errors = 0;
 
@@ -85,7 +88,10 @@ module tb_dl_signal_queue;
         .head_second_pdu_nr      (),
         .depth_valid_mask (depth_valid_mask),
         .depth_count      (depth_count),
-        .drop_cnt         (drop_cnt)
+        .drop_cnt         (drop_cnt),
+        .drop_cnt_mle     (drop_cnt_mle),
+        .drop_cnt_cmce    (drop_cnt_cmce),
+        .drop_cnt_sds     (drop_cnt_sds)
     );
 
     // -------------------------------------------------------------------------
@@ -186,6 +192,9 @@ module tb_dl_signal_queue;
         check_eq_int({29'd0, depth_count},     3'd0, "T1.depth");
         check_eq_int({31'd0, head_valid},      1'b0, "T1.head_valid");
         check_eq_int({16'd0, drop_cnt},        16'd0, "T1.drop_cnt");
+        check_eq_int({24'd0, drop_cnt_mle},    8'd0, "T1.drop_cnt_mle");
+        check_eq_int({24'd0, drop_cnt_cmce},   8'd0, "T1.drop_cnt_cmce");
+        check_eq_int({24'd0, drop_cnt_sds},    8'd0, "T1.drop_cnt_sds");
 
         // -----------------------------------------------------------------
         // T2 — single MLE insert, check head, pop, depth returns to 0
@@ -218,6 +227,10 @@ module tb_dl_signal_queue;
         @(negedge clk);
         check_eq_int({29'd0, depth_count},   3'd4,   "T3.depth_still_full");
         check_eq_int({16'd0, drop_cnt},      16'd1,  "T3.drop_cnt");
+        // queue-full drop attributed to the only attempting producer (MLE)
+        check_eq_int({24'd0, drop_cnt_mle},  8'd1,   "T3.drop_cnt_mle");
+        check_eq_int({24'd0, drop_cnt_cmce}, 8'd0,   "T3.drop_cnt_cmce");
+        check_eq_int({24'd0, drop_cnt_sds},  8'd0,   "T3.drop_cnt_sds");
 
         // Drain — head should be the first-inserted entry (lower idx wins ties)
         check_eq_coded(head_coded, 432'h1111_0000_0000_0000, "T3.head_is_first");
@@ -266,6 +279,10 @@ module tb_dl_signal_queue;
         check_eq_coded(head_coded, 432'hBEEF_C0DE_A501_0000, "T5.payload");
         // drop_cnt should now be 1 (from T3) + 2 (losers) = 3
         check_eq_int({16'd0, drop_cnt},      16'd3,  "T5.drop_cnt_plus2");
+        // Per-producer attribution: T3 → MLE drop=1; T5 → CMCE+SDS drop=1 each.
+        check_eq_int({24'd0, drop_cnt_mle},  8'd1,   "T5.drop_cnt_mle");
+        check_eq_int({24'd0, drop_cnt_cmce}, 8'd1,   "T5.drop_cnt_cmce");
+        check_eq_int({24'd0, drop_cnt_sds},  8'd1,   "T5.drop_cnt_sds");
 
         do_pop();
         @(negedge clk);

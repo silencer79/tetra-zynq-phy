@@ -380,6 +380,24 @@ module tetra_axi_lite_regs (
     input  wire [15:0] schhu_ok_cnt_axi,
 
     // ------------------------------------------------------------------
+    // DL-Signal-Queue / Pre-Reply / Scheduler diagnostic counters
+    //   REG_SLOTGRANT_STATS       @ 0x1A4 RO {drop[15:0], push[15:0]}
+    //   REG_PRE_REPLY_BLCK_STATS  @ 0x1A8 RO {drop[15:0], push[15:0]}
+    //   REG_DL_QUEUE_STATS        @ 0x1B0 RO {mle[7:0], cmce[7:0], sds[7:0], 8'd0}
+    //   REG_DL_SCHEDULER_STATS    @ 0x1F8 RO {override[15:0], pop[15:0]}
+    // CDC: 2-FF resync done in tetra_zynq_top (clk_sys → clk_axi).
+    // ------------------------------------------------------------------
+    input  wire [15:0] slotgrant_push_cnt_axi,
+    input  wire [15:0] slotgrant_drop_cnt_axi,
+    input  wire [15:0] blck_push_cnt_axi,
+    input  wire [15:0] blck_drop_cnt_axi,
+    input  wire [7:0]  queue_drop_cnt_mle_axi,
+    input  wire [7:0]  queue_drop_cnt_cmce_axi,
+    input  wire [7:0]  queue_drop_cnt_sds_axi,
+    input  wire [15:0] sched_pop_cnt_axi,
+    input  wire [15:0] sched_override_cnt_axi,
+
+    // ------------------------------------------------------------------
     // Phase H.6.3 — AACH UL-Slot-Grant hint.
     //   REG_AACH_GRANT_HINT @ 0x1F4
     //     [31]    pending — SW-set, HW-clr on consume
@@ -723,6 +741,11 @@ localparam [6:0] REG_CELL_LA          = 7'h68; // 0x1A0 R/W {18'd0, cell_la[13:0
 // REG_AST_TTL_EVICT_CNT (0x1B0) removed (AST migrated to SW).  REG_DB_POLICY
 // (0x1AC) stays — SW reads it to gate auto-enroll on EntityTable miss.
 localparam [6:0] REG_DB_POLICY        = 7'h6B; // 0x1AC R/W {30'd0, reserved, accept_unknown}
+// DL-Signal-Queue / Pre-Reply diagnostic counters — slots freed by Phase X.4
+// (REG_AST_DETACH_CNT 0x1A4, REG_AST_TTL_MFS 0x1A8, REG_AST_TTL_EVICT_CNT 0x1B0).
+localparam [6:0] REG_SLOTGRANT_STATS      = 7'h69; // 0x1A4 RO {drop[15:0], push[15:0]}
+localparam [6:0] REG_PRE_REPLY_BLCK_STATS = 7'h6A; // 0x1A8 RO {drop[15:0], push[15:0]}
+localparam [6:0] REG_DL_QUEUE_STATS       = 7'h6C; // 0x1B0 RO {mle[31:24], cmce[23:16], sds[15:8], 8'd0}
 // Phase 7 F.3 — UL-Demand decoded-fields mailbox + reassembly mailbox
 localparam [6:0] REG_UL_PDU_STATUS_2  = 7'h6D; // 0x1B4 RO {decoded LLC/MLE/MM fields}
 // Phase H.6.1 — UL MAC-END-HU pipeline diagnostic counters
@@ -734,6 +757,7 @@ localparam [6:0] REG_SCHHU_CRC_CNT    = 7'h7C; // 0x1F0 RO {16'd0, schhu_ok[15:0
 localparam [6:0] REG_AACH_GRANT_HINT  = 7'h7D; // 0x1F4 R/W [31] pending (HW-clr on consume)
                                               //         [13:0] info word (AACH 14-bit)
                                               // Phase H.6.3 — UL-Slot-Grant override
+localparam [6:0] REG_DL_SCHEDULER_STATS = 7'h7E; // 0x1F8 RO {override[31:16], pop[15:0]}
 
 // Profile-Table indirect window (Phase 6 D-rev) — 0x1C0..0x1CC
 // 6 × 32-bit profile records (§9.2).  No DATA_HI — Profile is 32 bit, fits
@@ -1133,6 +1157,17 @@ always @(*) begin
         REG_SCHHU_CRC_CNT:    rdata_mux_axi = {16'b0, schhu_ok_cnt_axi};
         REG_AACH_GRANT_HINT:  rdata_mux_axi = {aach_grant_pending_axi, 17'b0,
                                                 aach_grant_info_axi};
+        // DL-Signal-Queue / Pre-Reply / Scheduler diagnostic counters
+        REG_SLOTGRANT_STATS:      rdata_mux_axi = {slotgrant_drop_cnt_axi,
+                                                    slotgrant_push_cnt_axi};
+        REG_PRE_REPLY_BLCK_STATS: rdata_mux_axi = {blck_drop_cnt_axi,
+                                                    blck_push_cnt_axi};
+        REG_DL_QUEUE_STATS:       rdata_mux_axi = {queue_drop_cnt_mle_axi,
+                                                    queue_drop_cnt_cmce_axi,
+                                                    queue_drop_cnt_sds_axi,
+                                                    8'd0};
+        REG_DL_SCHEDULER_STATS:   rdata_mux_axi = {sched_override_cnt_axi,
+                                                    sched_pop_cnt_axi};
         // Profile-Table indirect window (Phase 6 D-rev)
         REG_PROFILE_INDEX: rdata_mux_axi = {29'b0, profile_index_axi};
         REG_PROFILE_DATA:  rdata_mux_axi = profile_data_axi;

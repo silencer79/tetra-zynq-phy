@@ -184,10 +184,13 @@
  * tetra_ul_mon pretty-print) and reassembly counters / T0 config.
  *
  *   UL_PDU_STATUS_2 (0x1B4, RO):
- *     [11:8]  mm_pdu_type   (4 bit, MM PDU type from LLC TL-SDU)
- *     [6:4]   mle_disc       (3 bit, MLE protocol discriminator)
- *     [3:0]   llc_pdu_type   (4 bit, raw LLC header — link_type/has_fcs/
+ *     [11:8]  llc_pdu_type   (4 bit, raw LLC header — link_type/has_fcs/
  *                              bl_pdu_type)
+ *     [6:4]   mle_disc       (3 bit, MLE protocol discriminator)
+ *     [3:0]   mm_pdu_type    (4 bit, MM PDU type from LLC TL-SDU)
+ *     (Bit-Position-Reihenfolge match RTL-Pack in tetra_axi_lite_regs.v
+ *     `{20'b0, llc, 1'b0, mle, mm}` — vorher waren LLC und MM-Macros
+ *     hier vertauscht, was tetra_ul_mon Display falsch decoden ließ.)
  *   REASSEMBLY_T0  (0x1DC, R/W):
  *     [3:0]   T0 in TDMA frames; 0 → use module default (=2 frames)
  *   REASSEMBLY_STATS (0x1E0, RO):
@@ -196,9 +199,9 @@
 #define REG_UL_PDU_STATUS_2  0x1B4
 #define REG_REASSEMBLY_T0    0x1DC
 #define REG_REASSEMBLY_STATS 0x1E0
-#define UL_STATUS2_MM_PDU_TYPE(x)  (((x) >> 8)  & 0xFu)
+#define UL_STATUS2_LLC_TYPE(x)     (((x) >> 8)  & 0xFu)
 #define UL_STATUS2_MLE_DISC(x)     (((x) >> 4)  & 0x7u)
-#define UL_STATUS2_LLC_TYPE(x)     ( (x)        & 0xFu)
+#define UL_STATUS2_MM_PDU_TYPE(x)  ( (x)        & 0xFu)
 #define REASSEMBLY_STATS_REASS(x)  ( (x)        & 0xFFFFu)
 #define REASSEMBLY_STATS_DROP(x)   (((x) >> 16) & 0xFFFFu)
 
@@ -305,6 +308,24 @@
 
 /* Phase H.6.3 — AACH UL-Slot-Grant override (single-shot pulse)            */
 #define REG_AACH_GRANT_HINT      0x1F4   /* R/W [31] pending, [13:0] info14  */
+
+/* DL-Signal-Queue / Pre-Reply / Scheduler diagnostic counters.
+ * All registers RO, populated by RTL counters (saturating, never wrap).
+ * Useful to live-diagnose which producer pushes/pops/drops in the
+ * MLE-Accept → DL-Signal-Queue → Scheduler path.                          */
+#define REG_SLOTGRANT_STATS      0x1A4   /* RO [31:16]=drop, [15:0]=push    */
+#define REG_PRE_REPLY_BLCK_STATS 0x1A8   /* RO [31:16]=drop, [15:0]=push    */
+#define REG_DL_QUEUE_STATS       0x1B0   /* RO [31:24]=mle_drop, [23:16]=cmce_drop, [15:8]=sds_drop, [7:0]=resv */
+#define REG_DL_SCHEDULER_STATS   0x1F8   /* RO [31:16]=override_set, [15:0]=pop */
+#define SLOTGRANT_STATS_PUSH(x)        ( (x)         & 0xFFFFu)
+#define SLOTGRANT_STATS_DROP(x)        (((x) >> 16)  & 0xFFFFu)
+#define PRE_REPLY_BLCK_STATS_PUSH(x)   ( (x)         & 0xFFFFu)
+#define PRE_REPLY_BLCK_STATS_DROP(x)   (((x) >> 16)  & 0xFFFFu)
+#define DL_QUEUE_STATS_MLE_DROP(x)     (((x) >> 24)  & 0xFFu)
+#define DL_QUEUE_STATS_CMCE_DROP(x)    (((x) >> 16)  & 0xFFu)
+#define DL_QUEUE_STATS_SDS_DROP(x)     (((x) >>  8)  & 0xFFu)
+#define DL_SCHEDULER_STATS_POP(x)      ( (x)         & 0xFFFFu)
+#define DL_SCHEDULER_STATS_OVR(x)      (((x) >> 16)  & 0xFFFFu)
 
 /* UL_PDU_STATUS bitfield helpers (bluestation-aligned bit layout) */
 #define UL_STATUS_VALID(s)     (((s) >> 0)  & 0x1u)

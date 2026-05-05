@@ -488,6 +488,18 @@ wire         sched_pop_w;
 wire [3:0]   queue_depth_mask_w;
 wire [2:0]   queue_depth_count_w;
 wire [15:0]  queue_drop_cnt_w;
+// Per-producer drop attribution (8-bit saturating each) — exposed as
+// REG_DL_QUEUE_STATS so we can see which producer ate the drops.
+wire [7:0]   queue_drop_cnt_mle_w;
+wire [7:0]   queue_drop_cnt_cmce_w;
+wire [7:0]   queue_drop_cnt_sds_w;
+// Pre-Reply Slot-Grant + BL-ACK push/drop counters — forward-declared
+// here so the clk_sys → clk_axi resync block (~line 1650) can sample
+// them.  Driven by the actual module instantiations further below.
+wire [15:0]  slotgrant_push_cnt_sys_w;
+wire [15:0]  slotgrant_drop_cnt_sys_w;
+wire [15:0]  pre_reply_blck_push_cnt_sys_w;
+wire [15:0]  pre_reply_blck_drop_cnt_sys_w;
 
 // Scheduler → slot_content_mux per-TN bundle (NULL-PDU idle default
 // when queue empty; target-TN gets coded PDU content when a PDU is queued).
@@ -1626,6 +1638,73 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     end
 end
 
+// =============================================================================
+// DL-Signal-Queue / Scheduler / Pre-Reply diagnostic counter CDC
+// (clk_sys → clk_axi, 2-FF, slow-changing — per-bit gray not required).
+// REG_SLOTGRANT_STATS / REG_PRE_REPLY_BLCK_STATS / REG_DL_QUEUE_STATS /
+// REG_DL_SCHEDULER_STATS feed off the *_axi_r1 outputs of this block.
+// =============================================================================
+(* ASYNC_REG = "TRUE" *) reg [15:0] slotgrant_push_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] slotgrant_push_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] slotgrant_drop_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] slotgrant_drop_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] blck_push_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] blck_push_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] blck_drop_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] blck_drop_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [7:0]  qdrop_mle_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [7:0]  qdrop_mle_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [7:0]  qdrop_cmce_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [7:0]  qdrop_cmce_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [7:0]  qdrop_sds_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [7:0]  qdrop_sds_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] sched_pop_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] sched_pop_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] sched_override_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] sched_override_cnt_axi_r1;
+
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        slotgrant_push_cnt_axi_r0 <= 16'd0;
+        slotgrant_push_cnt_axi_r1 <= 16'd0;
+        slotgrant_drop_cnt_axi_r0 <= 16'd0;
+        slotgrant_drop_cnt_axi_r1 <= 16'd0;
+        blck_push_cnt_axi_r0      <= 16'd0;
+        blck_push_cnt_axi_r1      <= 16'd0;
+        blck_drop_cnt_axi_r0      <= 16'd0;
+        blck_drop_cnt_axi_r1      <= 16'd0;
+        qdrop_mle_axi_r0          <= 8'd0;
+        qdrop_mle_axi_r1          <= 8'd0;
+        qdrop_cmce_axi_r0         <= 8'd0;
+        qdrop_cmce_axi_r1         <= 8'd0;
+        qdrop_sds_axi_r0          <= 8'd0;
+        qdrop_sds_axi_r1          <= 8'd0;
+        sched_pop_cnt_axi_r0      <= 16'd0;
+        sched_pop_cnt_axi_r1      <= 16'd0;
+        sched_override_cnt_axi_r0 <= 16'd0;
+        sched_override_cnt_axi_r1 <= 16'd0;
+    end else begin
+        slotgrant_push_cnt_axi_r0 <= slotgrant_push_cnt_sys_w;
+        slotgrant_push_cnt_axi_r1 <= slotgrant_push_cnt_axi_r0;
+        slotgrant_drop_cnt_axi_r0 <= slotgrant_drop_cnt_sys_w;
+        slotgrant_drop_cnt_axi_r1 <= slotgrant_drop_cnt_axi_r0;
+        blck_push_cnt_axi_r0      <= pre_reply_blck_push_cnt_sys_w;
+        blck_push_cnt_axi_r1      <= blck_push_cnt_axi_r0;
+        blck_drop_cnt_axi_r0      <= pre_reply_blck_drop_cnt_sys_w;
+        blck_drop_cnt_axi_r1      <= blck_drop_cnt_axi_r0;
+        qdrop_mle_axi_r0          <= queue_drop_cnt_mle_w;
+        qdrop_mle_axi_r1          <= qdrop_mle_axi_r0;
+        qdrop_cmce_axi_r0         <= queue_drop_cnt_cmce_w;
+        qdrop_cmce_axi_r1         <= qdrop_cmce_axi_r0;
+        qdrop_sds_axi_r0          <= queue_drop_cnt_sds_w;
+        qdrop_sds_axi_r1          <= qdrop_sds_axi_r0;
+        sched_pop_cnt_axi_r0      <= sig_pop_cnt_w;
+        sched_pop_cnt_axi_r1      <= sched_pop_cnt_axi_r0;
+        sched_override_cnt_axi_r0 <= sig_override_cnt_w;
+        sched_override_cnt_axi_r1 <= sched_override_cnt_axi_r0;
+    end
+end
+
 // ul_scramb_init: clk_axi → clk_sys.  Slow-changing (MCU writes once at
 // boot), so per-bit 2-FF is safe — after SW writes the register every bit
 // is stable indefinitely.
@@ -1946,6 +2025,17 @@ tetra_axi_lite_regs u_axi_regs (
     .ul_cont_cnt_axi           (ul_cont_cnt_axi_r1),
     .schhu_attempted_cnt_axi   (schhu_attempted_axi_r1),
     .schhu_ok_cnt_axi          (schhu_ok_axi_r1),
+    // DL-Signal-Queue / Pre-Reply / Scheduler diagnostic counters
+    // (resynced 2-FF clk_sys → clk_axi just above).
+    .slotgrant_push_cnt_axi    (slotgrant_push_cnt_axi_r1),
+    .slotgrant_drop_cnt_axi    (slotgrant_drop_cnt_axi_r1),
+    .blck_push_cnt_axi         (blck_push_cnt_axi_r1),
+    .blck_drop_cnt_axi         (blck_drop_cnt_axi_r1),
+    .queue_drop_cnt_mle_axi    (qdrop_mle_axi_r1),
+    .queue_drop_cnt_cmce_axi   (qdrop_cmce_axi_r1),
+    .queue_drop_cnt_sds_axi    (qdrop_sds_axi_r1),
+    .sched_pop_cnt_axi         (sched_pop_cnt_axi_r1),
+    .sched_override_cnt_axi    (sched_override_cnt_axi_r1),
     // Phase H.6.3 — AACH UL-Slot-Grant hint (PS-driven override)
     .grant_consume_axi         (aach_grant_consume_axi_r1),
     .aach_grant_info_axi       (aach_grant_info_axi_w),
@@ -2274,7 +2364,10 @@ tetra_dl_signal_queue #(
     // Status
     .depth_valid_mask (queue_depth_mask_w),
     .depth_count      (queue_depth_count_w),
-    .drop_cnt         (queue_drop_cnt_w)
+    .drop_cnt         (queue_drop_cnt_w),
+    .drop_cnt_mle     (queue_drop_cnt_mle_w),
+    .drop_cnt_cmce    (queue_drop_cnt_cmce_w),
+    .drop_cnt_sds     (queue_drop_cnt_sds_w)
 );
 
 // =============================================================================
@@ -2572,8 +2665,7 @@ wire         pre_reply_blck_valid_sys_w;
 wire [431:0] pre_reply_blck_coded_sys_w;
 wire [1:0]   pre_reply_blck_pdu_type_sys_w;
 wire [1:0]   pre_reply_blck_target_tn_sys_w;
-wire [15:0]  pre_reply_blck_push_cnt_sys_w;
-wire [15:0]  pre_reply_blck_drop_cnt_sys_w;
+// pre_reply_blck_{push,drop}_cnt_sys_w forward-declared earlier (CDC block).
 
 tetra_pre_reply_blck u_pre_reply_blck (
     .clk_sys              (clk_sys),
@@ -2628,8 +2720,7 @@ wire         slotgrant_valid_sys_w;
 wire [431:0] slotgrant_coded_sys_w;
 wire [1:0]   slotgrant_pdu_type_sys_w;
 wire [1:0]   slotgrant_target_tn_sys_w;
-wire [15:0]  slotgrant_push_cnt_sys_w;
-wire [15:0]  slotgrant_drop_cnt_sys_w;
+// slotgrant_{push,drop}_cnt_sys_w forward-declared earlier (CDC block).
 
 // Phase Z.9 — SlotGrant is single SCH/HD path (internal MAC-Resource builder
 // + sch_hd_encoder inside tetra_pre_reply_slotgrant).  No build-request bus

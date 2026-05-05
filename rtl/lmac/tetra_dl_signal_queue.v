@@ -112,7 +112,15 @@ module tetra_dl_signal_queue #(
     // -------------------------------------------------------------------------
     output wire [3:0]   depth_valid_mask,   // one bit per slot
     output wire [2:0]   depth_count,        // 0..DEPTH
-    output reg  [15:0]  drop_cnt
+    output reg  [15:0]  drop_cnt,
+    // Per-producer drop counters (saturating 8-bit each).  A drop event is
+    // attributed to a producer when EITHER the queue was full at the cycle
+    // its valid was asserted (drop-newest) OR another higher-prio producer
+    // won the same-cycle write arbitration (collision loss).  Reset along
+    // with the aggregate `drop_cnt` so AXI-snapshots stay consistent.
+    output reg  [7:0]   drop_cnt_mle,
+    output reg  [7:0]   drop_cnt_cmce,
+    output reg  [7:0]   drop_cnt_sds
 );
 
     // =========================================================================
@@ -320,6 +328,34 @@ module tetra_dl_signal_queue #(
             drop_cnt <= 16'd0;
         else if (drop_this != 3'd0 && drop_cnt != 16'hFFFF)
             drop_cnt <= drop_cnt + {13'd0, drop_this};
+    end
+
+    // -------------------------------------------------------------------------
+    // Per-producer drop attribution (saturating 8-bit each).
+    //   A producer "drops" iff it asserted its valid this cycle AND the
+    //   final write_accepted slot did NOT belong to it.  This is true for:
+    //     * any non-winner in a same-cycle collision (MLE wins → CMCE+SDS drop)
+    //     * the unique attempter when the queue is full (have_free=0)
+    // The MLE-vs-CMCE-vs-SDS arbitration mirrors the existing `arb_write_*`
+    // muxes (MLE > CMCE > SDS), so the winner is the highest-prio asserted
+    // valid; the others always drop when they are also asserted.  When the
+    // winner can't be stored (queue full), it drops too.
+    // -------------------------------------------------------------------------
+    wire mle_drop_this  = wr_mle_valid  & ~(write_accepted & (arb_write_prio == 2'd0));
+    wire cmce_drop_this = wr_cmce_valid & ~(write_accepted & (arb_write_prio == 2'd1));
+    wire sds_drop_this  = wr_sds_valid  & ~(write_accepted & (arb_write_prio == 2'd2));
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)                                            drop_cnt_mle  <= 8'd0;
+        else if (mle_drop_this  && drop_cnt_mle  != 8'hFF)     drop_cnt_mle  <= drop_cnt_mle  + 8'd1;
+    end
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)                                            drop_cnt_cmce <= 8'd0;
+        else if (cmce_drop_this && drop_cnt_cmce != 8'hFF)     drop_cnt_cmce <= drop_cnt_cmce + 8'd1;
+    end
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)                                            drop_cnt_sds  <= 8'd0;
+        else if (sds_drop_this  && drop_cnt_sds  != 8'hFF)     drop_cnt_sds  <= drop_cnt_sds  + 8'd1;
     end
 
 endmodule
