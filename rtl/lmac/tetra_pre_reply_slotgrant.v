@@ -335,9 +335,13 @@ module tetra_pre_reply_slotgrant (
     //          pdu_type      = PDUC_PRE_REPLY_SLOTGRANT_GRP_FMT (= SCH/HD)
     // target_tn is the latched cfg_mcch_tn for both.
     // -------------------------------------------------------------------------
+    // Z.8-Fix 2026-05-05: SCH/HD-Pfad muss MSB-aligned in den 432-bit-Bus
+    // gepackt werden — der Scheduler liest BKN1 aus head_coded[431:216].
+    // Vorher LSB-aligned ({216'd0, x}) → Scheduler bekam 216 Nullen → SCH/HD-
+    // CRC fail → MS verwirft Pre-Reply → kein Frag-2 für mm=7-Demands.
     assign wr_slotgrant_coded_sys     = (lat_mm_type == 4'd2)
                                           ? lat_coded_schf
-                                          : {216'd0, lat_coded_schhd};
+                                          : {lat_coded_schhd, 216'd0};
     assign wr_slotgrant_pdu_type_sys  = (lat_mm_type == 4'd2)
                                           ? `PDUC_PRE_REPLY_SLOTGRANT_LU_FMT
                                           : `PDUC_PRE_REPLY_SLOTGRANT_GRP_FMT;

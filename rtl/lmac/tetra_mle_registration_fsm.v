@@ -431,10 +431,11 @@ module tetra_mle_registration_fsm (
 
             S_BUILD_REJECT_ENC: begin
                 if (reject_coded_valid_w) begin
-                    // LSB-align the 216-bit SCH/HD coded payload in the
-                    // 432-bit slot — same convention as
-                    // tetra_pre_reply_slotgrant.v's mm=7 path.
-                    req_coded_bits         <= {216'd0, reject_coded_w};
+                    // Z.8-Fix 2026-05-05: MSB-align the 216-bit SCH/HD coded
+                    // payload — Scheduler liest BKN1 aus head_coded[431:216].
+                    // Vorher LSB-aligned (Konvention-Konflikt mit Z.4 mm=7
+                    // Pre-Reply-Slotgrant gleichermaßen falsch).
+                    req_coded_bits         <= {reject_coded_w, 216'd0};
                     req_pdu_type           <= `PDUC_FINAL_LU_REJECT_FMT;  // SCH_HD
                     req_target_tn          <= cfg_mcch_tn;
                     req_second_pdu_present <= 1'b0;
