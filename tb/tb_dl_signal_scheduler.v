@@ -38,12 +38,17 @@ module tb_dl_signal_scheduler;
     reg  [215:0] null_pdu_bits_sys;
     reg  [215:0] sig_companion_sys;
 
+    reg  [29:0]  head_aach_coded_sys = 30'd0;     // Phase Z.12
+
     wire         pop_sys;
     wire [215:0] sched_blk1_tn0_sys, sched_blk2_tn0_sys;
     wire [215:0] sched_blk1_tn1_sys, sched_blk2_tn1_sys;
     wire [215:0] sched_blk1_tn2_sys, sched_blk2_tn2_sys;
     wire [215:0] sched_blk1_tn3_sys, sched_blk2_tn3_sys;
     wire [3:0]   sched_ndb2_sys;
+    wire [29:0]  sched_aach_coded_tn0_sys, sched_aach_coded_tn1_sys;
+    wire [29:0]  sched_aach_coded_tn2_sys, sched_aach_coded_tn3_sys;
+    wire [3:0]   sched_aach_active_sys;
     wire [15:0]  override_cnt_sys;
     wire [15:0]  pop_cnt_sys;
 
@@ -64,6 +69,7 @@ module tb_dl_signal_scheduler;
         .head_target_tn_sys    (head_target_tn_sys),
         .head_prio_sys         (head_prio_sys),
         .head_aach_pattern_sys (14'd0),
+        .head_aach_coded_sys   (head_aach_coded_sys),
         .head_second_pdu_present_sys (1'b0),
         .head_second_pdu_nr_sys      (1'b0),
         .popped_second_pdu_present_sys (),
@@ -84,6 +90,11 @@ module tb_dl_signal_scheduler;
         .sched_aach_override_tn1_sys (),
         .sched_aach_override_tn2_sys (),
         .sched_aach_override_tn3_sys (),
+        .sched_aach_coded_tn0_sys    (sched_aach_coded_tn0_sys),
+        .sched_aach_coded_tn1_sys    (sched_aach_coded_tn1_sys),
+        .sched_aach_coded_tn2_sys    (sched_aach_coded_tn2_sys),
+        .sched_aach_coded_tn3_sys    (sched_aach_coded_tn3_sys),
+        .sched_aach_active_sys       (sched_aach_active_sys),
         .override_cnt_sys      (override_cnt_sys),
         .pop_cnt_sys           (pop_cnt_sys)
     );
@@ -265,10 +276,33 @@ module tb_dl_signal_scheduler;
         check_eq_int(pop_observed, 1, "T6.pop_on_3");
 
         // -----------------------------------------------------------------
-        // T7 — stats counters: 3 pops so far (T3, T4, T6)
+        // T_Z12 — atomic bundle: pre-coded AACH delivered alongside body.
+        //
+        // Push a head with a distinguishing aach_coded value, fire pop_trigger
+        // (slot_pulse && tn==3), then check that the addressed-TN's coded AACH
+        // output equals the head's aach_coded AND sched_aach_active_sys[k]=1.
+        // Other TNs must show sched_aach_active_sys[k]=0.
         // -----------------------------------------------------------------
-        check_eq_int({16'd0, pop_cnt_sys},      16'd3, "T7.pop_cnt");
-        check_eq_int({16'd0, override_cnt_sys}, 16'd3, "T7.override_cnt");
+        head_valid_sys      = 1'b1;
+        head_coded_sys      = {{27{8'h7E}}, {27{8'h11}}};
+        head_pdu_type_sys   = 2'd0;          // SCH_F
+        head_target_tn_sys  = 2'd2;
+        head_aach_coded_sys = 30'h0CAFEBAB;  // distinctive
+
+        tick_slot(2'd0); tick_slot(2'd1); tick_slot(2'd2); tick_slot(2'd3);
+        @(negedge clk);
+        // After the tn==3 trigger the bundle is latched.
+        check_eq_int({2'd0, sched_aach_coded_tn2_sys}, 32'h0CAFEBAB, "TZ12.coded_target");
+        check_eq_int({28'd0, sched_aach_active_sys}, 4'b0100,         "TZ12.active_only_tn2");
+        // Drain
+        head_valid_sys = 1'b0;
+        tick_slot(2'd0); tick_slot(2'd1); tick_slot(2'd2); tick_slot(2'd3);
+
+        // -----------------------------------------------------------------
+        // T7 — stats counters: 4 pops so far (T3, T4, T6, TZ12)
+        // -----------------------------------------------------------------
+        check_eq_int({16'd0, pop_cnt_sys},      16'd4, "T7.pop_cnt");
+        check_eq_int({16'd0, override_cnt_sys}, 16'd4, "T7.override_cnt");
 
         if (errors == 0)
             $display("[tb_dl_signal_scheduler] PASS");

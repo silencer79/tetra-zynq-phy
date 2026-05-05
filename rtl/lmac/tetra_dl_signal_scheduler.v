@@ -88,6 +88,12 @@ module tetra_dl_signal_scheduler (
     // frame that carries the popped PDU.  14'h0000 means "use AACH-encoder
     // default-logic path" — preserves pre-Z.2 behaviour.
     input  wire [13:0]  head_aach_pattern_sys,
+    // Phase Z.12 — pre-coded AACH (RM(30,14) + scrambler) atomic with the
+    // body bundle.  Stored in the queue at push time and forwarded here
+    // verbatim so the slot AACH output and the slot body output ride the
+    // same single-bundle latch — eliminates the Z.11 single-cycle race
+    // between the scheduler's body-latch and the AACH-encoder's FSM.
+    input  wire [29:0]  head_aach_coded_sys,
     // Option B telemetry (commit 5) — 1 iff the popped SCH/F block
     // carries a concatenated auto-BL-ACK after the D-LOC-UPDATE-ACCEPT
     // (see tetra_dl_signal_queue.v).  Mirrored to the per-pop output
@@ -130,6 +136,16 @@ module tetra_dl_signal_scheduler (
     output wire [13:0]  sched_aach_override_tn1_sys,
     output wire [13:0]  sched_aach_override_tn2_sys,
     output wire [13:0]  sched_aach_override_tn3_sys,
+    // Phase Z.12 — pre-coded AACH per TN.  When sched_aach_active_tn<k>=1
+    // the AACH-encoder slot output for TN=k is sourced from
+    // sched_aach_coded_tn<k> directly (atomic with the body), bypassing the
+    // info-lookup FSM.  Idle-default AACH is still produced by
+    // tetra_aach_encoder when sched_aach_active_tn<k>=0.
+    output wire [29:0]  sched_aach_coded_tn0_sys,
+    output wire [29:0]  sched_aach_coded_tn1_sys,
+    output wire [29:0]  sched_aach_coded_tn2_sys,
+    output wire [29:0]  sched_aach_coded_tn3_sys,
+    output wire [3:0]   sched_aach_active_sys,    // bitmask, [k]=1 ⇒ use coded_tn<k>
 
     // -------------------------------------------------------------------------
     // Stats (to AXI regs)
@@ -156,6 +172,7 @@ module tetra_dl_signal_scheduler (
     reg [1:0]   bundle_pdu_type_sys;
     reg [1:0]   bundle_target_tn_sys;
     reg [13:0]  bundle_aach_pattern_sys;
+    reg [29:0]  bundle_aach_coded_sys;     // Phase Z.12 — atomic with body
     reg         bundle_valid_sys;
 
     always @(posedge clk_sys or negedge rst_n_sys) begin
@@ -177,6 +194,10 @@ module tetra_dl_signal_scheduler (
     always @(posedge clk_sys or negedge rst_n_sys) begin
         if (!rst_n_sys)        bundle_aach_pattern_sys <= 14'd0;
         else if (pop_trigger)  bundle_aach_pattern_sys <= head_aach_pattern_sys;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)        bundle_aach_coded_sys <= 30'd0;
+        else if (pop_trigger)  bundle_aach_coded_sys <= head_aach_coded_sys;
     end
 
     // -------------------------------------------------------------------------
@@ -219,6 +240,15 @@ module tetra_dl_signal_scheduler (
     assign sched_aach_override_tn1_sys = tgt_tn1 ? bundle_aach_pattern_sys : 14'd0;
     assign sched_aach_override_tn2_sys = tgt_tn2 ? bundle_aach_pattern_sys : 14'd0;
     assign sched_aach_override_tn3_sys = tgt_tn3 ? bundle_aach_pattern_sys : 14'd0;
+
+    // Phase Z.12 — pre-coded AACH per TN, atomic with body bundle.
+    // When sched_aach_active_sys[k]=1, the slot AACH output for TN=k is
+    // sourced from sched_aach_coded_tn<k> directly (no FSM, no race).
+    assign sched_aach_coded_tn0_sys = bundle_aach_coded_sys;
+    assign sched_aach_coded_tn1_sys = bundle_aach_coded_sys;
+    assign sched_aach_coded_tn2_sys = bundle_aach_coded_sys;
+    assign sched_aach_coded_tn3_sys = bundle_aach_coded_sys;
+    assign sched_aach_active_sys    = {tgt_tn3, tgt_tn2, tgt_tn1, tgt_tn0};
 
     // -------------------------------------------------------------------------
     // pop_sys — 1-cycle strobe on the trigger when a PDU is available.

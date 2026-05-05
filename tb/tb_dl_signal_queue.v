@@ -27,6 +27,7 @@ module tb_dl_signal_queue;
     reg  [431:0] wr_mle_coded     = 432'd0;
     reg  [1:0]   wr_mle_pdu_type  = 2'd0;
     reg  [1:0]   wr_mle_target_tn = 2'd0;
+    reg  [29:0]  wr_mle_aach_coded = 30'd0;     // Phase Z.12
 
     reg          wr_cmce_valid     = 1'b0;
     reg  [431:0] wr_cmce_coded     = 432'd0;
@@ -45,6 +46,7 @@ module tb_dl_signal_queue;
     wire [1:0]   head_pdu_type;
     wire [1:0]   head_target_tn;
     wire [1:0]   head_prio;
+    wire [29:0]  head_aach_coded;            // Phase Z.12
 
     wire [3:0]   depth_valid_mask;
     wire [2:0]   depth_count;
@@ -65,6 +67,7 @@ module tb_dl_signal_queue;
         .wr_mle_pdu_type  (wr_mle_pdu_type),
         .wr_mle_target_tn (wr_mle_target_tn),
         .wr_mle_aach_pattern (14'd0),
+        .wr_mle_aach_coded   (wr_mle_aach_coded),
         .wr_mle_second_pdu_present (1'b0),
         .wr_mle_second_pdu_nr      (1'b0),
         .wr_cmce_valid    (wr_cmce_valid),
@@ -72,11 +75,13 @@ module tb_dl_signal_queue;
         .wr_cmce_pdu_type (wr_cmce_pdu_type),
         .wr_cmce_target_tn(wr_cmce_target_tn),
         .wr_cmce_aach_pattern (14'd0),
+        .wr_cmce_aach_coded   (30'd0),
         .wr_sds_valid     (wr_sds_valid),
         .wr_sds_coded     (wr_sds_coded),
         .wr_sds_pdu_type  (wr_sds_pdu_type),
         .wr_sds_target_tn (wr_sds_target_tn),
         .wr_sds_aach_pattern (14'd0),
+        .wr_sds_aach_coded   (30'd0),
         .pop              (pop),
         .head_valid       (head_valid),
         .head_coded       (head_coded),
@@ -84,6 +89,7 @@ module tb_dl_signal_queue;
         .head_target_tn   (head_target_tn),
         .head_prio        (head_prio),
         .head_aach_pattern (),
+        .head_aach_coded   (head_aach_coded),
         .head_second_pdu_present (),
         .head_second_pdu_nr      (),
         .depth_valid_mask (depth_valid_mask),
@@ -112,9 +118,27 @@ module tb_dl_signal_queue;
             wr_mle_coded     = coded;
             wr_mle_pdu_type  = 2'd0;
             wr_mle_target_tn = tn;
+            wr_mle_aach_coded = 30'd0;
             @(posedge clk);
             @(negedge clk);
             wr_mle_valid = 1'b0;
+        end
+    endtask
+
+    task automatic mle_push_with_aach(input [431:0] coded,
+                                      input [1:0] tn,
+                                      input [29:0] aach_coded);
+        begin
+            @(negedge clk);
+            wr_mle_valid      = 1'b1;
+            wr_mle_coded      = coded;
+            wr_mle_pdu_type   = 2'd0;
+            wr_mle_target_tn  = tn;
+            wr_mle_aach_coded = aach_coded;
+            @(posedge clk);
+            @(negedge clk);
+            wr_mle_valid      = 1'b0;
+            wr_mle_aach_coded = 30'd0;
         end
     endtask
 
@@ -299,6 +323,36 @@ module tb_dl_signal_queue;
         @(negedge clk);
         check_eq_coded(head_coded, 432'hBBBB_01E2_0000_0000, "T6.second_after_pop");
         do_pop();
+
+        // -----------------------------------------------------------------
+        // T8 — Phase Z.12 aach_coded storage
+        //   Push a body with a non-zero aach_coded and verify the head
+        //   exposes the same value (proves coded AACH is delivered atomically
+        //   with the body, no race).
+        // -----------------------------------------------------------------
+        // Drain any residual head from T6
+        do_pop();
+        do_pop();
+        @(negedge clk);
+        check_eq_int({31'd0, head_valid}, 1'b0, "T8.start_drained");
+
+        mle_push_with_aach(432'h7733_BABE_5151_0000, 2'd2,
+                           30'h12345678);
+        @(negedge clk);
+        check_eq_coded(head_coded, 432'h7733_BABE_5151_0000, "T8.head_coded");
+        check_eq_int({2'd0, head_aach_coded}, 32'h12345678, "T8.head_aach_coded");
+        do_pop();
+
+        // After pop, push a second entry with a different coded AACH —
+        // verify head reflects the new value (per-entry storage, not a
+        // single shared latch).
+        mle_push_with_aach(432'h0011_2233_4455_6677, 2'd1,
+                           30'h0DEAD000);
+        @(negedge clk);
+        check_eq_int({2'd0, head_aach_coded}, 32'h0DEAD000, "T8.head_aach_coded_2");
+        do_pop();
+        @(negedge clk);
+        check_eq_int({31'd0, head_valid}, 1'b0, "T8.drained");
 
         // -----------------------------------------------------------------
         // Done
