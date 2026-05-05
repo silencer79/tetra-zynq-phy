@@ -1,5 +1,5 @@
 /*
- * tetra_pdu_class.h — central DL PDU-class definitions (Phase Z.3, SW-side mirror)
+ * tetra_pdu_class.h — central DL PDU-class definitions (Phase Z.9, SW-side mirror)
  *
  * Mirror of rtl/include/tetra_pdu_class.vh.  Used by sw/tetra_attach_daemon.c
  * and sw/tetra_tx_transport.c whenever they need to reason about a DL
@@ -33,19 +33,16 @@
 #define PDUC_LLC_BL_ACK     ((uint8_t)2u)
 #define PDUC_LLC_AL_SETUP   ((uint8_t)8u)
 
-/* PDUC_PRE_REPLY_SLOTGRANT_LU — mm=2 ITSI-Attach Pre-Reply LI=7 AL-SETUP (SCH/F) */
-#define PDUC_PRE_REPLY_SLOTGRANT_LU_FMT       PDUC_SLOTFMT_SCH_F
-#define PDUC_PRE_REPLY_SLOTGRANT_LU_AACH      PDUC_AACH_SIGNALLING_ACTIVE
-#define PDUC_PRE_REPLY_SLOTGRANT_LU_ADDRTYPE  PDUC_ADDRTYPE_SSI
-#define PDUC_PRE_REPLY_SLOTGRANT_LU_LLC       PDUC_LLC_AL_SETUP
-#define PDUC_PRE_REPLY_SLOTGRANT_LU_RA        1u
-
-/* PDUC_PRE_REPLY_SLOTGRANT_GRP — mm=7 Group-Switch Pre-Reply LI=7 AL-SETUP (SCH/HD) */
-#define PDUC_PRE_REPLY_SLOTGRANT_GRP_FMT       PDUC_SLOTFMT_SCH_HD
-#define PDUC_PRE_REPLY_SLOTGRANT_GRP_AACH      PDUC_AACH_SIGNALLING_ACTIVE
-#define PDUC_PRE_REPLY_SLOTGRANT_GRP_ADDRTYPE  PDUC_ADDRTYPE_SSI
-#define PDUC_PRE_REPLY_SLOTGRANT_GRP_LLC       PDUC_LLC_AL_SETUP
-#define PDUC_PRE_REPLY_SLOTGRANT_GRP_RA        1u
+/* PDUC_PRE_REPLY_SLOTGRANT — single Pre-Reply path for both mm=2 (ITSI-Attach)
+ * and mm=7 (Group-Switch).  Phase Z.9 collapses the LU/GRP split to one
+ * SCH/HD-encoded 124-bit AL-SETUP body with sg_element=0x00 (Gold-Ref
+ * bit-pattern, applies to both timelines).
+ */
+#define PDUC_PRE_REPLY_SLOTGRANT_FMT       PDUC_SLOTFMT_SCH_HD
+#define PDUC_PRE_REPLY_SLOTGRANT_AACH      PDUC_AACH_SIGNALLING_ACTIVE
+#define PDUC_PRE_REPLY_SLOTGRANT_ADDRTYPE  PDUC_ADDRTYPE_SSI
+#define PDUC_PRE_REPLY_SLOTGRANT_LLC       PDUC_LLC_AL_SETUP
+#define PDUC_PRE_REPLY_SLOTGRANT_RA        1u
 
 /* PDUC_FINAL_LU_ACCEPT — mm=2 D-LOC-UPDATE-ACCEPT LI=21 SCH/F */
 #define PDUC_FINAL_LU_ACCEPT_FMT       PDUC_SLOTFMT_SCH_F

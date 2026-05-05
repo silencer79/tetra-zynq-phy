@@ -1,53 +1,39 @@
 // =============================================================================
 // tetra_pre_reply_slotgrant.v
 //
-// Phase Z.4 — Pre-Reply Slot-Grant Mini-FSM, dual-path (mm-type-switched).
+// Phase Z.9 — Pre-Reply Slot-Grant Mini-FSM, SINGLE PATH (SCH/HD).
 //
 // Trigger: `frag1_pulse` (1-cycle pulse from MAC-ACCESS parser on Frag-1
-// detection).  The mm-type latched on the same cycle (`mm_pdu_type[3:0]`,
-// sourced from `ul_llc_mm_pdu_type_w` at top.v) selects the reply path:
-//
-//   mm_pdu_type == 4'd2 → PDUC_PRE_REPLY_SLOTGRANT_LU  (ITSI-Attach)
-//                          SCH/F 432-bit via SHARED tetra_dl_pdu_builder
-//                          (slot_granting_flag=1, sg_element=0x01 — pre-Z.3
-//                          working bit-pattern, MTP3550 in our cell expects
-//                          SCH/F here, otherwise no Frag-2 follow-up).
-//
-//   mm_pdu_type == 4'd7 → PDUC_PRE_REPLY_SLOTGRANT_GRP (Group-Switch)
-//                          SCH/HD 216-bit via INTERNAL builder/encoder
-//                          (slot_granting_flag=1, sg_element=0x00 —
-//                          Gold-Ref bit-pattern per
-//                          reference_gold_group_switch_burst_timeline.md).
-//
-//   any other mm_pdu_type → no push (defensive default; counter-only,
-//                            no DL transmission).
+// detection).  Both ITSI-Attach (mm=2) AND Group-Switch (mm=7) build an
+// identical 124-bit AL-SETUP MAC-RESOURCE PDU (slot_granting_flag=1,
+// slot_granting_element=0x00) and SCH/HD-encode it to 216 bits.  The 216
+// bits are MSB-aligned in the 432-bit queue bus
+// (`{coded_schhd, 216'd0}`); the scheduler picks BKN1 from
+// `head_coded[431:216]` and routes BKN2 to the SYSINFO companion.
+// AACH on the carrier slot is `PDUC_PRE_REPLY_SLOTGRANT_AACH=0x0009`
+// (signalling-active) via the queue's per-entry AACH-pattern field.
 //
 // History:
-//   - cad69e0 (pre-Z.3): mm=2 SCH/F path, working on the MS.
-//   - Z.3 (regression):  ALL mm-types switched to SCH/HD with sg_element=0x00.
-//                        The MS stopped sending Frag-2 → mm=2 attach broken.
-//   - Z.4 (this revision): keep both paths, switch by mm-type at runtime.
-//                          mm=2 path is bit-identical to cad69e0
-//                          (slot_granting_flag=1, sg_element=0x01, SCH/F);
-//                          mm=7 path uses the Z.3 SCH/HD pipeline.
+//   - cad69e0 (pre-Z.3): mm=2 SCH/F via shared dl_pdu_builder (sg=0x01).
+//   - Z.3 (regression):  ALL mm-types switched to SCH/HD with sg=0x00.
+//                        Broke mm=2 Frag-2 retrieval on the MTP3550.
+//   - Z.4:               Dual-path — mm=2 kept on SCH/F, mm=7 on SCH/HD.
+//                        AACH override on mm=2 SCH/F path was 0x0249 on-air
+//                        (Drift #3) and sg_element=0x01 vs Gold's 0x00 (Drift #4).
+//   - Z.9 (this rev):    Collapse to single SCH/HD pipeline for both mm-types.
+//                        sg_element=0x00 universally (Drift #4 fixed).
+//                        AACH 0x0009 via PDU-class header → queue → scheduler
+//                        (Drift #3 expected to auto-resolve once both mm-types
+//                        traverse the same SCH/HD path).
+//                        BKN2 = sig_companion_sys via existing scheduler
+//                        scheme (head_is_f=0 routes to SYSINFO; Drift #2 OK).
 //
-// Architecture:
-//
-//   ┌──────────────────────────── frag1_pulse_w ────────────────────────────┐
-//   │                                                                       │
-//   │           latch {ul_ssi, cfg_mcch_tn, cfg_scramble_init, mm_pdu_type} │
-//   │                                                                       │
-//   │                          mm_pdu_type == 2 ?                           │
-//   │                          /                \                          │
-//   │                         /                  \                         │
-//   │   slotgrant_build_req=1                  builder_start_local=1        │
-//   │  (shared SCH/F pipeline)                 (internal MAC-RES + SCH/HD)  │
-//   │      ↓ build_done                            ↓ coded_valid_w          │
-//   │  lat_coded_schf[431:0]                   lat_coded_schhd[215:0]       │
-//   │                                                                       │
-//   │                ────────► S_PUSH ◄────────                             │
-//   │                          wr_slotgrant_*  (queue)                      │
-//   └───────────────────────────────────────────────────────────────────────┘
+// Filter:
+//   `mm_pdu_type` is still consumed as a defensive filter — only mm ∈ {2,7}
+//   triggers a push.  The MAC-Resource builder constants are identical for
+//   both branches, but the `mm_pdu_type` check guarantees we don't push for
+//   unrelated UL random-access PDUs (e.g. mm=4 Detach already handled
+//   elsewhere; arbitrary unknown mm-types must not generate signalling).
 //
 // Coding rules (Verilog-2001 strict):
 //   R1   one always block per FSM
@@ -66,36 +52,17 @@ module tetra_pre_reply_slotgrant (
     // Frag-1 trigger from MAC-ACCESS parser (1-cycle pulse on clk_sys)
     input  wire         frag1_pulse,
     input  wire [23:0]  ul_ssi,
-    // Phase Z.4 — mm-type from MAC-ACCESS parser (LLC-walker decoded).
-    // Latched on the same cycle as frag1_pulse to select reply path.
+    // Phase Z.9 — mm-type filter.  Only mm ∈ {2,7} produces a push;
+    // other mm-types count as drop and stay IDLE.
     input  wire [3:0]   mm_pdu_type,
 
     // MCCH slot (CDC-resynced from AXI), pre-reply target TN
     input  wire [1:0]   cfg_mcch_tn,
     input  wire [31:0]  cfg_scramble_init,
 
-    // ----------------------------------------------------------------------
-    // mm=2 SCH/F path — shared tetra_dl_pdu_builder build-request bus
-    //   slotgrant_build_req           1-cyc pulse
-    //   slotgrant_build_*             field plane (constants + lat_ssi)
-    //   slotgrant_build_done          1-cyc pulse from builder
-    //   slotgrant_build_coded         432-bit SCH/F coded
-    //   slotgrant_build_grant_blocked builder busy / higher-prio winner
-    // ----------------------------------------------------------------------
-    output reg          slotgrant_build_req,
-    output wire [23:0]  slotgrant_build_ssi,
-    output wire [2:0]   slotgrant_build_addr_type,
-    output wire [3:0]   slotgrant_build_llc_pdu_type,
-    output wire         slotgrant_build_random_access_flag,
-    output wire [127:0] slotgrant_build_mm_pdu_bits,
-    output wire [7:0]   slotgrant_build_mm_pdu_len_bits,
-    output wire [31:0]  slotgrant_build_scramble_init,
-    input  wire         slotgrant_build_done,
-    input  wire [431:0] slotgrant_build_coded,
-    input  wire         slotgrant_build_grant_blocked,
-
-    // DL-Signal-Queue producer (MLE slot — muxed at top.v with MLE-FSM,
-    // GroupAck queue-side path).
+    // DL-Signal-Queue producer (MLE slot — muxed at top.v with MLE-FSM
+    // Final-ACCEPT and GroupAck).  Phase Z.9: 432-bit bus carries the
+    // 216-bit SCH/HD payload MSB-aligned; pdu_type fixed at SCH_HD.
     output reg          wr_slotgrant_valid_sys,
     output wire [431:0] wr_slotgrant_coded_sys,
     output wire [1:0]   wr_slotgrant_pdu_type_sys,
@@ -119,37 +86,26 @@ module tetra_pre_reply_slotgrant (
     end
 
     // -------------------------------------------------------------------------
-    // Latches (shared across both paths)
+    // mm-type filter — accept only mm=2 (ITSI-Attach) or mm=7 (Group-Switch).
+    // The body content is identical; the filter just guards against unrelated
+    // UL random-access events generating spurious Pre-Replies.
+    // -------------------------------------------------------------------------
+    wire mm_accept_w = (mm_pdu_type == 4'd2) | (mm_pdu_type == 4'd7);
+
+    // -------------------------------------------------------------------------
+    // Latches (single SCH/HD path)
     // -------------------------------------------------------------------------
     reg [23:0]  lat_ssi;
     reg [1:0]   lat_target_tn;
     reg [31:0]  lat_scramble_init;
-    reg [3:0]   lat_mm_type;
-
-    // mm=2 SCH/F coded-payload latch
-    reg [431:0] lat_coded_schf;
-    // mm=7 SCH/HD coded-payload latch
+    // SCH/HD coded-payload latch (216 bit).
     reg [215:0] lat_coded_schhd;
 
     // -------------------------------------------------------------------------
-    // mm=2 path — shared builder request field plane.  All constants are the
-    // pre-Z.3 cad69e0-bit-identity values (RA=1, AL-SETUP, slot_granting=1
-    // hardcoded inside dl_pdu_builder + element=0x01 from basic_slotgrant
-    // encoder also internal to dl_pdu_builder).  We supply only the SSI,
-    // scramble seed and addressing class.
-    // -------------------------------------------------------------------------
-    assign slotgrant_build_ssi                = lat_ssi;
-    assign slotgrant_build_addr_type          = `PDUC_PRE_REPLY_SLOTGRANT_LU_ADDRTYPE;
-    assign slotgrant_build_llc_pdu_type       = `PDUC_PRE_REPLY_SLOTGRANT_LU_LLC;
-    assign slotgrant_build_random_access_flag = `PDUC_PRE_REPLY_SLOTGRANT_LU_RA;
-    assign slotgrant_build_mm_pdu_bits        = 128'd0;
-    assign slotgrant_build_mm_pdu_len_bits    = 8'd0;
-    assign slotgrant_build_scramble_init      = lat_scramble_init;
-
-    // -------------------------------------------------------------------------
-    // mm=7 path — internal MAC-RESOURCE 124-bit builder + SCH/HD encoder.
-    //   slot_granting_flag=1, sg_element=0x00 (Gold-Ref bit-identity per
-    //   reference_gold_group_switch_burst_timeline.md).
+    // Internal MAC-RESOURCE 124-bit builder + SCH/HD encoder.
+    //   AL-SETUP, slot_granting_flag=1, sg_element=0x00 — Gold-Ref bit-identity
+    //   for BOTH mm=2 (per reference_gold_full_attach_timeline.md) and mm=7
+    //   (per reference_gold_group_switch_burst_timeline.md).
     // -------------------------------------------------------------------------
     reg          builder_start;
     wire [123:0] builder_pdu_w;
@@ -163,14 +119,13 @@ module tetra_pre_reply_slotgrant (
         .rst_n                        (rst_n_sys),
         .start                        (builder_start),
         .ssi                          (lat_ssi),
-        .addr_type                    (`PDUC_PRE_REPLY_SLOTGRANT_GRP_ADDRTYPE),
+        .addr_type                    (`PDUC_PRE_REPLY_SLOTGRANT_ADDRTYPE),
         .ns                           (1'b0),
         .nr                           (1'b0),
-        .llc_pdu_type                 (`PDUC_PRE_REPLY_SLOTGRANT_GRP_LLC),
-        .random_access_flag           (`PDUC_PRE_REPLY_SLOTGRANT_GRP_RA),
+        .llc_pdu_type                 (`PDUC_PRE_REPLY_SLOTGRANT_LLC),
+        .random_access_flag           (`PDUC_PRE_REPLY_SLOTGRANT_RA),
         .power_control_flag           (1'b0),
         .power_control_element        (4'd0),
-        // Gold raw bits decode to flags=010 (sg_flag=1) + sg_element=0x00.
         .slot_granting_flag           (1'b1),
         .slot_granting_element        (8'h00),
         .chan_alloc_flag              (1'b0),
@@ -211,17 +166,13 @@ module tetra_pre_reply_slotgrant (
     );
 
     // -------------------------------------------------------------------------
-    // FSM — unified across both paths.  S_BUILD/S_ENC are shared states;
-    // the latched mm-type drives which child block is sourcing the
-    // build/encode events.
+    // FSM — single SCH/HD path.
     //
-    //   S_IDLE  — wait for frag1_edge_w → latch trigger inputs, kick path
-    //             {mm=2: shared-builder request | mm=7: local builder start}
-    //   S_BUILD — wait for {mm=2: slotgrant_build_done | mm=7: builder_valid_w}
-    //             then either go straight to S_PUSH (mm=2 already coded by
-    //             shared dl_pdu_builder) or kick local SCH/HD encoder (mm=7)
-    //   S_ENC   — only entered for mm=7; wait for coded_valid_w
-    //   S_PUSH  — pulse wr_slotgrant_valid_sys for 1 cycle
+    //   S_IDLE  — wait for frag1_edge_w with mm ∈ {2,7}.  Latch trigger
+    //             inputs and kick the local MAC-Resource builder.
+    //   S_BUILD — wait for builder_valid_w; then kick the SCH/HD encoder.
+    //   S_ENC   — wait for coded_valid_w; latch 216-bit coded.
+    //   S_PUSH  — pulse wr_slotgrant_valid_sys for 1 cycle.
     // -------------------------------------------------------------------------
     localparam [1:0] S_IDLE  = 2'd0;
     localparam [1:0] S_BUILD = 2'd1;
@@ -236,10 +187,7 @@ module tetra_pre_reply_slotgrant (
             lat_ssi                <= 24'd0;
             lat_target_tn          <= 2'd0;
             lat_scramble_init      <= 32'd0;
-            lat_mm_type            <= 4'd0;
-            lat_coded_schf         <= 432'd0;
             lat_coded_schhd        <= 216'd0;
-            slotgrant_build_req    <= 1'b0;
             builder_start          <= 1'b0;
             encode_start           <= 1'b0;
             wr_slotgrant_valid_sys <= 1'b0;
@@ -247,7 +195,6 @@ module tetra_pre_reply_slotgrant (
             drop_cnt_sys           <= 16'd0;
         end else begin
             // Default 1-cycle strobes
-            slotgrant_build_req    <= 1'b0;
             builder_start          <= 1'b0;
             encode_start           <= 1'b0;
             wr_slotgrant_valid_sys <= 1'b0;
@@ -255,31 +202,17 @@ module tetra_pre_reply_slotgrant (
             case (state)
             S_IDLE: begin
                 if (frag1_edge_w) begin
-                    // Latch trigger inputs — common for both paths.
-                    lat_ssi             <= ul_ssi;
-                    lat_target_tn       <= cfg_mcch_tn;
-                    lat_scramble_init   <= cfg_scramble_init;
-                    lat_mm_type         <= mm_pdu_type;
-
-                    if (mm_pdu_type == 4'd2) begin
-                        // mm=2 path — request shared SCH/F builder.  If the
-                        // arbiter says blocked (MLE/GroupAck wins or builder
-                        // busy), drop this Frag-1 pre-reply and stay IDLE.
-                        if (slotgrant_build_grant_blocked) begin
-                            if (drop_cnt_sys != 16'hFFFF)
-                                drop_cnt_sys <= drop_cnt_sys + 16'd1;
-                        end else begin
-                            slotgrant_build_req <= 1'b1;
-                            state               <= S_BUILD;
-                        end
-                    end else if (mm_pdu_type == 4'd7) begin
-                        // mm=7 path — kick local SCH/HD pipeline (no
-                        // arbitration; pipeline is exclusive to this FSM).
-                        builder_start <= 1'b1;
-                        state         <= S_BUILD;
+                    if (mm_accept_w) begin
+                        // Latch trigger inputs and kick local SCH/HD pipeline
+                        // (no arbitration; pipeline is exclusive to this FSM).
+                        lat_ssi             <= ul_ssi;
+                        lat_target_tn       <= cfg_mcch_tn;
+                        lat_scramble_init   <= cfg_scramble_init;
+                        builder_start       <= 1'b1;
+                        state               <= S_BUILD;
                     end else begin
-                        // Defensive default — unknown mm-type.  Count as
-                        // drop and stay IDLE (no wr_slotgrant push).
+                        // Defensive default — unknown mm-type.  Count drop
+                        // and stay IDLE.
                         if (drop_cnt_sys != 16'hFFFF)
                             drop_cnt_sys <= drop_cnt_sys + 16'd1;
                     end
@@ -289,24 +222,13 @@ module tetra_pre_reply_slotgrant (
             S_BUILD: begin
                 if (frag1_edge_w && drop_cnt_sys != 16'hFFFF)
                     drop_cnt_sys <= drop_cnt_sys + 16'd1;
-
-                if (lat_mm_type == 4'd2) begin
-                    // mm=2 — wait for shared-builder coded payload.
-                    if (slotgrant_build_done) begin
-                        lat_coded_schf <= slotgrant_build_coded;
-                        state          <= S_PUSH;
-                    end
-                end else begin
-                    // mm=7 — wait for MAC-RESOURCE PDU then kick SCH/HD.
-                    if (builder_valid_w) begin
-                        encode_start <= 1'b1;
-                        state        <= S_ENC;
-                    end
+                if (builder_valid_w) begin
+                    encode_start <= 1'b1;
+                    state        <= S_ENC;
                 end
             end
 
             S_ENC: begin
-                // Only mm=7 enters S_ENC.
                 if (frag1_edge_w && drop_cnt_sys != 16'hFFFF)
                     drop_cnt_sys <= drop_cnt_sys + 16'd1;
                 if (coded_valid_w) begin
@@ -329,22 +251,16 @@ module tetra_pre_reply_slotgrant (
 
     // -------------------------------------------------------------------------
     // Combinational outputs to DL-Signal-Queue
-    //   mm=2:  coded[431:0]  = lat_coded_schf  (SCH/F 432-bit, full)
-    //          pdu_type      = PDUC_PRE_REPLY_SLOTGRANT_LU_FMT  (= SCH/F)
-    //   mm=7:  coded[431:0]  = {216'd0, lat_coded_schhd}  (SCH/HD LSB-aligned)
-    //          pdu_type      = PDUC_PRE_REPLY_SLOTGRANT_GRP_FMT (= SCH/HD)
-    // target_tn is the latched cfg_mcch_tn for both.
+    //   coded[431:0]  = {lat_coded_schhd, 216'd0}  (SCH/HD MSB-aligned)
+    //   pdu_type      = PDUC_SLOTFMT_SCH_HD
+    //   target_tn     = latched cfg_mcch_tn
+    //
+    // Z.8 MSB-alignment: the scheduler reads BKN1 from head_coded[431:216].
+    // Pushing LSB-aligned would deliver 216 zero-bits to the slot → SCH/HD
+    // CRC fail → MS drops Pre-Reply.  See Z.8 commit context.
     // -------------------------------------------------------------------------
-    // Z.8-Fix 2026-05-05: SCH/HD-Pfad muss MSB-aligned in den 432-bit-Bus
-    // gepackt werden — der Scheduler liest BKN1 aus head_coded[431:216].
-    // Vorher LSB-aligned ({216'd0, x}) → Scheduler bekam 216 Nullen → SCH/HD-
-    // CRC fail → MS verwirft Pre-Reply → kein Frag-2 für mm=7-Demands.
-    assign wr_slotgrant_coded_sys     = (lat_mm_type == 4'd2)
-                                          ? lat_coded_schf
-                                          : {lat_coded_schhd, 216'd0};
-    assign wr_slotgrant_pdu_type_sys  = (lat_mm_type == 4'd2)
-                                          ? `PDUC_PRE_REPLY_SLOTGRANT_LU_FMT
-                                          : `PDUC_PRE_REPLY_SLOTGRANT_GRP_FMT;
+    assign wr_slotgrant_coded_sys     = {lat_coded_schhd, 216'd0};
+    assign wr_slotgrant_pdu_type_sys  = `PDUC_PRE_REPLY_SLOTGRANT_FMT;
     assign wr_slotgrant_target_tn_sys = lat_target_tn;
 
 endmodule
