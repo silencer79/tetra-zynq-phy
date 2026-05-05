@@ -13,19 +13,40 @@
 // without any "if override else schedule" pattern.
 //
 // Trigger timing: slot_pulse_sys && (tn_sys == 2'd3) — identical edge to
-// the schedule-BRAM refresh in slot_content_mux.  Registers update once
-// per frame; consumers in tn=0..3 of the next frame see a stable bundle.
+// the schedule-BRAM refresh in slot_content_mux.  At that edge the popped
+// head bundle is latched into ONE single-bundle register set (not 4×216
+// per-TN registers).  The next frame's per-TN block-bundle outputs are
+// combinational mux outputs from that single latched bundle, so all four
+// per-TN block outputs AND the per-TN AACH override pattern are derived
+// from the SAME atomic bundle each frame — no off-by-one possible between
+// slot-mux input and AACH-encoder input.
+//
+// Phase Z.11 refactor (2026-05-04):
+//   Old design had 8×216 (blk1/blk2 per TN) + 4 (ndb2) + 4 (active) +
+//   4×14 (aach-override per TN) = ~1796 FFs of latch-stage.  These all
+//   moved values from "queue head at pop_trigger" → "stable bundle for
+//   next frame", but the latch happened TWICE (once per consumer-TN), so
+//   slot-mux and AACH-encoder could in principle pick up different
+//   capture cycles if their consumer logic differed.  Live decode showed
+//   AACH override greift 1 frame zu spät vs the carrier slot — root
+//   cause was this multi-latch fan-out.
+//
+//   New design: ONE bundle latch (head_coded 432b + target_tn 2b +
+//   pdu_type 2b + aach_pattern 14b + valid 1b) — net savings ≈ 1340 FFs.
+//   All eight blk1/blk2/ndb2/active/aach-override outputs are combinational
+//   muxes off this latched bundle.  Atomic per-frame view is guaranteed.
 //
 // Block bundle per TN (k = 0..3):
 //   sched_blk1_tn_k    BKN1 payload, 216 bits SCH/HD-coded
 //   sched_blk2_tn_k    BKN2 payload, 216 bits
 //   sched_ndb2[k]      NTS bit: 0 = SCH/F (NTS1), 1 = SCH/HD (NTS2)
 //
-// Per-TN content rules:
-//   queue head valid AND head_target_tn == k:
+// Per-TN content rules (using the latched bundle, valid only on its
+// captured target TN):
+//   bundle valid AND bundle_target_tn == k:
 //     SCH_F   blk1 = coded[431:216], blk2 = coded[215:0],   ndb2[k] = 0
 //     SCH_HD  blk1 = coded[431:216], blk2 = sig_companion,  ndb2[k] = 1
-//   otherwise (queue empty or different target):
+//   otherwise (bundle invalid or different target):
 //     blk1 = null_pdu_bits,          blk2 = sig_companion,  ndb2[k] = 1
 //
 // NULL-PDU is SCH/HD-coded (216 bits) → idle slots are NDB2 with NTS2.
@@ -87,27 +108,28 @@ module tetra_dl_signal_scheduler (
     input  wire [215:0] sig_companion_sys,
 
     // -------------------------------------------------------------------------
-    // Per-TN signalling block bundle — always valid.  Consumer treats these
-    // as the authoritative source for any schedule slot with class=SIGNALLING.
+    // Per-TN signalling block bundle — combinational from the single
+    // latched bundle below.  Stable across an entire frame because the
+    // bundle is only updated on pop_trigger (slot_pulse && tn==3).
     // -------------------------------------------------------------------------
-    output reg  [215:0] sched_blk1_tn0_sys,
-    output reg  [215:0] sched_blk2_tn0_sys,
-    output reg  [215:0] sched_blk1_tn1_sys,
-    output reg  [215:0] sched_blk2_tn1_sys,
-    output reg  [215:0] sched_blk1_tn2_sys,
-    output reg  [215:0] sched_blk2_tn2_sys,
-    output reg  [215:0] sched_blk1_tn3_sys,
-    output reg  [215:0] sched_blk2_tn3_sys,
-    output reg  [3:0]   sched_ndb2_sys,
-    output reg  [3:0]   sched_active_sys,
-    // Phase Z.2 — per-TN AACH override pattern.  Stable across the frame
-    // following the pop trigger.  Only the TN matching head_target_tn at
-    // the time of pop carries head_aach_pattern_sys; others reset to 0
-    // (= "use default-logic" sentinel).
-    output reg  [13:0]  sched_aach_override_tn0_sys,
-    output reg  [13:0]  sched_aach_override_tn1_sys,
-    output reg  [13:0]  sched_aach_override_tn2_sys,
-    output reg  [13:0]  sched_aach_override_tn3_sys,
+    output wire [215:0] sched_blk1_tn0_sys,
+    output wire [215:0] sched_blk2_tn0_sys,
+    output wire [215:0] sched_blk1_tn1_sys,
+    output wire [215:0] sched_blk2_tn1_sys,
+    output wire [215:0] sched_blk1_tn2_sys,
+    output wire [215:0] sched_blk2_tn2_sys,
+    output wire [215:0] sched_blk1_tn3_sys,
+    output wire [215:0] sched_blk2_tn3_sys,
+    output wire [3:0]   sched_ndb2_sys,
+    output wire [3:0]   sched_active_sys,
+    // Phase Z.2 — per-TN AACH override pattern.  Same atomic source as
+    // the block-bundle outputs above (single latched bundle).  Only the
+    // TN matching the latched bundle's target_tn carries the queued
+    // pattern; others reset to 0 (= "use default-logic" sentinel).
+    output wire [13:0]  sched_aach_override_tn0_sys,
+    output wire [13:0]  sched_aach_override_tn1_sys,
+    output wire [13:0]  sched_aach_override_tn2_sys,
+    output wire [13:0]  sched_aach_override_tn3_sys,
 
     // -------------------------------------------------------------------------
     // Stats (to AXI regs)
@@ -120,41 +142,83 @@ module tetra_dl_signal_scheduler (
     // Trigger — identical edge to slot_content_mux's schedule refresh.
     // -------------------------------------------------------------------------
     wire pop_trigger  = slot_pulse_sys && (tn_sys == 2'd3);
-    wire head_is_f    = (head_pdu_type_sys == 2'd0);
-    wire head_is_hd   = (head_pdu_type_sys == 2'd1);
     wire have_pdu     = pop_trigger && head_valid_sys;
 
-    // Combinational per-TN "next" values — mux between target-PDU content
-    // and the NULL-PDU/companion idle default, driven from the queue head.
-    // All four TNs see the same `have_pdu`; only one of target==k flags is
-    // set per frame.
-    wire tgt_tn0 = have_pdu && (head_target_tn_sys == 2'd0);
-    wire tgt_tn1 = have_pdu && (head_target_tn_sys == 2'd1);
-    wire tgt_tn2 = have_pdu && (head_target_tn_sys == 2'd2);
-    wire tgt_tn3 = have_pdu && (head_target_tn_sys == 2'd3);
+    // -------------------------------------------------------------------------
+    // Single-bundle latch — captures the queue head on pop_trigger and
+    // holds it stable for the entire next frame.  All per-TN combinational
+    // outputs below mux from this single bundle, so the slot-content-mux
+    // and AACH-encoder always see an atomic view.
+    //
+    // R1 — one always block per register.
+    // -------------------------------------------------------------------------
+    reg [431:0] bundle_coded_sys;
+    reg [1:0]   bundle_pdu_type_sys;
+    reg [1:0]   bundle_target_tn_sys;
+    reg [13:0]  bundle_aach_pattern_sys;
+    reg         bundle_valid_sys;
 
-    wire [215:0] next_blk1_tn0 = tgt_tn0 ? head_coded_sys[431:216] : null_pdu_bits_sys;
-    wire [215:0] next_blk2_tn0 = (tgt_tn0 && head_is_f) ? head_coded_sys[215:0] : sig_companion_sys;
-    wire         next_ndb2_tn0 = tgt_tn0 ? head_is_hd : 1'b1;
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)        bundle_valid_sys <= 1'b0;
+        else if (pop_trigger)  bundle_valid_sys <= head_valid_sys;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)        bundle_coded_sys <= 432'd0;
+        else if (pop_trigger)  bundle_coded_sys <= head_coded_sys;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)        bundle_pdu_type_sys <= 2'd0;
+        else if (pop_trigger)  bundle_pdu_type_sys <= head_pdu_type_sys;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)        bundle_target_tn_sys <= 2'd0;
+        else if (pop_trigger)  bundle_target_tn_sys <= head_target_tn_sys;
+    end
+    always @(posedge clk_sys or negedge rst_n_sys) begin
+        if (!rst_n_sys)        bundle_aach_pattern_sys <= 14'd0;
+        else if (pop_trigger)  bundle_aach_pattern_sys <= head_aach_pattern_sys;
+    end
 
-    wire [215:0] next_blk1_tn1 = tgt_tn1 ? head_coded_sys[431:216] : null_pdu_bits_sys;
-    wire [215:0] next_blk2_tn1 = (tgt_tn1 && head_is_f) ? head_coded_sys[215:0] : sig_companion_sys;
-    wire         next_ndb2_tn1 = tgt_tn1 ? head_is_hd : 1'b1;
+    // -------------------------------------------------------------------------
+    // Per-TN combinational mux from the latched bundle.
+    // -------------------------------------------------------------------------
+    wire b_is_f  = (bundle_pdu_type_sys == 2'd0);
+    wire b_is_hd = (bundle_pdu_type_sys == 2'd1);
 
-    wire [215:0] next_blk1_tn2 = tgt_tn2 ? head_coded_sys[431:216] : null_pdu_bits_sys;
-    wire [215:0] next_blk2_tn2 = (tgt_tn2 && head_is_f) ? head_coded_sys[215:0] : sig_companion_sys;
-    wire         next_ndb2_tn2 = tgt_tn2 ? head_is_hd : 1'b1;
+    wire tgt_tn0 = bundle_valid_sys && (bundle_target_tn_sys == 2'd0);
+    wire tgt_tn1 = bundle_valid_sys && (bundle_target_tn_sys == 2'd1);
+    wire tgt_tn2 = bundle_valid_sys && (bundle_target_tn_sys == 2'd2);
+    wire tgt_tn3 = bundle_valid_sys && (bundle_target_tn_sys == 2'd3);
 
-    wire [215:0] next_blk1_tn3 = tgt_tn3 ? head_coded_sys[431:216] : null_pdu_bits_sys;
-    wire [215:0] next_blk2_tn3 = (tgt_tn3 && head_is_f) ? head_coded_sys[215:0] : sig_companion_sys;
-    wire         next_ndb2_tn3 = tgt_tn3 ? head_is_hd : 1'b1;
+    assign sched_blk1_tn0_sys = tgt_tn0 ? bundle_coded_sys[431:216] : null_pdu_bits_sys;
+    assign sched_blk2_tn0_sys = (tgt_tn0 && b_is_f) ? bundle_coded_sys[215:0] : sig_companion_sys;
+    assign sched_blk1_tn1_sys = tgt_tn1 ? bundle_coded_sys[431:216] : null_pdu_bits_sys;
+    assign sched_blk2_tn1_sys = (tgt_tn1 && b_is_f) ? bundle_coded_sys[215:0] : sig_companion_sys;
+    assign sched_blk1_tn2_sys = tgt_tn2 ? bundle_coded_sys[431:216] : null_pdu_bits_sys;
+    assign sched_blk2_tn2_sys = (tgt_tn2 && b_is_f) ? bundle_coded_sys[215:0] : sig_companion_sys;
+    assign sched_blk1_tn3_sys = tgt_tn3 ? bundle_coded_sys[431:216] : null_pdu_bits_sys;
+    assign sched_blk2_tn3_sys = (tgt_tn3 && b_is_f) ? bundle_coded_sys[215:0] : sig_companion_sys;
 
-    // Phase Z.2 — AACH override pattern: only the addressed TN gets the
-    // queued pattern; idle TNs reset to 14'd0 = "use AACH-encoder default".
-    wire [13:0] next_aach_ovr_tn0 = tgt_tn0 ? head_aach_pattern_sys : 14'd0;
-    wire [13:0] next_aach_ovr_tn1 = tgt_tn1 ? head_aach_pattern_sys : 14'd0;
-    wire [13:0] next_aach_ovr_tn2 = tgt_tn2 ? head_aach_pattern_sys : 14'd0;
-    wire [13:0] next_aach_ovr_tn3 = tgt_tn3 ? head_aach_pattern_sys : 14'd0;
+    // ndb2 bit per TN: 1 = NTS2 (SCH/HD or idle NULL-PDU), 0 = NTS1 (SCH/F)
+    wire ndb2_tn0 = tgt_tn0 ? b_is_hd : 1'b1;
+    wire ndb2_tn1 = tgt_tn1 ? b_is_hd : 1'b1;
+    wire ndb2_tn2 = tgt_tn2 ? b_is_hd : 1'b1;
+    wire ndb2_tn3 = tgt_tn3 ? b_is_hd : 1'b1;
+    assign sched_ndb2_sys = {ndb2_tn3, ndb2_tn2, ndb2_tn1, ndb2_tn0};
+
+    // One-hot "real signalling PDU present in this frame" marker.  Used
+    // by slot_content_mux to lift class=STATIC_BROADCAST → SIGNALLING on
+    // the addressed TN, and by the AACH encoder so TN0 advertises
+    // Unalloc/Unalloc only on addressed reply slots while idle signalling
+    // slots keep Common/Random.
+    assign sched_active_sys = {tgt_tn3, tgt_tn2, tgt_tn1, tgt_tn0};
+
+    // Per-TN AACH override pattern — only the addressed TN gets the
+    // bundle's pattern; other TNs see 14'd0 = "use AACH-encoder default".
+    assign sched_aach_override_tn0_sys = tgt_tn0 ? bundle_aach_pattern_sys : 14'd0;
+    assign sched_aach_override_tn1_sys = tgt_tn1 ? bundle_aach_pattern_sys : 14'd0;
+    assign sched_aach_override_tn2_sys = tgt_tn2 ? bundle_aach_pattern_sys : 14'd0;
+    assign sched_aach_override_tn3_sys = tgt_tn3 ? bundle_aach_pattern_sys : 14'd0;
 
     // -------------------------------------------------------------------------
     // pop_sys — 1-cycle strobe on the trigger when a PDU is available.
@@ -162,83 +226,6 @@ module tetra_dl_signal_scheduler (
     always @(posedge clk_sys or negedge rst_n_sys) begin
         if (!rst_n_sys) pop_sys <= 1'b0;
         else            pop_sys <= have_pdu;
-    end
-
-    // -------------------------------------------------------------------------
-    // Per-TN output registers — one always block per register (R1).
-    // Latched only on pop_trigger; the entire next frame observes a
-    // stable bundle.  No intermediate combinational mux at the consumer.
-    // -------------------------------------------------------------------------
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)          sched_blk1_tn0_sys <= 216'd0;
-        else if (pop_trigger)    sched_blk1_tn0_sys <= next_blk1_tn0;
-    end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)          sched_blk2_tn0_sys <= 216'd0;
-        else if (pop_trigger)    sched_blk2_tn0_sys <= next_blk2_tn0;
-    end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)          sched_blk1_tn1_sys <= 216'd0;
-        else if (pop_trigger)    sched_blk1_tn1_sys <= next_blk1_tn1;
-    end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)          sched_blk2_tn1_sys <= 216'd0;
-        else if (pop_trigger)    sched_blk2_tn1_sys <= next_blk2_tn1;
-    end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)          sched_blk1_tn2_sys <= 216'd0;
-        else if (pop_trigger)    sched_blk1_tn2_sys <= next_blk1_tn2;
-    end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)          sched_blk2_tn2_sys <= 216'd0;
-        else if (pop_trigger)    sched_blk2_tn2_sys <= next_blk2_tn2;
-    end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)          sched_blk1_tn3_sys <= 216'd0;
-        else if (pop_trigger)    sched_blk1_tn3_sys <= next_blk1_tn3;
-    end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)          sched_blk2_tn3_sys <= 216'd0;
-        else if (pop_trigger)    sched_blk2_tn3_sys <= next_blk2_tn3;
-    end
-
-    // 4-bit ndb2 bundle — concatenated update = one R1 register.
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)
-            sched_ndb2_sys <= 4'b1111;    // idle = all NTS2 (NULL-PDU is SCH/HD)
-        else if (pop_trigger)
-            sched_ndb2_sys <= {next_ndb2_tn3, next_ndb2_tn2,
-                               next_ndb2_tn1, next_ndb2_tn0};
-    end
-
-    // One-hot "real signalling PDU present in this frame" marker.  Used by
-    // the AACH encoder so TN0 advertises Unalloc/Unalloc only on addressed
-    // reply slots, while idle signalling slots keep Common/Random.
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)
-            sched_active_sys <= 4'b0000;
-        else if (pop_trigger)
-            sched_active_sys <= have_pdu ? {tgt_tn3, tgt_tn2, tgt_tn1, tgt_tn0}
-                                         : 4'b0000;
-    end
-
-    // Phase Z.2 — per-TN AACH override patterns, latched on pop_trigger.
-    // Each TN holds its pattern stable across the entire next frame.
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)        sched_aach_override_tn0_sys <= 14'd0;
-        else if (pop_trigger)  sched_aach_override_tn0_sys <= next_aach_ovr_tn0;
-    end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)        sched_aach_override_tn1_sys <= 14'd0;
-        else if (pop_trigger)  sched_aach_override_tn1_sys <= next_aach_ovr_tn1;
-    end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)        sched_aach_override_tn2_sys <= 14'd0;
-        else if (pop_trigger)  sched_aach_override_tn2_sys <= next_aach_ovr_tn2;
-    end
-    always @(posedge clk_sys or negedge rst_n_sys) begin
-        if (!rst_n_sys)        sched_aach_override_tn3_sys <= 14'd0;
-        else if (pop_trigger)  sched_aach_override_tn3_sys <= next_aach_ovr_tn3;
     end
 
     // -------------------------------------------------------------------------
