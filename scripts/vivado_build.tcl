@@ -136,6 +136,7 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/tx/tetra_slot_content_mux.v \
  $PROJ_DIR/rtl/tx/tetra_sb1_encoder.v \
  $PROJ_DIR/rtl/tx/tetra_aach_encoder.v \
+ $PROJ_DIR/rtl/tx/tetra_aach_rm_encoder.v \
 ]
 
 # LMAC
