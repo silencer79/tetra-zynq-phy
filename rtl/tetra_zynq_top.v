@@ -2084,6 +2084,12 @@ tetra_axi_lite_regs u_axi_regs (
     .grp_reply_go_consume_axi    (grp_reply_go_consume_axi_r1),
     .grp_reply_rdata_axi_i       (grp_reply_rdata_axi_r1),
     .grp_reply_busy_axi_i        (grp_reply_busy_axi_r1),
+    // Phase Z.16 — GROUPack-Pfad-5-Counter (resynced 2-FF clk_sys → clk_axi above)
+    .grp_mb_go_cnt_axi           (grp_mb_go_cnt_axi_r1),
+    .grp_build_grant_cnt_axi     (grp_build_grant_cnt_axi_r1),
+    .grp_build_done_cnt_axi      (grp_build_done_cnt_axi_r1),
+    .grp_queue_push_cnt_axi      (grp_queue_push_cnt_axi_r1),
+    .grp_queue_lost_cnt_axi      (grp_queue_lost_cnt_axi_r1),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -2498,6 +2504,101 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         mle_inject_cnt_axi_r1  <= mle_inject_cnt_axi_r0;
         mle_clear_cnt_axi_r0   <= mle_clear_cnt_sys;
         mle_clear_cnt_axi_r1   <= mle_clear_cnt_axi_r0;
+    end
+end
+
+// =============================================================================
+// Phase Z.16 — GROUPack-Pfad-Diagnose-Counter (5x 16-bit, saturating)
+//
+// Live-Telemetrie um zu lokalisieren wo der mm=7 GROUPack-Reply-Pfad silent
+// bricht.  Free-running 16-bit clk_sys-Counter, 2-FF resynced auf clk_axi.
+// Saturating bei 0xFFFF (kein Wrap, damit lange Messfenster bedeutsam bleiben).
+//
+//   grp_mb_go_cnt_sys        → Mailbox feuert GO          (REG_GRP_MB_GO_CNT       0x260)
+//   grp_build_grant_cnt_sys  → Arbiter granted GroupAck   (REG_GRP_BUILD_GRANT_CNT 0x264)
+//   grp_build_done_cnt_sys   → Encoder fertig             (REG_GRP_BUILD_DONE_CNT  0x268)
+//   grp_queue_push_cnt_sys   → Queue-Push-Pulse           (REG_GRP_QUEUE_PUSH_CNT  0x26C)
+//   grp_queue_lost_cnt_sys   → MLE-Kollision blockt push  (REG_GRP_QUEUE_LOST_CNT  0x270)
+//
+// Diagnose:
+//   mb_go=N grant=0           → Arbiter blockiert (grpack_build_req_w nie granted)
+//   grant=N done<N            → Encoder hängt (FSM stuck oder Owner-Demux falsch)
+//   done=N push<N             → Done-Demux drop (grpack_queue_valid_sys_r setzt nicht)
+//   push=N lost>0             → Queue-Mux-Collision (mle_req_valid_w hatte Vorrang)
+// =============================================================================
+reg [15:0] grp_mb_go_cnt_sys;
+reg [15:0] grp_build_grant_cnt_sys;
+reg [15:0] grp_build_done_cnt_sys;
+reg [15:0] grp_queue_push_cnt_sys;
+reg [15:0] grp_queue_lost_cnt_sys;
+
+// Edge-detect für grpack_queue_valid_sys_r → 1-cycle pulse.
+reg grpack_queue_valid_sys_r_d1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) grpack_queue_valid_sys_r_d1 <= 1'b0;
+    else            grpack_queue_valid_sys_r_d1 <= grpack_queue_valid_sys_r;
+end
+wire grpack_queue_push_pulse_w = grpack_queue_valid_sys_r & ~grpack_queue_valid_sys_r_d1;
+// Lost: Queue-Mux nimmt MLE-Pfad statt GroupAck obwohl beide gleichzeitig
+// valid sind (Mux-Logik in slot_wr-Mux: mle_req_valid_w hat statisch Vorrang).
+wire grpack_queue_lost_pulse_w = grpack_queue_push_pulse_w & mle_req_valid_w;
+
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) begin
+        grp_mb_go_cnt_sys        <= 16'd0;
+        grp_build_grant_cnt_sys  <= 16'd0;
+        grp_build_done_cnt_sys   <= 16'd0;
+        grp_queue_push_cnt_sys   <= 16'd0;
+        grp_queue_lost_cnt_sys   <= 16'd0;
+    end else begin
+        if (grp_mb_go_pulse_w         && grp_mb_go_cnt_sys        != 16'hFFFF)
+            grp_mb_go_cnt_sys        <= grp_mb_go_cnt_sys        + 16'd1;
+        if (dl_pdu_grant_grpack_w     && grp_build_grant_cnt_sys  != 16'hFFFF)
+            grp_build_grant_cnt_sys  <= grp_build_grant_cnt_sys  + 16'd1;
+        if (grpack_done_w             && grp_build_done_cnt_sys   != 16'hFFFF)
+            grp_build_done_cnt_sys   <= grp_build_done_cnt_sys   + 16'd1;
+        if (grpack_queue_push_pulse_w && grp_queue_push_cnt_sys   != 16'hFFFF)
+            grp_queue_push_cnt_sys   <= grp_queue_push_cnt_sys   + 16'd1;
+        if (grpack_queue_lost_pulse_w && grp_queue_lost_cnt_sys   != 16'hFFFF)
+            grp_queue_lost_cnt_sys   <= grp_queue_lost_cnt_sys   + 16'd1;
+    end
+end
+
+// CDC clk_sys → clk_axi, 2-FF resync per counter (gleicher Pattern wie mle_*).
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_mb_go_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_mb_go_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_build_grant_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_build_grant_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_build_done_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_build_done_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_queue_push_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_queue_push_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_queue_lost_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] grp_queue_lost_cnt_axi_r1;
+
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+    if (!rst_n_axi) begin
+        grp_mb_go_cnt_axi_r0       <= 16'd0;
+        grp_mb_go_cnt_axi_r1       <= 16'd0;
+        grp_build_grant_cnt_axi_r0 <= 16'd0;
+        grp_build_grant_cnt_axi_r1 <= 16'd0;
+        grp_build_done_cnt_axi_r0  <= 16'd0;
+        grp_build_done_cnt_axi_r1  <= 16'd0;
+        grp_queue_push_cnt_axi_r0  <= 16'd0;
+        grp_queue_push_cnt_axi_r1  <= 16'd0;
+        grp_queue_lost_cnt_axi_r0  <= 16'd0;
+        grp_queue_lost_cnt_axi_r1  <= 16'd0;
+    end else begin
+        grp_mb_go_cnt_axi_r0       <= grp_mb_go_cnt_sys;
+        grp_mb_go_cnt_axi_r1       <= grp_mb_go_cnt_axi_r0;
+        grp_build_grant_cnt_axi_r0 <= grp_build_grant_cnt_sys;
+        grp_build_grant_cnt_axi_r1 <= grp_build_grant_cnt_axi_r0;
+        grp_build_done_cnt_axi_r0  <= grp_build_done_cnt_sys;
+        grp_build_done_cnt_axi_r1  <= grp_build_done_cnt_axi_r0;
+        grp_queue_push_cnt_axi_r0  <= grp_queue_push_cnt_sys;
+        grp_queue_push_cnt_axi_r1  <= grp_queue_push_cnt_axi_r0;
+        grp_queue_lost_cnt_axi_r0  <= grp_queue_lost_cnt_sys;
+        grp_queue_lost_cnt_axi_r1  <= grp_queue_lost_cnt_axi_r0;
     end
 end
 

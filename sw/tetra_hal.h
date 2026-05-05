@@ -298,6 +298,19 @@
 #define REG_GRP_REPLY_GO      0x258   /* W1S [0]    pulse to encoder       */
 #define REG_GRP_REPLY_STATUS  0x25C   /* RO  [0]    busy mirror             */
 
+/* Phase Z.16 — GROUPack-Pfad-Diagnose-Counter (5x 16-bit, saturating, RO).
+ * Live-Telemetrie um zu lokalisieren wo der mm=7 GroupAck-Reply silent
+ * bricht.  Diagnose:
+ *   mb_go=N grant=0     → Arbiter blockiert
+ *   grant=N done<N      → Encoder hängt
+ *   done=N push<N       → Done-Demux drop
+ *   push=N lost>0       → Queue-Mux-Collision (mle_req hatte Vorrang)            */
+#define REG_GRP_MB_GO_CNT        0x260   /* RO [15:0] grp_mb_go_pulse events       */
+#define REG_GRP_BUILD_GRANT_CNT  0x264   /* RO [15:0] dl_pdu_grant_grpack events   */
+#define REG_GRP_BUILD_DONE_CNT   0x268   /* RO [15:0] grpack_done events           */
+#define REG_GRP_QUEUE_PUSH_CNT   0x26C   /* RO [15:0] queue-push rising events     */
+#define REG_GRP_QUEUE_LOST_CNT   0x270   /* RO [15:0] mux-collision drop events    */
+
 /* REG_DB_POLICY @ 0x1AC — auto-enroll policy bits (Phase 6 A + Phase X.3)
  *   [0] accept_unknown_issi  — 1 (default): ISSI-miss → auto-enroll
  *   [1] accept_unknown_gssi  — 1 (default): GSSI-miss → auto-enroll

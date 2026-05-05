@@ -466,6 +466,24 @@ module tetra_axi_lite_regs (
     input  wire        grp_reply_busy_axi_i,
 
     // ------------------------------------------------------------------
+    // Phase Z.16 — GROUPack-Pfad-Diagnose-Counter (5x 16-bit, RO)
+    //   REG_GRP_MB_GO_CNT       @ 0x260 RO {16'd0, mb_go_cnt[15:0]}
+    //   REG_GRP_BUILD_GRANT_CNT @ 0x264 RO {16'd0, build_grant_cnt[15:0]}
+    //   REG_GRP_BUILD_DONE_CNT  @ 0x268 RO {16'd0, build_done_cnt[15:0]}
+    //   REG_GRP_QUEUE_PUSH_CNT  @ 0x26C RO {16'd0, queue_push_cnt[15:0]}
+    //   REG_GRP_QUEUE_LOST_CNT  @ 0x270 RO {16'd0, queue_lost_cnt[15:0]}
+    // CDC: 2-FF resync done in tetra_zynq_top (clk_sys → clk_axi).
+    // Diagnose-Logik: mb_go=N grant=0 → Arbiter blockiert; grant=N done<N →
+    // Encoder hängt; done=N push<N → Done-Demux drop; lost>0 → Queue-Mux-
+    // Kollision (mle_req hat Vorrang vor grpack_queue).
+    // ------------------------------------------------------------------
+    input  wire [15:0] grp_mb_go_cnt_axi,
+    input  wire [15:0] grp_build_grant_cnt_axi,
+    input  wire [15:0] grp_build_done_cnt_axi,
+    input  wire [15:0] grp_queue_push_cnt_axi,
+    input  wire [15:0] grp_queue_lost_cnt_axi,
+
+    // ------------------------------------------------------------------
     // Phase H.7 — D-NWRK-BROADCAST periodic push.
     //   REG_NWRK_BCAST_INDEX   @ 0x1D0 [3:0]   payload word index (0..13)
     //   REG_NWRK_BCAST_DATA    @ 0x1D4 [31:0]  32-bit, write→payload[INDEX]
@@ -816,6 +834,12 @@ localparam [6:0] REG_REPLY_USE_SW  = 7'h0C; // 0x230  R/W [0]=use_sw_body
 //     REG_GRP_REPLY_DATA    @ 0x254 R/W  [31:0] indirect via INDEX
 //     REG_GRP_REPLY_GO      @ 0x258 W1S  [0]    1-cycle pulse to encoder
 //     REG_GRP_REPLY_STATUS  @ 0x25C RO   [0]    busy mirror (build in flight)
+// Phase Z.16 — GROUPack-Pfad-Diagnose-Counter (5x 16-bit RO):
+//     REG_GRP_MB_GO_CNT       @ 0x260 RO   grp_mb_go_pulse_w           events
+//     REG_GRP_BUILD_GRANT_CNT @ 0x264 RO   dl_pdu_grant_grpack_w       events
+//     REG_GRP_BUILD_DONE_CNT  @ 0x268 RO   grpack_done_w               events
+//     REG_GRP_QUEUE_PUSH_CNT  @ 0x26C RO   grpack_queue_valid rising   events
+//     REG_GRP_QUEUE_LOST_CNT  @ 0x270 RO   queue-mux MLE-collision     events
 // ---------------------------------------------------------------------------
 localparam [6:0] REG_GRP_DEMAND_STATUS = 7'h10; // 0x240
 localparam [6:0] REG_GRP_DEMAND_INDEX  = 7'h11; // 0x244
@@ -825,6 +849,15 @@ localparam [6:0] REG_GRP_REPLY_INDEX   = 7'h14; // 0x250
 localparam [6:0] REG_GRP_REPLY_DATA    = 7'h15; // 0x254
 localparam [6:0] REG_GRP_REPLY_GO      = 7'h16; // 0x258
 localparam [6:0] REG_GRP_REPLY_STATUS  = 7'h17; // 0x25C
+
+// ---------------------------------------------------------------------------
+// Phase Z.16 — GROUPack-Pfad-5-Counter (Bank-1, 0x260..0x270 = word 7'h18..7'h1C).
+// ---------------------------------------------------------------------------
+localparam [6:0] REG_GRP_MB_GO_CNT        = 7'h18; // 0x260
+localparam [6:0] REG_GRP_BUILD_GRANT_CNT  = 7'h19; // 0x264
+localparam [6:0] REG_GRP_BUILD_DONE_CNT   = 7'h1A; // 0x268
+localparam [6:0] REG_GRP_QUEUE_PUSH_CNT   = 7'h1B; // 0x26C
+localparam [6:0] REG_GRP_QUEUE_LOST_CNT   = 7'h1C; // 0x270
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -1214,6 +1247,12 @@ always @(*) begin
             REG_GRP_REPLY_DATA:    rdata_mux_axi = grp_reply_rdata_axi_i;
             REG_GRP_REPLY_GO:      rdata_mux_axi = {31'd0, grp_reply_go_trigger_r};
             REG_GRP_REPLY_STATUS:  rdata_mux_axi = {31'd0, grp_reply_busy_axi_i};
+            // Phase Z.16 — GROUPack-Pfad-Diagnose-Counter
+            REG_GRP_MB_GO_CNT:       rdata_mux_axi = {16'd0, grp_mb_go_cnt_axi};
+            REG_GRP_BUILD_GRANT_CNT: rdata_mux_axi = {16'd0, grp_build_grant_cnt_axi};
+            REG_GRP_BUILD_DONE_CNT:  rdata_mux_axi = {16'd0, grp_build_done_cnt_axi};
+            REG_GRP_QUEUE_PUSH_CNT:  rdata_mux_axi = {16'd0, grp_queue_push_cnt_axi};
+            REG_GRP_QUEUE_LOST_CNT:  rdata_mux_axi = {16'd0, grp_queue_lost_cnt_axi};
             default:           rdata_mux_axi = 32'd0;
         endcase
     end
