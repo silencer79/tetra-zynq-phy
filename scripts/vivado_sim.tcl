@@ -17,7 +17,7 @@
 #   tetra_frame_counter     — TDMA frame counter (RX)
 #   tetra_tdma_timebase     — TDMA timebase (TX, 0-based TN/FN/MN/HN)
 #   tx_slot_schedule        — TDMA slot schedule dual-port BRAM (Stufe 3)
-#   tetra_slot_content_mux  — Schedule→payload mux + encoder routing (Stufe 4)
+#   tetra_burst_dispatcher  — Phase Y.3 single-stage queue.head→builder dispatcher
 #   tetra_scrambler         — LFSR scrambler
 #   tetra_interleaver       — Block interleaver
 #   tetra_viterbi_decoder   — Viterbi soft-decision
@@ -94,10 +94,9 @@ array set MODULE_FILES {
         rtl/tx/tetra_slot_schedule.v
         tb/tb_tx_slot_schedule.v
     }
-    tetra_slot_content_mux {
-        rtl/tx/tetra_slot_schedule.v
-        rtl/tx/tetra_slot_content_mux.v
-        tb/tb_tetra_slot_content_mux.v
+    tetra_burst_dispatcher {
+        rtl/tx/tetra_burst_dispatcher.v
+        tb/tb_burst_dispatcher.v
     }
     tetra_bsch_encoder_integration {
         rtl/tx/tetra_tdma_timebase.v

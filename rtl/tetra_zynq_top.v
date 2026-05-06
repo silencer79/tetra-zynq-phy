@@ -1097,11 +1097,13 @@ assign tx_slot_pulse_sys_w = tx_slot_pulse_free_sys;
 
 // SB data (legacy AXI-Lite path, kept for back-compat readback).
 // REG_SB_SB1_* / REG_SB_BKN2_* / REG_SB_BB continue to exist in the AXI
-// register bank, but after Stufe 4 the tx_chain consumes only:
-//   * sb_sb1_data_cm_sys / sb_bb_data_cm_sys from the content-mux
-//     (sourced from the RTL encoders sb1_coded_sys / aach_coded_sys).
-//   * sb_bkn2_data_sys — still routed from the AXI register because the
-//     BNCH/SDB slot-2 payload is SW-computed (no RTL encoder).
+// register bank, but after Phase Y.3 the burst dispatcher consumes only:
+//   * aach_coded_slot_sys_w  (slot-side AACH select — head pre-coded vs
+//                             default-encoder) — feeds dispatcher.bb_in_sys
+//   * sb1_coded_sys_w        (RTL sb1_encoder)  — feeds dispatcher.sb_sb1_in_sys
+//   * sb_bkn2_data_sys       — still routed from the AXI register because
+//                              the BNCH/SDB slot-2 payload is SW-computed
+//                              (no RTL encoder).
 // The legacy sb_sb1_data_axi_sys / sb_bb_data_axi_sys wires are driven
 // but unused on the datapath; readback via AXI still works.
 wire [119:0] sb_sb1_data_axi_sys;  // legacy AXI path — unused in tx_chain
@@ -1119,17 +1121,20 @@ wire [215:0] bnch_block2_data_sys;
 // These wires are driven by the AXI-Lite register bank (connected below).
 
 // =============================================================================
-// Slot Content Mux (Plan Stufe 4) — replaces the legacy always-@(*)
-// scheduler and per-slot payload mux.  Consumes the 16-bit schedule
-// entries from tetra_slot_schedule (Port B) and produces per-slot
-// burst_type / enable / ndb2 attributes plus four block1/block2 216-bit
-// payload slots.  Also routes the RTL-encoded SB1 (sb1_encoder) and BB
-// (aach_encoder) outputs into the tx_chain datapath, replacing the
-// SW-driven REG_SB_SB1_* / REG_SB_BB path.
+// Phase Y.3 — Slot Content Mux + Burst Dispatcher (3-stage post-pop pipe).
 //
-// Legacy registers removed by this stage:
-//   slot_burst_type_sys, slot_en_sys_reg, slot_ndb2_sys_reg,
-//   tx_blk1_slotN_w, tx_blk2_slotN_w  (now content_mux outputs)
+// tetra_slot_content_mux is now stripped: it ONLY runs the BRAM-prefetch
+// FSM for the schedule entries (one 16-bit entry per TN of the upcoming
+// frame).  The body/meta latches that used to live here are gone — the
+// dispatcher captures everything in a single mux + flop on tx_slot_pulse.
+//
+// tetra_burst_dispatcher takes:
+//   * scheduler fan-out (combinational from queue.head, per-TN body bundle)
+//   * the four schedule entries (from u_slot_content_mux)
+//   * SW payload banks (NDB / MCCH / BNCH / SB)
+//   * pre-coded AACH (slot-side select) and SB1
+// and produces build_block1/2/bb/sb1/burst_type/ndb2/req — registered
+// once on the cycle of tx_slot_pulse_sys, feeding tetra_burst_builder.
 // =============================================================================
 
 // Forward declarations — these wires are driven by module instances
@@ -1164,65 +1169,77 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
     else            null_pdu_bits_sys_r1 <= null_pdu_bits_sys_r0;
 end
 
-// Content-mux outputs — consumed directly by tx_chain below.
-wire [3:0]  cm_slot_burst_type_sys;
-wire [3:0]  cm_slot_en_sys;
-wire [3:0]  cm_slot_ndb2_sys;
-wire [BLOCK_BITS-1:0] cm_tx_blk1_slot0_sys, cm_tx_blk1_slot1_sys,
-                      cm_tx_blk1_slot2_sys, cm_tx_blk1_slot3_sys;
-wire [BLOCK_BITS-1:0] cm_tx_blk2_slot0_sys, cm_tx_blk2_slot1_sys,
-                      cm_tx_blk2_slot2_sys, cm_tx_blk2_slot3_sys;
-wire [119:0] sb_sb1_data_cm_sys;
-wire [29:0]  sb_bb_data_cm_sys;
+// Phase Y.3 post-pop pipeline:
+//   queue.head ─▶ scheduler ─▶ tetra_burst_dispatcher (single-stage)
+//                                     │
+//                              build_*_sys + build_req_sys
+//                                     ▼
+//                                 tx_chain (burst_builder + π/4-DQPSK)
+//
+// The Z.13/Z.18 era 8× tx_blk*_slot*_sys + slot_*_sys latches inside
+// tetra_slot_content_mux are GONE — that module is now a stripped BRAM
+// prefetch only.  The dispatcher does ALL slot-side body/meta selection
+// in one combinational mux + one capture flop.
 
 // Schedule BRAM Port B address — driven by content_mux, consumed by
-// tetra_slot_schedule (see u_tx_slot_schedule below).  Data returned by
-// the BRAM arrives 1 cycle later on schedule_entry_sys_w.
+// tetra_slot_schedule.  Data returned 1 cycle later on schedule_entry_sys_w.
 wire [8:0]  sched_b_addr_sys_w;
 
-// Debug probes from content_mux (latched schedule entries).  Kept
-// unconnected for now — synthesized only if referenced by an ILA.
+// Latched schedule entries (one per TN of the upcoming frame), driven by
+// content_mux's BRAM-prefetch FSM and consumed by burst_dispatcher.
+wire [15:0] sched_entry_reg_sys0_w;
+wire [15:0] sched_entry_reg_sys1_w;
+wire [15:0] sched_entry_reg_sys2_w;
+wire [15:0] sched_entry_reg_sys3_w;
+
+// Debug probes from content_mux (alias of the entry latches).
 wire [15:0] dbg_sched_entry0_sys_w;
 wire [15:0] dbg_sched_entry1_sys_w;
 wire [15:0] dbg_sched_entry2_sys_w;
 wire [15:0] dbg_sched_entry3_sys_w;
 
-tetra_slot_content_mux #(
-    .BLOCK_BITS(BLOCK_BITS),
-    .BB_BITS   (BB_BITS),
-    .SB1_BITS  (120)
-) u_slot_content_mux (
+// Burst-dispatcher → tx_chain.  Every signal is registered inside
+// u_burst_dispatcher on the cycle that tx_slot_pulse_sys is HIGH.
+wire [BLOCK_BITS-1:0] disp_block1_sys_w;
+wire [BLOCK_BITS-1:0] disp_block2_sys_w;
+wire [29:0]           disp_bb_sys_w;
+wire [119:0]          disp_sb1_sys_w;
+wire                  disp_burst_type_sys_w;
+wire                  disp_ndb2_sys_w;
+wire                  disp_build_req_sys_w;
+wire                  disp_tx_busy_sys_w;
+
+tetra_slot_content_mux u_slot_content_mux (
     .clk_sys              (clk_sys),
     .rst_n_sys            (rst_n_sys),
-    // Timebase
     .tn_sys               (tx_tdma_state_tn_sys),
     .fn_sys               (tx_tdma_state_fn_sys),
     .mn_sys               (tx_tdma_state_mn_sys),
     .slot_pulse_sys       (tx_tdma_state_slot_pulse_sys),
     .tdma_tick_sys        (tx_tdma_state_tdma_tick_sys),
-    // Schedule BRAM read interface (Port B, externally-driven address)
     .sched_addr_sys       (sched_b_addr_sys_w),
     .sched_data_sys       (schedule_entry_sys_w),
-    // RTL encoder outputs
-    .sb1_coded_sys        (sb1_coded_sys_w),
-    .sb1_valid_sys        (sb1_valid_sys_w),
-    // Phase Z.13 — slot AACH select.  Combinational mux at slot-encoder
-    // side: queue-head pre-coded AACH when head matches tx_tn_next, else
-    // tetra_aach_encoder's default-logic output (idle/F18/grant).  See
-    // declaration of `aach_coded_slot_sys_w` near tetra_aach_encoder.
-    .aach_coded_sys       (aach_coded_slot_sys_w),
-    .aach_valid_sys       (aach_valid_sys_w),
-    // SW payload banks
-    .ndb_block1_sw_sys    (ndb_block1_data_sys),
-    .ndb_block2_sw_sys    (ndb_block2_data_sys),
-    .mcch_block1_sw_sys   (mcch_block1_data_sys),
-    .mcch_block2_sw_sys   (mcch_block2_data_sys),
-    .bnch_block1_sw_sys   (bnch_block1_data_sys),
-    .bnch_block2_sw_sys   (bnch_block2_data_sys),
-    .sb_bkn2_sw_sys       (sb_bkn2_data_sys),
-    // Per-TN signalling bundle from tetra_dl_signal_scheduler (registered
-    // 1 frame ahead @ tn==3).  Selected by schedule entry's class field
-    // — class=SIGNALLING slots route these directly; no override mux.
+    .sched_entry_reg_sys0 (sched_entry_reg_sys0_w),
+    .sched_entry_reg_sys1 (sched_entry_reg_sys1_w),
+    .sched_entry_reg_sys2 (sched_entry_reg_sys2_w),
+    .sched_entry_reg_sys3 (sched_entry_reg_sys3_w),
+    .dbg_sched_entry0_sys (dbg_sched_entry0_sys_w),
+    .dbg_sched_entry1_sys (dbg_sched_entry1_sys_w),
+    .dbg_sched_entry2_sys (dbg_sched_entry2_sys_w),
+    .dbg_sched_entry3_sys (dbg_sched_entry3_sys_w)
+);
+
+tetra_burst_dispatcher #(
+    .BLOCK_BITS(BLOCK_BITS),
+    .BB_BITS   (BB_BITS),
+    .SB1_BITS  (120)
+) u_burst_dispatcher (
+    .clk_sys              (clk_sys),
+    .rst_n_sys            (rst_n_sys),
+    // TX timing
+    .tx_slot_pulse_sys    (tx_tdma_state_slot_pulse_sys),
+    .tx_slot_num_sys      (tx_tdma_state_tn_sys),
+    // Scheduler fan-out (combinational from queue.head)
     .sched_blk1_tn0_sys   (sched_blk1_tn0_sys_w),
     .sched_blk2_tn0_sys   (sched_blk2_tn0_sys_w),
     .sched_blk1_tn1_sys   (sched_blk1_tn1_sys_w),
@@ -1231,33 +1248,44 @@ tetra_slot_content_mux #(
     .sched_blk2_tn2_sys   (sched_blk2_tn2_sys_w),
     .sched_blk1_tn3_sys   (sched_blk1_tn3_sys_w),
     .sched_blk2_tn3_sys   (sched_blk2_tn3_sys_w),
+    .sched_active_sys     (sched_active_sys_w),
     .sched_ndb2_sys       (sched_ndb2_sys_w),
-    .sched_active_sys     (sched_active_sys_w),    // Phase Z.2 — dynamic-class override
+    // Static schedule entries (from BRAM prefetch in u_slot_content_mux)
+    .sched_entry_reg_sys0 (sched_entry_reg_sys0_w),
+    .sched_entry_reg_sys1 (sched_entry_reg_sys1_w),
+    .sched_entry_reg_sys2 (sched_entry_reg_sys2_w),
+    .sched_entry_reg_sys3 (sched_entry_reg_sys3_w),
+    // SW payload banks (216-bit each)
+    .ndb_block1_sw_sys    (ndb_block1_data_sys),
+    .ndb_block2_sw_sys    (ndb_block2_data_sys),
+    .mcch_block1_sw_sys   (mcch_block1_data_sys),
+    .mcch_block2_sw_sys   (mcch_block2_data_sys),
+    .bnch_block1_sw_sys   (bnch_block1_data_sys),
+    .bnch_block2_sw_sys   (bnch_block2_data_sys),
+    .sb_bkn2_sw_sys       (sb_bkn2_data_sys),
+    // AACH / SB1 pre-coded streams (slot-side AACH select feeds bb;
+    // SB1 encoder output feeds sb1).
+    .bb_in_sys            (aach_coded_slot_sys_w),
+    .sb_sb1_in_sys        (sb1_coded_sys_w),
+    // Builder feedback (reserved)
+    .tx_busy_sys          (disp_tx_busy_sys_w),
     // Outputs to tetra_tx_chain
-    .slot_burst_type_sys  (cm_slot_burst_type_sys),
-    .slot_en_sys          (cm_slot_en_sys),
-    .slot_ndb2_sys        (cm_slot_ndb2_sys),
-    .tx_blk1_slot0_sys    (cm_tx_blk1_slot0_sys),
-    .tx_blk1_slot1_sys    (cm_tx_blk1_slot1_sys),
-    .tx_blk1_slot2_sys    (cm_tx_blk1_slot2_sys),
-    .tx_blk1_slot3_sys    (cm_tx_blk1_slot3_sys),
-    .tx_blk2_slot0_sys    (cm_tx_blk2_slot0_sys),
-    .tx_blk2_slot1_sys    (cm_tx_blk2_slot1_sys),
-    .tx_blk2_slot2_sys    (cm_tx_blk2_slot2_sys),
-    .tx_blk2_slot3_sys    (cm_tx_blk2_slot3_sys),
-    .sb_sb1_data_sys      (sb_sb1_data_cm_sys),
-    .sb_bb_data_sys       (sb_bb_data_cm_sys),
-    // Debug probes
-    .dbg_sched_entry0_sys (dbg_sched_entry0_sys_w),
-    .dbg_sched_entry1_sys (dbg_sched_entry1_sys_w),
-    .dbg_sched_entry2_sys (dbg_sched_entry2_sys_w),
-    .dbg_sched_entry3_sys (dbg_sched_entry3_sys_w)
+    .build_block1_sys     (disp_block1_sys_w),
+    .build_block2_sys     (disp_block2_sys_w),
+    .build_bb_sys         (disp_bb_sys_w),
+    .build_sb1_sys        (disp_sb1_sys_w),
+    .build_burst_type_sys (disp_burst_type_sys_w),
+    .build_ndb2_sys       (disp_ndb2_sys_w),
+    .build_req_sys        (disp_build_req_sys_w)
 );
 
 // Keep synth sinks on legacy AXI-driven SB wires + unused content-mux
-// debug probes so opt_design does not remove the AXI write path.
+// debug probes so opt_design does not remove the AXI write path or the
+// schedule-entry latches when only the dispatcher consumes them.
 (* keep = "true" *) wire _legacy_sb_keep_sys = ^sb_sb1_data_axi_sys ^
                                                 ^sb_bb_data_axi_sys ^
+                                                ^aach_valid_sys_w ^
+                                                ^sb1_valid_sys_w ^
                                                 ^dbg_sched_entry0_sys_w ^
                                                 ^dbg_sched_entry1_sys_w ^
                                                 ^dbg_sched_entry2_sys_w ^
@@ -1269,43 +1297,29 @@ tetra_tx_chain #(
         .BB_BITS (BB_BITS),
         .SB1_BITS (120)
     ) u_tx_chain (
-        .clk_sys (clk_sys),
-        .rst_n_sys (rst_n_sys),
-        // Slot payload buses (from content_mux — flat {slot3, slot2, slot1, slot0})
-        .block1_sys ({cm_tx_blk1_slot3_sys, cm_tx_blk1_slot2_sys,
-                      cm_tx_blk1_slot1_sys, cm_tx_blk1_slot0_sys}),
-        .block2_sys ({cm_tx_blk2_slot3_sys, cm_tx_blk2_slot2_sys,
-                      cm_tx_blk2_slot1_sys, cm_tx_blk2_slot0_sys}),
-        // BB/AACH — now from RTL aach_encoder via content_mux
-        .bb_sys (sb_bb_data_cm_sys),
-        // SDB payload — sb1 from RTL sb1_encoder via content_mux;
-        // sb_bkn2 still from AXI (BNCH payload is SW-computed)
-        .sb_sb1_data_sys (sb_sb1_data_cm_sys),
-        .sb_bkn2_data_sys (sb_bkn2_data_sys),
-        // Per-slot configuration (from content_mux)
-        .slot_en_sys        (cm_slot_en_sys),
-        .slot_burst_type_sys(cm_slot_burst_type_sys),
-        .slot_ndb2_sys      (cm_slot_ndb2_sys),
+        .clk_sys              (clk_sys),
+        .rst_n_sys            (rst_n_sys),
+        // Builder payload from u_burst_dispatcher
+        .build_block1_sys     (disp_block1_sys_w),
+        .build_block2_sys     (disp_block2_sys_w),
+        .build_bb_sys         (disp_bb_sys_w),
+        .build_sb1_sys        (disp_sb1_sys_w),
+        .build_burst_type_sys (disp_burst_type_sys_w),
+        .build_ndb2_sys       (disp_ndb2_sys_w),
+        .build_req_sys        (disp_build_req_sys_w),
         // Diagnostic: replace builder dibit with 15-bit LFSR PRBS
-        .tx_test_prbs_en_sys(tx_test_prbs_en_sys),
-        // TX timing from the timebase — same counter that drives the SB1
-        // encoder's TimeSlot field, SB1 encode_start, AACH encoder and
-        // content_mux refresh.  Using the timebase keeps burst_mux's
-        // schedule lookup in lockstep with SB1.TimeSlot (fixes the post-
-        // TX_TDMA_LOAD slot-offset bug observed 2026-04-21).
-        .tx_slot_num_sys (tx_tdma_state_tn_sys),
-        .tx_slot_pulse_sys(tx_tdma_state_slot_pulse_sys),
+        .tx_test_prbs_en_sys  (tx_test_prbs_en_sys),
         // Symbol enable — exact 18 kHz from clk_lvds ÷ 1024
-        .sym_en_ext_sys (sym_en_sys_w),
+        .sym_en_ext_sys       (sym_en_sys_w),
         // clk_lvds domain
-        .clk_lvds (clk_lvds),
-        .rst_n_lvds (rst_n_lvds),
+        .clk_lvds             (clk_lvds),
+        .rst_n_lvds           (rst_n_lvds),
         // TX IQ output to AD9361
-        .tx_i_lvds (tx_i_lvds),
-        .tx_q_lvds (tx_q_lvds),
-        .tx_valid_lvds (tx_valid_lvds),
-        // Status
-        .tx_busy_sys ()
+        .tx_i_lvds            (tx_i_lvds),
+        .tx_q_lvds            (tx_q_lvds),
+        .tx_valid_lvds        (tx_valid_lvds),
+        // Status — feeds back to dispatcher (reserved future use)
+        .tx_busy_sys          (disp_tx_busy_sys_w)
     );
 
 // =============================================================================
