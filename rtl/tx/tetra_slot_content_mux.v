@@ -428,42 +428,11 @@ wire ndb2_tn3_w = sig_route_tn3_w ? sched_ndb2_sys[3]
 
 // =============================================================================
 // Registered per-slot outputs (R1: one always block per register).
-//
-// Z.18 Body-Latch-Race Fix
-// ------------------------
-// Pre-Z.18 these registers were free-running: every cycle they latched the
-// combinational fan-out of `blk1_mux_tn*` / `blk2_mux_tn*`, i.e. of the
-// scheduler's queue.head.  Race observed live (~14% body-yield):
-//
-//   t0  scheduler push fires asynchronously (mid-frame, daemon-driven).
-//   t1  slot_pulse@target_tn fires → queue pops queue.head NEXT posedge.
-//   t2  posedge t1+1: pop completes, queue.head flips back to NULL-PDU
-//       (or next entry).  blk1_mux_tn<k> now reflects the NEW value.
-//   t2  same posedge: free-running tx_blk1_slot<k>_sys latches the NEW
-//       value → original body is LOST before tx_chain's build_block1
-//       captures it.
-//
-// Fix: trigger every per-slot output latch ONCE per frame, at state
-// S_CAP3 — the cycle where the 4-entry refresh FSM has just captured all
-// four schedule entries (sched_entry_reg_sys0..3) and the combinational
-// blk1_mux_tn*/blk2_mux_tn* outputs are stable for the next frame.
-//
-// Why S_CAP3 (not slot_pulse@tn=3):
-//   * slot_pulse@tn=3 is the kick-off — at that posedge sched_entry_reg
-//     for tn=1..3 still holds last-frame values (not yet re-read).
-//   * S_CAP3 is the deterministic completion point: ~4 sys-cycles after
-//     slot_pulse@tn=3, all four entries are fresh, scheduler has had
-//     time to settle, and pop has not yet fired for the new frame
-//     (slot_pulse@target_tn comes a TDMA slot later, ~14ms = many
-//     thousand sys-cycles).
-//   * Pop and S_CAP3 can therefore never overlap → no race.
 // =============================================================================
-wire latch_pulse_sys = (state_sys == S_CAP3);
-
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys)
         slot_burst_type_sys <= 4'b0000;
-    else if (latch_pulse_sys)
+    else
         slot_burst_type_sys <= {bus_is_sdb(sched_entry_reg_sys3),
                                 bus_is_sdb(sched_entry_reg_sys2),
                                 bus_is_sdb(sched_entry_reg_sys1),
@@ -473,7 +442,7 @@ end
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys)
         slot_en_sys <= 4'b0000;
-    else if (latch_pulse_sys)
+    else
         slot_en_sys <= {bus_is_enable(sched_entry_reg_sys3),
                         bus_is_enable(sched_entry_reg_sys2),
                         bus_is_enable(sched_entry_reg_sys1),
@@ -483,41 +452,41 @@ end
 always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys)
         slot_ndb2_sys <= 4'b0000;
-    else if (latch_pulse_sys)
+    else
         slot_ndb2_sys <= {ndb2_tn3_w, ndb2_tn2_w, ndb2_tn1_w, ndb2_tn0_w};
 end
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys)             tx_blk1_slot0_sys <= {BLOCK_BITS{1'b0}};
-    else if (latch_pulse_sys)   tx_blk1_slot0_sys <= blk1_mux_tn0_sys;
+    if (!rst_n_sys) tx_blk1_slot0_sys <= {BLOCK_BITS{1'b0}};
+    else            tx_blk1_slot0_sys <= blk1_mux_tn0_sys;
 end
 always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys)             tx_blk1_slot1_sys <= {BLOCK_BITS{1'b0}};
-    else if (latch_pulse_sys)   tx_blk1_slot1_sys <= blk1_mux_tn1_sys;
+    if (!rst_n_sys) tx_blk1_slot1_sys <= {BLOCK_BITS{1'b0}};
+    else            tx_blk1_slot1_sys <= blk1_mux_tn1_sys;
 end
 always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys)             tx_blk1_slot2_sys <= {BLOCK_BITS{1'b0}};
-    else if (latch_pulse_sys)   tx_blk1_slot2_sys <= blk1_mux_tn2_sys;
+    if (!rst_n_sys) tx_blk1_slot2_sys <= {BLOCK_BITS{1'b0}};
+    else            tx_blk1_slot2_sys <= blk1_mux_tn2_sys;
 end
 always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys)             tx_blk1_slot3_sys <= {BLOCK_BITS{1'b0}};
-    else if (latch_pulse_sys)   tx_blk1_slot3_sys <= blk1_mux_tn3_sys;
+    if (!rst_n_sys) tx_blk1_slot3_sys <= {BLOCK_BITS{1'b0}};
+    else            tx_blk1_slot3_sys <= blk1_mux_tn3_sys;
 end
 always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys)             tx_blk2_slot0_sys <= {BLOCK_BITS{1'b0}};
-    else if (latch_pulse_sys)   tx_blk2_slot0_sys <= blk2_mux_tn0_sys;
+    if (!rst_n_sys) tx_blk2_slot0_sys <= {BLOCK_BITS{1'b0}};
+    else            tx_blk2_slot0_sys <= blk2_mux_tn0_sys;
 end
 always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys)             tx_blk2_slot1_sys <= {BLOCK_BITS{1'b0}};
-    else if (latch_pulse_sys)   tx_blk2_slot1_sys <= blk2_mux_tn1_sys;
+    if (!rst_n_sys) tx_blk2_slot1_sys <= {BLOCK_BITS{1'b0}};
+    else            tx_blk2_slot1_sys <= blk2_mux_tn1_sys;
 end
 always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys)             tx_blk2_slot2_sys <= {BLOCK_BITS{1'b0}};
-    else if (latch_pulse_sys)   tx_blk2_slot2_sys <= blk2_mux_tn2_sys;
+    if (!rst_n_sys) tx_blk2_slot2_sys <= {BLOCK_BITS{1'b0}};
+    else            tx_blk2_slot2_sys <= blk2_mux_tn2_sys;
 end
 always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys)             tx_blk2_slot3_sys <= {BLOCK_BITS{1'b0}};
-    else if (latch_pulse_sys)   tx_blk2_slot3_sys <= blk2_mux_tn3_sys;
+    if (!rst_n_sys) tx_blk2_slot3_sys <= {BLOCK_BITS{1'b0}};
+    else            tx_blk2_slot3_sys <= blk2_mux_tn3_sys;
 end
 
 // =============================================================================

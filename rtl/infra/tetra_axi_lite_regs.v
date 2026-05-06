@@ -457,54 +457,6 @@ module tetra_axi_lite_regs (
     output wire [3:0]  grp_demand_index_axi_o,
     output wire        grp_demand_ack_trigger_axi,
     input  wire        grp_demand_consume_axi,
-    output wire [3:0]  grp_reply_index_axi_o,
-    output wire [31:0] grp_reply_wdata_axi_o,
-    output wire        grp_reply_we_axi_o,
-    output wire        grp_reply_go_trigger_axi_o,
-    input  wire        grp_reply_go_consume_axi,
-    input  wire [31:0] grp_reply_rdata_axi_i,
-    input  wire        grp_reply_busy_axi_i,
-
-    // ------------------------------------------------------------------
-    // Phase Z.16 — GROUPack-Pfad-Diagnose-Counter (5x 16-bit, RO)
-    //   REG_GRP_MB_GO_CNT       @ 0x260 RO {16'd0, mb_go_cnt[15:0]}
-    //   REG_GRP_BUILD_GRANT_CNT @ 0x264 RO {16'd0, build_grant_cnt[15:0]}
-    //   REG_GRP_BUILD_DONE_CNT  @ 0x268 RO {16'd0, build_done_cnt[15:0]}
-    //   REG_GRP_QUEUE_PUSH_CNT  @ 0x26C RO {16'd0, queue_push_cnt[15:0]}
-    //   REG_GRP_QUEUE_LOST_CNT  @ 0x270 RO {16'd0, queue_lost_cnt[15:0]}
-    // CDC: 2-FF resync done in tetra_zynq_top (clk_sys → clk_axi).
-    // Diagnose-Logik: mb_go=N grant=0 → Arbiter blockiert; grant=N done<N →
-    // Encoder hängt; done=N push<N → Done-Demux drop; lost>0 → Queue-Mux-
-    // Kollision (mle_req hat Vorrang vor grpack_queue).
-    // Phase Z.17 (4 zusätzliche RO 16-bit Counter, CDC unten in top.v):
-    //   REG_GRP_POP_SCHF_TN0_CNT  @ 0x274 RO {16'd0, pop_schf_tn0_cnt[15:0]}
-    //   REG_GRP_POP_SCHHD_TN0_CNT @ 0x278 RO {16'd0, pop_schhd_tn0_cnt[15:0]}
-    //   REG_GRP_INSTALL_CNT       @ 0x27C RO {16'd0, install_cnt[15:0]}
-    //   REG_GRP_POP_ORIGIN_CNT    @ 0x280 RO {16'd0, pop_origin_cnt[15:0]}
-    // ------------------------------------------------------------------
-    input  wire [15:0] grp_mb_go_cnt_axi,
-    input  wire [15:0] grp_build_grant_cnt_axi,
-    input  wire [15:0] grp_build_done_cnt_axi,
-    input  wire [15:0] grp_queue_push_cnt_axi,
-    input  wire [15:0] grp_queue_lost_cnt_axi,
-
-    // ------------------------------------------------------------------
-    // Phase Z.17 — Pop-Pfad-Telemetrie für GROUPack-Diagnose
-    //   REG_GRP_POP_SCHF_TN0_CNT  @ 0x274 RO  pop fires for SCH/F  on TN=0
-    //   REG_GRP_POP_SCHHD_TN0_CNT @ 0x278 RO  pop fires for SCH/HD on TN=0
-    //   REG_GRP_INSTALL_CNT       @ 0x27C RO  install_grpack_pulse events
-    //   REG_GRP_POP_ORIGIN_CNT    @ 0x280 RO  pop_grpack_pulse events
-    // CDC: 2-FF resync done in tetra_zynq_top (clk_sys → clk_axi).
-    // Diagnose:
-    //   install_cnt    = mb_go_cnt    → push installiert echt
-    //   pop_origin_cnt = install_cnt  → pop fires für GROUPack
-    //   schf_tn0 vs schhd_tn0 vs origin_cnt → trennt GROUPack/ACCEPT (SCH/F)
-    //                                          von BL-ACK (SCH/HD)
-    // ------------------------------------------------------------------
-    input  wire [15:0] grp_pop_schf_tn0_cnt_axi,
-    input  wire [15:0] grp_pop_schhd_tn0_cnt_axi,
-    input  wire [15:0] grp_install_cnt_axi,
-    input  wire [15:0] grp_pop_origin_cnt_axi,
 
     // ------------------------------------------------------------------
     // Phase H.7 — D-NWRK-BROADCAST periodic push.
@@ -846,54 +798,23 @@ localparam [6:0] REG_REPLY_STATUS  = 7'h0B; // 0x22C  RO  [0]=busy
 localparam [6:0] REG_REPLY_USE_SW  = 7'h0C; // 0x230  R/W [0]=use_sw_body
 
 // ---------------------------------------------------------------------------
-// Phase Y.1.f — Group-Attach mailboxes (mm=7) extension window 0x240..0x258.
-//   Demand side (passive RTL→SW):
+// Phase Y.1.f — Group-Attach Demand mailbox (mm=7) extension window 0x240..0x24C.
+//
+// Phase Y.2 — Reply side (0x250..0x25C) + GROUPack-Pfad counters
+// (0x260..0x280) REMOVED.  GroupAck-Build is in SW per Lock-Decision
+// `memory/project_arch_fpga_thin_signaling.md`; SW reuses the mm=2
+// Reply-Pull-Mailbox (0x220..0x230) for raw MM-bit staging.
+//
+//   Demand side (passive RTL→SW, kept):
 //     REG_GRP_DEMAND_STATUS @ 0x240 RO   {drop_cnt[15:0], 15'd0, pending}
 //     REG_GRP_DEMAND_INDEX  @ 0x244 R/W  [3:0]  word selector
 //     REG_GRP_DEMAND_DATA   @ 0x248 RO   [31:0] indirect via INDEX
 //     REG_GRP_DEMAND_ACK    @ 0x24C W1S  [0]    HW-clr after consume
-//   Reply side (SW→RTL):
-//     REG_GRP_REPLY_INDEX   @ 0x250 R/W  [3:0]  word selector
-//     REG_GRP_REPLY_DATA    @ 0x254 R/W  [31:0] indirect via INDEX
-//     REG_GRP_REPLY_GO      @ 0x258 W1S  [0]    1-cycle pulse to encoder
-//     REG_GRP_REPLY_STATUS  @ 0x25C RO   [0]    busy mirror (build in flight)
-// Phase Z.16 — GROUPack-Pfad-Diagnose-Counter (5x 16-bit RO):
-//     REG_GRP_MB_GO_CNT       @ 0x260 RO   grp_mb_go_pulse_w           events
-//     REG_GRP_BUILD_GRANT_CNT @ 0x264 RO   dl_pdu_grant_grpack_w       events
-//     REG_GRP_BUILD_DONE_CNT  @ 0x268 RO   grpack_done_w               events
-//     REG_GRP_QUEUE_PUSH_CNT  @ 0x26C RO   grpack_queue_valid rising   events
-//     REG_GRP_QUEUE_LOST_CNT  @ 0x270 RO   queue-mux MLE-collision     events
-// Phase Z.17 — Pop-Pfad-Telemetrie (4x 16-bit RO):
-//     REG_GRP_POP_SCHF_TN0_CNT  @ 0x274 RO  pop fires for SCH/F  on TN=0
-//     REG_GRP_POP_SCHHD_TN0_CNT @ 0x278 RO  pop fires for SCH/HD on TN=0
-//     REG_GRP_INSTALL_CNT       @ 0x27C RO  install_grpack_pulse events
-//     REG_GRP_POP_ORIGIN_CNT    @ 0x280 RO  pop_grpack_pulse events
 // ---------------------------------------------------------------------------
 localparam [6:0] REG_GRP_DEMAND_STATUS = 7'h10; // 0x240
 localparam [6:0] REG_GRP_DEMAND_INDEX  = 7'h11; // 0x244
 localparam [6:0] REG_GRP_DEMAND_DATA   = 7'h12; // 0x248
 localparam [6:0] REG_GRP_DEMAND_ACK    = 7'h13; // 0x24C
-localparam [6:0] REG_GRP_REPLY_INDEX   = 7'h14; // 0x250
-localparam [6:0] REG_GRP_REPLY_DATA    = 7'h15; // 0x254
-localparam [6:0] REG_GRP_REPLY_GO      = 7'h16; // 0x258
-localparam [6:0] REG_GRP_REPLY_STATUS  = 7'h17; // 0x25C
-
-// ---------------------------------------------------------------------------
-// Phase Z.16 — GROUPack-Pfad-5-Counter (Bank-1, 0x260..0x270 = word 7'h18..7'h1C).
-// ---------------------------------------------------------------------------
-localparam [6:0] REG_GRP_MB_GO_CNT        = 7'h18; // 0x260
-localparam [6:0] REG_GRP_BUILD_GRANT_CNT  = 7'h19; // 0x264
-localparam [6:0] REG_GRP_BUILD_DONE_CNT   = 7'h1A; // 0x268
-localparam [6:0] REG_GRP_QUEUE_PUSH_CNT   = 7'h1B; // 0x26C
-localparam [6:0] REG_GRP_QUEUE_LOST_CNT   = 7'h1C; // 0x270
-
-// ---------------------------------------------------------------------------
-// Phase Z.17 — Pop-Pfad-Telemetrie (Bank-1, 0x274..0x280 = word 7'h1D..7'h20).
-// ---------------------------------------------------------------------------
-localparam [6:0] REG_GRP_POP_SCHF_TN0_CNT  = 7'h1D; // 0x274
-localparam [6:0] REG_GRP_POP_SCHHD_TN0_CNT = 7'h1E; // 0x278
-localparam [6:0] REG_GRP_INSTALL_CNT       = 7'h1F; // 0x27C
-localparam [6:0] REG_GRP_POP_ORIGIN_CNT    = 7'h20; // 0x280
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -1078,11 +999,10 @@ reg [3:0]  reply_index_axi;            // 4-bit indirect-window word selector
 reg        reply_go_trigger_r;         // W1S GO trigger, HW-clr on go_consume
 reg        reply_use_sw_r;             // R/W use_sw_body toggle
 
-// Phase Y.1.f Group-Attach mailbox AXI-side state.
+// Phase Y.1.f Group-Attach Demand mailbox AXI-side state (Phase Y.2: reply
+// side removed, demand kept).
 reg [3:0]  grp_demand_index_axi;
 reg        grp_demand_ack_trigger_r;
-reg [3:0]  grp_reply_index_axi;
-reg        grp_reply_go_trigger_r;
 
 reg [31:0] rdata_mux_axi;
 always @(*) begin
@@ -1279,21 +1199,6 @@ always @(*) begin
             REG_GRP_DEMAND_INDEX:  rdata_mux_axi = {28'd0, grp_demand_index_axi};
             REG_GRP_DEMAND_DATA:   rdata_mux_axi = grp_demand_data_word_axi_i;
             REG_GRP_DEMAND_ACK:    rdata_mux_axi = {31'd0, grp_demand_ack_trigger_r};
-            REG_GRP_REPLY_INDEX:   rdata_mux_axi = {28'd0, grp_reply_index_axi};
-            REG_GRP_REPLY_DATA:    rdata_mux_axi = grp_reply_rdata_axi_i;
-            REG_GRP_REPLY_GO:      rdata_mux_axi = {31'd0, grp_reply_go_trigger_r};
-            REG_GRP_REPLY_STATUS:  rdata_mux_axi = {31'd0, grp_reply_busy_axi_i};
-            // Phase Z.16 — GROUPack-Pfad-Diagnose-Counter
-            REG_GRP_MB_GO_CNT:       rdata_mux_axi = {16'd0, grp_mb_go_cnt_axi};
-            REG_GRP_BUILD_GRANT_CNT: rdata_mux_axi = {16'd0, grp_build_grant_cnt_axi};
-            REG_GRP_BUILD_DONE_CNT:  rdata_mux_axi = {16'd0, grp_build_done_cnt_axi};
-            REG_GRP_QUEUE_PUSH_CNT:  rdata_mux_axi = {16'd0, grp_queue_push_cnt_axi};
-            REG_GRP_QUEUE_LOST_CNT:  rdata_mux_axi = {16'd0, grp_queue_lost_cnt_axi};
-            // Phase Z.17 — Pop-Pfad-Telemetrie
-            REG_GRP_POP_SCHF_TN0_CNT:  rdata_mux_axi = {16'd0, grp_pop_schf_tn0_cnt_axi};
-            REG_GRP_POP_SCHHD_TN0_CNT: rdata_mux_axi = {16'd0, grp_pop_schhd_tn0_cnt_axi};
-            REG_GRP_INSTALL_CNT:       rdata_mux_axi = {16'd0, grp_install_cnt_axi};
-            REG_GRP_POP_ORIGIN_CNT:    rdata_mux_axi = {16'd0, grp_pop_origin_cnt_axi};
             default:           rdata_mux_axi = 32'd0;
         endcase
     end
@@ -2502,31 +2407,8 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
     end
 end
 
-// Reply side: INDEX + DATA-write-passthrough + GO (W1S).
-assign grp_reply_index_axi_o      = grp_reply_index_axi;
-assign grp_reply_wdata_axi_o      = wr_data_axi;
-assign grp_reply_we_axi_o         = wr_en_x1_axi & (wr_addr_axi[8:2] == REG_GRP_REPLY_DATA);
-assign grp_reply_go_trigger_axi_o = grp_reply_go_trigger_r;
-
-always @(posedge clk_axi or negedge rst_n_axi) begin
-    if (!rst_n_axi)
-        grp_reply_index_axi <= 4'd0;
-    else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_GRP_REPLY_INDEX)
-                          & wr_strb_axi[0])
-        grp_reply_index_axi <= wr_data_axi[3:0];
-end
-
-always @(posedge clk_axi or negedge rst_n_axi) begin
-    if (!rst_n_axi)
-        grp_reply_go_trigger_r <= 1'b0;
-    else begin
-        if (grp_reply_go_consume_axi)
-            grp_reply_go_trigger_r <= 1'b0;
-        if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_GRP_REPLY_GO)
-                        & wr_strb_axi[0] & wr_data_axi[0])
-            grp_reply_go_trigger_r <= 1'b1;
-    end
-end
+// Phase Y.2 — Reply side (INDEX/DATA/GO) REMOVED.  GroupAck-Build is in
+// SW; SW writes raw MM-bits via the shared mm=2 Reply-Pull-Mailbox.
 
 // ---------------------------------------------------------------------------
 // IRQ output — registered OR-reduce of (status & enable)

@@ -1,34 +1,36 @@
 /*
- * tetra_tx_transport.c — TETRA TX Transport Layer (Phase Z.1 implementation)
+ * tetra_tx_transport.c — TETRA TX Transport Layer
  *
- * Routes each tx_pdu_class_t to the correct AXI reply mailbox.  Today (Z.1)
- * this is a thin wrapper over the existing mailbox writers; Z.2 will route
- * slot_class + aach_pattern through a unified DL-Signal-Queue submit path.
+ * Routes each tx_pdu_class_t to the appropriate AXI mailbox staging path.
  *
- * Bit-identity guarantee: for the legacy classes (LU_ACCEPT, LU_REJECT,
- * GRP_ATTACH_ACK with default slot_class=0/aach_pattern=0) the byte
- * sequence written to the mailboxes matches the previous inline staging
- * in tetra_attach_daemon.c byte-for-byte.
+ * Phase Y.2 (Variante A multi-PDU dispatch):
+ *   The dedicated GRP-Reply mailbox + RTL grpack-encoder were removed; the
+ *   shared mm=2 Reply-Pull-Mailbox now also carries D-ATTACH-DETACH-GRP-ID-
+ *   ACK bodies via a raw-mode flag (W9[31]=1 → MLE-FSM bypasses dloc encoder
+ *   and routes the SW-built MM bits straight into the shared DL-PDU
+ *   builder).  See `memory/project_arch_fpga_thin_signaling.md` for the
+ *   architectural lock-decision.
+ *
+ * Bit-identity guarantee for mm=2 ACCEPT (raw_mode_flag=0): the on-air
+ * output is byte-for-byte identical to pre-Y.2.  Phase Y.2 only ADDS a
+ * code path; the legacy mailbox writes (W0..W8) and the RTL dloc encoder
+ * are unchanged.
  *
  * License: GPL v2
  */
 
 #include "tetra_tx_transport.h"
+#include "tetra_grpack_body.h"
 
 #include <stddef.h>
+#include <string.h>
 
-/* Indirect-write helpers — match the (INDEX → DATA) sequence used in the
+/* Indirect-write helper — match the (INDEX → DATA) sequence used in the
  * legacy daemon so the FPGA latches `data` at word `idx`. */
 static void reply_write(tetra_hal_t *hal, uint32_t idx, uint32_t data)
 {
     tetra_reg_write(hal, REG_REPLY_INDEX, idx);
     tetra_reg_write(hal, REG_REPLY_DATA,  data);
-}
-
-static void grp_reply_write(tetra_hal_t *hal, uint32_t idx, uint32_t data)
-{
-    tetra_reg_write(hal, REG_GRP_REPLY_INDEX, idx);
-    tetra_reg_write(hal, REG_GRP_REPLY_DATA,  data);
 }
 
 /* mm=1 / mm=4 — D-LOC-UPDATE-ACCEPT / -REJECT body.
@@ -37,7 +39,12 @@ static void grp_reply_write(tetra_hal_t *hal, uint32_t idx, uint32_t data)
  * encoder (rtl/lmac/tetra_d_location_update_reject_encoder.v) builds an
  * 8-bit MM body (PDU-Type=7 + 3-bit cause + o-bit=0) without GILA, and
  * the MLE-FSM Z.5 dual-branch FSM picks the REJECT branch when W3 != 0.
- * Mirror the suppression here as a safety net. */
+ * Mirror the suppression here as a safety net.
+ *
+ * Phase Y.2 — explicitly clear W9 (raw_mode_flag) so the MLE-FSM uses
+ * the legacy dloc-encoder path.  The reset state of W9 is 0, but a
+ * previous mm=11 GROUP-ACK left it non-zero; clear it here so each LU
+ * staging begins from a known mm=2 state. */
 static int submit_lu(tetra_hal_t *hal, const tx_pdu_meta_t *m,
                      uint32_t result)
 {
@@ -57,49 +64,105 @@ static int submit_lu(tetra_hal_t *hal, const tx_pdu_meta_t *m,
     reply_write(hal, 6, gila_present);
     reply_write(hal, 7, m->encryption & 0x3u);
     reply_write(hal, 8, (m->auth_result == 0u) ? 0x1u : (m->auth_result & 0x3u));
+    /* Phase Y.2 — clear raw-mode flag (W9) and the four raw-bit words
+     * (W10..W13).  Bit-identity for mm=2: the FSM mux selects dloc-encoder
+     * output when raw_mode_flag=0, so on-air bytes are unchanged. */
+    reply_write(hal, 9,  0x00000000u);
+    reply_write(hal, 10, 0x00000000u);
+    reply_write(hal, 11, 0x00000000u);
+    reply_write(hal, 12, 0x00000000u);
+    reply_write(hal, 13, 0x00000000u);
 
     tetra_reg_write(hal, REG_REPLY_GO, 0x1u);
     return 0;
 }
 
-/* mm=11 — D-ATTACH-DETACH-GROUP-IDENTITY-ACK body.
+/* mm=11 — D-ATTACH-DETACH-GROUP-IDENTITY-ACK body (Phase Y.2 Variante A).
  *
- * Mirrors the W0..W8 layout written by service_grp_demand() in the legacy
- * daemon.  W6/W7 pack three records; the encoder stops at reply_count. */
+ * The MM body is built fully in C via tetra_grpack_build() and then staged
+ * into the shared mm=2 Reply-Pull-Mailbox using the raw-mode flag (W9[31]).
+ * The MLE-FSM samples the raw bits on the GO pulse and routes them past
+ * the dloc encoder into the shared DL-PDU builder; the same SCH/F coding
+ * pipeline emits the on-air burst.
+ *
+ * Word layout written here (matches rtl/lmac/tetra_reply_mailbox.v):
+ *   W0  ssi (24-bit MS-ISSI; needed for MAC-RESOURCE addr field)
+ *   W1  la=0 (don't care for mm=11)
+ *   W2  addr_type = SSI = 1 (matches Gold-Ref Burst #4811 mm=11 envelope)
+ *   W3..W8 zeroed (legacy mm=2 GILA/encryption/auth — irrelevant in raw)
+ *   W9  raw_mode_flag=1 | nr | ns | raw_mm_len[7:0]
+ *   W10..W13 raw_mm_bits[127:0] (LSB-first across words; W10=bits[31:0])
+ */
 static int submit_grp_ack(tetra_hal_t *hal, const tx_pdu_meta_t *m)
 {
-    uint8_t cnt = (m->reply_count > 3u) ? 3u : m->reply_count;
+    uint8_t cnt = (m->reply_count > TETRA_GRPACK_MAX_RECORDS)
+                  ? TETRA_GRPACK_MAX_RECORDS : m->reply_count;
 
-    grp_reply_write(hal, 0, m->target_ssi & 0x00FFFFFFu);
-    grp_reply_write(hal, 1, m->accept_reject & 0x1u);
-    grp_reply_write(hal, 2, cnt);
-    grp_reply_write(hal, 3, m->gssi[0] & 0x00FFFFFFu);
-    grp_reply_write(hal, 4, m->gssi[1] & 0x00FFFFFFu);
-    grp_reply_write(hal, 5, m->gssi[2] & 0x00FFFFFFu);
+    grpack_meta_t gm;
+    memset(&gm, 0, sizeof(gm));
+    gm.accept_reject = m->accept_reject & 0x1u;
+    gm.num_records   = cnt;
+    for (unsigned i = 0; i < cnt; i++) {
+        gm.records[i].atd            = m->adi[i] & 0x1u;
+        gm.records[i].lifetime       = m->lifetime[i] & 0x3u;
+        gm.records[i].class_of_usage = m->cls[i] & 0x7u;
+        gm.records[i].addr_type      = m->at[i] & 0x3u;
+        gm.records[i].gssi           = m->gssi[i] & 0x00FFFFFFu;
+    }
 
-    /* W6: at[2..0]=2bit each at [20:15], lifetime[2..0]=2bit at [13:9],
-     *     adi[2..0]=1bit at [8:6] */
-    uint32_t w6 = ((m->at[2]       & 0x3u) << 19)
-                | ((m->at[1]       & 0x3u) << 17)
-                | ((m->at[0]       & 0x3u) << 15)
-                | ((m->lifetime[2] & 0x3u) << 13)
-                | ((m->lifetime[1] & 0x3u) << 11)
-                | ((m->lifetime[0] & 0x3u) <<  9)
-                | ((m->adi[2]      & 0x1u) <<  8)
-                | ((m->adi[1]      & 0x1u) <<  7)
-                | ((m->adi[0]      & 0x1u) <<  6);
-    grp_reply_write(hal, 6, w6);
+    uint8_t mm_bytes[TETRA_GRPACK_MAX_BYTES];
+    int mm_len = tetra_grpack_build(&gm, mm_bytes);
+    if (mm_len <= 0) return -1;
 
-    /* W7: cls[2..0]=3bit each at [8:0] */
-    uint32_t w7 = ((m->cls[2] & 0x7u) << 6)
-                | ((m->cls[1] & 0x7u) << 3)
-                |  (m->cls[0] & 0x7u);
-    grp_reply_write(hal, 7, w7);
+    /* Pack mm_bytes (MSB-first byte stream) into 4 × 32-bit little-endian
+     * words.  mm_bytes[0] holds bits 0..7 of the body; this is the high
+     * byte of raw_mm_bits[31:0] (i.e. raw_mm_bits[31:24]).  Inside the
+     * mailbox the MSB sits at raw_mm_bits[127] when stored across W13..W10
+     * — that's exactly what the FSM forwards to req_mm_pdu_bits[127:0].
+     *
+     * Indexing convention here mirrors the dloc encoder's pdu_bits_mm
+     * output: pdu_bits_mm[127:0] holds the body MSB-first with bit 127 =
+     * first bit transmitted.  We build the same layout here. */
+    uint32_t w_raw[4] = { 0u, 0u, 0u, 0u };
+    for (int i = 0; i < mm_len; i++) {
+        unsigned src_byte = (unsigned)(i >> 3);
+        unsigned src_bit  = 7u - ((unsigned)i & 0x7u);
+        unsigned bit      = (mm_bytes[src_byte] >> src_bit) & 0x1u;
+        if (bit) {
+            /* Body bit position i (MSB-first) lands at raw_mm_bits[127-i].
+             * raw_mm_bits[31:0]   = W10
+             * raw_mm_bits[63:32]  = W11
+             * raw_mm_bits[95:64]  = W12
+             * raw_mm_bits[127:96] = W13 */
+            unsigned dst_pos  = 127u - (unsigned)i;
+            unsigned word_idx = dst_pos >> 5;          /* 0..3 */
+            unsigned word_bit = dst_pos & 0x1Fu;       /* 0..31 */
+            w_raw[word_idx] |= (1u << word_bit);
+        }
+    }
 
-    /* W8: ns@[1], nr@[0] */
-    grp_reply_write(hal, 8, ((m->ns & 0x1u) << 1) | (m->nr & 0x1u));
+    reply_write(hal, 0, m->target_ssi & 0x00FFFFFFu);
+    reply_write(hal, 1, 0u);                            /* la = 0 (n/a)        */
+    reply_write(hal, 2, 0x1u);                          /* addr_type = SSI     */
+    reply_write(hal, 3, 0u);
+    reply_write(hal, 4, 0u);
+    reply_write(hal, 5, 0u);
+    reply_write(hal, 6, 0u);
+    reply_write(hal, 7, 0u);
+    reply_write(hal, 8, 0u);
 
-    tetra_reg_write(hal, REG_GRP_REPLY_GO, 0x1u);
+    /* W9: raw_mode_flag(31) | resv | nr(9) | ns(8) | mm_len[7:0] */
+    uint32_t w9 = (1u << 31)
+                | ((uint32_t)(m->nr & 0x1u) << 9)
+                | ((uint32_t)(m->ns & 0x1u) << 8)
+                | ((uint32_t) mm_len & 0xFFu);
+    reply_write(hal,  9, w9);
+    reply_write(hal, 10, w_raw[0]);
+    reply_write(hal, 11, w_raw[1]);
+    reply_write(hal, 12, w_raw[2]);
+    reply_write(hal, 13, w_raw[3]);
+
+    tetra_reg_write(hal, REG_REPLY_GO, 0x1u);
     return 0;
 }
 

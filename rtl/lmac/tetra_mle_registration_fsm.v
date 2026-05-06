@@ -105,6 +105,24 @@ module tetra_mle_registration_fsm (
     input  wire                        mb_go_pulse,
 
     // -----------------------------------------------------------------
+    // Phase Y.2 — Reply-Pull-Mailbox raw-mode (Variante A).
+    //
+    // When mb_raw_mode_flag=1 on the GO pulse the FSM bypasses the dloc
+    // encoder and routes mb_raw_mm_bits/mb_raw_mm_len directly into the
+    // shared DL-PDU builder via the accept_build_mm_pdu_* ports.  Used
+    // by SW for D-ATTACH-DETACH-GRP-ID-ACK (mm=11) where the body is
+    // fully built in C; the same Reply mailbox + GO trigger + builder
+    // pipeline is reused, only the MM-body source is swapped.
+    //
+    // raw_mode_flag=0 path (mm=2 ACCEPT) is bit-identical to pre-Y.2.
+    // -----------------------------------------------------------------
+    input  wire                        mb_raw_mode_flag,
+    input  wire [127:0]                mb_raw_mm_bits,
+    input  wire [7:0]                  mb_raw_mm_len,
+    input  wire                        mb_raw_ns,
+    input  wire                        mb_raw_nr,
+
+    // -----------------------------------------------------------------
     // Phase X.6 — Build-request to shared tetra_dl_pdu_builder.
     //   accept_build_req            1-cyc pulse on S_BUILD_ACCEPT_START
     //   accept_build_*              field plane sampled on the same cycle
@@ -123,6 +141,13 @@ module tetra_mle_registration_fsm (
     output wire [127:0]                accept_build_mm_pdu_bits,
     output wire [7:0]                  accept_build_mm_pdu_len_bits,
     output wire [31:0]                 accept_build_scramble_init,
+    // Phase Y.2 — LLC stop-and-wait sequence numbers passed to the shared
+    // builder.  mm=2 ACCEPT path keeps ns=nr=0 (bit-identical pre-Y.2);
+    // mm=11 GROUP-ACK path latches ns/nr from the Reply-Pull-Mailbox W9
+    // (bits [9]=nr, [8]=ns) so the builder produces the right BL-ADATA
+    // header.  Sampled on the same GO pulse that latches the raw bits.
+    output wire                        accept_build_ns,
+    output wire                        accept_build_nr,
     input  wire                        accept_build_done,
     input  wire [431:0]                accept_build_coded,
 
@@ -173,6 +198,20 @@ module tetra_mle_registration_fsm (
 
     reg [23:0]  lat_detach_ssi;
 
+    // Phase Y.2 — latched raw-mode fields (Variante A multi-PDU dispatch).
+    // Sampled on the same GO pulse that latches lat_ssi / lat_addr_type.
+    // When lat_raw_mode_flag=1 the build-request mux below forwards
+    // lat_raw_mm_bits/lat_raw_mm_len instead of dloc_mm_bits_w/dloc_mm_len_w
+    // and forwards lat_raw_ns/lat_raw_nr through the new accept_build_ns/nr
+    // ports.  Bit-identity for the legacy mm=2 ACCEPT path is preserved as
+    // long as SW writes raw_mode_flag=0 for those replies (default reset
+    // state of the mailbox W9 = 0, so silent).
+    reg         lat_raw_mode_flag;
+    reg [127:0] lat_raw_mm_bits;
+    reg [7:0]   lat_raw_mm_len;
+    reg         lat_raw_ns;
+    reg         lat_raw_nr;
+
     // -------------------------------------------------------------------------
     // D-LOCATION-UPDATE encoder — X.7 cleanup: drives the MM body straight
     // from the Reply-Pull-Mailbox.  This is the SINGLE-INSTANCE MM-Body
@@ -215,13 +254,27 @@ module tetra_mle_registration_fsm (
     //   mm_pdu_len_bits      = dloc_mm_len_w
     //   scramble_init        = cfg_scramble_init
     // -------------------------------------------------------------------------
+    // Phase Y.2 — MM-body source mux: raw_mode_flag=1 picks SW-built bits,
+    // 0 picks the dloc encoder output (mm=2 legacy path, bit-identical).
+    //
+    // mm=2 (PDUC_FINAL_LU_ACCEPT) and mm=11 (PDUC_GROUP_ACK) share LLC
+    // (BL-ADATA), addr_type (SSI), random_access_flag (0), pdu_format
+    // (SCH/F) — confirmed in `rtl/include/tetra_pdu_class.vh`.  The only
+    // per-PDU difference is the MM body bits + ns/nr (mm=2 uses 0/0, mm=11
+    // uses LLC stop-and-wait alternation supplied by SW).
     assign accept_build_ssi                = lat_ssi;
     assign accept_build_addr_type          = lat_addr_type;
     assign accept_build_llc_pdu_type       = `PDUC_FINAL_LU_ACCEPT_LLC;
     assign accept_build_random_access_flag = `PDUC_FINAL_LU_ACCEPT_RA;
-    assign accept_build_mm_pdu_bits        = dloc_mm_bits_w;
-    assign accept_build_mm_pdu_len_bits    = dloc_mm_len_w;
+    assign accept_build_mm_pdu_bits        =
+        lat_raw_mode_flag ? lat_raw_mm_bits : dloc_mm_bits_w;
+    assign accept_build_mm_pdu_len_bits    =
+        lat_raw_mode_flag ? lat_raw_mm_len  : dloc_mm_len_w;
     assign accept_build_scramble_init      = cfg_scramble_init;
+    assign accept_build_ns                 =
+        lat_raw_mode_flag ? lat_raw_ns : 1'b0;
+    assign accept_build_nr                 =
+        lat_raw_mode_flag ? lat_raw_nr : 1'b0;
 
     // -------------------------------------------------------------------------
     // FSM — Phase X.6 minimal trigger machine, builder pipeline external.
@@ -245,6 +298,11 @@ module tetra_mle_registration_fsm (
             lat_addr_type          <= 3'd0;
             lat_ssi                <= 24'd0;
             lat_detach_ssi         <= 24'd0;
+            lat_raw_mode_flag      <= 1'b0;
+            lat_raw_mm_bits        <= 128'd0;
+            lat_raw_mm_len         <= 8'd0;
+            lat_raw_ns             <= 1'b0;
+            lat_raw_nr             <= 1'b0;
             accept_build_req       <= 1'b0;
             req_valid              <= 1'b0;
             req_coded_bits         <= 432'd0;
@@ -279,10 +337,15 @@ module tetra_mle_registration_fsm (
                     busy           <= 1'b1;
                     state          <= S_DETACH_NOOP;
                 end else if (mb_go_pulse) begin
-                    lat_ssi       <= mb_ssi;
-                    lat_addr_type <= mb_addr_type;
-                    busy          <= 1'b1;
-                    state         <= S_BUILD_ACCEPT_REQ;
+                    lat_ssi           <= mb_ssi;
+                    lat_addr_type     <= mb_addr_type;
+                    lat_raw_mode_flag <= mb_raw_mode_flag;
+                    lat_raw_mm_bits   <= mb_raw_mm_bits;
+                    lat_raw_mm_len    <= mb_raw_mm_len;
+                    lat_raw_ns        <= mb_raw_ns;
+                    lat_raw_nr        <= mb_raw_nr;
+                    busy              <= 1'b1;
+                    state             <= S_BUILD_ACCEPT_REQ;
                 end
             end
 

@@ -141,6 +141,12 @@ module tb_d_location_update_reject_encoder;
         .mb_encryption          (2'd0),
         .mb_auth_result         (2'd0),
         .mb_go_pulse            (mb_go_pulse),
+        // Phase Y.2 — raw-mode bypass: tied off (mm=2 reject test only).
+        .mb_raw_mode_flag       (1'b0),
+        .mb_raw_mm_bits         (128'd0),
+        .mb_raw_mm_len          (8'd0),
+        .mb_raw_ns              (1'b0),
+        .mb_raw_nr              (1'b0),
         // accept-path build-bus left dangling (no shared builder in TB)
         .accept_build_req                (accept_build_req_w),
         .accept_build_ssi                (accept_build_ssi_w),
@@ -150,6 +156,8 @@ module tb_d_location_update_reject_encoder;
         .accept_build_mm_pdu_bits        (accept_build_mm_pdu_bits_w),
         .accept_build_mm_pdu_len_bits    (accept_build_mm_pdu_len_bits_w),
         .accept_build_scramble_init      (accept_build_scramble_init_w),
+        .accept_build_ns                 (/* unused */),
+        .accept_build_nr                 (/* unused */),
         .accept_build_done               (1'b0),
         .accept_build_coded              (432'd0),
         .req_valid              (req_valid_w),

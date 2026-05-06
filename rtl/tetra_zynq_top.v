@@ -472,6 +472,10 @@ wire         mle_accept_build_random_access_flag_w;
 wire [127:0] mle_accept_build_mm_pdu_bits_w;
 wire [7:0]   mle_accept_build_mm_pdu_len_bits_w;
 wire [31:0]  mle_accept_build_scramble_init_w;
+// Phase Y.2 — LLC ns/nr from MLE-FSM raw-mode latches (mm=11 GROUP-ACK).
+// mm=2 path drives 0/0 (bit-identical pre-Y.2).
+wire         mle_accept_build_ns_w;
+wire         mle_accept_build_nr_w;
 
 // Queue ↔ scheduler wiring
 wire         queue_head_valid_w;
@@ -484,9 +488,6 @@ wire         queue_head_second_pdu_present_w;  // Option B telemetry (commit 6)
 wire         queue_head_second_pdu_nr_w;
 wire         popped_second_pdu_present_w;      // latched for ILA probes
 wire         popped_second_pdu_nr_w;
-wire         queue_head_origin_grpack_w;       // Phase Z.17 — head's origin
-wire         grp_install_pulse_w;              // Phase Z.17 — push-acc grpack
-wire         grp_pop_origin_pulse_w;           // Phase Z.17 — pop grpack-entry
 wire         sched_pop_w;
 wire [3:0]   queue_depth_mask_w;
 wire [2:0]   queue_depth_count_w;
@@ -2080,24 +2081,6 @@ tetra_axi_lite_regs u_axi_regs (
     .grp_demand_index_axi_o      (grp_demand_index_axi_w),
     .grp_demand_ack_trigger_axi  (grp_demand_ack_trigger_axi_w),
     .grp_demand_consume_axi      (grp_demand_consume_axi_r1),
-    .grp_reply_index_axi_o       (grp_reply_index_axi_w),
-    .grp_reply_wdata_axi_o       (grp_reply_wdata_axi_w),
-    .grp_reply_we_axi_o          (grp_reply_we_axi_w),
-    .grp_reply_go_trigger_axi_o  (grp_reply_go_trigger_w),
-    .grp_reply_go_consume_axi    (grp_reply_go_consume_axi_r1),
-    .grp_reply_rdata_axi_i       (grp_reply_rdata_axi_r1),
-    .grp_reply_busy_axi_i        (grp_reply_busy_axi_r1),
-    // Phase Z.16 — GROUPack-Pfad-5-Counter (resynced 2-FF clk_sys → clk_axi above)
-    .grp_mb_go_cnt_axi           (grp_mb_go_cnt_axi_r1),
-    .grp_build_grant_cnt_axi     (grp_build_grant_cnt_axi_r1),
-    .grp_build_done_cnt_axi      (grp_build_done_cnt_axi_r1),
-    .grp_queue_push_cnt_axi      (grp_queue_push_cnt_axi_r1),
-    .grp_queue_lost_cnt_axi      (grp_queue_lost_cnt_axi_r1),
-    // Phase Z.17 — Pop-Pfad-Telemetrie (4 RO Counter, CDC oben)
-    .grp_pop_schf_tn0_cnt_axi    (grp_pop_schf_tn0_cnt_axi_r1),
-    .grp_pop_schhd_tn0_cnt_axi   (grp_pop_schhd_tn0_cnt_axi_r1),
-    .grp_install_cnt_axi         (grp_install_cnt_axi_r1),
-    .grp_pop_origin_cnt_axi      (grp_pop_origin_cnt_axi_r1),
     // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
     .schedule_axi_we         (schedule_axi_we_w),
     .schedule_axi_re         (schedule_axi_re_w),
@@ -2309,6 +2292,13 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
     .mb_encryption       (mb_encryption_sys_w),
     .mb_auth_result      (mb_auth_result_sys_w),
     .mb_go_pulse         (mb_go_pulse_sys_w),
+    // Phase Y.2 — raw-mode bypass (Variante A) for mm=11 D-ATTACH-DETACH-
+    // GRP-ID-ACK.  raw_mode_flag=0 => mm=2 ACCEPT path bit-identical.
+    .mb_raw_mode_flag    (mb_raw_mode_flag_sys_w),
+    .mb_raw_mm_bits      (mb_raw_mm_bits_sys_w),
+    .mb_raw_mm_len       (mb_raw_mm_len_sys_w),
+    .mb_raw_ns           (mb_raw_ns_sys_w),
+    .mb_raw_nr           (mb_raw_nr_sys_w),
     // Phase X.6 — Build-request to shared tetra_dl_pdu_builder via arbiter.
     .accept_build_req                (mle_accept_build_req_w),
     .accept_build_ssi                (mle_accept_build_ssi_w),
@@ -2318,6 +2308,8 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
     .accept_build_mm_pdu_bits        (mle_accept_build_mm_pdu_bits_w),
     .accept_build_mm_pdu_len_bits    (mle_accept_build_mm_pdu_len_bits_w),
     .accept_build_scramble_init      (mle_accept_build_scramble_init_w),
+    .accept_build_ns                 (mle_accept_build_ns_w),
+    .accept_build_nr                 (mle_accept_build_nr_w),
     .accept_build_done               (dl_pdu_done_to_mle_w),
     .accept_build_coded              (dl_pdu_coded_w)
 );
@@ -2355,7 +2347,6 @@ tetra_dl_signal_queue #(
     // inactive.
     .wr_mle_second_pdu_present (mle_slot_wr_second_pdu_present_w),
     .wr_mle_second_pdu_nr      (mle_slot_wr_second_pdu_nr_w),
-    .wr_mle_origin_grpack      (mle_slot_wr_origin_grpack_w),    // Phase Z.17
     // CMCE producer — Phase H.7 D-NWRK-BROADCAST periodic push
     .wr_cmce_valid    (nwrk_bcast_push_valid_sys_w),
     .wr_cmce_coded    (nwrk_bcast_push_coded_sys_w),
@@ -2383,10 +2374,6 @@ tetra_dl_signal_queue #(
     .head_aach_pattern (queue_head_aach_pattern_w),       // Phase Z.2
     .head_second_pdu_present (queue_head_second_pdu_present_w),
     .head_second_pdu_nr      (queue_head_second_pdu_nr_w),
-    // Phase Z.17 — origin-Flag + install/pop pulses (Diagnose-Counter)
-    .head_origin_grpack      (queue_head_origin_grpack_w),
-    .install_grpack_pulse    (grp_install_pulse_w),
-    .pop_grpack_pulse        (grp_pop_origin_pulse_w),
     // Status
     .depth_valid_mask (queue_depth_mask_w),
     .depth_count      (queue_depth_count_w),
@@ -2517,192 +2504,6 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         mle_inject_cnt_axi_r1  <= mle_inject_cnt_axi_r0;
         mle_clear_cnt_axi_r0   <= mle_clear_cnt_sys;
         mle_clear_cnt_axi_r1   <= mle_clear_cnt_axi_r0;
-    end
-end
-
-// =============================================================================
-// Phase Z.16 — GROUPack-Pfad-Diagnose-Counter (5x 16-bit, saturating)
-//
-// Live-Telemetrie um zu lokalisieren wo der mm=7 GROUPack-Reply-Pfad silent
-// bricht.  Free-running 16-bit clk_sys-Counter, 2-FF resynced auf clk_axi.
-// Saturating bei 0xFFFF (kein Wrap, damit lange Messfenster bedeutsam bleiben).
-//
-//   grp_mb_go_cnt_sys        → Mailbox feuert GO          (REG_GRP_MB_GO_CNT       0x260)
-//   grp_build_grant_cnt_sys  → Arbiter granted GroupAck   (REG_GRP_BUILD_GRANT_CNT 0x264)
-//   grp_build_done_cnt_sys   → Encoder fertig             (REG_GRP_BUILD_DONE_CNT  0x268)
-//   grp_queue_push_cnt_sys   → Queue-Push-Pulse           (REG_GRP_QUEUE_PUSH_CNT  0x26C)
-//   grp_queue_lost_cnt_sys   → MLE-Kollision blockt push  (REG_GRP_QUEUE_LOST_CNT  0x270)
-//
-// Diagnose:
-//   mb_go=N grant=0           → Arbiter blockiert (grpack_build_req_w nie granted)
-//   grant=N done<N            → Encoder hängt (FSM stuck oder Owner-Demux falsch)
-//   done=N push<N             → Done-Demux drop (grpack_queue_valid_sys_r setzt nicht)
-//   push=N lost>0             → Queue-Mux-Collision (mle_req_valid_w hatte Vorrang)
-// =============================================================================
-reg [15:0] grp_mb_go_cnt_sys;
-reg [15:0] grp_build_grant_cnt_sys;
-reg [15:0] grp_build_done_cnt_sys;
-reg [15:0] grp_queue_push_cnt_sys;
-reg [15:0] grp_queue_lost_cnt_sys;
-
-// Edge-detect für grpack_queue_valid_sys_r → 1-cycle pulse.
-reg grpack_queue_valid_sys_r_d1;
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) grpack_queue_valid_sys_r_d1 <= 1'b0;
-    else            grpack_queue_valid_sys_r_d1 <= grpack_queue_valid_sys_r;
-end
-wire grpack_queue_push_pulse_w = grpack_queue_valid_sys_r & ~grpack_queue_valid_sys_r_d1;
-// Lost: Queue-Mux nimmt MLE-Pfad statt GroupAck obwohl beide gleichzeitig
-// valid sind (Mux-Logik in slot_wr-Mux: mle_req_valid_w hat statisch Vorrang).
-wire grpack_queue_lost_pulse_w = grpack_queue_push_pulse_w & mle_req_valid_w;
-
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) begin
-        grp_mb_go_cnt_sys        <= 16'd0;
-        grp_build_grant_cnt_sys  <= 16'd0;
-        grp_build_done_cnt_sys   <= 16'd0;
-        grp_queue_push_cnt_sys   <= 16'd0;
-        grp_queue_lost_cnt_sys   <= 16'd0;
-    end else begin
-        if (grp_mb_go_pulse_w         && grp_mb_go_cnt_sys        != 16'hFFFF)
-            grp_mb_go_cnt_sys        <= grp_mb_go_cnt_sys        + 16'd1;
-        if (dl_pdu_grant_grpack_w     && grp_build_grant_cnt_sys  != 16'hFFFF)
-            grp_build_grant_cnt_sys  <= grp_build_grant_cnt_sys  + 16'd1;
-        if (grpack_done_w             && grp_build_done_cnt_sys   != 16'hFFFF)
-            grp_build_done_cnt_sys   <= grp_build_done_cnt_sys   + 16'd1;
-        if (grpack_queue_push_pulse_w && grp_queue_push_cnt_sys   != 16'hFFFF)
-            grp_queue_push_cnt_sys   <= grp_queue_push_cnt_sys   + 16'd1;
-        if (grpack_queue_lost_pulse_w && grp_queue_lost_cnt_sys   != 16'hFFFF)
-            grp_queue_lost_cnt_sys   <= grp_queue_lost_cnt_sys   + 16'd1;
-    end
-end
-
-// CDC clk_sys → clk_axi, 2-FF resync per counter (gleicher Pattern wie mle_*).
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_mb_go_cnt_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_mb_go_cnt_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_build_grant_cnt_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_build_grant_cnt_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_build_done_cnt_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_build_done_cnt_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_queue_push_cnt_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_queue_push_cnt_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_queue_lost_cnt_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_queue_lost_cnt_axi_r1;
-
-always @(posedge s_axi_aclk or negedge rst_n_axi) begin
-    if (!rst_n_axi) begin
-        grp_mb_go_cnt_axi_r0       <= 16'd0;
-        grp_mb_go_cnt_axi_r1       <= 16'd0;
-        grp_build_grant_cnt_axi_r0 <= 16'd0;
-        grp_build_grant_cnt_axi_r1 <= 16'd0;
-        grp_build_done_cnt_axi_r0  <= 16'd0;
-        grp_build_done_cnt_axi_r1  <= 16'd0;
-        grp_queue_push_cnt_axi_r0  <= 16'd0;
-        grp_queue_push_cnt_axi_r1  <= 16'd0;
-        grp_queue_lost_cnt_axi_r0  <= 16'd0;
-        grp_queue_lost_cnt_axi_r1  <= 16'd0;
-    end else begin
-        grp_mb_go_cnt_axi_r0       <= grp_mb_go_cnt_sys;
-        grp_mb_go_cnt_axi_r1       <= grp_mb_go_cnt_axi_r0;
-        grp_build_grant_cnt_axi_r0 <= grp_build_grant_cnt_sys;
-        grp_build_grant_cnt_axi_r1 <= grp_build_grant_cnt_axi_r0;
-        grp_build_done_cnt_axi_r0  <= grp_build_done_cnt_sys;
-        grp_build_done_cnt_axi_r1  <= grp_build_done_cnt_axi_r0;
-        grp_queue_push_cnt_axi_r0  <= grp_queue_push_cnt_sys;
-        grp_queue_push_cnt_axi_r1  <= grp_queue_push_cnt_axi_r0;
-        grp_queue_lost_cnt_axi_r0  <= grp_queue_lost_cnt_sys;
-        grp_queue_lost_cnt_axi_r1  <= grp_queue_lost_cnt_axi_r0;
-    end
-end
-
-// =============================================================================
-// Phase Z.17 — Pop-Pfad-Telemetrie für GROUPack-Diagnose
-//
-// Vier zusätzliche 16-bit Counter (saturating bei 0xFFFF) im clk_sys-Domain,
-// 2-FF nach clk_axi resynced.  Lokalisieren ob:
-//   (a) Pop fires nicht für GROUPack-Entries → Bug in Pop-Trigger / Scheduler
-//   (b) Pop fires aber Body-Pfad zum Air bricht → Bug in slot_content_mux /
-//       burst_mux
-//
-//   grp_install_cnt_sys      → install_grpack_pulse (queue acked GROUPack push)
-//                              REG_GRP_INSTALL_CNT       0x27C
-//   grp_pop_origin_cnt_sys   → pop_grpack_pulse (pop fires for GROUPack entry)
-//                              REG_GRP_POP_ORIGIN_CNT    0x280
-//   grp_pop_schf_tn0_cnt_sys → pop fires AND head was SCH/F on TN=0
-//                              REG_GRP_POP_SCHF_TN0_CNT  0x274
-//   grp_pop_schhd_tn0_cnt_sys→ pop fires AND head was SCH/HD on TN=0
-//                              REG_GRP_POP_SCHHD_TN0_CNT 0x278
-//
-// Diagnose-Logik:
-//   install_cnt = mb_go_cnt?            → push installiert echt
-//   pop_origin_cnt = install_cnt?        → pop fires für GROUPack
-//   pop_schf_tn0 vs pop_schhd_tn0 vs
-//   pop_origin_cnt                       → SCH/F-pops zählt GROUPack+ACCEPT,
-//                                          SCH/HD-pops zählt BL-ACK
-// =============================================================================
-reg [15:0] grp_install_cnt_sys;
-reg [15:0] grp_pop_origin_cnt_sys;
-reg [15:0] grp_pop_schf_tn0_cnt_sys;
-reg [15:0] grp_pop_schhd_tn0_cnt_sys;
-
-// Pop-classification by head metadata at the cycle of pop.  The queue head
-// outputs are combinational from entry[head_idx], so they are valid until
-// the next clock edge — i.e. on the same cycle sched_pop_w fires they still
-// reflect the entry that's about to be cleared.
-wire pop_schf_tn0_pulse_w  = sched_pop_w & queue_head_valid_w
-                           & (queue_head_target_tn_w == 2'd0)
-                           & (queue_head_pdu_type_w  == 2'd0); // SCH_F
-wire pop_schhd_tn0_pulse_w = sched_pop_w & queue_head_valid_w
-                           & (queue_head_target_tn_w == 2'd0)
-                           & (queue_head_pdu_type_w  == 2'd1); // SCH_HD
-
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) begin
-        grp_install_cnt_sys       <= 16'd0;
-        grp_pop_origin_cnt_sys    <= 16'd0;
-        grp_pop_schf_tn0_cnt_sys  <= 16'd0;
-        grp_pop_schhd_tn0_cnt_sys <= 16'd0;
-    end else begin
-        if (grp_install_pulse_w     && grp_install_cnt_sys       != 16'hFFFF)
-            grp_install_cnt_sys       <= grp_install_cnt_sys       + 16'd1;
-        if (grp_pop_origin_pulse_w  && grp_pop_origin_cnt_sys    != 16'hFFFF)
-            grp_pop_origin_cnt_sys    <= grp_pop_origin_cnt_sys    + 16'd1;
-        if (pop_schf_tn0_pulse_w    && grp_pop_schf_tn0_cnt_sys  != 16'hFFFF)
-            grp_pop_schf_tn0_cnt_sys  <= grp_pop_schf_tn0_cnt_sys  + 16'd1;
-        if (pop_schhd_tn0_pulse_w   && grp_pop_schhd_tn0_cnt_sys != 16'hFFFF)
-            grp_pop_schhd_tn0_cnt_sys <= grp_pop_schhd_tn0_cnt_sys + 16'd1;
-    end
-end
-
-// CDC clk_sys → clk_axi, 2-FF resync per counter (gleicher Pattern wie Z.16).
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_install_cnt_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_install_cnt_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_pop_origin_cnt_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_pop_origin_cnt_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_pop_schf_tn0_cnt_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_pop_schf_tn0_cnt_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_pop_schhd_tn0_cnt_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_pop_schhd_tn0_cnt_axi_r1;
-
-always @(posedge s_axi_aclk or negedge rst_n_axi) begin
-    if (!rst_n_axi) begin
-        grp_install_cnt_axi_r0       <= 16'd0;
-        grp_install_cnt_axi_r1       <= 16'd0;
-        grp_pop_origin_cnt_axi_r0    <= 16'd0;
-        grp_pop_origin_cnt_axi_r1    <= 16'd0;
-        grp_pop_schf_tn0_cnt_axi_r0  <= 16'd0;
-        grp_pop_schf_tn0_cnt_axi_r1  <= 16'd0;
-        grp_pop_schhd_tn0_cnt_axi_r0 <= 16'd0;
-        grp_pop_schhd_tn0_cnt_axi_r1 <= 16'd0;
-    end else begin
-        grp_install_cnt_axi_r0       <= grp_install_cnt_sys;
-        grp_install_cnt_axi_r1       <= grp_install_cnt_axi_r0;
-        grp_pop_origin_cnt_axi_r0    <= grp_pop_origin_cnt_sys;
-        grp_pop_origin_cnt_axi_r1    <= grp_pop_origin_cnt_axi_r0;
-        grp_pop_schf_tn0_cnt_axi_r0  <= grp_pop_schf_tn0_cnt_sys;
-        grp_pop_schf_tn0_cnt_axi_r1  <= grp_pop_schf_tn0_cnt_axi_r0;
-        grp_pop_schhd_tn0_cnt_axi_r0 <= grp_pop_schhd_tn0_cnt_sys;
-        grp_pop_schhd_tn0_cnt_axi_r1 <= grp_pop_schhd_tn0_cnt_axi_r0;
     end
 end
 
@@ -2931,43 +2732,17 @@ wire [1:0]   slotgrant_target_tn_sys_w;
 
 // Phase Z.9 — SlotGrant is single SCH/HD path (internal MAC-Resource builder
 // + sch_hd_encoder inside tetra_pre_reply_slotgrant).  No build-request bus
-// to the shared u_dl_pdu_builder anymore; the arbiter is back to 2-way
-// (MLE + GroupAck).
+// to the shared u_dl_pdu_builder anymore.
+//
+// Phase Y.2 — GroupAck-Build raus aus RTL (Lock-Konformität): the only
+// remaining producer on the shared builder is MLE-FSM Final-ACCEPT.  The
+// arbiter degenerates to a direct MLE → builder pass-through.
 
-// Phase Y.1.d — Group-Attach reply build-request wires (2nd shared producer).
-wire         grpack_build_req_w;
-wire [23:0]  grpack_build_ssi_w;
-wire [2:0]   grpack_build_addr_type_w;
-wire [3:0]   grpack_build_llc_pdu_type_w;
-wire         grpack_build_random_access_flag_w;
-wire [127:0] grpack_build_mm_pdu_bits_w;
-wire [7:0]   grpack_build_mm_pdu_len_bits_w;
-wire [31:0]  grpack_build_scramble_init_w;
-wire         grpack_build_ns_w;
-wire         grpack_build_nr_w;
-wire         grpack_done_w;
-wire [431:0] grpack_coded_w;
-
-// Shared builder wires
-wire         dl_pdu_req_valid_w;
-wire [23:0]  dl_pdu_req_ssi_w;
-wire [2:0]   dl_pdu_req_addr_type_w;
-wire [3:0]   dl_pdu_req_llc_pdu_type_w;
-wire         dl_pdu_req_random_access_flag_w;
-wire [127:0] dl_pdu_req_mm_pdu_bits_w;
-wire [7:0]   dl_pdu_req_mm_pdu_len_bits_w;
-wire [31:0]  dl_pdu_req_scramble_init_w;
-wire         dl_pdu_req_ns_w;
-wire         dl_pdu_req_nr_w;
+// Shared builder wires (single producer = MLE; no arbiter mux required).
 wire         dl_pdu_done_w;
 wire [431:0] dl_pdu_coded_w;
 wire         dl_pdu_busy_w;
-// Done-demux: builder asserts done for the source whose request was last
-// granted by the arbiter.  Owner-tracking 1-bit reg below (Phase Z.9
-// 2-way: MLE / GroupAck).
-//   1'd0 = MLE, 1'd1 = GroupAck
 wire         dl_pdu_done_to_mle_w;
-wire         dl_pdu_done_to_grpack_w;
 
 tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
     .clk_sys                  (clk_sys),
@@ -2992,148 +2767,72 @@ tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
 );
 
 // =============================================================================
-// Phase Z.9 — Shared DL-PDU build pipeline + 2-way arbiter
+// Phase Y.2 — Shared DL-PDU build pipeline (single MLE producer)
 //
 // History:
 //   - Pre-X.6: each producer FSM had its own SCH/F encoder (97.65% slice).
 //   - X.6:     {MLE Final-ACCEPT, SlotGrant} share u_dl_pdu_builder via 2-way
 //             arbiter (later 3-way with GroupAck added in Y.1.d).
-//   - Z.3:     SlotGrant migrated to its OWN SCH/HD pipeline (Gold-conform —
-//             Pre-Reply LI=7 lives on SCH/HD blk1, not SCH/F).  Arbiter is
-//             back to 2-way (MLE + GroupAck), both producing SCH/F PDUs.
-//   - Z.4:     SlotGrant became dual-path (mm=2 SCH/F via shared builder,
-//             mm=7 SCH/HD internal); arbiter went 3-way again.
-//   - Z.9 (this rev): SlotGrant collapsed to single SCH/HD path for BOTH
-//             mm=2 + mm=7.  Arbiter back to 2-way (MLE + GroupAck), both
-//             producing SCH/F PDUs.  See `tetra_pre_reply_slotgrant.v`
-//             (Z.9 single-path) — Drift fixes #1 (single SCH/HD), #4
-//             (sg_element=0x00 universally), and #3 (AACH 0x0009 via
-//             queue-entry → scheduler override on the addressed TN).
+//   - Z.3..Z.9: SlotGrant moved to its own SCH/HD pipeline; arbiter on the
+//             shared builder was 2-way (MLE + GroupAck).
+//   - Y.2 (this rev): GroupAck-Build moved to SW per Lock-Decision
+//             (memory `project_arch_fpga_thin_signaling.md`).  The shared
+//             builder now has a single producer (MLE Final-ACCEPT).  No
+//             arbiter mux, no owner-tracking — req_valid is gated on
+//             ~dl_pdu_busy_w so the MLE-FSM can hold the request stable.
 //
-// Conflict profile: MLE-ACCEPT and GroupAck both fire after Frag-2 reassembly
-// (≥14 ms after Frag-1) and are mutually exclusive in real traffic; SlotGrant
-// fires on Frag-1 directly via its OWN SCH/HD pipeline (no arbiter contention).
-//
-// Strict priority:  MLE-ACCEPT > GroupAck.
-//
-// Owner-tracking: 1-bit registered flag captures which producer was granted
-// the most-recent build.  The done pulse fans out via combinational decode.
-//   1'd0 = MLE, 1'd1 = GroupAck
-reg dl_pdu_owner_r;
+// SlotGrant Pre-Reply (mm=2 + mm=7) lives on its own internal SCH/HD
+// pipeline inside tetra_pre_reply_slotgrant.v — no contention here.
+// =============================================================================
+wire dl_pdu_grant_mle_w = mle_accept_build_req_w & ~dl_pdu_busy_w;
 
-// Combinational arbitration with strict priority + idle gate.
-wire dl_pdu_grant_mle_w    = mle_accept_build_req_w & ~dl_pdu_busy_w;
-wire dl_pdu_grant_grpack_w = grpack_build_req_w
-                             & ~mle_accept_build_req_w
-                             & ~dl_pdu_busy_w;
-
-assign dl_pdu_req_valid_w =
-    dl_pdu_grant_mle_w | dl_pdu_grant_grpack_w;
-
-assign dl_pdu_req_ssi_w =
-    dl_pdu_grant_mle_w    ? mle_accept_build_ssi_w :
-                            grpack_build_ssi_w;
-assign dl_pdu_req_addr_type_w =
-    dl_pdu_grant_mle_w    ? mle_accept_build_addr_type_w :
-                            grpack_build_addr_type_w;
-assign dl_pdu_req_llc_pdu_type_w =
-    dl_pdu_grant_mle_w    ? mle_accept_build_llc_pdu_type_w :
-                            grpack_build_llc_pdu_type_w;
-assign dl_pdu_req_random_access_flag_w =
-    dl_pdu_grant_mle_w    ? mle_accept_build_random_access_flag_w :
-                            grpack_build_random_access_flag_w;
-assign dl_pdu_req_mm_pdu_bits_w =
-    dl_pdu_grant_mle_w    ? mle_accept_build_mm_pdu_bits_w :
-                            grpack_build_mm_pdu_bits_w;
-assign dl_pdu_req_mm_pdu_len_bits_w =
-    dl_pdu_grant_mle_w    ? mle_accept_build_mm_pdu_len_bits_w :
-                            grpack_build_mm_pdu_len_bits_w;
-assign dl_pdu_req_scramble_init_w =
-    dl_pdu_grant_mle_w    ? mle_accept_build_scramble_init_w :
-                            grpack_build_scramble_init_w;
-// Phase Y.1.c' — req_ns/req_nr are 0 for MLE (existing behaviour);
-// GroupAck supplies dynamic values from its reply mailbox.
-assign dl_pdu_req_ns_w =
-    dl_pdu_grant_mle_w    ? 1'b0 :
-                            grpack_build_ns_w;
-assign dl_pdu_req_nr_w =
-    dl_pdu_grant_mle_w    ? 1'b0 :
-                            grpack_build_nr_w;
-
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) begin
-        dl_pdu_owner_r <= 1'b0;
-    end else begin
-        if      (dl_pdu_grant_mle_w)    dl_pdu_owner_r <= 1'b0;
-        else if (dl_pdu_grant_grpack_w) dl_pdu_owner_r <= 1'b1;
-        // owner stays sticky until the next grant — harmless because
-        // done is gated by the builder's busy/done timing.
-    end
-end
-
-// Done-demux — broadcast coded bus, gate done pulse by owner.
-assign dl_pdu_done_to_mle_w    = dl_pdu_done_w & (dl_pdu_owner_r == 1'b0);
-assign dl_pdu_done_to_grpack_w = dl_pdu_done_w & (dl_pdu_owner_r == 1'b1);
-assign grpack_done_w           = dl_pdu_done_to_grpack_w;
-assign grpack_coded_w          = dl_pdu_coded_w;
+assign dl_pdu_done_to_mle_w = dl_pdu_done_w;
 
 tetra_dl_pdu_builder u_dl_pdu_builder (
     .clk                    (clk_sys),
     .rst_n                  (rst_n_sys),
-    .req_valid              (dl_pdu_req_valid_w),
-    .req_ssi                (dl_pdu_req_ssi_w),
-    .req_addr_type          (dl_pdu_req_addr_type_w),
-    .req_llc_pdu_type       (dl_pdu_req_llc_pdu_type_w),
-    .req_random_access_flag (dl_pdu_req_random_access_flag_w),
-    .req_mm_pdu_bits        (dl_pdu_req_mm_pdu_bits_w),
-    .req_mm_pdu_len_bits    (dl_pdu_req_mm_pdu_len_bits_w),
-    .req_scramble_init      (dl_pdu_req_scramble_init_w),
-    .req_ns                 (dl_pdu_req_ns_w),
-    .req_nr                 (dl_pdu_req_nr_w),
+    .req_valid              (dl_pdu_grant_mle_w),
+    .req_ssi                (mle_accept_build_ssi_w),
+    .req_addr_type          (mle_accept_build_addr_type_w),
+    .req_llc_pdu_type       (mle_accept_build_llc_pdu_type_w),
+    .req_random_access_flag (mle_accept_build_random_access_flag_w),
+    .req_mm_pdu_bits        (mle_accept_build_mm_pdu_bits_w),
+    .req_mm_pdu_len_bits    (mle_accept_build_mm_pdu_len_bits_w),
+    .req_scramble_init      (mle_accept_build_scramble_init_w),
+    // Phase Y.2 — ns/nr from MLE-FSM raw-mode latches (mm=11) or 0 (mm=2).
+    .req_ns                 (mle_accept_build_ns_w),
+    .req_nr                 (mle_accept_build_nr_w),
     .done                   (dl_pdu_done_w),
     .coded_bits             (dl_pdu_coded_w),
     .busy                   (dl_pdu_busy_w)
 );
 
-// MLE-Producer-Slot mux: MLE-FSM req_valid takes priority over GroupAck
-// (Phase Y.1) which takes priority over SlotGrant.  This mirrors the
-// 3-producer arbiter's strict priority for builder-side ordering, but on
-// the queue-write side they are temporally separated (different events
-// fire on different frames) so the OR is sufficient.
-wire         mle_slot_wr_valid_w     = mle_req_valid_w | grpack_queue_valid_sys_r |
-                                       slotgrant_valid_sys_w;
+// MLE-Producer-Slot mux: MLE-FSM Final-ACCEPT (req_valid) takes priority
+// over SlotGrant Pre-Reply.  Phase Y.2 removed the GroupAck producer leg —
+// SW now stages mm=7 replies through the same MLE Reply-Pull-Mailbox path.
+// MLE and SlotGrant fire on different events (Frag-2 reass vs Frag-1) so
+// the OR is sufficient.
+wire         mle_slot_wr_valid_w     = mle_req_valid_w | slotgrant_valid_sys_w;
 wire [431:0] mle_slot_wr_coded_w     =
-    mle_req_valid_w           ? mle_req_coded_bits_w :
-    grpack_queue_valid_sys_r  ? grpack_queue_coded_sys_r :
-                                slotgrant_coded_sys_w;
+    mle_req_valid_w ? mle_req_coded_bits_w
+                    : slotgrant_coded_sys_w;
 wire [1:0]   mle_slot_wr_pdu_type_w  =
-    mle_req_valid_w           ? mle_req_pdu_type_w :
-    grpack_queue_valid_sys_r  ? `PDUC_GROUP_ACK_FMT :
-                                slotgrant_pdu_type_sys_w;
+    mle_req_valid_w ? mle_req_pdu_type_w
+                    : slotgrant_pdu_type_sys_w;
 wire [1:0]   mle_slot_wr_target_tn_w =
-    mle_req_valid_w           ? mle_req_target_tn_w :
-    grpack_queue_valid_sys_r  ? grpack_queue_target_tn_sys_r :
-                                slotgrant_target_tn_sys_w;
+    mle_req_valid_w ? mle_req_target_tn_w
+                    : slotgrant_target_tn_sys_w;
 // Only MLE-FSM uses the second_pdu_* telemetry (Option B BL-ACK piggyback).
-// GroupAck and SlotGrant don't have concat-second-PDUs.
+// SlotGrant doesn't have concat-second-PDUs.
 wire         mle_slot_wr_second_pdu_present_w = mle_req_valid_w ? mle_req_second_pdu_present_w : 1'b0;
 wire         mle_slot_wr_second_pdu_nr_w      = mle_req_valid_w ? mle_req_second_pdu_nr_w      : 1'b0;
 
-// Phase Z.17 — origin-Flag for the merged MLE write port.  Set to 1 when
-// the GroupAck producer wins the mux (no MLE-FSM-ACCEPT in the same cycle),
-// 0 otherwise.  Stored per entry by the queue and surfaced via three new
-// telemetry outputs (head_origin_grpack, install_grpack_pulse,
-// pop_grpack_pulse) that drive the Z.17 install/pop counters below.
-wire         mle_slot_wr_origin_grpack_w = grpack_queue_valid_sys_r & ~mle_req_valid_w;
-
-// Phase Z.9 — every MLE producer (LU-ACCEPT / GroupAck / SlotGrant) is a
-// signalling-class PDU.  Tag the queue entry with AACH pattern 0x0009
-// (signalling-active) so the AACH encoder lifts the slot's broadcast
-// from default 0x0249/0x32CB to Unalloc/Unalloc on the carrier frame.
-// All three sources share the same AACH symbol because the spec table
-// in tetra_pdu_class.vh has them aligned
-// (`PDUC_FINAL_LU_ACCEPT_AACH == `PDUC_GROUP_ACK_AACH ==
-//  `PDUC_PRE_REPLY_SLOTGRANT_AACH).
+// Every MLE producer (LU-ACCEPT / SlotGrant) is a signalling-class PDU.
+// Tag the queue entry with AACH pattern 0x0009 (signalling-active) so the
+// AACH encoder lifts the slot's broadcast from default 0x0249/0x32CB to
+// Unalloc/Unalloc on the carrier frame.  Both sources share the same AACH
+// symbol because the spec table in tetra_pdu_class.vh has them aligned
+// (`PDUC_FINAL_LU_ACCEPT_AACH == `PDUC_PRE_REPLY_SLOTGRANT_AACH).
 wire [13:0]  mle_slot_wr_aach_pattern_w = `PDUC_FINAL_LU_ACCEPT_AACH;
 
 // =============================================================================
@@ -3400,6 +3099,12 @@ wire        mb_gila_present_sys_w;
 wire [1:0]  mb_encryption_sys_w;
 wire [1:0]  mb_auth_result_sys_w;
 wire        mb_go_pulse_sys_w;
+// Phase Y.2 — raw-mode (Variante A) MM-body bypass for mm=11 GROUP-ACK.
+wire         mb_raw_mode_flag_sys_w;
+wire [127:0] mb_raw_mm_bits_sys_w;
+wire [7:0]   mb_raw_mm_len_sys_w;
+wire         mb_raw_ns_sys_w;
+wire         mb_raw_nr_sys_w;
 
 tetra_reply_mailbox u_reply_mailbox (
     .clk_sys              (clk_sys),
@@ -3419,7 +3124,13 @@ tetra_reply_mailbox u_reply_mailbox (
     .mb_gila_present_sys  (mb_gila_present_sys_w),
     .mb_encryption_sys    (mb_encryption_sys_w),
     .mb_auth_result_sys   (mb_auth_result_sys_w),
-    .mb_go_pulse_sys      (mb_go_pulse_sys_w)
+    .mb_go_pulse_sys      (mb_go_pulse_sys_w),
+    // Phase Y.2 — raw-mode bypass field outputs
+    .mb_raw_mode_flag_sys (mb_raw_mode_flag_sys_w),
+    .mb_raw_mm_bits_sys   (mb_raw_mm_bits_sys_w),
+    .mb_raw_mm_len_sys    (mb_raw_mm_len_sys_w),
+    .mb_raw_ns_sys        (mb_raw_ns_sys_w),
+    .mb_raw_nr_sys        (mb_raw_nr_sys_w)
 );
 
 // CDC: rdata + busy clk_sys → clk_axi (busy is the OR of FSM busy-state).
@@ -3568,228 +3279,15 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
 end
 
 // =============================================================================
-// Phase Y.1.b — Group-Attach Reply Mailbox (D-ATTACH-DETACH-GRP-ID-ACK staging)
+// Phase Y.2 — Group-Attach Reply Mailbox + GroupAck encoder REMOVED.
 //
-// AXI side (clk_axi):
-//   grp_reply_index_axi_w    — 4-bit word selector
-//   grp_reply_wdata_axi_w    — 32-bit AXI write-data
-//   grp_reply_we_axi_w       — 1-cycle write-enable on REG_GRP_REPLY_DATA
-//   grp_reply_go_trigger_w   — W1S GO bit, cleared by go-consume pulse
-//   grp_reply_busy_axi_r1    — 2-FF resync of busy mirror (clk_sys)
-//   grp_reply_rdata_axi_r1   — 2-FF resync of indirect read-back word
-//
-// clk_sys side: tetra_grp_reply_mailbox holds the 16-word shadow + emits the
-// per-field outputs feeding the GroupAck build pipeline + the GO pulse.
+// SW now builds the D-ATTACH-DETACH-GRP-ID-ACK MM body in C and pushes it
+// into the shared mm=2 Reply-Pull-Mailbox via a raw-mode mailbox extension
+// (see sw/tetra_attach_daemon.c + sw/tetra_tx_transport.c).  The legacy
+// `tetra_grp_reply_mailbox` shadow + `tetra_d_attach_detach_grp_id_ack_
+// encoder` instance + AXI window 0x250..0x25C are GONE per Lock-Decision
+// `memory/project_arch_fpga_thin_signaling.md`.
 // =============================================================================
-wire [3:0]  grp_reply_index_axi_w;
-wire [31:0] grp_reply_wdata_axi_w;
-wire        grp_reply_we_axi_w;
-wire        grp_reply_go_trigger_w;
-
-(* ASYNC_REG = "TRUE" *) reg [3:0]  grp_reply_index_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg [3:0]  grp_reply_index_sys_r1;
-(* ASYNC_REG = "TRUE" *) reg [31:0] grp_reply_wdata_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg [31:0] grp_reply_wdata_sys_r1;
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) begin
-        grp_reply_index_sys_r0 <= 4'd0;
-        grp_reply_index_sys_r1 <= 4'd0;
-        grp_reply_wdata_sys_r0 <= 32'd0;
-        grp_reply_wdata_sys_r1 <= 32'd0;
-    end else begin
-        grp_reply_index_sys_r0 <= grp_reply_index_axi_w;
-        grp_reply_index_sys_r1 <= grp_reply_index_sys_r0;
-        grp_reply_wdata_sys_r0 <= grp_reply_wdata_axi_w;
-        grp_reply_wdata_sys_r1 <= grp_reply_wdata_sys_r0;
-    end
-end
-
-// 2-FF write-enable + edge-detect → 1-cycle clk_sys pulse
-(* ASYNC_REG = "TRUE" *) reg grp_reply_we_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg grp_reply_we_sys_r1;
-reg                          grp_reply_we_sys_r2;
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) begin
-        grp_reply_we_sys_r0 <= 1'b0;
-        grp_reply_we_sys_r1 <= 1'b0;
-        grp_reply_we_sys_r2 <= 1'b0;
-    end else begin
-        grp_reply_we_sys_r0 <= grp_reply_we_axi_w;
-        grp_reply_we_sys_r1 <= grp_reply_we_sys_r0;
-        grp_reply_we_sys_r2 <= grp_reply_we_sys_r1;
-    end
-end
-wire grp_reply_we_pulse_sys_w =
-    grp_reply_we_sys_r1 & ~grp_reply_we_sys_r2;
-
-// 2-FF GO-trigger + edge-detect → 1-cycle clk_sys pulse
-(* ASYNC_REG = "TRUE" *) reg grp_reply_go_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg grp_reply_go_sys_r1;
-reg                          grp_reply_go_sys_r2;
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) begin
-        grp_reply_go_sys_r0 <= 1'b0;
-        grp_reply_go_sys_r1 <= 1'b0;
-        grp_reply_go_sys_r2 <= 1'b0;
-    end else begin
-        grp_reply_go_sys_r0 <= grp_reply_go_trigger_w;
-        grp_reply_go_sys_r1 <= grp_reply_go_sys_r0;
-        grp_reply_go_sys_r2 <= grp_reply_go_sys_r1;
-    end
-end
-wire grp_reply_go_pulse_sys_w =
-    grp_reply_go_sys_r1 & ~grp_reply_go_sys_r2;
-
-wire [31:0] grp_reply_rdata_sys_w;
-wire [23:0] grp_mb_ssi_w;
-wire        grp_mb_ar_w;
-wire [1:0]  grp_mb_count_w;
-wire [71:0] grp_mb_gssi_arr_w;
-wire [5:0]  grp_mb_at_arr_w;
-wire [5:0]  grp_mb_lt_arr_w;
-wire [2:0]  grp_mb_adi_arr_w;
-wire [8:0]  grp_mb_class_arr_w;
-wire        grp_mb_ns_w;
-wire        grp_mb_nr_w;
-wire        grp_mb_go_pulse_w;
-
-tetra_grp_reply_mailbox u_grp_reply_mailbox (
-    .clk_sys                   (clk_sys),
-    .rst_n_sys                 (rst_n_sys),
-    .index_sys                 (grp_reply_index_sys_r1),
-    .wdata_sys                 (grp_reply_wdata_sys_r1),
-    .wr_en_sys                 (grp_reply_we_pulse_sys_w),
-    .go_pulse_sys              (grp_reply_go_pulse_sys_w),
-    .rdata_sys                 (grp_reply_rdata_sys_w),
-    .mb_grp_ssi_sys            (grp_mb_ssi_w),
-    .mb_grp_accept_reject_sys  (grp_mb_ar_w),
-    .mb_grp_count_sys          (grp_mb_count_w),
-    .mb_grp_gssi_array_sys     (grp_mb_gssi_arr_w),
-    .mb_grp_at_array_sys       (grp_mb_at_arr_w),
-    .mb_grp_lifetime_array_sys (grp_mb_lt_arr_w),
-    .mb_grp_adi_array_sys      (grp_mb_adi_arr_w),
-    .mb_grp_class_array_sys    (grp_mb_class_arr_w),
-    .mb_grp_ns_sys             (grp_mb_ns_w),
-    .mb_grp_nr_sys             (grp_mb_nr_w),
-    .mb_grp_go_pulse_sys       (grp_mb_go_pulse_w)
-);
-
-// CDC: rdata + busy clk_sys → clk_axi
-(* ASYNC_REG = "TRUE" *) reg [31:0] grp_reply_rdata_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [31:0] grp_reply_rdata_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg        grp_reply_busy_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg        grp_reply_busy_axi_r1;
-// Group-Attach reply build is in-flight from go pulse to grpack_done_w.
-reg grpack_busy_sys_r;
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) grpack_busy_sys_r <= 1'b0;
-    else if (grp_mb_go_pulse_w) grpack_busy_sys_r <= 1'b1;
-    else if (grpack_done_w)     grpack_busy_sys_r <= 1'b0;
-end
-always @(posedge s_axi_aclk or negedge rst_n_axi) begin
-    if (!rst_n_axi) begin
-        grp_reply_rdata_axi_r0 <= 32'd0;
-        grp_reply_rdata_axi_r1 <= 32'd0;
-        grp_reply_busy_axi_r0  <= 1'b0;
-        grp_reply_busy_axi_r1  <= 1'b0;
-    end else begin
-        grp_reply_rdata_axi_r0 <= grp_reply_rdata_sys_w;
-        grp_reply_rdata_axi_r1 <= grp_reply_rdata_axi_r0;
-        grp_reply_busy_axi_r0  <= grpack_busy_sys_r;
-        grp_reply_busy_axi_r1  <= grp_reply_busy_axi_r0;
-    end
-end
-
-// CDC: GO-consume pulse clk_sys → clk_axi to clear the W1S trigger
-(* ASYNC_REG = "TRUE" *) reg grp_reply_go_consume_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg grp_reply_go_consume_axi_r1;
-always @(posedge s_axi_aclk or negedge rst_n_axi) begin
-    if (!rst_n_axi) begin
-        grp_reply_go_consume_axi_r0 <= 1'b0;
-        grp_reply_go_consume_axi_r1 <= 1'b0;
-    end else begin
-        grp_reply_go_consume_axi_r0 <= grp_reply_go_pulse_sys_w;
-        grp_reply_go_consume_axi_r1 <= grp_reply_go_consume_axi_r0;
-    end
-end
-
-// =============================================================================
-// Phase Y.1.c — Group-Attach reply build pipeline (inline)
-//
-// On every grp_mb_go_pulse_w (1-cycle pulse from SW staging the body), pulse
-// the build-request to the shared u_dl_pdu_builder via the 3-producer
-// arbiter.  The encoder is purely combinational, so the request fields are
-// available the same cycle the GO pulse fires.
-//
-// No FSM needed — the grp_mb_go_pulse_w is qualified by ~dl_pdu_busy_w in
-// the arbiter (grant_grpack), and the request fields are stable on the
-// reply-mailbox slices after the SW write+GO sequence (CDC settles before
-// SW pulses GO).
-//
-// Scrambling: D-ATTACH-DETACH-GRP-ID-ACK uses the cell DL scrambler seed
-// (same as MLE-FSM ACCEPT and SCH/HD AACH).
-// =============================================================================
-wire [127:0] grpack_mm_bits_w;
-wire [7:0]   grpack_mm_len_w;
-
-tetra_d_attach_detach_grp_id_ack_encoder u_grpack_encoder (
-    .accept_reject  (grp_mb_ar_w),
-    .gid_count      (grp_mb_count_w),
-    .gssi_array     (grp_mb_gssi_arr_w),
-    .at_array       (grp_mb_at_arr_w),
-    .lifetime_array (grp_mb_lt_arr_w),
-    .adi_array      (grp_mb_adi_arr_w),
-    .class_array    (grp_mb_class_arr_w),
-    .pdu_bits_mm    (grpack_mm_bits_w),
-    .pdu_len_bits   (grpack_mm_len_w)
-);
-
-// Latch the GO pulse so we keep req_valid asserted until the arbiter grants.
-// (The arbiter qualifies on ~dl_pdu_busy_w; if it's busy we wait.)
-reg grpack_req_pending_r;
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) begin
-        grpack_req_pending_r <= 1'b0;
-    end else if (grp_mb_go_pulse_w) begin
-        grpack_req_pending_r <= 1'b1;
-    end else if (dl_pdu_grant_grpack_w) begin
-        grpack_req_pending_r <= 1'b0;
-    end
-end
-
-assign grpack_build_req_w                = grpack_req_pending_r;
-assign grpack_build_ssi_w                = grp_mb_ssi_w;
-assign grpack_build_addr_type_w          = `PDUC_GROUP_ACK_ADDRTYPE;
-assign grpack_build_llc_pdu_type_w       = `PDUC_GROUP_ACK_LLC;
-assign grpack_build_random_access_flag_w = `PDUC_GROUP_ACK_RA;
-assign grpack_build_mm_pdu_bits_w        = grpack_mm_bits_w;
-assign grpack_build_mm_pdu_len_bits_w    = grpack_mm_len_w;
-assign grpack_build_scramble_init_w      = mle_dl_scramb_init_sys;
-assign grpack_build_ns_w                 = grp_mb_ns_w;
-assign grpack_build_nr_w                 = grp_mb_nr_w;
-
-// Phase Y.1.d — Coded SCH/F output is broadcast on dl_pdu_coded_w; the
-// done pulse is gated to grpack_done_w by the owner-tracking arbiter (see
-// above).  We push the GroupAck reply into the DL-Signal-Queue's MLE
-// producer slot (same path as Pre-Reply-SlotGrant) so the scheduler picks
-// it up on the next signalling slot.
-reg          grpack_queue_valid_sys_r;
-reg [431:0]  grpack_queue_coded_sys_r;
-reg [1:0]    grpack_queue_target_tn_sys_r;
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) begin
-        grpack_queue_valid_sys_r     <= 1'b0;
-        grpack_queue_coded_sys_r     <= 432'd0;
-        grpack_queue_target_tn_sys_r <= 2'd0;
-    end else begin
-        grpack_queue_valid_sys_r <= 1'b0;
-        if (grpack_done_w) begin
-            grpack_queue_valid_sys_r     <= 1'b1;
-            grpack_queue_coded_sys_r     <= grpack_coded_w;
-            grpack_queue_target_tn_sys_r <= cfg_mcch_tn_sys_r1;
-        end
-    end
-end
 
 // =============================================================================
 // Slot-Schedule BRAM (Plan Stufe 3, Port B rewired in Stufe 4)
@@ -4147,24 +3645,6 @@ tetra_aach_rm_encoder u_aach_rm_slot (
     .coded_w     (head_aach_coded_sys_w)
 );
 
-// Z.15 FF-cut — registered version of the slot-AACH RM-coded output.
-// Cuts the deep XOR tree (queue arb → 14-bit pattern → RM(30,14) →
-// scrambler) from downstream consumers.  1-cycle latency is harmless
-// because tx_tn_next_sys lookahead is 1 slot (255 cycles) ahead of
-// the actual encode_start_sys.
-(* keep = "true" *) reg [29:0] head_aach_coded_sys_r;
-(* keep = "true" *) reg        head_match_aach_sys_r;
-
-always @(posedge clk_sys or negedge rst_n_sys) begin
-    if (!rst_n_sys) begin
-        head_aach_coded_sys_r <= 30'd0;
-        head_match_aach_sys_r <= 1'b0;
-    end else begin
-        head_aach_coded_sys_r <= head_aach_coded_sys_w;
-        head_match_aach_sys_r <= head_match_aach_sys;
-    end
-end
-
 // Default-logic AACH encoder (idle 0x0249 / TN!=0 traffic 0x3000 / F18
 // anchor / grant_pending).  No override inputs in Z.13.
 tetra_aach_encoder u_aach_encoder (
@@ -4194,16 +3674,8 @@ tetra_aach_encoder u_aach_encoder (
 // default-encoder output.  This is the ONLY mux on the AACH path —
 // no per-TN bundle, no atomic-bypass, no aach_override_info latches.
 // (Wire forward-declared near `aach_coded_sys_w`.)
-//
-// Z.15 mux uses the registered version (1-cycle later than combinational
-// head_match — still well within the 255-cycle slot window).
-// `aach_coded_sys_w` (default-encoder path) is already registered
-// internally (latched at encode_start_sys); no extra FF needed there.
-// `head_match_aach_sys_r` is registered in lock-step with
-// `head_aach_coded_sys_r` so the select line and the value share the
-// same 1-cycle latency — no "match-but-stale-coded" race.
-assign aach_coded_slot_sys_w = head_match_aach_sys_r
-                             ? head_aach_coded_sys_r
+assign aach_coded_slot_sys_w = head_match_aach_sys
+                             ? head_aach_coded_sys_w
                              : aach_coded_sys_w;
 
 (* mark_debug = "true", keep = "true" *) reg [29:0] dbg_aach_coded_sys;

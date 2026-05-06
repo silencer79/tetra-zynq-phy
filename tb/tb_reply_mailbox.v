@@ -1,5 +1,6 @@
 // =============================================================================
 // tb_reply_mailbox.v — Phase X.2 Reply-Pull Mailbox regression
+//                      Phase Y.2 raw-mode (Variante A) coverage
 // =============================================================================
 //
 // Coverage:
@@ -8,13 +9,19 @@
 //        ssi=0x282F91, la=0x0042, addr_type=1, result=0,
 //        gila_gssi=0x2F4D61, gila_class=4, gila_lifetime=1, gila_present=1,
 //        encryption=0, auth_result=1
+//        (also implicitly: raw_mode_flag=0 because W9 untouched)
 //   TC3  GO pulse propagation (mb_go_pulse_sys mirrors go_pulse_sys for 1 cyc)
 //   TC4  re-write W4 (gila_gssi) with a new value (0x123456) — field updates,
 //        other fields unchanged
+//   TC5  Phase Y.2 raw-mode: write W9..W13 with raw_mode_flag=1, raw_mm_len=64,
+//        raw_ns=1, raw_nr=0, and a 64-bit Gold-Ref grpack body, verify the
+//        five new field outputs report correctly and W0..W8 fields stay
+//        whatever TC2/TC4 left them at (no aliasing).
 //
 // Run:
 //   iverilog -g2001 -o /tmp/tb_replmb tb/tb_reply_mailbox.v \
-//                                     rtl/lmac/tetra_reply_mailbox.v
+//                                     rtl/lmac/tetra_reply_mailbox.v \
+//                                     rtl/lmac/tetra_indirect_mailbox_wr.v
 //   vvp /tmp/tb_replmb
 //
 // =============================================================================
@@ -44,6 +51,13 @@ module tb_reply_mailbox;
     wire [1:0]  mb_auth_result;
     wire        mb_go_pulse;
 
+    // Phase Y.2 — raw-mode field outputs
+    wire         mb_raw_mode_flag;
+    wire [127:0] mb_raw_mm_bits;
+    wire [7:0]   mb_raw_mm_len;
+    wire         mb_raw_ns;
+    wire         mb_raw_nr;
+
     tetra_reply_mailbox dut (
         .clk_sys              (clk),
         .rst_n_sys            (rst_n),
@@ -62,7 +76,12 @@ module tb_reply_mailbox;
         .mb_gila_present_sys  (mb_gila_present),
         .mb_encryption_sys    (mb_encryption),
         .mb_auth_result_sys   (mb_auth_result),
-        .mb_go_pulse_sys      (mb_go_pulse)
+        .mb_go_pulse_sys      (mb_go_pulse),
+        .mb_raw_mode_flag_sys (mb_raw_mode_flag),
+        .mb_raw_mm_bits_sys   (mb_raw_mm_bits),
+        .mb_raw_mm_len_sys    (mb_raw_mm_len),
+        .mb_raw_ns_sys        (mb_raw_ns),
+        .mb_raw_nr_sys        (mb_raw_nr)
     );
 
     integer pass_cnt = 0;
@@ -232,6 +251,58 @@ module tb_reply_mailbox;
         check_eq("TC4.mb_gila_class unchanged",mb_gila_class,    4);
         check_eq("TC4.mb_gila_lifetime unchanged", mb_gila_lifetime, 1);
         check_eq("TC4.mb_auth_result unchanged",   mb_auth_result, 1);
+
+        // -------------------------------------------------------------
+        // TC4b — raw-mode flag still 0 (W9 never written) — mm=2 path
+        // -------------------------------------------------------------
+        check_eq("TC4b.raw_mode_flag=0", mb_raw_mode_flag, 0);
+        check_eq("TC4b.raw_mm_len=0",    mb_raw_mm_len,    0);
+        check_eq("TC4b.raw_ns=0",        mb_raw_ns,        0);
+        check_eq("TC4b.raw_nr=0",        mb_raw_nr,        0);
+
+        // -------------------------------------------------------------
+        // TC5 — Phase Y.2 raw-mode (mm=11 GROUP-ACK) staging.
+        //   W9  = raw_mode_flag=1 | raw_nr=0 | raw_ns=1 | raw_mm_len=64
+        //       = (1<<31) | (0<<9) | (1<<8) | 64
+        //       = 0x80000140
+        //   W10 = raw_mm_bits[31:0]  (low word)  = 0xDEADBEEF
+        //   W11 = raw_mm_bits[63:32]             = 0xCAFEBABE
+        //   W12 = raw_mm_bits[95:64]             = 0x12345678
+        //   W13 = raw_mm_bits[127:96]            = 0x00B2B826
+        //
+        //   Expected mb_raw_mm_bits = {W13, W12, W11, W10}
+        //                           = 0x00B2B826_12345678_CAFEBABE_DEADBEEF
+        // -------------------------------------------------------------
+        $display("");
+        $display("TC5  Phase Y.2 raw-mode (mm=11) — W9..W13 staging");
+
+        write_word(4'd9,  32'h80000140);
+        write_word(4'd10, 32'hDEADBEEF);
+        write_word(4'd11, 32'hCAFEBABE);
+        write_word(4'd12, 32'h12345678);
+        write_word(4'd13, 32'h00B2B826);
+
+        check_eq("TC5.raw_mode_flag=1", mb_raw_mode_flag, 1);
+        check_eq("TC5.raw_mm_len=64",   mb_raw_mm_len,   64);
+        check_eq("TC5.raw_ns=1",        mb_raw_ns,        1);
+        check_eq("TC5.raw_nr=0",        mb_raw_nr,        0);
+        if (mb_raw_mm_bits === 128'h00B2B826_12345678_CAFEBABE_DEADBEEF) begin
+            $display("  PASS  TC5.raw_mm_bits  got=0x%032h", mb_raw_mm_bits);
+            pass_cnt = pass_cnt + 1;
+        end else begin
+            $display("  FAIL  TC5.raw_mm_bits  got=0x%032h", mb_raw_mm_bits);
+            fail_cnt = fail_cnt + 1;
+        end
+
+        // mm=2 fields untouched
+        check_eq("TC5.mb_ssi unchanged",  mb_ssi, 24'h282F91);
+        check_eq("TC5.mb_addr_type unchanged", mb_addr_type, 1);
+
+        // Re-write W9 with raw_mode_flag=0 — should clear the flag and
+        // bring us back to mm=2 path (raw_mm_bits remain in W10..W13 but
+        // are ignored by downstream FSM mux).
+        write_word(4'd9, 32'h00000000);
+        check_eq("TC5.raw_mode_flag=0 after W9 clear", mb_raw_mode_flag, 0);
 
         // -------------------------------------------------------------
         // Summary

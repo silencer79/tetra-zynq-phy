@@ -37,9 +37,20 @@ tetra_ul_mon: tetra_ul_mon.c tetra_hal.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 tetra_attach_daemon: tetra_attach_daemon.c tetra_db.c tetra_db.h \
-                     tetra_tx_transport.c tetra_tx_transport.h tetra_hal.h
+                     tetra_tx_transport.c tetra_tx_transport.h \
+                     tetra_grpack_body.c tetra_grpack_body.h tetra_hal.h
 	$(CC) $(CFLAGS) -o $@ tetra_attach_daemon.c tetra_db.c \
-		tetra_tx_transport.c
+		tetra_tx_transport.c tetra_grpack_body.c
+
+# Host-side regression for tetra_grpack_build() — built with the host gcc
+# (NOT the cross-compiler) so it runs on the build machine.  Run via
+# `make test`.
+test_grpack: test_grpack_body.c tetra_grpack_body.c tetra_grpack_body.h
+	gcc -Wall -Werror -O2 -o /tmp/test_grpack \
+		test_grpack_body.c tetra_grpack_body.c
+
+test: test_grpack
+	/tmp/test_grpack
 
 module:
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \
@@ -51,6 +62,7 @@ install:
 
 clean:
 	rm -f tetra_sysinfo tetra_ul_mon tetra_attach_daemon
+	rm -f /tmp/test_grpack
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \
 		-C $(KERNEL_SRC) M=$(PWD) clean 2>/dev/null || true
 	rm -f Module.symvers modules.order
@@ -81,4 +93,4 @@ dt-node:
 	@echo "    status = \"okay\";"
 	@echo "};"
 
-.PHONY: all modules install clean load unload info dt-node
+.PHONY: all modules install clean load unload info dt-node test test_grpack
