@@ -42,7 +42,7 @@
 // to the deleted in-FSM copies in mle_registration_fsm.v / pre_reply_
 // slotgrant.v; tb_dl_pdu_builder + tb_pre_reply_slotgrant pin both
 // pre-X.6 fixtures (Gold-Ref MM-Body + AL-SETUP + slot_grant_element=
-// 8'h01, granting_delay=1).
+// 8'h00, granting_delay=0 — Gold-Match per project_slot_grant_drift.md).
 //
 // Coding rules (Verilog-2001 strict):
 //   R1   one always block per FSM
@@ -97,13 +97,17 @@ module tetra_dl_pdu_builder (
     reg         lat_nr;
 
     // -------------------------------------------------------------------------
-    // Stage A — basic slot-grant element (capacity_allocation=0, granting_delay=1).
-    // Both pre-X.6 call-sites used the same constants — we hardcode here.
+    // Stage A — basic slot-grant element (capacity_allocation=0, granting_delay=0).
+    // Gold-Reference (verified via decode_dl on GOLD_DL_…GRUPPENRUF.wav, 5 Bursts:
+    // #775/#783/#4803/#4811/#5343) sendet sg_element=0x00 auf BEIDEN Reply-Slots
+    // (Pre-Reply LI=7 + Final-Accept LI=21/16).  Pre-X.6 hardcodete granting_delay=1
+    // → sg_element=0x01 — stiller Bit-Drift, wahrscheinliche Ursache fuer
+    // MS-Rejection des Z.17 GroupAcks (siehe project_slot_grant_drift.md).
     // -------------------------------------------------------------------------
     wire [7:0] slotgrant_packed_w;
     tetra_basic_slotgrant_encoder u_slotgrant_pkt (
         .capacity_allocation (4'd0),
-        .granting_delay      (4'd1),
+        .granting_delay      (4'd0),
         .packed_element      (slotgrant_packed_w)
     );
 
