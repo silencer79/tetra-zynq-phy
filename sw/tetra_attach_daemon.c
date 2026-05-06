@@ -240,10 +240,17 @@ static void service_grp_demand(tetra_hal_t *hal)
         return;
     }
 
-    /* If the MS sent zero usable GSSIs, ACCEPT with count=0 (no records).
-     * The encoder produces an 8-bit MM body in that case (REJECT-style
-     * envelope but accept_reject=0).  Most MS treat empty-acceptance as
-     * "no groups bound" and don't fault. */
+    /* Wenn keine GSSI passt: kein ACK senden — Demand stillschweigend
+     * verwerfen.  Encoder ist Fixed-1-Record-only (Gold-konform), variable
+     * Längen sind nicht zulässig. */
+    if (reply_count == 0u) {
+        tetra_reg_write(hal, REG_GRP_DEMAND_ACK, 0x1u);
+        fprintf(stderr,
+                "tetra_attach_daemon: GRP no-match ssi=0x%06X cnt=%u atd=%u "
+                "rep=%u → skip (no GSSI-hit)\n", ssi, cnt, atd, rep);
+        return;
+    }
+
     unsigned ns = 0u, nr = 0u;
     grp_nsnr_step(ssi, &ns, &nr);
 

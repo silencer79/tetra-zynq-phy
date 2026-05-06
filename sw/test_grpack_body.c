@@ -65,17 +65,16 @@ int main(void)
      * TC1 — Gold-Ref GS#1 1-record: GSSI=0x2F4D64, class=4, lifetime=1,
      *       atd=0 (attach), addr_type=0, accept.
      *
-     * Per memory `reference_gold_group_switch_burst_timeline.md` F1
-     * (60-bit MM body, prepended with mm_pdu_type=11 → 64 bits total):
-     *   1011 0 0 1 0 1 0111 00000100110 000001 0 01 100 00
-     *   <GSSI=0x2F4D64=24bit> 0 0
+     * Quelle: docs/references/gold_wav_bit_analysis_2026-05-04.md Burst
+     * #4811 info_hex `0x2081282ff440011b 3704c09817a6b220 00108000...`
+     * Bits 60..121 (= MM body, 62 bits, MSB-first):
+     *   1011 0011 0111 0000 0100 1100 0000 1001
+     *   1000 0001 0111 1010 0110 1011 001000
+     * Byte-packed: B3 70 4C 09 81 7A 6B 20 (last 6 bits + 2 padding zeros)
      *
-     * Byte-packed MSB-first:
-     *   B0 = 1011 0010 = 0xB2
-     *   B1 = 1011 1000 = 0xB8
-     *   B2 = 0010 0110 = 0x26
-     *   B3 = 0000 0100 = 0x04
-     *   B4 = 1100 0000 + GSSI[0..1] = 0xC0 + ...
+     * Layout: [pdu 4][ar 1][rsv 1][obit 1][m=1][elem_id=7 4][length=38 11]
+     *         [num=1 6][atd 1][lt 2][cls 3][at 2][gssi 24][trail_m 0]
+     * Total = 62 bits.
      * ---------------------------------------------------------------- */
     {
         grpack_meta_t m;
@@ -90,48 +89,15 @@ int main(void)
 
         len = tetra_grpack_build(&m, buf);
         printf("TC1 — Gold-Ref GS#1 1-record (GSSI=0x2F4D64)\n");
-        check_eq_int("TC1.bitlen", len, 64);
+        check_eq_int("TC1.bitlen", len, 62);
 
-        const uint8_t exp[5] = { 0xB2, 0xB8, 0x26, 0x04, 0xC0 };
-        check_bytes("TC1.first_5_bytes", buf, exp, 5);
+        const uint8_t exp[8] = { 0xB3, 0x70, 0x4C, 0x09, 0x81, 0x7A, 0x6B, 0x20 };
+        check_bytes("TC1.gold_8_bytes", buf, exp, 8);
     }
 
     /* ----------------------------------------------------------------
      * TC2 — Live-cell example, 1-record GSSI=0x000002.
-     *
-     * Body bits (with class=4, lifetime=1, atd=0, addr_type=0):
-     *   1011 0 0 1 0 1 0111 00000100110 000001 0 01 100 00
-     *   <GSSI=0x000002=24bit MSB-first = 0000_0000_0000_0000_0000_0010>
-     *   0 0
-     *
-     * Byte-packed MSB-first:
-     *   B0..B3 = 0xB2 0xB8 0x26 0x04 (header is GSSI-independent)
-     *   B4 = 1100 0000 = 0xC0
-     *   B5..B6 = 0x00 0x00 (24-bit GSSI is mostly zero)
-     *   B7 = 1000 0000 (GSSI low byte = 0x02 → bit pattern then 0+0 trailer)
-     *
-     * Walk through B7 manually:
-     *   GSSI low byte 0x02 = 0000_0010, bits 16..23 of GSSI.
-     *   Body bit positions 30..38 (post-num_elems) are atd+lifetime+class+
-     *   addr_type = 0_01_100_00 → byte 4 stays 0xC0.
-     *   Bits 38..61 hold GSSI[23:0]. Bit 38..61: 24 bits MSB-first.
-     *   The pre-GSSI fragment (bits 30..37) takes 8 bits.
-     *
-     *   Byte 4 [bits 32..39]: 1 1 0 0 0 0 0 0  = 0xC0
-     *     bit 32 = lifetime[1]=1
-     *     bit 33 = class[2]=1 (class=4=100)
-     *     bit 34 = class[1]=0
-     *     bit 35 = class[0]=0
-     *     bit 36 = at[1]=0
-     *     bit 37 = at[0]=0
-     *     bit 38 = GSSI[23] = 0
-     *     bit 39 = GSSI[22] = 0
-     *
-     *   Byte 5 [bits 40..47]: GSSI[21..14] = 8 zero bits = 0x00
-     *   Byte 6 [bits 48..55]: GSSI[13..6]  = 8 zero bits = 0x00
-     *   Byte 7 [bits 56..63]: GSSI[5..0] + m_grp_sec(0) + trailing(0)
-     *     GSSI[5..0] = 000010
-     *     B7 bits = 0000_1000 = 0x08
+     * Identisches Layout zu TC1, nur GSSI=0x000002 statt 0x2F4D64.
      * ---------------------------------------------------------------- */
     {
         grpack_meta_t m;
@@ -146,22 +112,29 @@ int main(void)
 
         len = tetra_grpack_build(&m, buf);
         printf("\nTC2 — 1-record GSSI=0x000002 (low-value)\n");
-        check_eq_int("TC2.bitlen", len, 64);
+        check_eq_int("TC2.bitlen", len, 62);
 
-        const uint8_t exp_first5[5] = { 0xB2, 0xB8, 0x26, 0x04, 0xC0 };
-        check_bytes("TC2.first_5_bytes", buf, exp_first5, 5);
-
-        const uint8_t exp_b5_b7[3] = { 0x00, 0x00, 0x08 };
-        check_bytes("TC2.bytes_5_to_7", buf + 5, exp_b5_b7, 3);
+        /* Header (bits 0..36) ist GSSI-unabhängig: B3 70 4C 09 8x.
+         * GSSI=0x000002 = MSB-first 0000 0000 0000 0000 0000 0010
+         *  → bit 37..60 = 24 bits = mostly zero, ending in 010
+         *  → bytes from bit 32:
+         *     bit 32..36 = cls(100) + at(00) = 10000
+         *     bit 37..44 = gssi[0..7]   = 0000 0000
+         *     bit 45..52 = gssi[8..15]  = 0000 0000
+         *     bit 53..60 = gssi[16..23] = 0000 0010
+         *     bit 61     = trail = 0
+         *  → byte 4 [bits 32..39] = 1000 0000 = 0x80
+         *  → byte 5 [bits 40..47] = 0000 0000 = 0x00
+         *  → byte 6 [bits 48..55] = 0000 0000 = 0x00
+         *  → byte 7 [bits 56..63] = 0010 _0_00 = 0x10 (last 2 bits = padding) */
+        const uint8_t exp[8] = { 0xB3, 0x70, 0x4C, 0x09, 0x80, 0x00, 0x00, 0x10 };
+        check_bytes("TC2.live_8_bytes", buf, exp, 8);
     }
 
     /* ----------------------------------------------------------------
-     * TC3 — 2-record envelope length (1 attach 0x2F4D64 + 1 detach 0x2F4D63).
-     *
-     * Length field = 6 + 32*2 = 70 bits = 0b00001000110.
-     * num_elems = 2 = 0b000010.
-     *
-     * Total bits = 64 + 32 = 96.
+     * TC3 — 2-record envelope length.  Gold-konform 62 + 32 = 94 bits.
+     * Length field = 6 + 32*2 = 70 bits.
+     * num_elems = 2.
      * ---------------------------------------------------------------- */
     {
         grpack_meta_t m;
@@ -183,40 +156,16 @@ int main(void)
 
         len = tetra_grpack_build(&m, buf);
         printf("\nTC3 — 2-record (1 attach + 1 detach)\n");
-        check_eq_int("TC3.bitlen", len, 96);
+        check_eq_int("TC3.bitlen", len, 94);
 
-        /* Header bytes 0..2 stay constant.  Length=70 changes byte 1..3.
-         * 4-bit mm_pdu_type=1011, accept=0, reserved=0, o=1, mProp=0, mGID=1,
-         * elem_id=0111, length=00001000110 → bits stream:
-         *   1011 0 0 1 0 1 0111 00001000110 000010 ...
-         *   B0 = 1011 0010 = 0xB2
-         *   B1 = 1011 1000 = 0xB8 (bits 8..15)
-         *     bit8=1(mGID), bit9..12=0111(elem_id), bit13=0(len[10]),
-         *     bit14=0(len[9]), bit15=0(len[8])  → 1011 1000 = 0xB8
-         *   B2 = 1000 1100 = 0x8C (bits 16..23 = len[7..0])
-         *     len=70=0b1000110 → len[10..0]=0000_1000_110
-         *     bit16..23 = bits len[7..0] = 0_1000_110(?) wait recheck
-         *
-         * Recompute: length is 11-bit = 70 = 00001000110
-         * Already wrote bit13 = len[10] = 0
-         *               bit14 = len[9]  = 0
-         *               bit15 = len[8]  = 0
-         *               bit16 = len[7]  = 0
-         *               bit17 = len[6]  = 1
-         *               bit18 = len[5]  = 0
-         *               bit19 = len[4]  = 0
-         *               bit20 = len[3]  = 0
-         *               bit21 = len[2]  = 1
-         *               bit22 = len[1]  = 1
-         *               bit23 = len[0]  = 0
-         *   B2 = 0100_0110 = 0x46
-         *   B3 (bits 24..31) = num_elems[5..0] || atd || lifetime[1]
-         *     num_elems = 2 = 000010 → bits 24..29 = 0,0,0,0,1,0
-         *     bit 30 = atd = 0
-         *     bit 31 = lifetime[1] = 0 (lifetime=01 → lifetime[1]=0)
-         *   B3 = 0000_1000 = 0x08
-         */
-        const uint8_t exp_first4[4] = { 0xB2, 0xB8, 0x46, 0x08 };
+        /* 62-bit single-record header + 32-bit second record = 94 bits.
+         * Layout (MSB-first):
+         *   pdu(1011) ar(0) rsv(0) obit(1) m(1) elem_id(0111)
+         *   length=70=0b00001000110  num=2=0b000010
+         *   record0: atd=0 lt=01 cls=100 at=00 gssi=0x2F4D64
+         *   record1: atd=1 lt=01 cls=100 at=00 gssi=0x2F4D63
+         *   trail=0 */
+        const uint8_t exp_first4[4] = { 0xB3, 0x70, 0x8C, 0x11 };
         check_bytes("TC3.first_4_bytes", buf, exp_first4, 4);
     }
 
@@ -251,18 +200,10 @@ int main(void)
 
         len = tetra_grpack_build(&m, buf);
         printf("\nTC4 — 3-record envelope\n");
-        check_eq_int("TC4.bitlen", len, 128);
+        check_eq_int("TC4.bitlen", len, 126);
 
-        /* length = 102 = 0b00001100110 */
-        /* B2 (bits 16..23) = len[7..0] = 0110_0110 = 0x66 */
-        /* Wait: bit13=len[10]=0, bit14=len[9]=0, bit15=len[8]=0
-         *       bit16=len[7]=0, bit17=len[6]=1, bit18=len[5]=1,
-         *       bit19=len[4]=0, bit20=len[3]=0, bit21=len[2]=1,
-         *       bit22=len[1]=1, bit23=len[0]=0
-         *  B2 = 0110_0110 = 0x66
-         *  B1 = 1011_1000 = 0xB8 (mGID=1, elem_id=0111, len[10..8]=000)
-         */
-        const uint8_t exp_first3[3] = { 0xB2, 0xB8, 0x66 };
+        /* 62 + 64 = 126 bits.  length=102=0b00001100110, num=3=0b000011. */
+        const uint8_t exp_first3[3] = { 0xB3, 0x70, 0xCC };
         check_bytes("TC4.first_3_bytes", buf, exp_first3, 3);
     }
 
