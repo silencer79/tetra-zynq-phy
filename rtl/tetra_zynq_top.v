@@ -3673,7 +3673,15 @@ tetra_aach_encoder u_aach_encoder (
     .colour_code_sys  (colour_code_sys_r1),
     .mcc_sys          (cell_cfg_mcc_sys_r1),
     .mnc_sys          (cell_cfg_mnc_sys_r1),
-    .signalling_active_sys (sched_reply_active_by_content_w[tx_tn_next_sys]),
+    // Quelle direkt aus der Queue.head sichten statt aus sched_blk1!=null_pdu —
+    // letzteres ist kombinatorisch vom sched_blk1-Bus abhängig, der seinerseits
+    // erst stabil ist wenn die queue.head bei slot_pulse-entering-TN=tx_tn_next
+    // tatsächlich schon den richtigen Eintrag hat.  Für isolierte Single-PDU
+    // Replies (mm=11 grpack ohne SlotGrant-Bundle davor) fällt das Sample-
+    // Fenster in eine Lücke und AACH bleibt 0x0249 idle, obwohl die Burst-
+    // Body-Bits später noch das richtige grpack-Wort einsehen.
+    .signalling_active_sys (queue_head_valid_w
+                            && (queue_head_target_tn_w == tx_tn_next_sys)),
     // Phase H.6.3 — UL-Slot-Grant override (kept; only fires on TN=0
     // idle when head_match=0, no overlap with queued-PDU path).
     .grant_pending_sys (aach_grant_pending_sys_r1),
