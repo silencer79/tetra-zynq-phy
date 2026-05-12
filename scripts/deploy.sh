@@ -270,6 +270,15 @@ if $DO_SW; then
         fi
         ssh_cmd "chmod +x /www/cgi-bin/*.cgi 2>/dev/null || true"
         echo "WebUI uploaded → /www/index.html + /www/cgi-bin/*.cgi"
+
+        # busybox httpd serves /www on port 80.  Frisches openwifi-Image
+        # startet den Webserver nicht automatisch — wir starten ihn hier
+        # mit setsid (überlebt SSH-Disconnect) und kicken vorhandene
+        # Instanzen via pkill-bracket-Trick (procps-pkill 3.3.17 würde
+        # sonst die eigene ssh-shell killen).
+        ssh_cmd "pkill -f '[h]ttpd.*-p 80' 2>/dev/null; true"
+        ssh_cmd "setsid busybox httpd -p 80 -h /www < /dev/null > /dev/null 2>&1 &"
+        echo "WebUI httpd started → http://${BOARD_IP}/"
     fi
 fi
 
@@ -305,6 +314,13 @@ if $DO_INIT; then
     # directly and re-loads on mtime change for WebUI live edits.
     ssh_cmd "test -f /root/db.tsv || cp ${REMOTE_BIN_DIR}/db.tsv.default /root/db.tsv"
     echo "Subscriber-DB seeded at /root/db.tsv (X.7 SW-resident)"
+
+    # Frisches openwifi-Image hat keinen /usr/bin/devmem-Symlink — busybox
+    # liefert das Applet, aber das Tool ist nicht im PATH.  Ohne diesen
+    # Symlink scheitert der `devmem 0x43C001AC 32 0x3`-Schreibzugriff weiter
+    # unten, und der tetra_attach_daemon startet ohne REG_DB_POLICY und
+    # beendet sich sofort.  Symlink ist idempotent.
+    ssh_cmd "ln -sf /usr/bin/busybox /usr/bin/devmem"
 
     ssh_cmd "setsid /root/tetra_sysinfo --daemon < /dev/null > /tmp/tetra_sysinfo.log 2>&1 &"
     echo "tetra_sysinfo started in --daemon mode → /tmp/tetra_sysinfo.log"
