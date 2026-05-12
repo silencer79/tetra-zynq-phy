@@ -261,7 +261,7 @@ cmd_tx_monitor() {
             echo \"ERROR: rf_port_select readback is '\$RX_PORT', expected TX_MONITOR1_2\" >&2
             exit 1
         fi
-        iio_attr -c ad9361-phy voltage0 gain_control_mode slow_attack >/dev/null
+        iio_attr -c ad9361-phy voltage0 gain_control_mode fast_attack >/dev/null
         iio_attr -d ad9361-phy ensm_mode fdd >/dev/null
         DAC=${DAC_BASE}
         busybox devmem \$((DAC+0x40)) 32 0x3   >/dev/null
@@ -318,7 +318,7 @@ cmd_rf_loopback() {
             echo \"ERROR: rf_port_select readback is '\$RX_PORT', expected A_BALANCED\" >&2
             exit 1
         fi
-        iio_attr -c ad9361-phy voltage0 gain_control_mode slow_attack >/dev/null
+        iio_attr -c ad9361-phy voltage0 gain_control_mode fast_attack >/dev/null
         iio_attr -d ad9361-phy ensm_mode fdd >/dev/null
 
         # TX1 Dämpfung setzen — out_voltage0 = TX1 (aktiver Ausgang), out_voltage1 = TX2 (ungenutzt)

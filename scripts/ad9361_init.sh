@@ -40,7 +40,7 @@ RX_FREQ_HZ=429950000
 TX_FREQ_HZ=""              # leer → RX+10 MHz Default; sonst expliziter Wert
 SAMPLERATE_HZ=4608000
 RX_GAIN_DB=40
-GAIN_MODE="slow_attack"    # manual | slow_attack | fast_attack
+GAIN_MODE="fast_attack"    # manual | slow_attack | fast_attack — TETRA Burst-Mode profitiert von fast (Onset-Anpassung µs statt ms)
 
 # --- Argument Parsing ---
 while [[ $# -gt 0 ]]; do
@@ -50,7 +50,7 @@ while [[ $# -gt 0 ]]; do
         --tx-freq)    TX_FREQ_HZ="$2";     shift 2 ;;
         --samplerate) SAMPLERATE_HZ="$2";  shift 2 ;;
         --gain)       RX_GAIN_DB="$2";     shift 2 ;;
-        --agc)        GAIN_MODE="slow_attack"; shift 1 ;;
+        --agc)        GAIN_MODE="fast_attack"; shift 1 ;;
         *) echo "Unknown argument: $1"; exit 1 ;;
     esac
 done
