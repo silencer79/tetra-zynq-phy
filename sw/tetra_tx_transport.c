@@ -21,6 +21,7 @@
 
 #include "tetra_tx_transport.h"
 #include "tetra_grpack_body.h"
+#include "tetra_cmce_body.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -93,6 +94,63 @@ static int submit_lu(tetra_hal_t *hal, const tx_pdu_meta_t *m,
  *   W9  raw_mode_flag=1 | nr | ns | raw_mm_len[7:0]
  *   W10..W13 raw_mm_bits[127:0] (LSB-first across words; W10=bits[31:0])
  */
+/* Stage a SW-built MM body (mm=11 GRP-ACK or any mm=cmce* PDU) into the
+ * shared mm=2 Reply-Pull-Mailbox via raw_mode_flag=1.  Caller supplies
+ * MSB-first byte stream; we pack it into the W10..W13 raw-bits window
+ * with bit 0 of the body landing at raw_mm_bits[127] (= FSM's MSB).
+ *
+ * W0   target SSI (24-bit, MAC-RESOURCE addr field)
+ * W1   la=0
+ * W2   addr_type=1 (SSI)
+ * W3..W8  zeroed (legacy mm=2 GILA fields irrelevant in raw)
+ * W9   raw_mode_flag(31) | raw_nr(9) | raw_ns(8) | raw_mm_len[7:0]
+ * W10..W13  raw_mm_bits[127:0]                                          */
+static int stage_raw_mm(tetra_hal_t *hal,
+                        uint32_t      target_ssi,
+                        const uint8_t *mm_bytes,
+                        int           mm_len,
+                        uint8_t       ns,
+                        uint8_t       nr)
+{
+    if (mm_len <= 0 || mm_len > 128) return -1;
+
+    uint32_t w_raw[4] = { 0u, 0u, 0u, 0u };
+    for (int i = 0; i < mm_len; i++) {
+        unsigned src_byte = (unsigned)(i >> 3);
+        unsigned src_bit  = 7u - ((unsigned)i & 0x7u);
+        unsigned bit      = (mm_bytes[src_byte] >> src_bit) & 0x1u;
+        if (bit) {
+            unsigned dst_pos  = 127u - (unsigned)i;
+            unsigned word_idx = dst_pos >> 5;
+            unsigned word_bit = dst_pos & 0x1Fu;
+            w_raw[word_idx] |= (1u << word_bit);
+        }
+    }
+
+    reply_write(hal, 0, target_ssi & 0x00FFFFFFu);
+    reply_write(hal, 1, 0u);
+    reply_write(hal, 2, 0x1u);
+    reply_write(hal, 3, 0u);
+    reply_write(hal, 4, 0u);
+    reply_write(hal, 5, 0u);
+    reply_write(hal, 6, 0u);
+    reply_write(hal, 7, 0u);
+    reply_write(hal, 8, 0u);
+
+    uint32_t w9 = (1u << 31)
+                | ((uint32_t)(nr & 0x1u) << 9)
+                | ((uint32_t)(ns & 0x1u) << 8)
+                | ((uint32_t) mm_len & 0xFFu);
+    reply_write(hal,  9, w9);
+    reply_write(hal, 10, w_raw[0]);
+    reply_write(hal, 11, w_raw[1]);
+    reply_write(hal, 12, w_raw[2]);
+    reply_write(hal, 13, w_raw[3]);
+
+    tetra_reg_write(hal, REG_REPLY_GO, 0x1u);
+    return 0;
+}
+
 static int submit_grp_ack(tetra_hal_t *hal, const tx_pdu_meta_t *m)
 {
     uint8_t cnt = (m->reply_count > TETRA_GRPACK_MAX_RECORDS)
@@ -114,56 +172,21 @@ static int submit_grp_ack(tetra_hal_t *hal, const tx_pdu_meta_t *m)
     int mm_len = tetra_grpack_build(&gm, mm_bytes);
     if (mm_len <= 0) return -1;
 
-    /* Pack mm_bytes (MSB-first byte stream) into 4 × 32-bit little-endian
-     * words.  mm_bytes[0] holds bits 0..7 of the body; this is the high
-     * byte of raw_mm_bits[31:0] (i.e. raw_mm_bits[31:24]).  Inside the
-     * mailbox the MSB sits at raw_mm_bits[127] when stored across W13..W10
-     * — that's exactly what the FSM forwards to req_mm_pdu_bits[127:0].
-     *
-     * Indexing convention here mirrors the dloc encoder's pdu_bits_mm
-     * output: pdu_bits_mm[127:0] holds the body MSB-first with bit 127 =
-     * first bit transmitted.  We build the same layout here. */
-    uint32_t w_raw[4] = { 0u, 0u, 0u, 0u };
-    for (int i = 0; i < mm_len; i++) {
-        unsigned src_byte = (unsigned)(i >> 3);
-        unsigned src_bit  = 7u - ((unsigned)i & 0x7u);
-        unsigned bit      = (mm_bytes[src_byte] >> src_bit) & 0x1u;
-        if (bit) {
-            /* Body bit position i (MSB-first) lands at raw_mm_bits[127-i].
-             * raw_mm_bits[31:0]   = W10
-             * raw_mm_bits[63:32]  = W11
-             * raw_mm_bits[95:64]  = W12
-             * raw_mm_bits[127:96] = W13 */
-            unsigned dst_pos  = 127u - (unsigned)i;
-            unsigned word_idx = dst_pos >> 5;          /* 0..3 */
-            unsigned word_bit = dst_pos & 0x1Fu;       /* 0..31 */
-            w_raw[word_idx] |= (1u << word_bit);
-        }
-    }
+    return stage_raw_mm(hal, m->target_ssi, mm_bytes, mm_len, m->ns, m->nr);
+}
 
-    reply_write(hal, 0, m->target_ssi & 0x00FFFFFFu);
-    reply_write(hal, 1, 0u);                            /* la = 0 (n/a)        */
-    reply_write(hal, 2, 0x1u);                          /* addr_type = SSI     */
-    reply_write(hal, 3, 0u);
-    reply_write(hal, 4, 0u);
-    reply_write(hal, 5, 0u);
-    reply_write(hal, 6, 0u);
-    reply_write(hal, 7, 0u);
-    reply_write(hal, 8, 0u);
-
-    /* W9: raw_mode_flag(31) | resv | nr(9) | ns(8) | mm_len[7:0] */
-    uint32_t w9 = (1u << 31)
-                | ((uint32_t)(m->nr & 0x1u) << 9)
-                | ((uint32_t)(m->ns & 0x1u) << 8)
-                | ((uint32_t) mm_len & 0xFFu);
-    reply_write(hal,  9, w9);
-    reply_write(hal, 10, w_raw[0]);
-    reply_write(hal, 11, w_raw[1]);
-    reply_write(hal, 12, w_raw[2]);
-    reply_write(hal, 13, w_raw[3]);
-
-    tetra_reg_write(hal, REG_REPLY_GO, 0x1u);
-    return 0;
+/* CMCE submit-Helpers — Phase 7 G.4.  Jeder Helper baut den Body via den
+ * passenden tetra_cmce_build_*() Builder und staged ihn via stage_raw_mm.
+ * Body-Längen sind variabel (D-RELEASE ≈ 22 bit, D-SETUP/D-CONNECT bis ~50
+ * bit ohne IE-Chain; mit Type-3-IEs später bis ~120 bit).                */
+static int submit_cmce_pdu(tetra_hal_t      *hal,
+                           const tx_pdu_meta_t *m,
+                           int (*builder)(const cmce_meta_t *, uint8_t *))
+{
+    uint8_t mm_bytes[32];
+    int mm_len = builder(&m->cmce, mm_bytes);
+    if (mm_len <= 0) return -1;
+    return stage_raw_mm(hal, m->target_ssi, mm_bytes, mm_len, m->ns, m->nr);
 }
 
 int tetra_tx_submit(tetra_hal_t *hal, tx_pdu_class_t cls,
@@ -178,6 +201,16 @@ int tetra_tx_submit(tetra_hal_t *hal, tx_pdu_class_t cls,
         return submit_lu(hal, meta, (meta->result != 0u) ? meta->result : 1u);
     case TX_GRP_ATTACH_ACK:
         return submit_grp_ack(hal, meta);
+    case TX_D_SETUP:
+        return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_setup);
+    case TX_D_CALL_PROCEEDING:
+        return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_call_proceeding);
+    case TX_D_CONNECT:
+        return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_connect);
+    case TX_D_TX_GRANTED:
+        return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_tx_granted);
+    case TX_D_RELEASE:
+        return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_release);
     default:
         return -1;
     }

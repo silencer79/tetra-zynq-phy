@@ -19,15 +19,20 @@
 
 #include <stdint.h>
 #include "tetra_hal.h"
+#include "tetra_cmce_body.h"
 
 typedef enum {
     TX_LU_ACCEPT       = 0,   /* mm=1, LI=21, SCH/F   → mcch              */
     TX_LU_REJECT       = 1,   /* mm=4, LI=7,  SCH/HD blk1 → mcch (Z.5)    */
     TX_GRP_ATTACH_ACK  = 2,   /* mm=11, LI=16, SCH/F  → mcch              */
-    /* Future:
-     * TX_BL_ACK_LI7, TX_NWRK_BCAST, TX_CALL_PROCEEDING, TX_TX_GRANTED,
-     * TX_DETACH_ACK
-     */
+    /* Phase 7 G.4 — CMCE DL replies (alle via raw_mode_flag=1 staging,
+     * Body in SW per tetra_cmce_build_*).  Architektur-Lock per
+     * project_arch_fpga_thin_signaling.md: keine neuen RTL-Encoder. */
+    TX_D_SETUP             = 3,   /* CMCE pdu=1, group-call BS→MS setup       */
+    TX_D_CALL_PROCEEDING   = 4,   /* CMCE pdu=3, setup-in-progress ack        */
+    TX_D_CONNECT           = 5,   /* CMCE pdu=2, group-call accepted          */
+    TX_D_TX_GRANTED        = 6,   /* CMCE pdu=21, talker-grant                */
+    TX_D_RELEASE           = 7,   /* CMCE pdu=10, end-of-call                 */
 } tx_pdu_class_t;
 
 /* Slot-class hint (Z.2+).  0 = legacy (RTL chooses default per existing
@@ -67,6 +72,11 @@ typedef struct {
     uint8_t  cls[3];            /* 3-bit each: class_of_usage              */
     uint8_t  ns, nr;            /* LLC stop-and-wait                       */
     uint8_t  accept_reject;     /* 0=accept, 1=reject (W1 of GRP reply)    */
+
+    /* ---- CMCE (Phase 7 G.4 — D-SETUP / D-CONNECT / D-CALL-PROCEEDING /
+     *      D-TX-GRANTED / D-RELEASE).  Builder picks fields per PDU class.
+     *      ns/nr above carry the LLC stop-and-wait sequence. */
+    cmce_meta_t      cmce;
 
     /* ---- Z.2 future-fields ---- */
     tx_slot_class_t slot_class; /* 0 = legacy                              */

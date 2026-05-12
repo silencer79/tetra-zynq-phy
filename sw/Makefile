@@ -38,9 +38,12 @@ tetra_ul_mon: tetra_ul_mon.c tetra_hal.h
 
 tetra_attach_daemon: tetra_attach_daemon.c tetra_db.c tetra_db.h \
                      tetra_tx_transport.c tetra_tx_transport.h \
-                     tetra_grpack_body.c tetra_grpack_body.h tetra_hal.h
+                     tetra_grpack_body.c tetra_grpack_body.h \
+                     tetra_cmce_body.c tetra_cmce_body.h \
+                     tetra_cmce_parser.c tetra_cmce_parser.h tetra_hal.h
 	$(CC) $(CFLAGS) -o $@ tetra_attach_daemon.c tetra_db.c \
-		tetra_tx_transport.c tetra_grpack_body.c
+		tetra_tx_transport.c tetra_grpack_body.c tetra_cmce_body.c \
+		tetra_cmce_parser.c
 
 # Host-side regression for tetra_grpack_build() — built with the host gcc
 # (NOT the cross-compiler) so it runs on the build machine.  Run via
