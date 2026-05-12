@@ -49,8 +49,18 @@ test_grpack: test_grpack_body.c tetra_grpack_body.c tetra_grpack_body.h
 	gcc -Wall -Werror -O2 -o /tmp/test_grpack \
 		test_grpack_body.c tetra_grpack_body.c
 
-test: test_grpack
+test_cmce_parser: test_cmce_parser.c tetra_cmce_parser.c tetra_cmce_parser.h
+	gcc -Wall -Werror -O2 -o /tmp/test_cmce_parser \
+		test_cmce_parser.c tetra_cmce_parser.c
+
+test_cmce_body: test_cmce_body.c tetra_cmce_body.c tetra_cmce_body.h
+	gcc -Wall -Werror -O2 -o /tmp/test_cmce_body \
+		test_cmce_body.c tetra_cmce_body.c
+
+test: test_grpack test_cmce_parser test_cmce_body
 	/tmp/test_grpack
+	/tmp/test_cmce_parser
+	/tmp/test_cmce_body
 
 module:
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \
@@ -62,7 +72,7 @@ install:
 
 clean:
 	rm -f tetra_sysinfo tetra_ul_mon tetra_attach_daemon
-	rm -f /tmp/test_grpack
+	rm -f /tmp/test_grpack /tmp/test_cmce_parser /tmp/test_cmce_body
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \
 		-C $(KERNEL_SRC) M=$(PWD) clean 2>/dev/null || true
 	rm -f Module.symvers modules.order
@@ -93,4 +103,5 @@ dt-node:
 	@echo "    status = \"okay\";"
 	@echo "};"
 
-.PHONY: all modules install clean load unload info dt-node test test_grpack
+.PHONY: all modules install clean load unload info dt-node test \
+        test_grpack test_cmce_parser test_cmce_body
