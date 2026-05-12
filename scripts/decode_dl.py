@@ -1629,6 +1629,11 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
         ok, info, _ = decode_channel_soft(sb1_soft, 120, 11, 60)
         return ok, info, demod_pi4dqpsk(burst_syms)
 
+    def _dump_this(idx):
+        if isinstance(dump_burst, (set, list, tuple)):
+            return idx in dump_burst
+        return dump_burst == idx
+
     if dump_burst == -2:
         # --dump-burst -2: dump (idx, sample_pos, time_s, type, tn, fn, mn) für jeden burst,
         # rest des Decodes wird übersprungen.  Genutzt für UL/DL-Time-Sync.
@@ -1814,7 +1819,7 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
 
                 # Phase-1 dump-hook: vor Descramble die rohen on-air type-5
                 # hard-bits + nach Decode die 268 info bits ausgeben.
-                if dump_burst == idx:
+                if _dump_this(idx):
                     on_air_t5 = (np.concatenate([blk1_soft, blk2_soft]) < 0).astype(int).tolist()
                     print(f"  ROUNDTRIP_DUMP type5_onair_432b={''.join(str(b) for b in on_air_t5)}")
                     print(f"  ROUNDTRIP_DUMP scramb_code=0x{scramb_code:08x}")
@@ -1822,7 +1827,7 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                 combined_soft = descramble_soft(combined_soft, scramb_code, 432)
                 crc_ok, info_bits, _ = decode_channel_soft(combined_soft, 432, 103, 268)
 
-                if dump_burst == idx and crc_ok:
+                if _dump_this(idx) and crc_ok:
                     info_str = ''.join(str(int(b)) for b in info_bits)
                     print(f"  ROUNDTRIP_DUMP info_268b={info_str}")
                     print(f"  ROUNDTRIP_DUMP info_hex=0x{int(info_str,2):067x}")
@@ -1862,7 +1867,7 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                 crc1, info1, crc2, info2 = _decode_halves(soft_bits)
 
                 # Phase-1 NDB2 dump-hook (SCH/HD round-trip)
-                if dump_burst == idx:
+                if _dump_this(idx):
                     b1 = soft_bits[blk1_s : blk1_s + NDB_BLK1 * 2]
                     b2 = soft_bits[blk2_s : blk2_s + NDB_BLK2 * 2]
                     onair_b1 = (np.asarray(b1) < 0).astype(int).tolist()
@@ -2135,10 +2140,10 @@ if __name__ == '__main__':
                         help='RTL-SDR gain')
     parser.add_argument('--duration', type=float, default=2.0,
                         help='Capture duration in seconds')
-    parser.add_argument('--dump-burst', type=int, default=-1,
-                        help='Dump 268-bit SCH/F info + 432-bit type-5 hard '
-                             'bits for a single NDB1 burst index (Phase-1 '
-                             'verifier hook, used by verify_sch_f_roundtrip).')
+    parser.add_argument('--dump-burst', default='-1',
+                        help='Dump info/type-5 hard bits for one burst index, '
+                             'or a comma-separated list of indexes. Use -2 '
+                             'for grid positions only.')
     args = parser.parse_args()
 
     if args.capture:
@@ -2156,8 +2161,13 @@ if __name__ == '__main__':
         ], check=True)
         args.input = capture_file
 
+    if ',' in str(args.dump_burst):
+        dump_burst = {int(x.strip()) for x in str(args.dump_burst).split(',') if x.strip()}
+    else:
+        dump_burst = int(args.dump_burst)
+
     ok = decode_dl(args.input, sample_rate=args.sr,
                    freq_offset=args.offset, max_bursts=args.max_bursts,
                    conjugate=args.conjugate, swap_iq=args.swap_iq,
-                   verbose=args.verbose, dump_burst=args.dump_burst)
+                   verbose=args.verbose, dump_burst=dump_burst)
     sys.exit(0 if ok else 1)

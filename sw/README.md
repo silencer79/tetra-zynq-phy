@@ -144,7 +144,7 @@ Compile for ARM:
 
 ```bash
 arm-linux-gnueabihf-gcc -o tetra_test tetra_test.c -static
-scp tetra_test root@192.168.2.180:/usr/local/bin/
+scp tetra_test root@192.168.2.183:/usr/local/bin/
 ```
 
 ---
@@ -231,10 +231,10 @@ make
 
 ```bash
 # Copy to target
-scp tetra_char_dev.ko root@192.168.2.180:/lib/modules/$(uname -r)/extra/
+scp tetra_char_dev.ko root@192.168.2.183:/lib/modules/$(uname -r)/extra/
 
 # On target: Load module
-ssh root@192.168.2.180
+ssh root@192.168.2.183
 depmod -a
 modprobe tetra_char_dev
 ```

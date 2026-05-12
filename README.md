@@ -39,7 +39,7 @@ Details in `docs/PROTOCOL.md §9` und `docs/references/captures_external_bs_2026
 |-----------|------|
 | FPGA | Xilinx Zynq-7020 (XC7Z020-CLG484) |
 | RF | Analog Devices AD9363 (AD9361-kompatibel) |
-| Board | LibreSDR Rev.5 (192.168.2.180, OpenWiFi-Kernel) |
+| Board | LibreSDR Rev.5 (192.168.2.183, OpenWiFi-Kernel) |
 | Toolchain | Vivado 2022.2, iverilog + vvp, `arm-linux-gnueabihf-gcc` |
 | HF-Band | 400 MHz (Band 4), DL 438.25 MHz / UL 428.25 MHz (10 MHz Duplex) |
 | Test-MS | Motorola MTP3550 |

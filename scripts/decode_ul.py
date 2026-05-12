@@ -717,9 +717,12 @@ def main():
     if decoded_pdus:
         print()
         print('=== Decoded MAC-ACCESS PDU (92 bits) ===')
-        for i, pdu in enumerate(decoded_pdus[:10]):
+        pdu_iter = decoded_pdus if args.dump_bits else decoded_pdus[:10]
+        for i, pdu in enumerate(pdu_iter):
             parsed = parse_mac_access(pdu)
             print(f'  #{i}: {bits_to_hex(pdu)}')
+            if args.dump_bits:
+                print(f'      bits92={"".join(str(int(b)) for b in pdu)}')
             print(f'      {format_parsed_mac_access(parsed)}')
             print(f'      parsed={parsed}')
 

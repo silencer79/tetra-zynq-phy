@@ -5,7 +5,7 @@ description: UL-Monitor-Log vom Board lesen + zusammenfassen
 Live-State des UL-Monitors:
 
 ```bash
-sshpass -p openwifi ssh -o StrictHostKeyChecking=no root@192.168.2.180 \
+sshpass -p openwifi ssh -o StrictHostKeyChecking=no root@192.168.2.183 \
   'wc -l /tmp/tetra_ul_mon.log; echo "---"; cat /tmp/tetra_ul_mon.log' \
   2>/dev/null | tail -30
 ```

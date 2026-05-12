@@ -30,8 +30,8 @@ Ersetzt: `deployment_guide.md`, `deploy_workflow.md`, `test_results.md`,
 ./scripts/tetra_ctrl.sh read 0x190      # MLE-Counter (accept | ul_req)
 
 # Tail der Board-Logs
-sshpass -p openwifi ssh root@192.168.2.180 'tail -20 /tmp/tetra_sysinfo.log'
-sshpass -p openwifi ssh root@192.168.2.180 'tail -20 /tmp/tetra_ul_mon.log'
+sshpass -p openwifi ssh root@192.168.2.183 'tail -20 /tmp/tetra_sysinfo.log'
+sshpass -p openwifi ssh root@192.168.2.183 'tail -20 /tmp/tetra_ul_mon.log'
 ```
 
 ---
@@ -73,10 +73,10 @@ Vivado Build → bootgen (.bit → .bit.bin) → Cross-Compile SW → SCP Upload
 
 | Parameter | Wert |
 |-----------|------|
-| IP | `192.168.2.180` |
+| IP | `192.168.2.183` |
 | User | `root` |
 | Passwort | `openwifi` |
-| SSH | `sshpass -p openwifi ssh root@192.168.2.180` |
+| SSH | `sshpass -p openwifi ssh root@192.168.2.183` |
 | AXI-Base | `0x43C00000` (TETRA-PL), `0x79020000` (ADC), `0x79024000` (DAC) |
 
 ### Wichtige Pfade auf dem Board
@@ -262,7 +262,7 @@ Für auto-offset-Failure (korrelation < 0.9): manuell Offset setzen —
 
 ### 7.5 WebUI — Subscriber-DB + Profiles + Live-Counter (Phase 6 E + D-rev)
 
-`http://192.168.2.180/` → busybox httpd liefert `index.html` + CGI.
+`http://192.168.2.183/` → busybox httpd liefert `index.html` + CGI.
 Tabs: **Cell Config** (Frequenz/CC/SYSINFO via `apply.cgi`),
 **Subscribers** (EntityTable + Sessions) und **Profiles** (ProfileTable
 6-Slot-Editor).
@@ -404,10 +404,10 @@ muss am Board folgendes angelegt sein:
 
 ```bash
 # Subscriber-DB-Verzeichnis
-sshpass -p openwifi ssh root@192.168.2.180 'mkdir -p /var/lib/tetra'
+sshpass -p openwifi ssh root@192.168.2.183 'mkdir -p /var/lib/tetra'
 
 # Initiale entities.tsv anlegen (Format: slot ISSI/GSSI type profile_id valid)
-sshpass -p openwifi ssh root@192.168.2.180 \
+sshpass -p openwifi ssh root@192.168.2.183 \
   'echo -e "0\t2633617\t0\t0\t1" > /var/lib/tetra/entities.tsv'
 # (Slot 0, ISSI 0x282F91, type=ISSI, profile=0=minimal-permit, valid)
 

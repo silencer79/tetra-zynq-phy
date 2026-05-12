@@ -1,0 +1,278 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 1400" font-family="sans-serif" font-size="14">
+  <!-- Background -->
+  <rect width="1900" height="1400" fill="#fdfdfd"/>
+
+  <!-- Title -->
+  <text x="950" y="30" text-anchor="middle" font-size="24" font-weight="bold">TETRA-FPGA Datenflüsse — Z.11 Stand</text>
+  <text x="950" y="55" text-anchor="middle" font-size="14" fill="#666">DL-Pfad oben (Producer → Queue → Scheduler → Slot/AACH → On-Air) — UL-Pfad unten — Race-Stelle rot markiert</text>
+
+  <!-- ================ DL-PFAD oben ================ -->
+  <text x="40" y="100" font-size="20" font-weight="bold" fill="#0a4a8a">DL-Pfad (BS sendet)</text>
+
+  <!-- DL Producers -->
+  <g>
+    <!-- Slotgrant -->
+    <rect x="40" y="120" width="220" height="80" fill="#cfe5ff" stroke="#0a4a8a" stroke-width="2"/>
+    <text x="150" y="148" text-anchor="middle" font-weight="bold">tetra_pre_reply_slotgrant</text>
+    <text x="150" y="170" text-anchor="middle" font-size="12">Trigger: frag1_pulse</text>
+    <text x="150" y="188" text-anchor="middle" font-size="12">→ 124-bit AL-SETUP → SCH/HD 216</text>
+
+    <!-- MLE FSM -->
+    <rect x="40" y="220" width="220" height="80" fill="#cfe5ff" stroke="#0a4a8a" stroke-width="2"/>
+    <text x="150" y="248" text-anchor="middle" font-weight="bold">tetra_mle_registration_fsm</text>
+    <text x="150" y="270" text-anchor="middle" font-size="12">Trigger: SW Reply-Mailbox GO</text>
+    <text x="150" y="288" text-anchor="middle" font-size="12">→ 268-bit MAC-RES → SCH/F 432</text>
+
+    <!-- GroupAck Encoder -->
+    <rect x="40" y="320" width="220" height="80" fill="#cfe5ff" stroke="#0a4a8a" stroke-width="2"/>
+    <text x="150" y="348" text-anchor="middle" font-weight="bold">tetra_d_attach_detach_grp_id_ack</text>
+    <text x="150" y="370" text-anchor="middle" font-size="12">Trigger: SW Group-Reply-Mailbox</text>
+    <text x="150" y="388" text-anchor="middle" font-size="12">→ 268-bit MAC-RES → SCH/F 432</text>
+
+    <!-- D-NWRK-BCAST -->
+    <rect x="40" y="420" width="220" height="80" fill="#ffe9c0" stroke="#a06000" stroke-width="2"/>
+    <text x="150" y="448" text-anchor="middle" font-weight="bold">tetra_dl_nwrk_broadcast</text>
+    <text x="150" y="470" text-anchor="middle" font-size="12">Trigger: 10 MF auto-fire</text>
+    <text x="150" y="488" text-anchor="middle" font-size="12">→ 432 SCH/F (SW prepacked)</text>
+
+    <!-- Pre-Reply BL-ACK -->
+    <rect x="40" y="520" width="220" height="80" fill="#dceedb" stroke="#205020" stroke-width="2"/>
+    <text x="150" y="548" text-anchor="middle" font-weight="bold">tetra_pre_reply_blck</text>
+    <text x="150" y="570" text-anchor="middle" font-size="12">Trigger: reass+IE-parse done</text>
+    <text x="150" y="588" text-anchor="middle" font-size="12">→ 124-bit BL-ACK → SCH/HD 216</text>
+  </g>
+
+  <!-- MLE-Slot-Mux -->
+  <rect x="320" y="220" width="160" height="180" fill="#fff" stroke="#0a4a8a" stroke-width="2" stroke-dasharray="5,3"/>
+  <text x="400" y="245" text-anchor="middle" font-weight="bold" font-size="13">top.v MLE-Slot-Mux</text>
+  <text x="400" y="265" text-anchor="middle" font-size="11">3-Way OR / strict prio</text>
+  <text x="400" y="285" text-anchor="middle" font-size="11">aach_pattern = 0x0009</text>
+  <text x="400" y="305" text-anchor="middle" font-size="11">(PDUC_FINAL_LU_ACCEPT_AACH</text>
+  <text x="400" y="320" text-anchor="middle" font-size="11">= GROUP_ACK_AACH</text>
+  <text x="400" y="335" text-anchor="middle" font-size="11">= PRE_REPLY_SLOTGRANT_AACH)</text>
+  <text x="400" y="370" text-anchor="middle" font-size="11">→ wr_mle_*</text>
+
+  <!-- Pfeile von Producer zu MLE-Mux -->
+  <path d="M 260 160 L 320 270" stroke="#0a4a8a" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 260 260 L 320 290" stroke="#0a4a8a" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 260 360 L 320 320" stroke="#0a4a8a" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- DL Signal Queue -->
+  <rect x="540" y="180" width="240" height="280" fill="#fff5cc" stroke="#a07000" stroke-width="3"/>
+  <text x="660" y="210" text-anchor="middle" font-weight="bold" font-size="16">DL-Signal-Queue</text>
+  <text x="660" y="230" text-anchor="middle" font-size="11">tetra_dl_signal_queue.v</text>
+  <text x="660" y="248" text-anchor="middle" font-size="11">DEPTH=4, 4 Prio-Klassen</text>
+  <line x1="540" y1="258" x2="780" y2="258" stroke="#a07000"/>
+  <text x="660" y="280" text-anchor="middle" font-size="12" font-weight="bold">Per-Eintrag (atomar):</text>
+  <text x="555" y="300" font-size="11">• coded[431:0]</text>
+  <text x="555" y="318" font-size="11">• aach_pattern[13:0]</text>
+  <text x="555" y="336" font-size="11">• target_tn[1:0]</text>
+  <text x="555" y="354" font-size="11">• pdu_type[1:0]</text>
+  <text x="555" y="372" font-size="11">• prio[1:0]</text>
+  <line x1="540" y1="385" x2="780" y2="385" stroke="#a07000"/>
+  <text x="660" y="405" text-anchor="middle" font-size="12" font-weight="bold">head_* outputs (combinational)</text>
+  <text x="660" y="425" text-anchor="middle" font-size="11">head_valid + alle 5 Felder</text>
+  <text x="660" y="445" text-anchor="middle" font-size="11" fill="#a00">stable solange kein pop</text>
+
+  <!-- Pfeile MLE-Mux + CMCE + SDS zur Queue -->
+  <path d="M 480 310 L 540 290" stroke="#0a4a8a" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="500" y="285" font-size="10" fill="#0a4a8a">MLE prio=0</text>
+  <path d="M 260 460 L 540 340" stroke="#a06000" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="380" y="395" font-size="10" fill="#a06000">CMCE prio=1, aach=0x0249</text>
+  <path d="M 260 560 L 540 400" stroke="#205020" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="380" y="475" font-size="10" fill="#205020">SDS prio=2, aach=0x0249</text>
+
+  <!-- DL Signal Scheduler -->
+  <rect x="840" y="180" width="280" height="380" fill="#ffd5d5" stroke="#a00000" stroke-width="3"/>
+  <text x="980" y="210" text-anchor="middle" font-weight="bold" font-size="16" fill="#a00000">DL-Signal-Scheduler (Z.11)</text>
+  <text x="980" y="230" text-anchor="middle" font-size="11">tetra_dl_signal_scheduler.v</text>
+  <line x1="840" y1="240" x2="1120" y2="240" stroke="#a00000"/>
+  <text x="980" y="262" text-anchor="middle" font-size="13" font-weight="bold" fill="#a00000">⚠ BUNDLE-LATCH</text>
+  <text x="980" y="282" text-anchor="middle" font-size="11">latch beim pop_trigger</text>
+  <text x="980" y="297" text-anchor="middle" font-size="11">= slot_pulse_sys &amp;&amp; tn==3</text>
+  <text x="980" y="315" text-anchor="middle" font-size="11">→ {coded, aach, target_tn,</text>
+  <text x="980" y="330" text-anchor="middle" font-size="11">    pdu_type, valid} 451 FF</text>
+  <line x1="840" y1="345" x2="1120" y2="345" stroke="#a00000"/>
+  <text x="980" y="367" text-anchor="middle" font-size="12" font-weight="bold">Per-TN combinational:</text>
+  <text x="855" y="387" font-size="10">tgt_tnK = bundle_valid &amp;&amp;</text>
+  <text x="855" y="402" font-size="10">         (bundle_target_tn == K)</text>
+  <text x="855" y="425" font-size="11">sched_blk1_tnK = head_coded[431:216]</text>
+  <text x="855" y="442" font-size="11">                 / null_pdu_bits</text>
+  <text x="855" y="465" font-size="11">sched_blk2_tnK = head_coded[215:0]</text>
+  <text x="855" y="482" font-size="11">                 / sig_companion(SYSINFO)</text>
+  <text x="855" y="505" font-size="11">sched_ndb2_sys[K] = (pdu_type==HD)</text>
+  <text x="855" y="525" font-size="11">sched_active_sys[K]</text>
+  <text x="855" y="545" font-size="11" fill="#a00000" font-weight="bold">sched_aach_override_tnK = head_aach</text>
+
+  <path d="M 780 320 L 840 320" stroke="#a07000" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Slot-Content-Mux -->
+  <rect x="1180" y="200" width="240" height="180" fill="#cfe5ff" stroke="#0a4a8a" stroke-width="2"/>
+  <text x="1300" y="228" text-anchor="middle" font-weight="bold">tetra_slot_content_mux</text>
+  <text x="1300" y="252" text-anchor="middle" font-size="11">pro Slot:</text>
+  <text x="1195" y="272" font-size="11">if class==SIGNALLING || sched_active:</text>
+  <text x="1210" y="289" font-size="11">  use sched_blk1/blk2_tnK</text>
+  <text x="1195" y="306" font-size="11">else:</text>
+  <text x="1210" y="323" font-size="11">  use BRAM-Default (SYSINFO/NULL)</text>
+  <text x="1195" y="350" font-size="11" fill="#0a4a8a">→ tx_blkN_slotN_sys[215:0]</text>
+  <text x="1195" y="368" font-size="11">→ tx_chain</text>
+
+  <path d="M 1120 320 L 1180 290" stroke="#a00000" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- AACH-Encoder -->
+  <rect x="1180" y="420" width="240" height="240" fill="#ffd5d5" stroke="#a00000" stroke-width="3"/>
+  <text x="1300" y="448" text-anchor="middle" font-weight="bold">tetra_aach_encoder</text>
+  <text x="1300" y="468" text-anchor="middle" font-size="11">Eingänge: tx_tn_next, fn,</text>
+  <text x="1300" y="483" text-anchor="middle" font-size="11">signalling_active, override</text>
+  <line x1="1180" y1="492" x2="1420" y2="492" stroke="#a00000"/>
+  <text x="1300" y="512" text-anchor="middle" font-size="12" font-weight="bold">Branch-Priority:</text>
+  <text x="1195" y="532" font-size="11">1. fn==17 → F18-Anker</text>
+  <text x="1195" y="549" font-size="11" fill="#a00000" font-weight="bold">2. override_valid → 0x0009</text>
+  <text x="1195" y="566" font-size="11">3. tn==0+grant → grant_info</text>
+  <text x="1195" y="583" font-size="11">4. tn==0 → signalling_active</text>
+  <text x="1195" y="598" font-size="11">          ? 0x0009 : 0x0249</text>
+  <text x="1195" y="615" font-size="11">5. tn!=0 → 0x3000/0x2049/0x2249</text>
+  <line x1="1180" y1="625" x2="1420" y2="625" stroke="#a00000"/>
+  <text x="1300" y="648" text-anchor="middle" font-size="11" fill="#0a4a8a">→ aach_coded_sys[29:0]</text>
+
+  <path d="M 1120 480 L 1180 530" stroke="#a00000" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- TX-Chain → On-Air -->
+  <rect x="1500" y="350" width="200" height="120" fill="#dceedb" stroke="#205020" stroke-width="2"/>
+  <text x="1600" y="380" text-anchor="middle" font-weight="bold">tetra_tx_chain</text>
+  <text x="1600" y="402" text-anchor="middle" font-size="11">burst_builder + burst_mux</text>
+  <text x="1600" y="420" text-anchor="middle" font-size="11">+ pi/4-DQPSK + RRC</text>
+  <text x="1600" y="445" text-anchor="middle" font-size="11">→ AD9361 → TX 438.25 MHz</text>
+  <text x="1600" y="460" text-anchor="middle" font-size="11" font-weight="bold">→ MTP3550</text>
+
+  <path d="M 1420 280 L 1500 380" stroke="#0a4a8a" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 1420 540 L 1500 440" stroke="#0a4a8a" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Race-Anmerkung -->
+  <rect x="840" y="600" width="600" height="100" fill="#ffe5e5" stroke="#a00000" stroke-width="2"/>
+  <text x="1140" y="628" text-anchor="middle" font-weight="bold" font-size="14" fill="#a00000">⚠ RACE: Bundle-Latch + Konsumenten</text>
+  <text x="1140" y="652" text-anchor="middle" font-size="12">Bundle wird beim pop_trigger AM ENDE des Cycles aktualisiert.</text>
+  <text x="1140" y="670" text-anchor="middle" font-size="12">AACH-Encoder im SELBEN Cycle liest registered Bundle (= alter Wert).</text>
+  <text x="1140" y="688" text-anchor="middle" font-size="12">Pre-Reply Frame N: Body korrekt, AACH = vorheriger Frame (default 0x0249)</text>
+
+  <!-- ================ UL-PFAD unten ================ -->
+  <text x="40" y="780" font-size="20" font-weight="bold" fill="#206020">UL-Pfad (MS sendet, BS empfängt)</text>
+
+  <!-- MS box -->
+  <rect x="40" y="800" width="180" height="80" fill="#dceedb" stroke="#205020" stroke-width="2"/>
+  <text x="130" y="830" text-anchor="middle" font-weight="bold">MTP3550 (MS)</text>
+  <text x="130" y="852" text-anchor="middle" font-size="11">UL 428.25 MHz</text>
+  <text x="130" y="870" text-anchor="middle" font-size="11">Frag-1 + (Frag-2)</text>
+
+  <!-- RX-Frontend -->
+  <rect x="280" y="800" width="180" height="80" fill="#cfe5ff" stroke="#0a4a8a" stroke-width="2"/>
+  <text x="370" y="830" text-anchor="middle" font-weight="bold">tetra_rx_frontend</text>
+  <text x="370" y="852" text-anchor="middle" font-size="11">+ pi/4-DQPSK demod</text>
+  <text x="370" y="870" text-anchor="middle" font-size="11">+ Viterbi decode</text>
+
+  <path d="M 220 840 L 280 840" stroke="#205020" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- MAC-Access-Parser -->
+  <rect x="520" y="800" width="220" height="100" fill="#cfe5ff" stroke="#0a4a8a" stroke-width="2"/>
+  <text x="630" y="828" text-anchor="middle" font-weight="bold">tetra_ul_mac_access_parser</text>
+  <text x="630" y="850" text-anchor="middle" font-size="11">extrahiert pdu_type/ssi/frag_flag</text>
+  <text x="630" y="867" text-anchor="middle" font-size="11">+ ul_llc_mm_pdu_type (bits 44..47)</text>
+  <text x="630" y="885" text-anchor="middle" font-size="11" font-weight="bold">→ frag1_pulse + ul_issi + mm_type</text>
+
+  <path d="M 460 840 L 520 840" stroke="#0a4a8a" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Reassembly -->
+  <rect x="800" y="800" width="220" height="100" fill="#cfe5ff" stroke="#0a4a8a" stroke-width="2"/>
+  <text x="910" y="828" text-anchor="middle" font-weight="bold">tetra_ul_demand_reassembly</text>
+  <text x="910" y="850" text-anchor="middle" font-size="11">Frag-1 + MAC-END-HU →</text>
+  <text x="910" y="867" text-anchor="middle" font-size="11">132-bit MM-Body</text>
+  <text x="910" y="887" text-anchor="middle" font-size="11" font-weight="bold">reass_ok / drop counters</text>
+
+  <path d="M 740 840 L 800 840" stroke="#0a4a8a" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- IE-Parser -->
+  <rect x="1080" y="800" width="240" height="100" fill="#cfe5ff" stroke="#0a4a8a" stroke-width="2"/>
+  <text x="1200" y="828" text-anchor="middle" font-weight="bold">tetra_ul_demand_ie_parser</text>
+  <text x="1200" y="850" text-anchor="middle" font-size="11">walks 132-bit MM-Body</text>
+  <text x="1200" y="867" text-anchor="middle" font-size="11">je nach mm_pdu_type:</text>
+  <text x="1200" y="885" text-anchor="middle" font-size="11">mm=2 → GILD / mm=7 → GIU-Records</text>
+
+  <path d="M 1020 840 L 1080 840" stroke="#0a4a8a" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Demand Mailbox + Group Demand Mailbox -->
+  <rect x="1380" y="780" width="200" height="60" fill="#fff5cc" stroke="#a07000" stroke-width="2"/>
+  <text x="1480" y="805" text-anchor="middle" font-weight="bold" font-size="13">Demand-Mailbox 0x200</text>
+  <text x="1480" y="825" text-anchor="middle" font-size="11">mm=2 ITSI / DETACH</text>
+
+  <rect x="1380" y="860" width="200" height="60" fill="#fff5cc" stroke="#a07000" stroke-width="2"/>
+  <text x="1480" y="885" text-anchor="middle" font-weight="bold" font-size="13">Group-Mailbox 0x240</text>
+  <text x="1480" y="905" text-anchor="middle" font-size="11">mm=7 GROUP-ATTACH</text>
+
+  <path d="M 1320 820 L 1380 810" stroke="#0a4a8a" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 1320 870 L 1380 890" stroke="#0a4a8a" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- SW Daemon -->
+  <rect x="1640" y="780" width="220" height="140" fill="#dceedb" stroke="#205020" stroke-width="2"/>
+  <text x="1750" y="810" text-anchor="middle" font-weight="bold">tetra_attach_daemon (SW)</text>
+  <text x="1750" y="832" text-anchor="middle" font-size="11">pollt Mailboxes</text>
+  <text x="1750" y="852" text-anchor="middle" font-size="11">Lookup db.tsv</text>
+  <text x="1750" y="872" text-anchor="middle" font-size="11">filtered ATTACH-only</text>
+  <text x="1750" y="888" text-anchor="middle" font-size="11">NS/NR alterniert</text>
+  <text x="1750" y="908" text-anchor="middle" font-size="11" fill="#205020">→ Reply-Mailbox + GO</text>
+
+  <path d="M 1580 810 L 1640 830" stroke="#a07000" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M 1580 890 L 1640 870" stroke="#a07000" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Trigger zurück nach Producer -->
+  <text x="40" y="990" font-size="18" font-weight="bold" fill="#444">UL → DL Trigger-Pfade</text>
+
+  <rect x="40" y="1010" width="280" height="80" fill="#fff" stroke="#444" stroke-width="1"/>
+  <text x="180" y="1035" text-anchor="middle" font-size="12">Frag-1-Pulse aus MAC-Access-Parser</text>
+  <text x="180" y="1055" text-anchor="middle" font-size="12">→ tetra_pre_reply_slotgrant.frag1_pulse</text>
+  <text x="180" y="1075" text-anchor="middle" font-size="11" fill="#666">filter: mm_type ∈ {2,7}</text>
+
+  <rect x="380" y="1010" width="280" height="80" fill="#fff" stroke="#444" stroke-width="1"/>
+  <text x="520" y="1035" text-anchor="middle" font-size="12">Reass-Done + IE-Parse-OK Pulse</text>
+  <text x="520" y="1055" text-anchor="middle" font-size="12">→ tetra_pre_reply_blck.trigger_valid</text>
+  <text x="520" y="1075" text-anchor="middle" font-size="11" fill="#666">post-Frag-2 BL-ACK</text>
+
+  <rect x="720" y="1010" width="280" height="80" fill="#fff" stroke="#444" stroke-width="1"/>
+  <text x="860" y="1035" text-anchor="middle" font-size="12">SW Daemon: REG_REPLY_GO Pulse</text>
+  <text x="860" y="1055" text-anchor="middle" font-size="12">→ tetra_mle_registration_fsm.mb_go_pulse</text>
+  <text x="860" y="1075" text-anchor="middle" font-size="11" fill="#666">D-LOC-UPDATE-ACCEPT (LI=21)</text>
+
+  <rect x="1060" y="1010" width="280" height="80" fill="#fff" stroke="#444" stroke-width="1"/>
+  <text x="1200" y="1035" text-anchor="middle" font-size="12">SW Daemon: REG_GRP_REPLY_GO</text>
+  <text x="1200" y="1055" text-anchor="middle" font-size="12">→ tetra_d_attach_detach_grp_id_ack</text>
+  <text x="1200" y="1075" text-anchor="middle" font-size="11" fill="#666">D-ATTACH-DETACH-GRP-ID-ACK (LI=16)</text>
+
+  <!-- Legend -->
+  <text x="40" y="1130" font-size="18" font-weight="bold" fill="#444">Legende</text>
+  <rect x="40" y="1145" width="20" height="20" fill="#cfe5ff" stroke="#0a4a8a"/>
+  <text x="68" y="1160" font-size="13">RTL-Modul (clk_sys, async-rst)</text>
+
+  <rect x="280" y="1145" width="20" height="20" fill="#fff5cc" stroke="#a07000"/>
+  <text x="308" y="1160" font-size="13">AXI-Reg / Mailbox (CDC clk_sys ↔ clk_axi)</text>
+
+  <rect x="600" y="1145" width="20" height="20" fill="#dceedb" stroke="#205020"/>
+  <text x="628" y="1160" font-size="13">SW / On-Air-Endpunkt</text>
+
+  <rect x="900" y="1145" width="20" height="20" fill="#ffd5d5" stroke="#a00000"/>
+  <text x="928" y="1160" font-size="13" fill="#a00000">Race-Stelle / aktueller Bug</text>
+
+  <text x="40" y="1200" font-size="13" font-weight="bold">Aktueller Befund (Z.11):</text>
+  <text x="40" y="1222" font-size="12">• Slotgrant pusht 32× in Queue (counter 0x1A4) — keine Drops (0x1B0=0)</text>
+  <text x="40" y="1242" font-size="12">• Queue speichert atomar Bundle inkl. aach_pattern=0x0009</text>
+  <text x="40" y="1262" font-size="12">• Scheduler latcht beim pop_trigger (tn==3) — Bundle wird AM ENDE des Cycles aktualisiert</text>
+  <text x="40" y="1282" font-size="12">• AACH-Encoder im SELBEN Cycle liest registered Bundle = alter Wert (= 0 oder default)</text>
+  <text x="40" y="1302" font-size="12" fill="#a00000" font-weight="bold">→ Pre-Reply Frame N: Body korrekt SCH/HD on-air, ABER AACH = 0x0249 (default) statt 0x0009 (override)</text>
+  <text x="40" y="1322" font-size="12">• Final-ACK funktioniert weil mehrere Frames später — Bundle bereits stable</text>
+  <text x="40" y="1342" font-size="12">• MS akzeptiert Pre-Reply nicht → kein Frag-2 → kein Group-Switch</text>
+
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#444"/>
+    </marker>
+  </defs>
+</svg>

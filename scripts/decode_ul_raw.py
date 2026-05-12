@@ -182,7 +182,7 @@ def read_board_log(last: int) -> list[tuple[int,int,int]]:
     import subprocess
     cmd = ["sshpass", "-p", "openwifi", "ssh",
            "-o", "StrictHostKeyChecking=no",
-           "root@192.168.2.180",
+           "root@192.168.2.183",
            f"grep -Eo 'raw=[0-9A-Fa-f]+' /tmp/tetra_ul_mon.log | tail -{last}"]
     out = subprocess.check_output(cmd, text=True, timeout=15)
     result = []

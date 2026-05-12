@@ -50,14 +50,14 @@ Aktuell sind die Files **direkt auf dem Board** angelegt
 `scripts/deploy.sh` integriert. Nach manuellen Änderungen am Board:
 
 ```bash
-sshpass -p openwifi scp root@192.168.2.180:/www/cgi-bin/apply.cgi sw/web/apply.cgi
+sshpass -p openwifi scp root@192.168.2.183:/www/cgi-bin/apply.cgi sw/web/apply.cgi
 git add sw/web/apply.cgi && git commit
 ```
 
 Umgekehrt (lokal → Board):
 ```bash
-sshpass -p openwifi scp sw/web/apply.cgi root@192.168.2.180:/www/cgi-bin/apply.cgi
-sshpass -p openwifi ssh root@192.168.2.180 'chmod +x /www/cgi-bin/apply.cgi'
+sshpass -p openwifi scp sw/web/apply.cgi root@192.168.2.183:/www/cgi-bin/apply.cgi
+sshpass -p openwifi ssh root@192.168.2.183 'chmod +x /www/cgi-bin/apply.cgi'
 ```
 
 Auto-Sync ist Phase E (siehe `docs/ARCHITECTURE.md §9.7`).

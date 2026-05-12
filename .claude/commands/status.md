@@ -27,7 +27,7 @@ ausführen wo möglich.
 
 4. UL-Monitor letzte 5 Events + Board-Zeit:
    ```bash
-   sshpass -p openwifi ssh -o StrictHostKeyChecking=no root@192.168.2.180 \
+   sshpass -p openwifi ssh -o StrictHostKeyChecking=no root@192.168.2.183 \
      'date +"Board-time: %T"; tail -10 /tmp/tetra_ul_mon.log' 2>/dev/null
    ```
 

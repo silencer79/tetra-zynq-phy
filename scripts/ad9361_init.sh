@@ -10,7 +10,7 @@
 #   ./scripts/ad9361_init.sh [--host IP] [--freq HZ] [--samplerate HZ] [--gain DB]
 #
 # Defaults:
-#   --host       192.168.2.180
+#   --host       192.168.2.183
 #   --freq       429000000   (429 MHz, TETRA 70cm Amateur)
 #   --samplerate 4608000     (4.608 MSPS → CIC R=64 → 72 kHz = 4× Symbolrate)
 #   --gain       40          (40 dB, manual mode; --agc für slow_attack)
@@ -33,7 +33,7 @@
 set -euo pipefail
 
 # --- Defaults ---
-SSH_HOST="192.168.2.180"
+SSH_HOST="192.168.2.183"
 SSH_USER="root"
 SSH_PASS="openwifi"
 RX_FREQ_HZ=429950000
