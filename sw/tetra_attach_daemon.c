@@ -29,6 +29,8 @@
 #include "tetra_hal.h"
 #include "tetra_db.h"
 #include "tetra_tx_transport.h"
+#include "tetra_cmce_parser.h"
+#include "tetra_call_fsm.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -368,6 +370,7 @@ int main(int argc, char **argv)
 
     uint32_t serviced = 0;
     uint32_t since_reload_ms = 0;
+    uint16_t last_ul_count   = 0xFFFFu;   /* sentinel: first PDU always triggers */
 
     while (keep_running) {
         /* Phase Y.1.e — service Group-Attach (mm=7) demand mailbox first.
@@ -375,6 +378,52 @@ int main(int argc, char **argv)
         uint32_t grp_status = tetra_reg_read(&hal, REG_GRP_DEMAND_STATUS);
         if (grp_status & 0x1u) {
             service_grp_demand(&hal);
+        }
+
+        /* Phase 7 G.2 — CMCE-Dispatch.  We share REG_UL_PDU_STATUS with
+         * tetra_ul_mon (which W1Cs the sticky for logging).  Instead of
+         * racing for the sticky bit we track ul_pdu_count[31:16]: each
+         * CRC-OK PDU bumps it, so a count change = unseen PDU.  We only
+         * act on mle_disc==2 (CMCE); mle_disc==1 (MM) is already handled
+         * by the reassembly path below. */
+        uint32_t ul_status = tetra_reg_read(&hal, REG_UL_PDU_STATUS);
+        if (UL_STATUS_VALID(ul_status)) {
+            uint16_t ul_count = (uint16_t)UL_STATUS_PDU_COUNT(ul_status);
+            if (ul_count != last_ul_count) {
+                last_ul_count = ul_count;
+                uint32_t s2 = tetra_reg_read(&hal, REG_UL_PDU_STATUS_2);
+                if (UL_STATUS2_MLE_DISC(s2) == 2u) {
+                    uint32_t cmce_ssi = tetra_reg_read(&hal, REG_UL_PDU_SSI)
+                                        & 0x00FFFFFFu;
+                    uint32_t raw0 = tetra_reg_read(&hal, REG_UL_PDU_RAW_0);
+                    uint32_t raw1 = tetra_reg_read(&hal, REG_UL_PDU_RAW_1);
+                    uint32_t raw2 = tetra_reg_read(&hal, REG_UL_PDU_RAW_2)
+                                    & 0x0FFFFFFFu;  /* 28 bits valid */
+                    /* Repack raw_info_bits[91:0] into MSB-first byte stream
+                     * for tetra_cmce_parse.  RTL layout matches existing
+                     * tetra_ul_mon usage. */
+                    uint8_t body[12];
+                    body[0]  = (uint8_t)((raw2 >> 20) & 0xFFu);
+                    body[1]  = (uint8_t)((raw2 >> 12) & 0xFFu);
+                    body[2]  = (uint8_t)((raw2 >>  4) & 0xFFu);
+                    body[3]  = (uint8_t)(((raw2 & 0xFu) << 4) | ((raw1 >> 28) & 0xFu));
+                    body[4]  = (uint8_t)((raw1 >> 20) & 0xFFu);
+                    body[5]  = (uint8_t)((raw1 >> 12) & 0xFFu);
+                    body[6]  = (uint8_t)((raw1 >>  4) & 0xFFu);
+                    body[7]  = (uint8_t)(((raw1 & 0xFu) << 4) | ((raw0 >> 28) & 0xFu));
+                    body[8]  = (uint8_t)((raw0 >> 20) & 0xFFu);
+                    body[9]  = (uint8_t)((raw0 >> 12) & 0xFFu);
+                    body[10] = (uint8_t)((raw0 >>  4) & 0xFFu);
+                    body[11] = (uint8_t)((raw0 & 0xFu) << 4);
+
+                    cmce_pdu_t p;
+                    memset(&p, 0, sizeof(p));
+                    int rc = tetra_cmce_parse(body, 92, &p);
+                    if (rc == 0) {
+                        (void)tetra_call_fsm_handle(&hal, cmce_ssi, &p);
+                    }
+                }
+            }
         }
 
         uint32_t status = tetra_reg_read(&hal, REG_DEMAND_STATUS);
