@@ -3640,13 +3640,30 @@ end
 // 3× producer-side aach_rm_encoders) is GONE.
 // =============================================================================
 
-// Match between queue head and the slot tetra_aach_encoder will encode
-// this cycle.  tx_tn_next_sys is the 1-frame-ahead lookahead used by the
-// AACH encoder (consistent with sb1_encoder); head_target_tn_sys is
-// stable as long as the queue doesn't pop, so this match is single-cycle
-// stable across the AACH encoder's ~33-cycle FSM.
+// Match between queue head and the slot being EMITTED right now (= the
+// slot whose AACH bits the burst_dispatcher latches at tx_slot_pulse_sys).
+//
+// The default `tetra_aach_encoder` uses `tx_tn_next_sys` as its tn input
+// because its 33-cycle FSM runs during slot N to produce AACH for slot N+1
+// (consistent with sb1_encoder).  The OUTPUT `aach_coded_sys_w` therefore
+// already represents "AACH for current emit slot" at slot_pulse time.
+//
+// The override-RM-encoder `head_aach_rm_encoder` is purely combinational
+// — no FSM, no latency.  It must be matched against the CURRENT emit TN
+// (= `tx_tdma_state_tn_sys`) so a queue.head pushed mid-slot-N (after the
+// default encoder's slot-N-1 snapshot) still wins on slot_pulse@N latch.
+//
+// Phase 7 G call-setup race motivation: D-CALL-PROCEEDING was the first
+// PDU in a previously-empty queue.  At slot_pulse@N-1 the default encoder
+// sampled signalling_active=0 (queue empty) → AACH committed to 0x0249
+// idle for slot N.  D-CALL-PROC pushed into queue during slot N-1's body
+// window → burst_dispatcher latched body=PDU but AACH stayed idle → MS
+// decoder treated slot as NDB2 NULL filler, ignored the LI=13 content,
+// stuck in call-setup-pending state.  Matching head against current TN
+// closes that race: head_aach_coded is RM-encoded combinationally from
+// head.aach_pattern (= 0x0009 signalling-active) and wins the mux.
 wire head_match_aach_sys = queue_head_valid_w
-                        && (queue_head_target_tn_w == tx_tn_next_sys);
+                        && (queue_head_target_tn_w == tx_tdma_state_tn_sys);
 
 // Shared scrambler-init pack — identical to the one tetra_aach_encoder
 // derives internally; we keep cell-cfg static so this pack is also

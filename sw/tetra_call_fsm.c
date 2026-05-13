@@ -91,7 +91,7 @@ static int stage_d_setup(tetra_hal_t *hal, call_slot_t *s)
     m.ns                      = s->ns;
     m.nr                      = s->nr;
     m.cmce.call_identifier    = s->call_id & 0x3FFFu;
-    m.cmce.call_time_out      = 0;
+    m.cmce.call_time_out      = 7;                     /* T5m per bluestation */
     m.cmce.transmission_grant = 3;                     /* GrantedToOtherUser */
     m.cmce.transmission_request_permission = 0;        /* allowed to request */
     m.cmce.call_priority      = 4;
@@ -112,7 +112,7 @@ static int stage_d_connect(tetra_hal_t *hal, call_slot_t *s)
     m.ns                      = s->ns;
     m.nr                      = s->nr;
     m.cmce.call_identifier    = s->call_id & 0x3FFFu;
-    m.cmce.call_time_out      = 0;                     /* infinite — call holds until release */
+    m.cmce.call_time_out      = 7;                     /* T5m per bluestation */                     /* infinite — call holds until release */
     m.cmce.transmission_grant = CMCE_TG_GRANTED;       /* 0 = Initiator-talker granted */
     m.cmce.transmission_request_permission = 1;        /* further demands allowed  */
     m.cmce.call_ownership     = 1;                     /* MS owns the call         */
