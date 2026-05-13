@@ -66,6 +66,31 @@ static void nsnr_step_bs(call_slot_t *s)
     s->ns ^= 1u;
 }
 
+/* D-SETUP wird an die Group-GSSI gebroadcastet — alle GSSI-Mitglieder
+ * sollen den Call mitbekommen.  Phase 7 G.5+ MVP: wir kennen die Group-
+ * GSSI aus der U-SETUP-Demand noch nicht, also als Platzhalter senden
+ * wir D-SETUP an dieselbe MS-SSI wie D-CONNECT.  Spätere Iteration:
+ * Group-GSSI aus dem Demand übernehmen. */
+static int stage_d_setup(tetra_hal_t *hal, call_slot_t *s)
+{
+    tx_pdu_meta_t m;
+    memset(&m, 0, sizeof(m));
+    m.target_ssi              = s->ssi;
+    m.ns                      = s->ns;
+    m.nr                      = s->nr;
+    m.cmce.call_identifier    = s->call_id & 0x3FFFu;
+    m.cmce.call_time_out      = 0;
+    m.cmce.transmission_grant = CMCE_TG_GRANTED;
+    m.cmce.transmission_request_permission = 1;
+    m.cmce.call_priority      = 4;                     /* default priority         */
+    /* BSI: TchS speech, no enc, p2g communication, speech_service=0 */
+    m.cmce.bsi_circuit_mode_type  = 0;
+    m.cmce.bsi_encryption_flag    = 0;
+    m.cmce.bsi_communication_type = 1;
+    m.cmce.bsi_speech_service     = 0;
+    return tetra_tx_submit(hal, TX_D_SETUP, &m);
+}
+
 static int stage_d_connect(tetra_hal_t *hal, call_slot_t *s)
 {
     tx_pdu_meta_t m;
@@ -78,6 +103,12 @@ static int stage_d_connect(tetra_hal_t *hal, call_slot_t *s)
     m.cmce.transmission_grant = CMCE_TG_GRANTED;       /* 0 = Initiator-talker granted */
     m.cmce.transmission_request_permission = 1;        /* further demands allowed  */
     m.cmce.call_ownership     = 1;                     /* MS owns the call         */
+    /* BSI present per Gold #5887 — MS muss wissen dass Speech-Service
+     * confirmiert ist, sonst startet sie keinen TCH/S TX. */
+    m.cmce.bsi_circuit_mode_type  = 0;                 /* TchS */
+    m.cmce.bsi_encryption_flag    = 0;
+    m.cmce.bsi_communication_type = 1;
+    m.cmce.bsi_speech_service     = 0;
     return tetra_tx_submit(hal, TX_D_CONNECT, &m);
 }
 
@@ -125,6 +156,16 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
             }
         }
         s->state = CALL_STATE_CONNECTING;
+        /* Gold-Sequenz für MS-Initiated Group-Call:
+         *   BS → D-SETUP   (Group-Broadcast, BSI + transmission_grant=Granted)
+         *   BS → D-CONNECT (an Initiator-MS, gleicher CallId, BSI present)
+         * MS startet TCH/S-TX nachdem sie D-CONNECT empfangen hat. */
+        nsnr_step_bs(s);
+        int rc_setup = stage_d_setup(hal, s);
+        fprintf(stderr,
+                "tetra_call_fsm: U-SETUP ssi=0x%06X → D-SETUP call_id=%u "
+                "ns=%u nr=%u rc=%d\n",
+                ssi, s->call_id, s->ns, s->nr, rc_setup);
         nsnr_step_bs(s);
         int rc = stage_d_connect(hal, s);
         fprintf(stderr,

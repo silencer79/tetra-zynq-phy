@@ -136,21 +136,25 @@ module tetra_dl_pdu_builder (
         .random_access_flag           (lat_random_access_flag),
         .power_control_flag           (1'b0),
         .power_control_element        (4'd0),
-        .slot_granting_flag           (1'b1),
+        /* Phase 7 G.5+ — Gold-konformes MAC-RESOURCE-Header für CMCE:
+         *   sg_flag = 0 (Gold #5887 hat kein slot_grant in D-CONNECT)
+         *   ca_flag = 1 mit Gold-Style ChanAlloc-Bits.
+         * mm=2/mm=11 (lat_mle_pd != 010): legacy sg_flag=1 (bit-identisch). */
+        .slot_granting_flag           ((lat_mle_pd == 3'b010) ? 1'b0 : 1'b1),
         .slot_granting_element        (slotgrant_packed_w),
-        /* Phase 7 G.5+ — bei CMCE-D-PDUs (D-CONNECT / D-TX-GRANTED) MS
-         * eine TCH-Slot-Allokation in MAC-RESOURCE mitgeben.  Layout
-         * exakt per `tetra_chan_alloc_encoder.v` prefix25:
-         *   {alloc_type[1:0], ts_assigned[3:0], ul_dl_assigned[1:0],
-         *    clch_permission, cell_change_flag, carrier_num[11:0],
-         *    ext_carrier_flag=0, mon_pattern[1:0]}
-         *   = {00, 0010, 11, 0, 0, 010111111010, 0, 10}
-         *   = 25 bits = 0x0162FD2 right-aligned in 32-bit bus.
-         * Fields: Allocate, TS3 (= TN=2 air), Both UL/DL, carrier=1530,
-         * mon_pattern=2 (kein frame18-Extension nötig).
-         * mle_pd != CMCE → ca_flag=0 (mm=2/mm=11 Pfade bit-identisch). */
+        /* ChanAlloc per Gold #5887 layout (prefix25 right-aligned):
+         *   alloc_type=00 (Allocate)
+         *   ts_assigned=1110 (TS1+TS2+TS3, mehrere Slots wie Gold)
+         *   ul_dl=11 (Both)
+         *   clch=1 (Common Linearisation Channel permission — Gold setzt das)
+         *   cell_chg=0
+         *   carrier_num=0x5FA=1530 (unsere Zelle, Band 4 Duplex 0)
+         *   ext_flag=0
+         *   mon_pattern=10 (=2, kein frame18-Extension)
+         * = {00, 1110, 11, 1, 0, 010111111010, 0, 10}
+         * = 25 bits MSB-first: 0011101110010111111010010 = 0x772FD2 right-aligned. */
         .chan_alloc_flag              ((lat_mle_pd == 3'b010) ? 1'b1 : 1'b0),
-        .chan_alloc_element           ((lat_mle_pd == 3'b010) ? 32'h0016_2FD2
+        .chan_alloc_element           ((lat_mle_pd == 3'b010) ? 32'h0077_2FD2
                                                                 : 32'd0),
         .chan_alloc_element_len       ((lat_mle_pd == 3'b010) ? 5'd25 : 5'd0),
         .second_pdu_valid             (1'b0),

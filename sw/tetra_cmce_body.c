@@ -115,9 +115,27 @@ int tetra_cmce_build_d_connect(const cmce_meta_t *m, uint8_t *out)
     put_bits(out, &pos, m->transmission_request_permission & 0x01u, 1);
     put_bits(out, &pos, m->call_ownership & 0x01u,            1);
 
-    /* o-bit = 0 — bluestation returns early without trailing m-bit. */
-    put_bits(out, &pos, 0u, 1);
-    return pos;     /* expected = 5+14+4+1+1+2+1+1+1 = 30 bits */
+    /* Phase 7 G.5+ — Gold D-CONNECT #5887 hat o-bit=1 mit Type-2 BSI present.
+     * Ohne BSI weiß MS nicht dass Speech-Service (TchS) bestätigt ist und
+     * startet keinen TCH/S-TX.  Type-2-Layout per bluestation `d_connect.rs`:
+     *   call_priority (4 bit, present-flag + value)
+     *   basic_service_information (8 bit struct, present-flag + write_bsi)
+     *   temporary_address (24 bit, present-flag + value)
+     *   notification_indicator (6 bit, present-flag + value)
+     * Wir emittieren: call_priority=absent, BSI=present(TchS), temp_addr=absent,
+     * notif=absent.  Type-3 (Facility/Proprietary) ebenfalls absent. */
+    put_bits(out, &pos, 1u, 1);                              /* o-bit = 1 */
+
+    put_bits(out, &pos, 0u, 1);                              /* call_priority absent */
+    put_bits(out, &pos, 1u, 1);                              /* BSI present */
+    write_bsi(out, &pos, m);                                 /* 8-bit BSI */
+    put_bits(out, &pos, 0u, 1);                              /* temp_address absent */
+    put_bits(out, &pos, 0u, 1);                              /* notif_indicator absent */
+    put_bits(out, &pos, 0u, 1);                              /* Type-3 Facility absent */
+    put_bits(out, &pos, 0u, 1);                              /* Type-3 Proprietary absent */
+    put_bits(out, &pos, 0u, 1);                              /* trailing m-bit = 0 */
+    return pos;
+    /* expected = 5+14+4+1+1+2+1+1+1 (header) + 1+1+8+1+1+1+1+1 (IE chain) = 44 bits */
 }
 
 int tetra_cmce_build_d_tx_granted(const cmce_meta_t *m, uint8_t *out)

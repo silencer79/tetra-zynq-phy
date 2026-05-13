@@ -152,19 +152,25 @@ int main(void)
      * know — we just round-trip the raw bits.  Use the exact 30-bit
      * payload from bluestation.
      * --------------------------------------------------------------- */
-    printf("\nTC3 — D-CONNECT self-consistent vector (call_id=4, tg=1, trp=1, owner=1)\n");
+    printf("\nTC3 — D-CONNECT mit BSI(TchS) Type-2 IE (Phase 7 G.5+)\n");
     {
         cmce_meta_t m;
         memset(&m, 0, sizeof(m));
         m.call_identifier = 4;
         m.call_time_out = 2;
-        m.hook_method_selection = 0;
-        m.simplex_duplex_selection = 0;
         m.transmission_grant = 1;
         m.transmission_request_permission = 1;
         m.call_ownership = 1;
+        /* BSI: TchS speech, no enc, p2g comm, speech_service=0 */
+        m.bsi_circuit_mode_type = 0;
+        m.bsi_encryption_flag   = 0;
+        m.bsi_communication_type= 1;
+        m.bsi_speech_service    = 0;
         len = tetra_cmce_build_d_connect(&m, out);
-        check_eq_int("len_bits", len, 30);
+        /* expected = 30 (Type-1, inkl. o-bit) + 15 (IE chain: call_prio_pres=0,
+         * BSI_pres+val=1+8, temp_addr=0, notif=0, T3-fac=0, T3-prop=0, trail_m=0)
+         * = 45 bits */
+        check_eq_int("len_bits", len, 45);
         exp_len = pack_bitstr(
             "00010"           /* pdu=2 */
             "00000000000100"  /* call_id=4 */
@@ -174,10 +180,18 @@ int main(void)
             "01"              /* tg=1 */
             "1"               /* trp=1 */
             "1"               /* owner=1 */
-            "0",              /* o-bit=0 */
+            "1"               /* o-bit=1 */
+            "0"               /* call_priority absent */
+            "1"               /* BSI present */
+            "000" "0" "01" "00"  /* BSI: cmt=0, enc=0, commtype=1, speech_service=0 */
+            "0"               /* temp_addr absent */
+            "0"               /* notif absent */
+            "0"               /* T3 facility absent */
+            "0"               /* T3 proprietary absent */
+            "0",              /* trail_m=0 */
             exp);
-        check_eq_int("exp_len_bits", exp_len, 30);
-        check_bytes_n("bytes", out, exp, 30);
+        check_eq_int("exp_len_bits", exp_len, 45);
+        check_bytes_n("bytes", out, exp, 45);
     }
 
     /* ---------------------------------------------------------------
