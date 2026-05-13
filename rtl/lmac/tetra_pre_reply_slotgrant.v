@@ -147,6 +147,7 @@ module tetra_pre_reply_slotgrant (
         .second_pdu_ca_element_len    (5'd0),
         .mm_pdu_bits                  (128'd0),
         .mm_pdu_len_bits              (8'd0),
+        .mle_pd_in                    (3'b001),    /* unused; AL-SETUP has no MM */
         .pdu_bits                     (builder_pdu_w),
         .valid                        (builder_valid_w)
     );

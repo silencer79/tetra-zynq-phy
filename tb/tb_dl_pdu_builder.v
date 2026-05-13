@@ -61,6 +61,7 @@ module tb_dl_pdu_builder;
         .req_random_access_flag (req_random_access_flag),
         .req_mm_pdu_bits        (req_mm_pdu_bits),
         .req_mm_pdu_len_bits    (req_mm_pdu_len_bits),
+        .req_mle_pd             (3'b001),
         .req_scramble_init      (req_scramble_init),
         // Phase Y.1.c' — req_ns/req_nr default 0 to bit-id with the
         // pre-Y.1 builder pipeline (the legacy MLE-FSM and SlotGrant
@@ -132,6 +133,7 @@ module tb_dl_pdu_builder;
         .second_pdu_ca_element_len    (5'd0),
         .mm_pdu_bits                  (ref_mm_bits),
         .mm_pdu_len_bits              (ref_mm_len),
+        .mle_pd_in                    (3'b001),
         .pdu_bits                     (ref_pdu_w),
         .valid                        (ref_pdu_valid_w)
     );

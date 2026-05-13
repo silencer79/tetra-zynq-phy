@@ -66,6 +66,8 @@ module tetra_dl_pdu_builder (
     input  wire         req_random_access_flag,
     input  wire [127:0] req_mm_pdu_bits,
     input  wire [7:0]   req_mm_pdu_len_bits,
+    /* MLE protocol discriminator — 3-bit. 0b001=MM, 0b010=CMCE. 0 = default MM. */
+    input  wire [2:0]   req_mle_pd,
     input  wire [31:0]  req_scramble_init,
     // Phase Y.1.c' — additive LLC sequence numbers for stop-and-wait
     // protocols (Group-Attach reply path).  Existing callers leave these
@@ -92,6 +94,7 @@ module tetra_dl_pdu_builder (
     reg         lat_random_access_flag;
     reg [127:0] lat_mm_pdu_bits;
     reg [7:0]   lat_mm_pdu_len_bits;
+    reg [2:0]   lat_mle_pd;
     reg [31:0]  lat_scramble_init;
     reg         lat_ns;
     reg         lat_nr;
@@ -154,6 +157,7 @@ module tetra_dl_pdu_builder (
         .second_pdu_ca_element_len    (5'd0),
         .mm_pdu_bits                  (lat_mm_pdu_bits),
         .mm_pdu_len_bits              (lat_mm_pdu_len_bits),
+        .mle_pd_in                    (lat_mle_pd),
         .pdu_bits                     (builder_pdu_w),
         .valid                        (builder_valid_w)
     );
@@ -198,6 +202,7 @@ module tetra_dl_pdu_builder (
             lat_random_access_flag <= 1'b0;
             lat_mm_pdu_bits        <= 128'd0;
             lat_mm_pdu_len_bits    <= 8'd0;
+            lat_mle_pd             <= 3'b001;
             lat_scramble_init      <= 32'd0;
             lat_ns                 <= 1'b0;
             lat_nr                 <= 1'b0;
@@ -221,6 +226,8 @@ module tetra_dl_pdu_builder (
                     lat_random_access_flag <= req_random_access_flag;
                     lat_mm_pdu_bits        <= req_mm_pdu_bits;
                     lat_mm_pdu_len_bits    <= req_mm_pdu_len_bits;
+                    lat_mle_pd             <= (req_mle_pd == 3'b000) ? 3'b001
+                                                                     : req_mle_pd;
                     lat_scramble_init      <= req_scramble_init;
                     lat_ns                 <= req_ns;
                     lat_nr                 <= req_nr;

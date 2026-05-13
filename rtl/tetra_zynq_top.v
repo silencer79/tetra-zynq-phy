@@ -476,6 +476,7 @@ wire [31:0]  mle_accept_build_scramble_init_w;
 // mm=2 path drives 0/0 (bit-identical pre-Y.2).
 wire         mle_accept_build_ns_w;
 wire         mle_accept_build_nr_w;
+wire [2:0]   mle_accept_build_mle_pd_w;
 
 // Queue ↔ scheduler wiring
 wire         queue_head_valid_w;
@@ -2313,6 +2314,7 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
     .mb_raw_mm_len       (mb_raw_mm_len_sys_w),
     .mb_raw_ns           (mb_raw_ns_sys_w),
     .mb_raw_nr           (mb_raw_nr_sys_w),
+    .mb_raw_mle_pd       (mb_raw_mle_pd_sys_w),
     // Phase X.6 — Build-request to shared tetra_dl_pdu_builder via arbiter.
     .accept_build_req                (mle_accept_build_req_w),
     .accept_build_ssi                (mle_accept_build_ssi_w),
@@ -2324,6 +2326,7 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
     .accept_build_scramble_init      (mle_accept_build_scramble_init_w),
     .accept_build_ns                 (mle_accept_build_ns_w),
     .accept_build_nr                 (mle_accept_build_nr_w),
+    .accept_build_mle_pd             (mle_accept_build_mle_pd_w),
     .accept_build_done               (dl_pdu_done_to_mle_w),
     .accept_build_coded              (dl_pdu_coded_w)
 );
@@ -2816,6 +2819,7 @@ tetra_dl_pdu_builder u_dl_pdu_builder (
     // Phase Y.2 — ns/nr from MLE-FSM raw-mode latches (mm=11) or 0 (mm=2).
     .req_ns                 (mle_accept_build_ns_w),
     .req_nr                 (mle_accept_build_nr_w),
+    .req_mle_pd             (mle_accept_build_mle_pd_w),
     .done                   (dl_pdu_done_w),
     .coded_bits             (dl_pdu_coded_w),
     .busy                   (dl_pdu_busy_w)
@@ -3119,6 +3123,7 @@ wire [127:0] mb_raw_mm_bits_sys_w;
 wire [7:0]   mb_raw_mm_len_sys_w;
 wire         mb_raw_ns_sys_w;
 wire         mb_raw_nr_sys_w;
+wire [2:0]   mb_raw_mle_pd_sys_w;     /* Phase 7 G.4 — MLE-PD selector */
 
 tetra_reply_mailbox u_reply_mailbox (
     .clk_sys              (clk_sys),
@@ -3144,7 +3149,8 @@ tetra_reply_mailbox u_reply_mailbox (
     .mb_raw_mm_bits_sys   (mb_raw_mm_bits_sys_w),
     .mb_raw_mm_len_sys    (mb_raw_mm_len_sys_w),
     .mb_raw_ns_sys        (mb_raw_ns_sys_w),
-    .mb_raw_nr_sys        (mb_raw_nr_sys_w)
+    .mb_raw_nr_sys        (mb_raw_nr_sys_w),
+    .mb_raw_mle_pd_sys    (mb_raw_mle_pd_sys_w)
 );
 
 // CDC: rdata + busy clk_sys → clk_axi (busy is the OR of FSM busy-state).

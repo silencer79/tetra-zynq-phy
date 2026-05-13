@@ -121,6 +121,10 @@ module tetra_mle_registration_fsm (
     input  wire [7:0]                  mb_raw_mm_len,
     input  wire                        mb_raw_ns,
     input  wire                        mb_raw_nr,
+    /* Phase 7 G.4 — MLE-PD selector: 0b001=MM (mm=2/mm=11), 0b010=CMCE
+     * (D-CONNECT/D-TX-GRANTED/...).  Sampled on GO pulse together with the
+     * rest of the raw-mode fields.  Mailbox encodes 0b000 ↔ default-MM. */
+    input  wire [2:0]                  mb_raw_mle_pd,
 
     // -----------------------------------------------------------------
     // Phase X.6 — Build-request to shared tetra_dl_pdu_builder.
@@ -146,6 +150,7 @@ module tetra_mle_registration_fsm (
     // mm=11 GROUP-ACK path latches ns/nr from the Reply-Pull-Mailbox W9
     // (bits [9]=nr, [8]=ns) so the builder produces the right BL-ADATA
     // header.  Sampled on the same GO pulse that latches the raw bits.
+    output wire [2:0]                  accept_build_mle_pd,
     output wire                        accept_build_ns,
     output wire                        accept_build_nr,
     input  wire                        accept_build_done,
@@ -208,6 +213,7 @@ module tetra_mle_registration_fsm (
     // state of the mailbox W9 = 0, so silent).
     reg         lat_raw_mode_flag;
     reg [127:0] lat_raw_mm_bits;
+    reg [2:0]   lat_raw_mle_pd;
     reg [7:0]   lat_raw_mm_len;
     reg         lat_raw_ns;
     reg         lat_raw_nr;
@@ -268,6 +274,10 @@ module tetra_mle_registration_fsm (
     assign accept_build_random_access_flag = `PDUC_FINAL_LU_ACCEPT_RA;
     assign accept_build_mm_pdu_bits        =
         lat_raw_mode_flag ? lat_raw_mm_bits : dloc_mm_bits_w;
+    /* MLE-PD: raw-mode uses staged value (defaulted to MM=001 by mailbox
+     * decode); legacy dloc path is always MM. */
+    assign accept_build_mle_pd             =
+        lat_raw_mode_flag ? lat_raw_mle_pd : 3'b001;
     assign accept_build_mm_pdu_len_bits    =
         lat_raw_mode_flag ? lat_raw_mm_len  : dloc_mm_len_w;
     assign accept_build_scramble_init      = cfg_scramble_init;
@@ -300,6 +310,7 @@ module tetra_mle_registration_fsm (
             lat_detach_ssi         <= 24'd0;
             lat_raw_mode_flag      <= 1'b0;
             lat_raw_mm_bits        <= 128'd0;
+            lat_raw_mle_pd         <= 3'b001;
             lat_raw_mm_len         <= 8'd0;
             lat_raw_ns             <= 1'b0;
             lat_raw_nr             <= 1'b0;
@@ -341,6 +352,8 @@ module tetra_mle_registration_fsm (
                     lat_addr_type     <= mb_addr_type;
                     lat_raw_mode_flag <= mb_raw_mode_flag;
                     lat_raw_mm_bits   <= mb_raw_mm_bits;
+                    lat_raw_mle_pd    <= (mb_raw_mle_pd == 3'b000) ? 3'b001
+                                                                   : mb_raw_mle_pd;
                     lat_raw_mm_len    <= mb_raw_mm_len;
                     lat_raw_ns        <= mb_raw_ns;
                     lat_raw_nr        <= mb_raw_nr;

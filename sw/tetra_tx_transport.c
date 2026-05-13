@@ -105,12 +105,20 @@ static int submit_lu(tetra_hal_t *hal, const tx_pdu_meta_t *m,
  * W3..W8  zeroed (legacy mm=2 GILA fields irrelevant in raw)
  * W9   raw_mode_flag(31) | raw_nr(9) | raw_ns(8) | raw_mm_len[7:0]
  * W10..W13  raw_mm_bits[127:0]                                          */
+/* MLE protocol discriminator values for W9[12:10] — must match
+ * rtl/lmac/tetra_reply_mailbox.v header doc.  Value 0 = "default MM"
+ * (legacy), 1 = MM (mm=2/mm=11), 2 = CMCE (D-CONNECT etc.).            */
+#define MLE_PD_DEFAULT_MM  0u
+#define MLE_PD_MM          1u
+#define MLE_PD_CMCE        2u
+
 static int stage_raw_mm(tetra_hal_t *hal,
                         uint32_t      target_ssi,
                         const uint8_t *mm_bytes,
                         int           mm_len,
                         uint8_t       ns,
-                        uint8_t       nr)
+                        uint8_t       nr,
+                        uint8_t       mle_pd)
 {
     if (mm_len <= 0 || mm_len > 128) return -1;
 
@@ -138,6 +146,7 @@ static int stage_raw_mm(tetra_hal_t *hal,
     reply_write(hal, 8, 0u);
 
     uint32_t w9 = (1u << 31)
+                | ((uint32_t)(mle_pd & 0x7u) << 10)
                 | ((uint32_t)(nr & 0x1u) << 9)
                 | ((uint32_t)(ns & 0x1u) << 8)
                 | ((uint32_t) mm_len & 0xFFu);
@@ -172,13 +181,14 @@ static int submit_grp_ack(tetra_hal_t *hal, const tx_pdu_meta_t *m)
     int mm_len = tetra_grpack_build(&gm, mm_bytes);
     if (mm_len <= 0) return -1;
 
-    return stage_raw_mm(hal, m->target_ssi, mm_bytes, mm_len, m->ns, m->nr);
+    return stage_raw_mm(hal, m->target_ssi, mm_bytes, mm_len,
+                        m->ns, m->nr, MLE_PD_MM);
 }
 
 /* CMCE submit-Helpers — Phase 7 G.4.  Jeder Helper baut den Body via den
- * passenden tetra_cmce_build_*() Builder und staged ihn via stage_raw_mm.
- * Body-Längen sind variabel (D-RELEASE ≈ 22 bit, D-SETUP/D-CONNECT bis ~50
- * bit ohne IE-Chain; mit Type-3-IEs später bis ~120 bit).                */
+ * passenden tetra_cmce_build_*() Builder und staged ihn via stage_raw_mm
+ * mit MLE-PD=CMCE damit RTL die richtige Protocol-Discriminator auf Air
+ * setzt (D-CONNECT/D-TX-GRANTED/... sind CMCE, nicht MM). */
 static int submit_cmce_pdu(tetra_hal_t      *hal,
                            const tx_pdu_meta_t *m,
                            int (*builder)(const cmce_meta_t *, uint8_t *))
@@ -186,7 +196,8 @@ static int submit_cmce_pdu(tetra_hal_t      *hal,
     uint8_t mm_bytes[32];
     int mm_len = builder(&m->cmce, mm_bytes);
     if (mm_len <= 0) return -1;
-    return stage_raw_mm(hal, m->target_ssi, mm_bytes, mm_len, m->ns, m->nr);
+    return stage_raw_mm(hal, m->target_ssi, mm_bytes, mm_len,
+                        m->ns, m->nr, MLE_PD_CMCE);
 }
 
 int tetra_tx_submit(tetra_hal_t *hal, tx_pdu_class_t cls,

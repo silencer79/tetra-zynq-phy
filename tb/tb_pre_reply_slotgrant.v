@@ -129,6 +129,7 @@ module tb_pre_reply_slotgrant;
         .second_pdu_ca_element_len    (5'd0),
         .mm_pdu_bits                  (128'd0),
         .mm_pdu_len_bits              (8'd0),
+        .mle_pd_in                    (3'b001),
         .pdu_bits                     (ref_pdu_w),
         .valid                        (ref_pdu_valid_w)
     );

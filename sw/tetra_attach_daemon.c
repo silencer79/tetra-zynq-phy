@@ -399,28 +399,43 @@ int main(int argc, char **argv)
                     uint32_t raw1 = tetra_reg_read(&hal, REG_UL_PDU_RAW_1);
                     uint32_t raw2 = tetra_reg_read(&hal, REG_UL_PDU_RAW_2)
                                     & 0x0FFFFFFFu;  /* 28 bits valid */
-                    /* Repack raw_info_bits[91:0] into MSB-first byte stream
-                     * for tetra_cmce_parse.  RTL layout matches existing
-                     * tetra_ul_mon usage. */
-                    uint8_t body[12];
-                    body[0]  = (uint8_t)((raw2 >> 20) & 0xFFu);
-                    body[1]  = (uint8_t)((raw2 >> 12) & 0xFFu);
-                    body[2]  = (uint8_t)((raw2 >>  4) & 0xFFu);
-                    body[3]  = (uint8_t)(((raw2 & 0xFu) << 4) | ((raw1 >> 28) & 0xFu));
-                    body[4]  = (uint8_t)((raw1 >> 20) & 0xFFu);
-                    body[5]  = (uint8_t)((raw1 >> 12) & 0xFFu);
-                    body[6]  = (uint8_t)((raw1 >>  4) & 0xFFu);
-                    body[7]  = (uint8_t)(((raw1 & 0xFu) << 4) | ((raw0 >> 28) & 0xFu));
-                    body[8]  = (uint8_t)((raw0 >> 20) & 0xFFu);
-                    body[9]  = (uint8_t)((raw0 >> 12) & 0xFFu);
-                    body[10] = (uint8_t)((raw0 >>  4) & 0xFFu);
-                    body[11] = (uint8_t)((raw0 & 0xFu) << 4);
+                    uint32_t raws[3] = { raw0, raw1, raw2 };
 
-                    cmce_pdu_t p;
-                    memset(&p, 0, sizeof(p));
-                    int rc = tetra_cmce_parse(body, 92, &p);
-                    if (rc == 0) {
-                        (void)tetra_call_fsm_handle(&hal, cmce_ssi, &p);
+                    /* raw_info_bits[91:0] = on-air bit stream stored LSB-first
+                     * within each 32-bit word.  Bit N on-air = raws[N/32] bit
+                     * (N%32).  CMCE PDU starts after MAC-header + LLC-header
+                     * + 3-bit MLE-PD; offset depends on opt-flag + LLC type. */
+                    int tl_sdu_start = UL_STATUS_OPT_FLAG(ul_status) ? 36 : 30;
+                    int llc_t = (int)UL_STATUS2_LLC_TYPE(s2);
+                    int llc_hdr_bits;
+                    switch (llc_t) {
+                    case 0x0: llc_hdr_bits = 6; break;  /* BL-ADATA */
+                    case 0x1: llc_hdr_bits = 5; break;  /* BL-DATA  */
+                    case 0x3: llc_hdr_bits = 4; break;  /* BL-ACK   */
+                    default:  llc_hdr_bits = 4; break;  /* BL-UDATA */
+                    }
+                    int cmce_start = tl_sdu_start + llc_hdr_bits + 3;  /* +MLE-PD */
+                    int cmce_bits  = 92 - cmce_start;
+                    if (cmce_bits > 0) {
+                        uint8_t body[16];
+                        memset(body, 0, sizeof(body));
+                        for (int i = 0; i < cmce_bits; i++) {
+                            int n   = cmce_start + i;
+                            int b   = (int)((raws[n >> 5] >> (n & 31)) & 1u);
+                            if (b) body[i >> 3] |= (uint8_t)(0x80u >> (i & 7));
+                        }
+                        cmce_pdu_t p;
+                        memset(&p, 0, sizeof(p));
+                        int rc = tetra_cmce_parse(body, cmce_bits, &p);
+                        if (rc == 0) {
+                            (void)tetra_call_fsm_handle(&hal, cmce_ssi, &p);
+                        } else {
+                            fprintf(stderr,
+                                "tetra_call_fsm: parse rc=%d ssi=0x%06X "
+                                "start=%d bits=%d body=%02X%02X%02X%02X\n",
+                                rc, cmce_ssi, cmce_start, cmce_bits,
+                                body[0], body[1], body[2], body[3]);
+                        }
                     }
                 }
             }

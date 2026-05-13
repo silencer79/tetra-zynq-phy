@@ -96,6 +96,7 @@ module tb_mac_resource_dl_builder;
         .second_pdu_ca_element_len     (second_pdu_ca_element_len),
         .mm_pdu_bits        (mm_bits),
         .mm_pdu_len_bits    (mm_len),
+        .mle_pd_in          (3'b001),
         .pdu_bits           (pdu_bits),
         .valid              (valid)
     );

@@ -42,6 +42,11 @@ static call_slot_t *alloc_slot(uint32_t ssi)
             g_slots[i].call_id = g_next_call_id++;
             if ((g_next_call_id & 0x3FFFu) == 0u) g_next_call_id = 1u;
             g_slots[i].state   = CALL_STATE_IDLE;
+            /* BS-side LLC stop-and-wait init nach MS NS=0:
+             *   BS NS = 0 (eigenes erstes Daten-Frame)
+             *   BS NR = 1 (next expected MS NS) */
+            g_slots[i].ns = 0u;
+            g_slots[i].nr = 1u;
             return &g_slots[i];
         }
     }
@@ -53,11 +58,12 @@ static void free_slot(call_slot_t *s)
     memset(s, 0, sizeof(*s));
 }
 
-/* Alternate NS/NR per slot — stop-and-wait. */
-static void nsnr_step(call_slot_t *s)
+/* BS-side NS alterniert pro emittiertem BL-ADATA-Frame.  NR bleibt
+ * unverändert solange MS keine neue NS-Sequenz signalisiert (MS sendet
+ * BL-DATA = nur NS, kein NR; ein Wechsel von MS-NS würde NR togglen). */
+static void nsnr_step_bs(call_slot_t *s)
 {
     s->ns ^= 1u;
-    s->nr ^= 1u;
 }
 
 static int stage_d_connect(tetra_hal_t *hal, call_slot_t *s)
@@ -69,7 +75,7 @@ static int stage_d_connect(tetra_hal_t *hal, call_slot_t *s)
     m.nr                      = s->nr;
     m.cmce.call_identifier    = s->call_id & 0x3FFFu;
     m.cmce.call_time_out      = 0;                     /* infinite — call holds until release */
-    m.cmce.transmission_grant = 1;                     /* talker-this-call granted */
+    m.cmce.transmission_grant = CMCE_TG_GRANTED;       /* 0 = Initiator-talker granted */
     m.cmce.transmission_request_permission = 1;        /* further demands allowed  */
     m.cmce.call_ownership     = 1;                     /* MS owns the call         */
     return tetra_tx_submit(hal, TX_D_CONNECT, &m);
@@ -83,7 +89,7 @@ static int stage_d_tx_granted(tetra_hal_t *hal, call_slot_t *s)
     m.ns                      = s->ns;
     m.nr                      = s->nr;
     m.cmce.call_identifier    = s->call_id & 0x3FFFu;
-    m.cmce.transmission_grant = 0;                     /* Granted — initiator wins */
+    m.cmce.transmission_grant = CMCE_TG_GRANTED;       /* 0 = Granted */
     m.cmce.encryption_control = 0;
     return tetra_tx_submit(hal, TX_D_TX_GRANTED, &m);
 }
@@ -119,7 +125,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
             }
         }
         s->state = CALL_STATE_CONNECTING;
-        nsnr_step(s);
+        nsnr_step_bs(s);
         int rc = stage_d_connect(hal, s);
         fprintf(stderr,
                 "tetra_call_fsm: U-SETUP ssi=0x%06X → D-CONNECT call_id=%u "
@@ -134,7 +140,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
             /* No active call — silently drop. */
             return -1;
         }
-        nsnr_step(s);
+        nsnr_step_bs(s);
         int rc = stage_d_tx_granted(hal, s);
         s->state = CALL_STATE_TALKER;
         fprintf(stderr,
@@ -155,7 +161,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
 
     case CMCE_U_RELEASE: {
         if (s == NULL) return -1;
-        nsnr_step(s);
+        nsnr_step_bs(s);
         int rc = stage_d_release(hal, s, p->disconnect_cause);
         fprintf(stderr,
                 "tetra_call_fsm: U-RELEASE ssi=0x%06X cause=%u → D-RELEASE "

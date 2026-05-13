@@ -163,6 +163,13 @@ module tetra_mac_resource_dl_builder #(
     input  wire [127:0]          mm_pdu_bits,
     input  wire [7:0]            mm_pdu_len_bits,
 
+    // MLE protocol discriminator (§18.5.2 Table 18.4).
+    //   0b001 = MM   (mm=2 ACCEPT, mm=11 grpack)
+    //   0b010 = CMCE (D-CONNECT / D-TX-GRANTED / D-RELEASE / …)
+    // Phase 7 G.4 — Variante A raw_mode-Path braucht CMCE-Wahl; legacy
+    // dloc + grpack-Pfade tied auf 3'b001 für Bit-Identity.
+    input  wire [2:0]            mle_pd_in,
+
     // Output — 268-bit MAC-RESOURCE PDU, [PDU_BITS-1] = first bit on air
     output reg  [PDU_BITS-1:0]   pdu_bits,
     output reg                   valid           // 1-cycle pulse
@@ -218,6 +225,7 @@ module tetra_mac_resource_dl_builder #(
     reg              lat_random_access_flag;
     reg [127:0]      lat_mm_bits;
     reg [7:0]        lat_mm_len;
+    reg [2:0]        lat_mle_pd;
     // Optional-element inputs latched at S_IDLE (commit 1 plumbing; consumed
     // by the header packer starting commit 4).
     reg              lat_pc_flag;
@@ -414,6 +422,7 @@ module tetra_mac_resource_dl_builder #(
             lat_random_access_flag <= 1'b0;
             lat_mm_bits        <= 128'd0;
             lat_mm_len         <= 8'd0;
+            lat_mle_pd         <= 3'b001;        /* default MM */
             lat_pc_flag        <= 1'b0;
             lat_pc_element     <= 4'd0;
             lat_sg_flag        <= 1'b0;
@@ -469,6 +478,8 @@ module tetra_mac_resource_dl_builder #(
                     lat_random_access_flag<= random_access_flag;
                     lat_mm_bits           <= mm_pdu_bits;
                     lat_mm_len            <= mm_pdu_len_bits;
+                    lat_mle_pd            <= (mle_pd_in == 3'b000) ? 3'b001
+                                                                   : mle_pd_in;
                     lat_pc_flag           <= power_control_flag;
                     lat_pc_element        <= power_control_element;
                     lat_sg_flag           <= slot_granting_flag;
@@ -571,7 +582,7 @@ module tetra_mac_resource_dl_builder #(
                                 LLC_PDUT_BL_ADATA,    // 2
                                 lat_nr,               // 1
                                 lat_ns,               // 1
-                                MLE_PD_MM,            // 3
+                                lat_mle_pd,           // 3 (default MM=001, CMCE=010)
                                 lat_mm_bits,          // 128
                                 7'd0};                // pad
                 end else begin
@@ -580,7 +591,7 @@ module tetra_mac_resource_dl_builder #(
                                 LLC_HAS_FCS_OFF,      // 1
                                 LLC_PDUT_BL_DATA,     // 2
                                 lat_ns,               // 1
-                                MLE_PD_MM,            // 3
+                                lat_mle_pd,           // 3 (default MM=001, CMCE=010)
                                 lat_mm_bits,          // 128
                                 8'd0};                // pad
                 end
