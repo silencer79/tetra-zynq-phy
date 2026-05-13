@@ -14,7 +14,7 @@
 #   ./scripts/hw_deploy.sh [Optionen]
 #
 # Optionen:
-#   --host       IP       SSH-Adresse des LibreSDR       [192.168.2.183]
+#   --host       IP       SSH-Adresse des LibreSDR       [192.168.2.85]
 #   --freq       HZ       RX-Frequenz in Hz              [430000000]
 #   --samplerate HZ       AD9361 Samplerate              [4608000]
 #   --gain       DB       RX-Gain dB (manuell)           [40]
@@ -38,7 +38,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJ_DIR="$(dirname "$SCRIPT_DIR")"
 
 # --- Defaults ---
-SSH_HOST="192.168.2.183"
+SSH_HOST="192.168.2.85"
 SSH_USER="root"
 SSH_PASS="openwifi"
 RX_FREQ_HZ=430000000

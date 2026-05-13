@@ -100,12 +100,21 @@ int tetra_cmce_build_d_call_proceeding(const cmce_meta_t *m, uint8_t *out)
     return pos;     /* expected = 5+14+3+1+1+1 = 25 bits */
 }
 
+int tetra_cmce_build_d_call_proceeding(const cmce_meta_t *m, uint8_t *out);  /* fwd */
+
 int tetra_cmce_build_d_connect(const cmce_meta_t *m, uint8_t *out)
 {
     if (m == NULL || out == NULL) return 0;
     memset(out, 0, TETRA_CMCE_MAX_BYTES);
     int pos = 0;
 
+    /* Layout per bluestation `cmce/pdus/d_connect.rs::to_bitbuf` lines 115-166.
+     * Bluestation `rx_u_setup` (Z. 484-498) baut D-CONNECT mit:
+     *   transmission_grant = Granted
+     *   transmission_request_permission = false (= 0 = "allowed to request")
+     *   call_ownership = true
+     *   alle Type-2/Type-3 IEs = None → o-bit = 0
+     * Body = 30 Bits exakt. */
     put_bits(out, &pos, D_CONNECT,                            5);
     put_bits(out, &pos, m->call_identifier & 0x3FFFu,        14);
     put_bits(out, &pos, m->call_time_out & 0x0Fu,             4);
@@ -114,28 +123,8 @@ int tetra_cmce_build_d_connect(const cmce_meta_t *m, uint8_t *out)
     put_bits(out, &pos, m->transmission_grant & 0x03u,        2);
     put_bits(out, &pos, m->transmission_request_permission & 0x01u, 1);
     put_bits(out, &pos, m->call_ownership & 0x01u,            1);
-
-    /* Phase 7 G.5+ — Gold D-CONNECT #5887 hat o-bit=1 mit Type-2 BSI present.
-     * Ohne BSI weiß MS nicht dass Speech-Service (TchS) bestätigt ist und
-     * startet keinen TCH/S-TX.  Type-2-Layout per bluestation `d_connect.rs`:
-     *   call_priority (4 bit, present-flag + value)
-     *   basic_service_information (8 bit struct, present-flag + write_bsi)
-     *   temporary_address (24 bit, present-flag + value)
-     *   notification_indicator (6 bit, present-flag + value)
-     * Wir emittieren: call_priority=absent, BSI=present(TchS), temp_addr=absent,
-     * notif=absent.  Type-3 (Facility/Proprietary) ebenfalls absent. */
-    put_bits(out, &pos, 1u, 1);                              /* o-bit = 1 */
-
-    put_bits(out, &pos, 0u, 1);                              /* call_priority absent */
-    put_bits(out, &pos, 1u, 1);                              /* BSI present */
-    write_bsi(out, &pos, m);                                 /* 8-bit BSI */
-    put_bits(out, &pos, 0u, 1);                              /* temp_address absent */
-    put_bits(out, &pos, 0u, 1);                              /* notif_indicator absent */
-    put_bits(out, &pos, 0u, 1);                              /* Type-3 Facility absent */
-    put_bits(out, &pos, 0u, 1);                              /* Type-3 Proprietary absent */
-    put_bits(out, &pos, 0u, 1);                              /* trailing m-bit = 0 */
-    return pos;
-    /* expected = 5+14+4+1+1+2+1+1+1 (header) + 1+1+8+1+1+1+1+1 (IE chain) = 44 bits */
+    put_bits(out, &pos, 0u, 1);                              /* o-bit = 0 */
+    return pos;                                              /* 30 bits */
 }
 
 int tetra_cmce_build_d_tx_granted(const cmce_meta_t *m, uint8_t *out)

@@ -66,12 +66,10 @@ static void nsnr_step_bs(call_slot_t *s)
     s->ns ^= 1u;
 }
 
-/* D-SETUP wird an die Group-GSSI gebroadcastet — alle GSSI-Mitglieder
- * sollen den Call mitbekommen.  Phase 7 G.5+ MVP: wir kennen die Group-
- * GSSI aus der U-SETUP-Demand noch nicht, also als Platzhalter senden
- * wir D-SETUP an dieselbe MS-SSI wie D-CONNECT.  Spätere Iteration:
- * Group-GSSI aus dem Demand übernehmen. */
-static int stage_d_setup(tetra_hal_t *hal, call_slot_t *s)
+/* D-CALL-PROCEEDING — erste BS→MS-Antwort nach U-SETUP.  Per bluestation
+ * `cc_bs.rs::rx_u_setup` Z. 478: bestätigt U-SETUP, hält MS-Setup-Timer am
+ * Leben, MUSS vor D-CONNECT kommen. */
+static int stage_d_call_proceeding(tetra_hal_t *hal, call_slot_t *s)
 {
     tx_pdu_meta_t m;
     memset(&m, 0, sizeof(m));
@@ -79,11 +77,26 @@ static int stage_d_setup(tetra_hal_t *hal, call_slot_t *s)
     m.ns                      = s->ns;
     m.nr                      = s->nr;
     m.cmce.call_identifier    = s->call_id & 0x3FFFu;
+    return tetra_tx_submit(hal, TX_D_CALL_PROCEEDING, &m);
+}
+
+/* D-SETUP wird an die Group-GSSI gebroadcastet (bluestation Z. 532-561) —
+ * tells other group members "someone has the floor".  transmission_grant =
+ * GrantedToOtherUser (=3, NICHT Granted=0), BSI echoed aus U-SETUP. */
+static int stage_d_setup(tetra_hal_t *hal, call_slot_t *s)
+{
+    tx_pdu_meta_t m;
+    memset(&m, 0, sizeof(m));
+    m.target_ssi              = s->group_gssi ? s->group_gssi : s->ssi;
+    m.ns                      = s->ns;
+    m.nr                      = s->nr;
+    m.cmce.call_identifier    = s->call_id & 0x3FFFu;
     m.cmce.call_time_out      = 0;
-    m.cmce.transmission_grant = CMCE_TG_GRANTED;
-    m.cmce.transmission_request_permission = 1;
-    m.cmce.call_priority      = 4;                     /* default priority         */
-    /* BSI: TchS speech, no enc, p2g communication, speech_service=0 */
+    m.cmce.transmission_grant = 3;                     /* GrantedToOtherUser */
+    m.cmce.transmission_request_permission = 0;        /* allowed to request */
+    m.cmce.call_priority      = 4;
+    m.cmce.calling_party_ssi  = s->ssi;
+    /* BSI echoed from U-SETUP: TchS speech */
     m.cmce.bsi_circuit_mode_type  = 0;
     m.cmce.bsi_encryption_flag    = 0;
     m.cmce.bsi_communication_type = 1;
@@ -155,25 +168,37 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
                 return -1;
             }
         }
+        /* Group-GSSI aus U-SETUP called_party übernehmen (CPTI=SSI). */
+        s->group_gssi = (p->called_party_type_identifier == 1u
+                        || p->called_party_type_identifier == 2u)
+                       ? (p->called_party_ssi & 0x00FFFFFFu) : 0u;
         s->state = CALL_STATE_CONNECTING;
-        /* Gold-Sequenz für MS-Initiated Group-Call:
-         *   BS → D-SETUP   (Group-Broadcast, BSI + transmission_grant=Granted)
-         *   BS → D-CONNECT (an Initiator-MS, gleicher CallId, BSI present)
-         * MS startet TCH/S-TX nachdem sie D-CONNECT empfangen hat. */
-        nsnr_step_bs(s);
-        int rc_setup = stage_d_setup(hal, s);
+
+        /* Bluestation `cc_bs.rs::rx_u_setup` 3-Schritt-Sequenz:
+         *   1) D-CALL-PROCEEDING an Caller MS (BS-NS=0)
+         *   2) D-CONNECT an Caller MS (BS-NS=1, transmission_grant=Granted)
+         *   3) D-SETUP an Group GSSI (broadcast, GrantedToOtherUser, BSI echoed) */
+        int rc1 = stage_d_call_proceeding(hal, s);
         fprintf(stderr,
-                "tetra_call_fsm: U-SETUP ssi=0x%06X → D-SETUP call_id=%u "
-                "ns=%u nr=%u rc=%d\n",
-                ssi, s->call_id, s->ns, s->nr, rc_setup);
+                "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CALL-PROCEEDING "
+                "call_id=%u ns=%u nr=%u rc=%d\n",
+                ssi, s->group_gssi, s->call_id, s->ns, s->nr, rc1);
         nsnr_step_bs(s);
-        int rc = stage_d_connect(hal, s);
+        int rc2 = stage_d_connect(hal, s);
         fprintf(stderr,
-                "tetra_call_fsm: U-SETUP ssi=0x%06X → D-CONNECT call_id=%u "
-                "ns=%u nr=%u rc=%d\n",
-                ssi, s->call_id, s->ns, s->nr, rc);
+                "tetra_call_fsm: U-SETUP → D-CONNECT call_id=%u ns=%u nr=%u rc=%d\n",
+                s->call_id, s->ns, s->nr, rc2);
+        nsnr_step_bs(s);
+        int rc3 = (s->group_gssi != 0u) ? stage_d_setup(hal, s) : 0;
+        if (s->group_gssi != 0u) {
+            fprintf(stderr,
+                    "tetra_call_fsm: U-SETUP → D-SETUP→GSSI 0x%06X ns=%u nr=%u rc=%d\n",
+                    s->group_gssi, s->ns, s->nr, rc3);
+            nsnr_step_bs(s);
+        }
         s->state = CALL_STATE_CONNECTED;
-        return rc;
+        (void)rc1; (void)rc3;
+        return rc2;
     }
 
     case CMCE_U_TX_DEMAND: {

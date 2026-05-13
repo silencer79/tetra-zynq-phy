@@ -31,7 +31,7 @@
 #   ./scripts/vcxo_cal.sh [--host IP] [--dac 0..255] [--read] [--init]
 #
 # Optionen:
-#   --host IP    SSH-Adresse des LibreSDR  [192.168.2.183]
+#   --host IP    SSH-Adresse des LibreSDR  [192.168.2.85]
 #   --dac  N     DAC-Wert setzen (0..255)
 #   --read       Aktuellen GPIO-Zustand lesen
 #   --init       GPIOs exportieren + auf Output konfigurieren
@@ -46,7 +46,7 @@
 
 set -euo pipefail
 
-SSH_HOST="192.168.2.183"
+SSH_HOST="192.168.2.85"
 SSH_USER="root"
 SSH_PASS="openwifi"
 DAC_VAL=""
@@ -193,5 +193,5 @@ fi
 
 if [[ ${DO_INIT} -eq 0 && ${DO_DEINIT} -eq 0 && ${DO_READ} -eq 0 && -z "${DAC_VAL}" && -z "${XO_HZ}" ]]; then
     echo "Usage: $0 [--init] [--dac 0..255] [--xo HZ] [--read] [--deinit]"
-    echo "       $0 --host 192.168.2.183 --init --dac 128"
+    echo "       $0 --host 192.168.2.85 --init --dac 128"
 fi

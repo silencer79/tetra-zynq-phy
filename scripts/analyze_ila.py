@@ -306,7 +306,7 @@ def print_diagnosis(adc_ok: bool, sync_ok: bool, rx_freq: int):
 
     if not adc_ok:
         print(f"\n{RED}PROBLEM: AD9361 liefert keine Daten{RESET}")
-        print("  1. SSH zum Board:  ssh root@192.168.2.183")
+        print("  1. SSH zum Board:  ssh root@192.168.2.85")
         print("  2. AD9361 prüfen:  iio_info | grep -A5 ad9361")
         print("  3. Samplerate:     iio_attr -d ad9361-phy in_voltage_sampling_frequency")
         print(f"  4. Neu init:       ./scripts/ad9361_init.sh --freq {rx_freq}")
@@ -334,7 +334,7 @@ def print_diagnosis(adc_ok: bool, sync_ok: bool, rx_freq: int):
     print(f"  RX-Frequenz: {rx_freq/1e6:.3f} MHz")
     print(f"  Nächste Schritte:")
     print(f"  1. Kanal-Dekodierung aktivieren (scrambler, viterbi, DMA)")
-    print(f"  2. ARM-Software starten: ssh root@192.168.2.183 './tetra_test_rx'")
+    print(f"  2. ARM-Software starten: ssh root@192.168.2.85 './tetra_test_rx'")
     print(f"  3. Vollständige Messung: --ila-depth 4096 --timeout_ms 120000")
 
 

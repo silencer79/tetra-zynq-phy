@@ -24,7 +24,7 @@ if [ "$INFO_DEC" -gt 16383 ]; then
 fi
 WORD=$(printf '0x%08x' $((0x80000000 | INFO_DEC)))
 
-BOARD=root@192.168.2.183
+BOARD=root@192.168.2.85
 echo "[host] poke 0x43C001F4 = $WORD (pending=1, info=$INFO)"
 sshpass -p openwifi ssh -o StrictHostKeyChecking=no $BOARD \
     "busybox devmem 0x43C001F4 32 $WORD"

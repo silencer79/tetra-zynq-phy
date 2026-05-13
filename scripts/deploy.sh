@@ -24,7 +24,7 @@
 #   - Vivado 2022.2 (auto-detected or in PATH)
 #   - arm-linux-gnueabihf-gcc (cross compiler)
 #   - sshpass, scp, ssh
-#   - Board accessible: root@192.168.2.183
+#   - Board accessible: root@192.168.2.85
 # =============================================================================
 
 set -euo pipefail
@@ -37,7 +37,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="${PROJECT_ROOT}/build"
 
-BOARD_IP="192.168.2.183"
+BOARD_IP="192.168.2.85"
 BOARD_USER="root"
 BOARD_PASS="openwifi"
 
@@ -137,35 +137,43 @@ if $DO_BUILD; then
     echo "Bitstream: $BIT_FILE ($(stat -c %s "$BIT_FILE") bytes)"
 else
     step "1/4: Vivado Build [SKIPPED]"
-    [ -f "$BIT_FILE" ] || fail "No bitstream found: $BIT_FILE"
+    # Accept either .bit (will be re-converted) or pre-converted .bit.bin
+    # (deploy after a previous successful build, just re-upload).
+    [ -f "$BIT_FILE" ] || [ -f "$BIN_FILE" ] || \
+        fail "No bitstream found: $BIT_FILE or $BIN_FILE"
 fi
 
 # =============================================================================
-# Step 2: Convert .bit → .bit.bin
+# Step 2: Convert .bit → .bit.bin (skipped if .bit.bin already exists from
+# a prior build and the source .bit is gone)
 # =============================================================================
 
-step "2/4: Bitstream Conversion (.bit → .bit.bin)"
+if [ -f "$BIT_FILE" ]; then
+    step "2/4: Bitstream Conversion (.bit → .bit.bin)"
 
-if ! command -v bootgen &>/dev/null; then
-    if [ -f /opt/Xilinx/Vivado/2022.2/settings64.sh ]; then
-        source /opt/Xilinx/Vivado/2022.2/settings64.sh
-    else
-        fail "bootgen not found. Source Vivado settings64.sh"
+    if ! command -v bootgen &>/dev/null; then
+        if [ -f /opt/Xilinx/Vivado/2022.2/settings64.sh ]; then
+            source /opt/Xilinx/Vivado/2022.2/settings64.sh
+        else
+            fail "bootgen not found. Source Vivado settings64.sh"
+        fi
     fi
-fi
 
-BIF_FILE="${BUILD_DIR}/${BITSTREAM_NAME}.bif"
-cat > "$BIF_FILE" << EOF
+    BIF_FILE="${BUILD_DIR}/${BITSTREAM_NAME}.bif"
+    cat > "$BIF_FILE" << EOF
 all:
 {
 	$(basename "$BIT_FILE")
 }
 EOF
 
-(cd "$BUILD_DIR" && bootgen -w on -process_bitstream bin -image "$BIF_FILE" -o "$BIN_FILE")
+    (cd "$BUILD_DIR" && bootgen -w on -process_bitstream bin -image "$BIF_FILE" -o "$BIN_FILE")
 
-[ -f "$BIN_FILE" ] || fail "Conversion failed"
-echo "Output: $BIN_FILE ($(stat -c %s "$BIN_FILE") bytes)"
+    [ -f "$BIN_FILE" ] || fail "Conversion failed"
+    echo "Output: $BIN_FILE ($(stat -c %s "$BIN_FILE") bytes)"
+else
+    step "2/4: Bitstream Conversion [SKIPPED — pre-converted $BIN_FILE]"
+fi
 
 # Stop here if build-only
 if $DO_BUILD && ! $DO_SW && [ "${1:-}" = "--build-only" ]; then
@@ -299,7 +307,7 @@ if $DO_INIT; then
 
     # VCXO trim — ohne diesen DAC-Wert driftet der Board-Takt; Wert 153
     # wurde als sweet-spot kalibriert (siehe scripts/vcxo_cal.sh).
-    bash "${SCRIPT_DIR}/vcxo_cal.sh" --host 192.168.2.183 --dac 153
+    bash "${SCRIPT_DIR}/vcxo_cal.sh" --host 192.168.2.85 --dac 153
 
     # rf_loopback re-issued damit AGC + TX_ATT=-10 dB sauber gesetzt sind
     # (full_init initialisiert die Kette ohne TX_ATT-Override).

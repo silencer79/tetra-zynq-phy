@@ -29,6 +29,7 @@ typedef enum {
 
 typedef struct {
     uint32_t     ssi;            /* MS-ISSI initiator (0 = slot empty)      */
+    uint32_t     group_gssi;     /* Target group (= U-SETUP called_party)   */
     uint16_t     call_id;        /* 14-bit, allocated by BS                 */
     call_state_t state;
     uint8_t      ns;             /* LLC stop-and-wait per call slot         */

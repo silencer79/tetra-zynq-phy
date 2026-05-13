@@ -142,19 +142,20 @@ module tetra_dl_pdu_builder (
          * mm=2/mm=11 (lat_mle_pd != 010): legacy sg_flag=1 (bit-identisch). */
         .slot_granting_flag           ((lat_mle_pd == 3'b010) ? 1'b0 : 1'b1),
         .slot_granting_element        (slotgrant_packed_w),
-        /* ChanAlloc per Gold #5887 layout (prefix25 right-aligned):
-         *   alloc_type=00 (Allocate)
-         *   ts_assigned=1110 (TS1+TS2+TS3, mehrere Slots wie Gold)
+        /* ChanAlloc per bluestation `rx_u_setup` Z. 519-525 (= reference impl):
+         *   alloc_type=00 (Replace=0 per decoder/bluestation)
+         *   ts_assigned=0010 (EIN Bit pro Call — bluestation setzt
+         *                     timeslots[circuit.ts-1]=true, hier TS3=TN=2 air)
          *   ul_dl=11 (Both)
-         *   clch=1 (Common Linearisation Channel permission — Gold setzt das)
+         *   clch=0 (bluestation setzt das nicht)
          *   cell_chg=0
-         *   carrier_num=0x5FA=1530 (unsere Zelle, Band 4 Duplex 0)
+         *   carrier_num=0x5FA=1530 (unsere Zelle main carrier)
          *   ext_flag=0
          *   mon_pattern=10 (=2, kein frame18-Extension)
-         * = {00, 1110, 11, 1, 0, 010111111010, 0, 10}
-         * = 25 bits MSB-first: 0011101110010111111010010 = 0x772FD2 right-aligned. */
+         * = {00, 0010, 11, 0, 0, 010111111010, 0, 10}
+         * = 25 bits MSB-first: 0000101100010111111010010 = 0x162FD2 right-aligned. */
         .chan_alloc_flag              ((lat_mle_pd == 3'b010) ? 1'b1 : 1'b0),
-        .chan_alloc_element           ((lat_mle_pd == 3'b010) ? 32'h0077_2FD2
+        .chan_alloc_element           ((lat_mle_pd == 3'b010) ? 32'h0016_2FD2
                                                                 : 32'd0),
         .chan_alloc_element_len       ((lat_mle_pd == 3'b010) ? 5'd25 : 5'd0),
         .second_pdu_valid             (1'b0),

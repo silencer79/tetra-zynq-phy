@@ -46,6 +46,7 @@
 typedef struct {
     /* Common header */
     uint16_t call_identifier;    /* 14 bit; full 14-bit value                */
+    uint32_t calling_party_ssi;  /* 24 bit, for D-SETUP                     */
 
     /* D-SETUP / D-CONNECT / D-CALL-PROCEEDING shared timing+hooks */
     uint8_t  call_time_out;      /* 4 bit (D-SETUP/D-CONNECT)                */
