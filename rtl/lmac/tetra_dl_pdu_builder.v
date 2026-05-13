@@ -138,9 +138,21 @@ module tetra_dl_pdu_builder (
         .power_control_element        (4'd0),
         .slot_granting_flag           (1'b1),
         .slot_granting_element        (slotgrant_packed_w),
-        .chan_alloc_flag              (1'b0),
-        .chan_alloc_element           (32'd0),
-        .chan_alloc_element_len       (5'd0),
+        /* Phase 7 G.5+ — bei CMCE-D-PDUs (D-CONNECT / D-TX-GRANTED) MS
+         * eine TCH-Slot-Allokation in MAC-RESOURCE mitgeben, damit MS
+         * weiß auf welchem TN sie Voice senden soll.  Default-Layout:
+         *   alloc_type=00 (Allocate)
+         *   ts_assigned=0010 (= TS3 = TN=2 air)
+         *   ul_dl=11 (Both)
+         *   clch=0, cell_chg=0
+         *   carrier_num=1530 (= 0x5FA, cell-spezifisch)
+         *   ext_flag=0, mon_pattern=00
+         * Total 25 bits, left-aligned bei [31:7] = 32'h0B17E800.
+         * mle_pd != CMCE → ca_flag=0 (bit-identisch zum mm=2/mm=11 Pfad). */
+        .chan_alloc_flag              ((lat_mle_pd == 3'b010) ? 1'b1 : 1'b0),
+        .chan_alloc_element           ((lat_mle_pd == 3'b010) ? 32'h0B17_E800
+                                                                : 32'd0),
+        .chan_alloc_element_len       ((lat_mle_pd == 3'b010) ? 5'd25 : 5'd0),
         .second_pdu_valid             (1'b0),
         .second_pdu_length_ind        (6'd0),
         .second_pdu_random_access_flag(1'b0),
