@@ -1290,6 +1290,7 @@ tetra_burst_dispatcher #(
     // Phase C voice-relay override inputs
     .voice_active_mask_sys (voice_active_mask_sys_r1),
     .voice_slot_tn_sys     (voice_slot_tn_sys_w),
+    .tx_fn_sys             (tx_tdma_state_fn_sys),
     .voice_relay_valid_sys (voice_relay_valid_sys_w),
     .voice_relay_blk1_sys  (voice_relay_blk_sys_w[431:216]),
     .voice_relay_blk2_sys  (voice_relay_blk_sys_w[215:0]),

@@ -106,13 +106,18 @@ module tetra_burst_dispatcher #(
 
     // -------------------------------------------------------------------------
     // Phase C voice-relay override (NEW).  When voice is active on slot K
-    // AND a fresh UL-NUB buffer is ready, the per-TN case selects the
-    // 432-bit relay payload (BKN1+BKN2) as NDB1/SCH/F body, bypassing both
-    // the static schedule and the signalling scheduler.  voice_slot_tn_sys
-    // tells which TN owns the voice call (1 voice slot at a time MVP).
+    // AND a fresh UL-NUB buffer is ready AND we're on an NDB1/SCH/F voice
+    // frame (FN 1-9 per ETSI), the per-TN case selects the 432-bit relay
+    // payload (BKN1+BKN2) as NDB1/SCH/F body, bypassing static schedule.
+    // FN 10-17 stay on the existing path because tetra_aach_encoder Y.4.1-fix
+    // emits NDB2 AACH there (FACCH/idle) and we must not body-type-conflict
+    // with the AACH announcement on the slot (would cause MS-side decode
+    // failure → PTT abgewiesen).  voice_slot_tn_sys = lowest set bit of
+    // mask (MVP: 1 voice slot at a time).  tx_fn_sys is 0-based (FN-1).
     // -------------------------------------------------------------------------
     input  wire [3:0]             voice_active_mask_sys,
     input  wire [1:0]             voice_slot_tn_sys,
+    input  wire [4:0]             tx_fn_sys,             // 0-based fn (ETSI FN-1)
     input  wire                   voice_relay_valid_sys,
     input  wire [BLOCK_BITS-1:0]  voice_relay_blk1_sys,   // = relay_blk[431:216]
     input  wire [BLOCK_BITS-1:0]  voice_relay_blk2_sys,   // = relay_blk[215:0]
@@ -210,7 +215,8 @@ always @(*) begin
         sel_burst_type_w = bus_is_sdb   (sched_entry_reg_sys0);
         sel_enable_w     = bus_is_enable(sched_entry_reg_sys0);
         if (voice_active_mask_sys[0] & voice_relay_valid_sys
-            & (voice_slot_tn_sys == 2'd0)) begin
+            & (voice_slot_tn_sys == 2'd0)
+            & (tx_fn_sys <= 5'd8)) begin
             // Phase C voice-override: UL-NUB relay payload, NDB1 (SCH/F)
             sel_blk1_w       = voice_relay_blk1_sys;
             sel_blk2_w       = voice_relay_blk2_sys;
@@ -231,7 +237,8 @@ always @(*) begin
         sel_burst_type_w = bus_is_sdb   (sched_entry_reg_sys1);
         sel_enable_w     = bus_is_enable(sched_entry_reg_sys1);
         if (voice_active_mask_sys[1] & voice_relay_valid_sys
-            & (voice_slot_tn_sys == 2'd1)) begin
+            & (voice_slot_tn_sys == 2'd1)
+            & (tx_fn_sys <= 5'd8)) begin
             sel_blk1_w       = voice_relay_blk1_sys;
             sel_blk2_w       = voice_relay_blk2_sys;
             sel_burst_type_w = 1'b0;
@@ -251,7 +258,8 @@ always @(*) begin
         sel_burst_type_w = bus_is_sdb   (sched_entry_reg_sys2);
         sel_enable_w     = bus_is_enable(sched_entry_reg_sys2);
         if (voice_active_mask_sys[2] & voice_relay_valid_sys
-            & (voice_slot_tn_sys == 2'd2)) begin
+            & (voice_slot_tn_sys == 2'd2)
+            & (tx_fn_sys <= 5'd8)) begin
             sel_blk1_w       = voice_relay_blk1_sys;
             sel_blk2_w       = voice_relay_blk2_sys;
             sel_burst_type_w = 1'b0;
@@ -271,7 +279,8 @@ always @(*) begin
         sel_burst_type_w = bus_is_sdb   (sched_entry_reg_sys3);
         sel_enable_w     = bus_is_enable(sched_entry_reg_sys3);
         if (voice_active_mask_sys[3] & voice_relay_valid_sys
-            & (voice_slot_tn_sys == 2'd3)) begin
+            & (voice_slot_tn_sys == 2'd3)
+            & (tx_fn_sys <= 5'd8)) begin
             sel_blk1_w       = voice_relay_blk1_sys;
             sel_blk2_w       = voice_relay_blk2_sys;
             sel_burst_type_w = 1'b0;
