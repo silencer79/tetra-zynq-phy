@@ -196,6 +196,12 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
                     s->group_gssi, s->ns, s->nr, rc3);
             nsnr_step_bs(s);
         }
+        /* Phase Y.4.1 — Group-Call aktiv: voice-slot Mask setzen.  Bit 1
+         * = tn_sys=1 RTL.  AACH auf diesem Slot schaltet auf FN-Rotation
+         * (0x32CB / 0x22C9 / 0x2049) solange Call aktiv. */
+        tetra_reg_write(hal, REG_VOICE_ACTIVE_MASK, 0x02u);
+        fprintf(stderr,
+                "tetra_call_fsm: VOICE_ACTIVE_MASK=0x02 (tn_sys=1 voice-slot allocated)\n");
         s->state = CALL_STATE_CONNECTED;
         (void)rc1; (void)rc3;
         return rc2;
@@ -233,6 +239,8 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
                 "tetra_call_fsm: U-RELEASE ssi=0x%06X cause=%u → D-RELEASE "
                 "call_id=%u rc=%d\n",
                 ssi, p->disconnect_cause, s->call_id, rc);
+        /* Phase Y.4.1 — Call beendet, voice-slot zurück zu idle. */
+        tetra_reg_write(hal, REG_VOICE_ACTIVE_MASK, 0x00u);
         free_slot(s);
         return rc;
     }

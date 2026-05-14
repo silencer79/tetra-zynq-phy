@@ -70,6 +70,13 @@ module tetra_aach_encoder (
     input  wire [13:0] grant_info_sys,
     output reg         grant_consume_sys,
 
+    /* Phase Y.4.1 — Voice-Active-Mask (4 bit, bit N = active voice on
+     * tn_sys==N).  Wenn bit gesetzt UND tn_sys nicht 0 UND nicht F18
+     * → AACH = 14'h22C9 (DL+UL allocated to traffic, Gold #6136 Burst-
+     * Forensik).  Sonst idle-Pattern wie bisher.  SW kontrolliert via
+     * REG_VOICE_ACTIVE_MASK @ 0x1EC. */
+    input  wire [3:0]  voice_active_mask_sys,
+
     // Phase Z.13 (2026-05-04): the Z.2/Z.12 `aach_override_valid_sys` +
     // `aach_override_info_sys` inputs were removed.  Queued-PDU AACH
     // patterns now flow through a separate combinational tetra_aach_rm_
@@ -203,8 +210,22 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
                     grant_consume_sys <= 1'b1;
                 end else if (tn_sys == 2'd0) begin
                     info_sys <= signalling_active_sys ? 14'h0009 : 14'h0249;
+                end else if (voice_active_mask_sys[tn_sys]) begin
+                    /* Phase Y.4.1-fix (Gold #6100..#6168 bit-exact, 2026-05-14):
+                     * Voice-Phase AACH rotiert PRO FN auf voice-slot:
+                     *   FN  1.. 9 (fn_sys=0..8)  → 0x32CB  voice NDB1 SCH/F (TCH/S)
+                     *   FN 10..13 (fn_sys=9..12) → 0x22C9  FACCH NDB2 SCH/HD (BL-ACK stealing)
+                     *   FN 14..17 (fn_sys=13..16)→ 0x2049  idle NDB2 SCH/HD
+                     *   FN 18    (fn_sys=17)     → F18-Pfad above (0x2249 BSCH-anchor)
+                     * NICHT durchgehend 0x22C9 wie initial Y.4.1 (wrong). */
+                    if (fn_sys <= 5'd8)
+                        info_sys <= 14'h32CB;  // voice TCH/S
+                    else if (fn_sys <= 5'd12)
+                        info_sys <= 14'h22C9;  // FACCH stealing
+                    else
+                        info_sys <= 14'h2049;  // idle filler
                 end else begin
-                    // F1-17 TN!=0 (Traffic-Slots) — Gold rotiert nach FN/MN%4
+                    // F1-17 TN!=0 idle (Traffic-Slots) — Gold rotiert nach FN/MN%4
                     if (mn_low2_sys == 2'd1 &&
                         fn_sys >= 5'd2 && fn_sys <= 5'd12)
                         info_sys <= 14'h2049;             // FN=3..13 MN%4=1 Reserved

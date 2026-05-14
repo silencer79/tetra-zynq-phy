@@ -307,6 +307,12 @@
 #define DB_POLICY_ACCEPT_UNKNOWN_ISSI  (1u << 0)
 #define DB_POLICY_ACCEPT_UNKNOWN_GSSI  (1u << 1)
 
+/* Phase Y.4.1 — Voice-Active-Mask (Group-Call active voice-slot indicator).
+ * 4-bit bitmap, bit N = voice active on tn_sys==N (= on-air TN N+1).
+ * Set wenn D-CONNECT staged für Group-Call → BS-AACH auf voice-slot wechselt
+ * zu 0x22C9 (Gold-conform).  Clear bei U-RELEASE oder hangtime-Ablauf. */
+#define REG_VOICE_ACTIVE_MASK      0x1EC
+
 /* Phase H.6.3 — AACH UL-Slot-Grant override (single-shot pulse)            */
 #define REG_AACH_GRANT_HINT      0x1F4   /* R/W [31] pending, [13:0] info14  */
 

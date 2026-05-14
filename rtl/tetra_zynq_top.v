@@ -252,6 +252,7 @@ wire [13:0] cell_la_axi_w;
 // Phase 6 A: DB-Policy register (REG_DB_POLICY @ 0x1AC).
 // Bit 0 = accept_unknown (CDC-resynced into clk_sys below).
 wire [31:0] db_policy_axi_w;
+wire [31:0] voice_active_mask_axi_w;
 // Phase X.4 — REG_AST_TTL_MFS removed (AST migrated to SW).
 
 // Synchronize static AXI control bits into the consuming clock domains.
@@ -2042,6 +2043,7 @@ tetra_axi_lite_regs u_axi_regs (
     // Cell Location Area (R/W @ 0x1A0) — resynced into clk_sys below
     .cell_la_axi             (cell_la_axi_w),
     .db_policy_axi           (db_policy_axi_w),
+    .voice_active_mask_axi   (voice_active_mask_axi_w),
     // Phase X.4 — ast_ttl_multiframes_axi/ast_ttl_evict_cnt_axi removed (AST in SW)
     // Phase 7 F.3 — UL-Demand reassembly counters + T0 config
     .reass_reassembled_cnt_axi (reass_reassembled_cnt_axi_r1),
@@ -3532,6 +3534,19 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) db_policy_accept_unknown_sys_r1 <= 1'b1;
     else            db_policy_accept_unknown_sys_r1 <= db_policy_accept_unknown_sys_r0;
 end
+
+// Phase Y.4.1 — voice_active_mask CDC (4-bit, default 0 idle).
+(* ASYNC_REG = "TRUE" *) reg [3:0] voice_active_mask_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0] voice_active_mask_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) voice_active_mask_sys_r0 <= 4'd0;
+    else            voice_active_mask_sys_r0 <= voice_active_mask_axi_w[3:0];
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) voice_active_mask_sys_r1 <= 4'd0;
+    else            voice_active_mask_sys_r1 <= voice_active_mask_sys_r0;
+end
+
 // Phase X.4 — AST TTL multiframes CDC removed (AST migrated to SW).
 
 // Lookahead tuple (next-slot tn, fn, mn).  The sb1/aach encoders are
@@ -3710,6 +3725,8 @@ tetra_aach_encoder u_aach_encoder (
     .grant_pending_sys (aach_grant_pending_sys_r1),
     .grant_info_sys    (aach_grant_info_sys_r1),
     .grant_consume_sys (aach_grant_consume_sys_w),
+    /* Phase Y.4.1 — Voice-Slot AACH-Override (4-bit bitmap per tn_sys). */
+    .voice_active_mask_sys (voice_active_mask_sys_r1),
     .encode_start_sys (tx_tdma_state_slot_pulse_sys),
     .aach_coded_sys   (aach_coded_sys_w),
     .aach_valid_sys   (aach_valid_sys_w)

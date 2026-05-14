@@ -507,6 +507,11 @@ module tetra_axi_lite_regs (
     // ------------------------------------------------------------------
     output reg  [31:0] db_policy_axi,
 
+    /* Phase Y.4.1 — Voice-Active mask per air-TN (4-bit, bit N = tn_sys==N).
+     * SW setzt bit bei aktivem Group-Call → AACH-encoder schaltet FN-Rotation:
+     * voice (0x32CB) / FACCH (0x22C9) / idle (0x2049).  R/W @ 0x1EC. */
+    output reg  [31:0] voice_active_mask_axi,
+
     // ------------------------------------------------------------------
     // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
     // 144 words, each word packs TWO 16-bit schedule entries.
@@ -734,6 +739,7 @@ localparam [6:0] REG_CELL_LA          = 7'h68; // 0x1A0 R/W {18'd0, cell_la[13:0
 // REG_AST_TTL_EVICT_CNT (0x1B0) removed (AST migrated to SW).  REG_DB_POLICY
 // (0x1AC) stays — SW reads it to gate auto-enroll on EntityTable miss.
 localparam [6:0] REG_DB_POLICY        = 7'h6B; // 0x1AC R/W {30'd0, reserved, accept_unknown}
+localparam [6:0] REG_VOICE_ACTIVE_MASK = 7'h7B; // 0x1EC R/W [3:0] active voice-slot bitmap per tn_sys (Phase Y.4.1)
 // DL-Signal-Queue / Pre-Reply diagnostic counters — slots freed by Phase X.4
 // (REG_AST_DETACH_CNT 0x1A4, REG_AST_TTL_MFS 0x1A8, REG_AST_TTL_EVICT_CNT 0x1B0).
 localparam [6:0] REG_SLOTGRANT_STATS      = 7'h69; // 0x1A4 RO {drop[15:0], push[15:0]}
@@ -1132,6 +1138,7 @@ always @(*) begin
         REG_CELL_LA:      rdata_mux_axi = {18'b0, cell_la_axi};
         // Phase X.4 — REG_AST_DETACH_CNT/REG_AST_TTL_MFS/REG_AST_TTL_EVICT_CNT removed.
         REG_DB_POLICY:    rdata_mux_axi = db_policy_axi;
+        REG_VOICE_ACTIVE_MASK: rdata_mux_axi = voice_active_mask_axi;
         // Phase 7 F.3 — UL-Demand decoded fields + reassembly mailbox
         REG_UL_PDU_STATUS_2:  rdata_mux_axi = {20'b0,
                                                 ul_llc_pdu_type_lat_axi,
@@ -1392,6 +1399,18 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         if (wr_strb_axi[1]) db_policy_axi[15: 8] <= wr_data_axi[15: 8];
         if (wr_strb_axi[2]) db_policy_axi[23:16] <= wr_data_axi[23:16];
         if (wr_strb_axi[3]) db_policy_axi[31:24] <= wr_data_axi[31:24];
+    end
+end
+
+// ---- REG_VOICE_ACTIVE_MASK (0x1EC) — Phase Y.4.1 ----
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        voice_active_mask_axi <= 32'h0;
+    else if (wr_en_axi & (wr_addr_axi[8:2] == REG_VOICE_ACTIVE_MASK)) begin
+        if (wr_strb_axi[0]) voice_active_mask_axi[ 7: 0] <= wr_data_axi[ 7: 0];
+        if (wr_strb_axi[1]) voice_active_mask_axi[15: 8] <= wr_data_axi[15: 8];
+        if (wr_strb_axi[2]) voice_active_mask_axi[23:16] <= wr_data_axi[23:16];
+        if (wr_strb_axi[3]) voice_active_mask_axi[31:24] <= wr_data_axi[31:24];
     end
 end
 
