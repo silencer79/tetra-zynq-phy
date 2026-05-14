@@ -155,19 +155,17 @@ Diese Dokumentation beschreibt was der Code **TUT**, nicht was er tun **sollte**
 
 | Pfad | Wo | Status |
 |------|-----|--------|
-| `tetra_tx_inv_sinc.v` | rtl/tx/ existiert, nicht instanziiert | Tot (Ch 5) |
-| `tetra_tx_pdu_mailbox.v` | rtl/infra/ existiert, nicht instanziiert | Tot (Ch 7) |
-| `tetra_lmac.v` TX-Datenpfad | hardwired auf 0, ARM-DMA-MM2S existiert nicht | Tot (Ch 7) |
-| `tetra_rx_burst_fifo.v` | rtl/rx/, nicht in rx_chain instanziiert | Tot (Ch 3) |
-| `tetra_char_dev.c` (Kernel-Modul) | nicht im deploy.sh --init-Pfad | Tot/ungenutzt (Ch 9) |
-| `tetra_pdu_class.h` Symbole | keine User in sw/*.c | Orphan-Header (Ch 9) |
+| `tetra_lmac.v` TX-Datenpfad | hardwired auf 0, ARM-DMA-MM2S existiert nicht | Tot innerhalb live-Modul (Ch 7) |
+| `tetra_char_dev.c` (Kernel-Modul) | nicht im deploy.sh --init-Pfad | Tot/ungenutzt (Ch 9) — behalten als Future-Debug-Tool |
 | Generic-Coding-Module (crc16/scrambler/interleaver/rcpc/reed_muller) im DL-TX | RX-only, TX hat Inline-Impls | Code-Dup (Ch 5) |
-| Shadow-Subscriber-Tabelle (REG_SHADOW_*) | Consumer tot (Ch 8) | Phase-X.4-Restdrift |
-| Profile-Tabelle (REG_PROFILE_*) | Consumer tot (Ch 8) | Phase-X.4-Restdrift |
-| REG_NCO_PHASE_INC | entfernt aus dem Modul, AXI-Read liefert 0 | Refactor-Spur (Ch 8) |
-| 0x250..0x25C AXI-Slot | seit Phase Y.2 verschwunden | Refactor-Spur (Ch 8) |
-| `tetra_ul_voice_capture.v` voice_burst_valid | pulst im deployten Bitstream nie (sync-gegateter UL-Demod-Pfad triggert nicht auf TCH/S) | Inert im Deployed (Ch 4, Ch 12) |
-| CMCE-port-mux | OR'd voice mit nwrk_bcast — weil voice_burst_valid nie pulst, ist es ein effektives Pass-Through | Inert-Mux (Ch 0, Ch 12) |
+| Shadow-Subscriber-Tabelle (REG_SHADOW_*) | Consumer-Audit deferred | Phase-X.4-Restdrift, unverifiziert |
+| Profile-Tabelle (REG_PROFILE_*) | Consumer-Audit deferred | Phase-X.4-Restdrift, unverifiziert |
+
+**Phase A.3.1 Cleanup (committed):** entfernt — `tetra_tx_inv_sinc.v`, `tetra_tx_pdu_mailbox.v`, `tetra_rx_burst_fifo.v`, `sw/tetra_pdu_class.h`.
+
+**Phase A.1 Rollback (committed):** entfernt — `tetra_ul_voice_capture.v` (Y.4.2/Y.4.3-Hack), CMCE-port-Mux in `zynq_top.v`, UL-demod-Outputs in `rx_chain.v`.
+
+**Agent-3-Claims falsifiziert (in IST baseline):** REG_NCO_PHASE_INC ist schon weg (kein Code-Rest); 0x250..0x25C ist NICHT verschwunden (Phase Y.1.f Group-Attach Reply-Mailbox, live in `axi_lite_regs.v`).
 
 ### Phase-Tags-Inventar (chronologisch durchs RTL)
 

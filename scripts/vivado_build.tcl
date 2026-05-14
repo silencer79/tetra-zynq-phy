@@ -128,7 +128,6 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/tx/tetra_tx_frontend.v \
  $PROJ_DIR/rtl/tx/tetra_pi4dqpsk_mod.v \
  $PROJ_DIR/rtl/tx/tetra_rrc_filter.v \
- $PROJ_DIR/rtl/tx/tetra_tx_inv_sinc.v \
  $PROJ_DIR/rtl/tx/tetra_burst_builder.v \
  $PROJ_DIR/rtl/tx/tetra_burst_dispatcher.v \
  $PROJ_DIR/rtl/tx/tetra_tdma_timebase.v \
