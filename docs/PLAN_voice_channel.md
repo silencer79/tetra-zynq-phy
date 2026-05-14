@@ -16,9 +16,15 @@ Group-Call Voice-Audio-Relay zwischen zwei MS in derselben Gruppe:
 
 ## Decision-Lock (aus B3, 2026-05-14)
 
-### D1 — UL-TCH/S-Sync-Korrelator
+### D1 — UL-TCH/S-Sync-Korrelator (Re-Lock 2026-05-14)
 
-**Eigenes Modul `rtl/rx/tetra_ul_nub_sync.v`** (parallel zu `tetra_ul_sync_detect_os4.v`, NICHT Pattern-Mux). Begründung: Slice-Kosten (~150 LUT auf 53200 = 0.3 %) sind vernachlässigbar, Trennung x-seq vs NTS1 verhindert RA/NUB-Race.
+**`tetra_ul_sync_detect_os4.v` parametrisieren + zweimal instantiieren.** Erste Lock-Version war "eigenes Modul parallel"; Re-Lock auf "refactor existing → param + 2× inst" weil:
+- Eine Codebase, isolierte Instanzen (kein Race, kein Shared-State-Risk)
+- Future-Mods am Korrelator (z.B. CORR_WIDTH-Bugfix, neue Phase-Strategie) gelten automatisch für beide Konsumenten
+- LUT-Kosten identisch zur "eigenes Modul"-Variante (zwei Instanzen)
+- TB testet das Modul-Template, nicht zwei separate Implementierungen
+
+**Implementation:** Parameter `SYNC_PATTERN [29:0]` + `SYNC_LEN_SYM` (default = ETS_REF / 15 = bisheriges Verhalten). corr_count() von 15-fixed-term-Adder auf for-loop über SYNC_LEN_SYM. Zwei Instanzen: `u_ul_sync_ra` (x-seq, 15 sym) + `u_ul_sync_nub` (NTS1, 11 sym).
 
 ### D2 — UL Slot-Alignment
 
@@ -59,33 +65,26 @@ Aus `rtl/tx/tetra_burst_builder.v` NTS1_REF + ETSI §9.4.4.3.4. 253 Symbole = 14
 
 ## Modul-Spec für Phase C
 
-### C1 — `rtl/rx/tetra_ul_nub_sync.v` (NEU)
+### C1 — `rtl/rx/tetra_ul_sync_detect_os4.v` (REFACTOR — parametrisieren)
 
-**Ports:**
+**Patch:** Add Parameter `SYNC_PATTERN [29:0]` (default = bisheriger ETS_REF x-seq) und `SYNC_LEN_SYM` (default = 15). `corr_count()` von 15-Term-Adder auf for-loop über SYNC_LEN_SYM (Verilog-2001 Part-Select `xr[2*i +: 2]`).  HOLDOFF bleibt Parameter wie bisher.
+
+**Instances in `rtl/rx/tetra_rx_chain.v`** (oder zynq_top, je nach existing):
 ```verilog
-module tetra_ul_nub_sync (
-    input  wire         clk_sys,
-    input  wire         rst_n_sys,
-    input  wire signed [15:0] i_in_sys,
-    input  wire signed [15:0] q_in_sys,
-    input  wire         valid_in_sys,
-    input  wire         reset_peak_sys,
-    input  wire [3:0]   corr_threshold_sys,  // 0..11, typ 8
+tetra_ul_sync_detect_os4 #(
+    .SYNC_PATTERN(ETS_REF),     // default
+    .SYNC_LEN_SYM(15),
+    .HOLDOFF(50)
+) u_ul_sync_ra ( ... );
 
-    output reg          sync_found_sys,
-    output reg  [3:0]   corr_peak_sys,
-    output reg  [1:0]   best_phase_sys
-);
+tetra_ul_sync_detect_os4 #(
+    .SYNC_PATTERN({8'b0, NTS1_REF_22bit}),  // NTS1 in [21:0], top 8 zero
+    .SYNC_LEN_SYM(11),
+    .HOLDOFF(250)   // 1 Voice-Frame ≈ 250 samples @ 72 kHz post-RRC
+) u_ul_sync_nub ( ... );
 ```
 
-**Funktion:**
-- 4 parallele Phasen-Korrelatoren auf post-RRC IQ @ 72 kHz (4 sps)
-- Differential-Dibit-Berechnung wie `tetra_ul_sync_detect_os4.v`
-- Vergleicht 11-Symbol-Sliding-Window gegen `NTS1_REF_DIBITS`
-- HOLDOFF nach Match (~250 Samples = 1 frame) verhindert Re-Trigger
-- Threshold-default: 8/11 (per Phase B2 Forensik-Score)
-
-**LUT-Schätzung:** ~150 (vier 11-bit-XOR + count-tree)
+**LUT-Schätzung:** ~300 für beide Instanzen zusammen (vs. ~300 für nur RA bisher — wir gewinnen Sync-Funktionalität ohne Slice-Kosten zu verdoppeln, weil for-loop bei kleinerem LEN auch kleinerer Adder).
 
 ### C2 — `rtl/rx/tetra_ul_nub_capture.v` (NEU)
 

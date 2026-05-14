@@ -94,6 +94,19 @@ module tetra_rx_chain #(
     output wire [1:0]            ul_best_phase_sys,
 
     // -------------------------------------------------------------------------
+    // Phase C — UL TCH/S NUB sync + capture (parallel to RA-path above).
+    // Uses tetra_ul_sync_detect_os4 instance #2 configured with NTS1 pattern
+    // + 11-symbol length, feeding tetra_ul_nub_capture which streams BKN1
+    // and BKN2 (432 type-5 coded bits) into voice_nub_coded_bits_sys when
+    // a voice burst is fully captured.  Threshold is SW-configurable via
+    // REG_VOICE_NUB_SYNC_THRESH (default 8/11).
+    // -------------------------------------------------------------------------
+    input  wire [4:0]            voice_nub_sync_thresh_sys,
+    output wire [431:0]          voice_nub_coded_bits_sys,
+    output wire                  voice_nub_coded_valid_sys,
+    output wire [15:0]           voice_nub_rx_cnt_sys,
+
+    // -------------------------------------------------------------------------
     // UL RX Chain — MS RA-burst decoder (Task #37)
     // sync_detect_os4 → burst_capture → pi4dqpsk_demod → sch_hu_decoder
     // → mac_access_parser.  scramb_init is the cell extended-scrambling
@@ -339,6 +352,55 @@ tetra_ul_burst_capture #(
     .iq_half_sys        (ul_cap_half_sys),
     .capture_busy_sys   (),
     .bursts_captured_sys()
+);
+
+// =============================================================================
+// Phase C — UL TCH/S NUB sync + capture (parallel to RA path).
+// Re-uses parametrised tetra_ul_sync_detect_os4 with NTS1 pattern (11 sym).
+// NTS1 dibits MSB-first (oldest in sreg = bit 21..20): 11 01 00 00 11 10 10 01 11 01 00
+//   → packed [29:22]=8'b0, [21:0]={11,01,00,00,11,10,10,01,11,01,00}
+// =============================================================================
+localparam [21:0] NTS1_REF_22B = {
+    2'b11, 2'b01, 2'b00, 2'b00, 2'b11, 2'b10,
+    2'b10, 2'b01, 2'b11, 2'b01, 2'b00
+};
+
+wire                  nub_sync_found_sys;
+wire [CORR_WIDTH-1:0] nub_corr_peak_sys;
+wire [1:0]            nub_best_phase_sys;
+
+tetra_ul_sync_detect_os4 #(
+    .IQ_WIDTH    (IQ_WIDTH),
+    .CORR_WIDTH  (CORR_WIDTH),
+    .HOLDOFF     (250),                       // ~1 voice frame at 72 kHz
+    .SYNC_PATTERN({8'b0, NTS1_REF_22B}),      // NTS1 in [21:0], top 8 zero
+    .SYNC_LEN_SYM(11)
+) u_ul_sync_nub (
+    .clk_sys            (clk_sys),
+    .rst_n_sys          (rst_n_sys),
+    .reset_peak_sys     (ul_reset_peak_sys),
+    .i_in_sys           (fe_i_sys),
+    .q_in_sys           (fe_q_sys),
+    .valid_in_sys       (fe_valid_sys),
+    .corr_threshold_sys ({1'b0, voice_nub_sync_thresh_sys}),  // 6-bit port, 5-bit value
+    .sync_found_sys     (nub_sync_found_sys),
+    .corr_peak_sys      (nub_corr_peak_sys),
+    .best_phase_sys     (nub_best_phase_sys)
+);
+
+tetra_ul_nub_capture #(
+    .IQ_WIDTH(IQ_WIDTH)
+) u_ul_nub_capture (
+    .clk_sys              (clk_sys),
+    .rst_n_sys            (rst_n_sys),
+    .i_in_sys             (fe_i_sys),
+    .q_in_sys             (fe_q_sys),
+    .valid_in_sys         (fe_valid_sys),
+    .sync_found_sys       (nub_sync_found_sys),
+    .best_phase_sys       (nub_best_phase_sys),
+    .coded_bits_sys       (voice_nub_coded_bits_sys),
+    .coded_valid_sys      (voice_nub_coded_valid_sys),
+    .bursts_captured_sys  (voice_nub_rx_cnt_sys)
 );
 
 tetra_ul_pi4dqpsk_demod #(

@@ -105,6 +105,19 @@ module tetra_burst_dispatcher #(
     input  wire                   tx_busy_sys,
 
     // -------------------------------------------------------------------------
+    // Phase C voice-relay override (NEW).  When voice is active on slot K
+    // AND a fresh UL-NUB buffer is ready, the per-TN case selects the
+    // 432-bit relay payload (BKN1+BKN2) as NDB1/SCH/F body, bypassing both
+    // the static schedule and the signalling scheduler.  voice_slot_tn_sys
+    // tells which TN owns the voice call (1 voice slot at a time MVP).
+    // -------------------------------------------------------------------------
+    input  wire [3:0]             voice_active_mask_sys,
+    input  wire [1:0]             voice_slot_tn_sys,
+    input  wire                   voice_relay_valid_sys,
+    input  wire [BLOCK_BITS-1:0]  voice_relay_blk1_sys,   // = relay_blk[431:216]
+    input  wire [BLOCK_BITS-1:0]  voice_relay_blk2_sys,   // = relay_blk[215:0]
+
+    // -------------------------------------------------------------------------
     // Outputs to tetra_burst_builder
     // -------------------------------------------------------------------------
     output reg  [BLOCK_BITS-1:0]  build_block1_sys,
@@ -196,7 +209,15 @@ always @(*) begin
     2'd0: begin
         sel_burst_type_w = bus_is_sdb   (sched_entry_reg_sys0);
         sel_enable_w     = bus_is_enable(sched_entry_reg_sys0);
-        if (sched_active_sys[0] || bus_is_signal(sched_entry_reg_sys0)) begin
+        if (voice_active_mask_sys[0] & voice_relay_valid_sys
+            & (voice_slot_tn_sys == 2'd0)) begin
+            // Phase C voice-override: UL-NUB relay payload, NDB1 (SCH/F)
+            sel_blk1_w       = voice_relay_blk1_sys;
+            sel_blk2_w       = voice_relay_blk2_sys;
+            sel_burst_type_w = 1'b0;    // NDB (not SDB)
+            sel_ndb2_w       = 1'b0;    // NDB1 / SCH/F
+            sel_enable_w     = 1'b1;
+        end else if (sched_active_sys[0] || bus_is_signal(sched_entry_reg_sys0)) begin
             sel_blk1_w  = sched_blk1_tn0_sys;
             sel_blk2_w  = sched_blk2_tn0_sys;
             sel_ndb2_w  = sched_ndb2_sys[0];
@@ -209,7 +230,14 @@ always @(*) begin
     2'd1: begin
         sel_burst_type_w = bus_is_sdb   (sched_entry_reg_sys1);
         sel_enable_w     = bus_is_enable(sched_entry_reg_sys1);
-        if (sched_active_sys[1] || bus_is_signal(sched_entry_reg_sys1)) begin
+        if (voice_active_mask_sys[1] & voice_relay_valid_sys
+            & (voice_slot_tn_sys == 2'd1)) begin
+            sel_blk1_w       = voice_relay_blk1_sys;
+            sel_blk2_w       = voice_relay_blk2_sys;
+            sel_burst_type_w = 1'b0;
+            sel_ndb2_w       = 1'b0;
+            sel_enable_w     = 1'b1;
+        end else if (sched_active_sys[1] || bus_is_signal(sched_entry_reg_sys1)) begin
             sel_blk1_w  = sched_blk1_tn1_sys;
             sel_blk2_w  = sched_blk2_tn1_sys;
             sel_ndb2_w  = sched_ndb2_sys[1];
@@ -222,7 +250,14 @@ always @(*) begin
     2'd2: begin
         sel_burst_type_w = bus_is_sdb   (sched_entry_reg_sys2);
         sel_enable_w     = bus_is_enable(sched_entry_reg_sys2);
-        if (sched_active_sys[2] || bus_is_signal(sched_entry_reg_sys2)) begin
+        if (voice_active_mask_sys[2] & voice_relay_valid_sys
+            & (voice_slot_tn_sys == 2'd2)) begin
+            sel_blk1_w       = voice_relay_blk1_sys;
+            sel_blk2_w       = voice_relay_blk2_sys;
+            sel_burst_type_w = 1'b0;
+            sel_ndb2_w       = 1'b0;
+            sel_enable_w     = 1'b1;
+        end else if (sched_active_sys[2] || bus_is_signal(sched_entry_reg_sys2)) begin
             sel_blk1_w  = sched_blk1_tn2_sys;
             sel_blk2_w  = sched_blk2_tn2_sys;
             sel_ndb2_w  = sched_ndb2_sys[2];
@@ -235,7 +270,14 @@ always @(*) begin
     2'd3: begin
         sel_burst_type_w = bus_is_sdb   (sched_entry_reg_sys3);
         sel_enable_w     = bus_is_enable(sched_entry_reg_sys3);
-        if (sched_active_sys[3] || bus_is_signal(sched_entry_reg_sys3)) begin
+        if (voice_active_mask_sys[3] & voice_relay_valid_sys
+            & (voice_slot_tn_sys == 2'd3)) begin
+            sel_blk1_w       = voice_relay_blk1_sys;
+            sel_blk2_w       = voice_relay_blk2_sys;
+            sel_burst_type_w = 1'b0;
+            sel_ndb2_w       = 1'b0;
+            sel_enable_w     = 1'b1;
+        end else if (sched_active_sys[3] || bus_is_signal(sched_entry_reg_sys3)) begin
             sel_blk1_w  = sched_blk1_tn3_sys;
             sel_blk2_w  = sched_blk2_tn3_sys;
             sel_ndb2_w  = sched_ndb2_sys[3];

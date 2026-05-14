@@ -114,6 +114,7 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/rx/tetra_sync_detect.v \
  $PROJ_DIR/rtl/rx/tetra_ul_sync_detect_os4.v \
  $PROJ_DIR/rtl/rx/tetra_ul_burst_capture.v \
+ $PROJ_DIR/rtl/rx/tetra_ul_nub_capture.v \
  $PROJ_DIR/rtl/rx/tetra_ul_pi4dqpsk_demod.v \
  $PROJ_DIR/rtl/rx/tetra_ul_sch_hu_decoder.v \
  $PROJ_DIR/rtl/rx/tetra_ul_viterbi_r14.v \
@@ -172,6 +173,7 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_pre_reply_blck.v \
  $PROJ_DIR/rtl/lmac/tetra_pre_reply_slotgrant.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_pdu_builder.v \
+ $PROJ_DIR/rtl/lmac/tetra_voice_relay.v \
 ]
 
 # Top-Level modules

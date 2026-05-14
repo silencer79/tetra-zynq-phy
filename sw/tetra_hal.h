@@ -313,6 +313,15 @@
  * zu 0x22C9 (Gold-conform).  Clear bei U-RELEASE oder hangtime-Ablauf. */
 #define REG_VOICE_ACTIVE_MASK      0x1EC
 
+/* Phase C — Voice-Channel-Telemetrie (Bank-1 0x260..0x268).
+ *   REG_VOICE_NUB_RX_CNT      RO [15:0] UL TCH/S Bursts captured by RTL
+ *   REG_VOICE_RELAY_CNT       RO [15:0] DL voice-slot bursts emitted
+ *   REG_VOICE_NUB_SYNC_THRESH R/W [4:0] NTS1 correlator threshold (default 8/11)
+ */
+#define REG_VOICE_NUB_RX_CNT       0x260
+#define REG_VOICE_RELAY_CNT        0x264
+#define REG_VOICE_NUB_SYNC_THRESH  0x268
+
 /* Phase H.6.3 — AACH UL-Slot-Grant override (single-shot pulse)            */
 #define REG_AACH_GRANT_HINT      0x1F4   /* R/W [31] pending, [13:0] info14  */
 

@@ -512,6 +512,14 @@ module tetra_axi_lite_regs (
      * voice (0x32CB) / FACCH (0x22C9) / idle (0x2049).  R/W @ 0x1EC. */
     output reg  [31:0] voice_active_mask_axi,
 
+    /* Phase C — Voice-Channel-Telemetrie (Bank-1 0x260..0x268).
+     *   REG_VOICE_NUB_RX_CNT      @ 0x260 RO bursts_captured_sys
+     *   REG_VOICE_RELAY_CNT       @ 0x264 RO relay_cnt_sys
+     *   REG_VOICE_NUB_SYNC_THRESH @ 0x268 R/W [4:0] (default 8) */
+    input  wire [15:0] voice_nub_rx_cnt_axi,
+    input  wire [15:0] voice_relay_cnt_axi,
+    output reg  [31:0] voice_nub_sync_thresh_axi,
+
     // ------------------------------------------------------------------
     // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
     // 144 words, each word packs TWO 16-bit schedule entries.
@@ -821,6 +829,10 @@ localparam [6:0] REG_GRP_DEMAND_STATUS = 7'h10; // 0x240
 localparam [6:0] REG_GRP_DEMAND_INDEX  = 7'h11; // 0x244
 localparam [6:0] REG_GRP_DEMAND_DATA   = 7'h12; // 0x248
 localparam [6:0] REG_GRP_DEMAND_ACK    = 7'h13; // 0x24C
+// Phase C — Voice-Channel-Telemetrie (Bank-1)
+localparam [6:0] REG_VOICE_NUB_RX_CNT      = 7'h18; // 0x260 RO  [15:0] bursts_captured
+localparam [6:0] REG_VOICE_RELAY_CNT       = 7'h19; // 0x264 RO  [15:0] relay_cnt
+localparam [6:0] REG_VOICE_NUB_SYNC_THRESH = 7'h1A; // 0x268 R/W [4:0] corr threshold (default 8)
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -1206,6 +1218,10 @@ always @(*) begin
             REG_GRP_DEMAND_INDEX:  rdata_mux_axi = {28'd0, grp_demand_index_axi};
             REG_GRP_DEMAND_DATA:   rdata_mux_axi = grp_demand_data_word_axi_i;
             REG_GRP_DEMAND_ACK:    rdata_mux_axi = {31'd0, grp_demand_ack_trigger_r};
+            // Phase C voice-channel telemetry
+            REG_VOICE_NUB_RX_CNT:      rdata_mux_axi = {16'd0, voice_nub_rx_cnt_axi};
+            REG_VOICE_RELAY_CNT:       rdata_mux_axi = {16'd0, voice_relay_cnt_axi};
+            REG_VOICE_NUB_SYNC_THRESH: rdata_mux_axi = voice_nub_sync_thresh_axi;
             default:           rdata_mux_axi = 32'd0;
         endcase
     end
@@ -1411,6 +1427,19 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
         if (wr_strb_axi[1]) voice_active_mask_axi[15: 8] <= wr_data_axi[15: 8];
         if (wr_strb_axi[2]) voice_active_mask_axi[23:16] <= wr_data_axi[23:16];
         if (wr_strb_axi[3]) voice_active_mask_axi[31:24] <= wr_data_axi[31:24];
+    end
+end
+
+// ---- REG_VOICE_NUB_SYNC_THRESH (0x268, Bank-1) — Phase C ----
+// Default 8/11 = score sufficient für UL TCH/S sync per B2 Forensik.
+always @(posedge clk_axi or negedge rst_n_axi) begin
+    if (!rst_n_axi)
+        voice_nub_sync_thresh_axi <= 32'd8;
+    else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_VOICE_NUB_SYNC_THRESH)) begin
+        if (wr_strb_axi[0]) voice_nub_sync_thresh_axi[ 7: 0] <= wr_data_axi[ 7: 0];
+        if (wr_strb_axi[1]) voice_nub_sync_thresh_axi[15: 8] <= wr_data_axi[15: 8];
+        if (wr_strb_axi[2]) voice_nub_sync_thresh_axi[23:16] <= wr_data_axi[23:16];
+        if (wr_strb_axi[3]) voice_nub_sync_thresh_axi[31:24] <= wr_data_axi[31:24];
     end
 end
 

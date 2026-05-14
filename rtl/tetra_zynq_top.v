@@ -253,6 +253,16 @@ wire [13:0] cell_la_axi_w;
 // Bit 0 = accept_unknown (CDC-resynced into clk_sys below).
 wire [31:0] db_policy_axi_w;
 wire [31:0] voice_active_mask_axi_w;
+wire [31:0] voice_nub_sync_thresh_axi_w;
+
+// Phase C — UL-NUB capture outputs (rx_chain → voice_relay)
+wire [431:0] voice_nub_coded_bits_sys_w;
+wire         voice_nub_coded_valid_sys_w;
+wire [15:0]  voice_nub_rx_cnt_sys_w;
+// Phase C — voice_relay outputs (→ burst_dispatcher)
+wire [431:0] voice_relay_blk_sys_w;
+wire         voice_relay_valid_sys_w;
+wire [15:0]  voice_relay_cnt_sys_w;
 // Phase X.4 — REG_AST_TTL_MFS removed (AST migrated to SW).
 
 // Synchronize static AXI control bits into the consuming clock domains.
@@ -614,7 +624,12 @@ tetra_rx_chain #(
     .schhu_ok_sys               (schhu_ok_sys),
   .dbg_fe_valid_sys (dbg_fe_valid_sys),
   .dbg_tr_valid_sys (dbg_tr_valid_sys),
-  .dbg_demod_valid_sys (dbg_demod_valid_sys)
+  .dbg_demod_valid_sys (dbg_demod_valid_sys),
+  // Phase C — UL TCH/S NUB sync + capture
+  .voice_nub_sync_thresh_sys (voice_nub_sync_thresh_sys_r1[4:0]),
+  .voice_nub_coded_bits_sys  (voice_nub_coded_bits_sys_w),
+  .voice_nub_coded_valid_sys (voice_nub_coded_valid_sys_w),
+  .voice_nub_rx_cnt_sys      (voice_nub_rx_cnt_sys_w)
 );
 
 // =============================================================================
@@ -1272,6 +1287,12 @@ tetra_burst_dispatcher #(
     .sb_sb1_in_sys        (sb1_coded_sys_w),
     // Builder feedback (reserved)
     .tx_busy_sys          (disp_tx_busy_sys_w),
+    // Phase C voice-relay override inputs
+    .voice_active_mask_sys (voice_active_mask_sys_r1),
+    .voice_slot_tn_sys     (voice_slot_tn_sys_w),
+    .voice_relay_valid_sys (voice_relay_valid_sys_w),
+    .voice_relay_blk1_sys  (voice_relay_blk_sys_w[431:216]),
+    .voice_relay_blk2_sys  (voice_relay_blk_sys_w[215:0]),
     // Outputs to tetra_tx_chain
     .build_block1_sys     (disp_block1_sys_w),
     .build_block2_sys     (disp_block2_sys_w),
@@ -1280,6 +1301,25 @@ tetra_burst_dispatcher #(
     .build_burst_type_sys (disp_burst_type_sys_w),
     .build_ndb2_sys       (disp_ndb2_sys_w),
     .build_req_sys        (disp_build_req_sys_w)
+);
+
+// =============================================================================
+// Phase C — Voice-Relay (1-frame buffer UL→DL bit-transparent)
+// =============================================================================
+tetra_voice_relay #(
+    .TIMEOUT_FRAMES(2)
+) u_voice_relay (
+    .clk_sys                (clk_sys),
+    .rst_n_sys              (rst_n_sys),
+    .voice_active_mask_sys  (voice_active_mask_sys_r1),
+    .voice_slot_tn_sys      (voice_slot_tn_sys_w),
+    .ul_coded_bits_sys      (voice_nub_coded_bits_sys_w),
+    .ul_coded_valid_sys     (voice_nub_coded_valid_sys_w),
+    .dl_slot_pulse_sys      (tx_tdma_state_slot_pulse_sys),
+    .dl_tn_sys              (tx_tdma_state_tn_sys),
+    .relay_blk_sys          (voice_relay_blk_sys_w),
+    .relay_valid_sys        (voice_relay_valid_sys_w),
+    .relay_cnt_sys          (voice_relay_cnt_sys_w)
 );
 
 // Keep synth sinks on legacy AXI-driven SB wires + unused content-mux
@@ -1591,6 +1631,11 @@ wire ul_pdu_valid_axi_pulse = ul_pdu_tgl_axi_r1 ^ ul_pdu_tgl_axi_r2;
 (* ASYNC_REG = "TRUE" *) reg [15:0] reass_reassembled_cnt_axi_r1;
 (* ASYNC_REG = "TRUE" *) reg [15:0] reass_drop_cnt_axi_r0;
 (* ASYNC_REG = "TRUE" *) reg [15:0] reass_drop_cnt_axi_r1;
+// Phase C — voice-channel counters, resynced clk_sys → clk_axi
+(* ASYNC_REG = "TRUE" *) reg [15:0] voice_nub_rx_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] voice_nub_rx_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] voice_relay_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] voice_relay_cnt_axi_r1;
 
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
     if (!rst_n_axi) begin
@@ -1624,6 +1669,10 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         reass_reassembled_cnt_axi_r1  <= 16'd0;
         reass_drop_cnt_axi_r0         <= 16'd0;
         reass_drop_cnt_axi_r1         <= 16'd0;
+        voice_nub_rx_cnt_axi_r0       <= 16'd0;
+        voice_nub_rx_cnt_axi_r1       <= 16'd0;
+        voice_relay_cnt_axi_r0        <= 16'd0;
+        voice_relay_cnt_axi_r1        <= 16'd0;
     end else begin
         ul_pdu_type_axi_r0            <= ul_pdu_type_sys;
         ul_pdu_type_axi_r1            <= ul_pdu_type_axi_r0;
@@ -1663,6 +1712,11 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
         reass_reassembled_cnt_axi_r1  <= reass_reassembled_cnt_axi_r0;
         reass_drop_cnt_axi_r0         <= reass_drop_cnt_sys;
         reass_drop_cnt_axi_r1         <= reass_drop_cnt_axi_r0;
+        // Phase C — voice-channel counters; clk_sys → clk_axi
+        voice_nub_rx_cnt_axi_r0       <= voice_nub_rx_cnt_sys_w;
+        voice_nub_rx_cnt_axi_r1       <= voice_nub_rx_cnt_axi_r0;
+        voice_relay_cnt_axi_r0        <= voice_relay_cnt_sys_w;
+        voice_relay_cnt_axi_r1        <= voice_relay_cnt_axi_r0;
     end
 end
 
@@ -2045,6 +2099,9 @@ tetra_axi_lite_regs u_axi_regs (
     .cell_la_axi             (cell_la_axi_w),
     .db_policy_axi           (db_policy_axi_w),
     .voice_active_mask_axi   (voice_active_mask_axi_w),
+    .voice_nub_rx_cnt_axi    (voice_nub_rx_cnt_axi_r1),
+    .voice_relay_cnt_axi     (voice_relay_cnt_axi_r1),
+    .voice_nub_sync_thresh_axi (voice_nub_sync_thresh_axi_w),
     // Phase X.4 — ast_ttl_multiframes_axi/ast_ttl_evict_cnt_axi removed (AST in SW)
     // Phase 7 F.3 — UL-Demand reassembly counters + T0 config
     .reass_reassembled_cnt_axi (reass_reassembled_cnt_axi_r1),
@@ -3550,6 +3607,25 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
     if (!rst_n_sys) voice_active_mask_sys_r1 <= 4'd0;
     else            voice_active_mask_sys_r1 <= voice_active_mask_sys_r0;
 end
+
+// Phase C — voice_nub_sync_thresh CDC (5-bit threshold, default 8).
+(* ASYNC_REG = "TRUE" *) reg [4:0] voice_nub_sync_thresh_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [4:0] voice_nub_sync_thresh_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) voice_nub_sync_thresh_sys_r0 <= 5'd8;
+    else            voice_nub_sync_thresh_sys_r0 <= voice_nub_sync_thresh_axi_w[4:0];
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+    if (!rst_n_sys) voice_nub_sync_thresh_sys_r1 <= 5'd8;
+    else            voice_nub_sync_thresh_sys_r1 <= voice_nub_sync_thresh_sys_r0;
+end
+
+// Phase C — voice_slot_tn = lowest set bit of voice_active_mask (MVP: 1 voice
+// slot at a time per SW convention).  Priority-encoder on 4 bits.
+wire [1:0] voice_slot_tn_sys_w =
+    voice_active_mask_sys_r1[0] ? 2'd0 :
+    voice_active_mask_sys_r1[1] ? 2'd1 :
+    voice_active_mask_sys_r1[2] ? 2'd2 : 2'd3;
 
 // Phase X.4 — AST TTL multiframes CDC removed (AST migrated to SW).
 

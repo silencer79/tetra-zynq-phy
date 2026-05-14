@@ -39,9 +39,19 @@
 `default_nettype none
 
 module tetra_ul_sync_detect_os4 #(
-    parameter IQ_WIDTH    = 16,
-    parameter CORR_WIDTH  = 6,
-    parameter HOLDOFF     = 50   // symbols to suppress re-fire after sync_fire
+    parameter         IQ_WIDTH     = 16,
+    parameter         CORR_WIDTH   = 6,
+    parameter         HOLDOFF      = 50,   // symbols to suppress re-fire after sync_fire
+    // Sync pattern (default = ETS x-sequence §9.4.4.3.3, 15 symbols).
+    // Bit-Layout: pattern is right-aligned (newest dibit at [1:0], oldest at
+    // [2*SYNC_LEN_SYM-1:2*SYNC_LEN_SYM-2]).  Upper bits unused if LEN<15.
+    parameter [29:0]  SYNC_PATTERN = {
+        2'b10,
+        2'b01, 2'b11, 2'b01, 2'b00, 2'b00,
+        2'b11, 2'b10, 2'b10, 2'b01, 2'b11,
+        2'b01, 2'b00, 2'b00, 2'b11
+    },
+    parameter         SYNC_LEN_SYM = 15
 )(
     input  wire                         clk_sys,
     input  wire                         rst_n_sys,
@@ -59,15 +69,10 @@ module tetra_ul_sync_detect_os4 #(
 );
 
 // ---------------------------------------------------------------------------
-// ETS reference — §9.4.4.3.3 x-sequence, MSB=first TX (oldest in sreg)
-// Identical to tetra_sync_detect.v
+// Sync pattern is now parameter SYNC_PATTERN (default = ETS x-sequence
+// §9.4.4.3.3, 15 symbols).  Length = parameter SYNC_LEN_SYM (default 15).
+// Right-aligned: newest dibit at [1:0], oldest at [2*LEN-1:2*LEN-2].
 // ---------------------------------------------------------------------------
-localparam [29:0] ETS_REF = {
-    2'b10,
-    2'b01, 2'b11, 2'b01, 2'b00, 2'b00,
-    2'b11, 2'b10, 2'b10, 2'b01, 2'b11,
-    2'b01, 2'b00, 2'b00, 2'b11
-};
 
 // ---------------------------------------------------------------------------
 // Phase counter — increments on each valid_in_sys (72 kHz → wraps at 4)
@@ -155,38 +160,36 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
 end
 
 // ---------------------------------------------------------------------------
-// Per-phase correlators — count matching dibits vs ETS_REF
-// Combinatorial: 15-term adder tree per phase.
+// Per-phase correlator — count matching dibits vs SYNC_PATTERN.
+// for-loop iterates SYNC_LEN_SYM slots → Vivado unrolls at synth time.
+// Verilog-2001 part-select `xr[2*i +: 2]` (constant-width) erlaubt.
 // ---------------------------------------------------------------------------
-function [3:0] corr_count;
+function [4:0] corr_count;
     input [29:0] sreg;
+    integer i;
     reg [29:0] xr;
-    reg [14:0] m;
+    reg [4:0]  cnt;
     begin
-        xr = sreg ^ ETS_REF;
-        m[ 0] = ~|xr[ 1: 0]; m[ 1] = ~|xr[ 3: 2]; m[ 2] = ~|xr[ 5: 4];
-        m[ 3] = ~|xr[ 7: 6]; m[ 4] = ~|xr[ 9: 8]; m[ 5] = ~|xr[11:10];
-        m[ 6] = ~|xr[13:12]; m[ 7] = ~|xr[15:14]; m[ 8] = ~|xr[17:16];
-        m[ 9] = ~|xr[19:18]; m[10] = ~|xr[21:20]; m[11] = ~|xr[23:22];
-        m[12] = ~|xr[25:24]; m[13] = ~|xr[27:26]; m[14] = ~|xr[29:28];
-        corr_count = ({3'd0,m[ 0]}+{3'd0,m[ 1]}+{3'd0,m[ 2]}+{3'd0,m[ 3]}+
-                      {3'd0,m[ 4]}+{3'd0,m[ 5]}+{3'd0,m[ 6]}+{3'd0,m[ 7]}+
-                      {3'd0,m[ 8]}+{3'd0,m[ 9]}+{3'd0,m[10]}+{3'd0,m[11]}+
-                      {3'd0,m[12]}+{3'd0,m[13]}+{3'd0,m[14]});
+        xr  = sreg ^ SYNC_PATTERN;
+        cnt = 5'd0;
+        for (i = 0; i < SYNC_LEN_SYM; i = i + 1) begin
+            if (xr[2*i +: 2] == 2'b00) cnt = cnt + 5'd1;
+        end
+        corr_count = cnt;
     end
 endfunction
 
-wire [3:0] corr0_sys = corr_count(sreg0_sys);
-wire [3:0] corr1_sys = corr_count(sreg1_sys);
-wire [3:0] corr2_sys = corr_count(sreg2_sys);
-wire [3:0] corr3_sys = corr_count(sreg3_sys);
+wire [4:0] corr0_sys = corr_count(sreg0_sys);
+wire [4:0] corr1_sys = corr_count(sreg1_sys);
+wire [4:0] corr2_sys = corr_count(sreg2_sys);
+wire [4:0] corr3_sys = corr_count(sreg3_sys);
 
 // ---------------------------------------------------------------------------
 // Max-reduction over 4 phases + phase index
 // ---------------------------------------------------------------------------
-wire [3:0] corr_01_sys = (corr0_sys >= corr1_sys) ? corr0_sys : corr1_sys;
-wire [3:0] corr_23_sys = (corr2_sys >= corr3_sys) ? corr2_sys : corr3_sys;
-wire [3:0] corr_max_sys = (corr_01_sys >= corr_23_sys) ? corr_01_sys : corr_23_sys;
+wire [4:0] corr_01_sys = (corr0_sys >= corr1_sys) ? corr0_sys : corr1_sys;
+wire [4:0] corr_23_sys = (corr2_sys >= corr3_sys) ? corr2_sys : corr3_sys;
+wire [4:0] corr_max_sys = (corr_01_sys >= corr_23_sys) ? corr_01_sys : corr_23_sys;
 
 wire [1:0] best_phase_w =
     (corr0_sys >= corr1_sys && corr0_sys >= corr2_sys && corr0_sys >= corr3_sys) ? 2'd0 :
@@ -200,9 +203,12 @@ wire [1:0] best_phase_w =
 reg [7:0] holdoff_cnt_sys;
 wire      holdoff_active_sys = (holdoff_cnt_sys != 8'd0);
 
-wire zero_ext_thresh_sys = |corr_threshold_sys[CORR_WIDTH-1:4];  // threshold > 15 → impossible
+// corr_max_sys is 5 bits (max value = SYNC_LEN_SYM ≤ 15).  Compare against
+// caller's threshold (CORR_WIDTH bits, typically 6).  If threshold > 15 a
+// match becomes impossible — that gate keeps comparison safe.
+wire zero_ext_thresh_sys = |corr_threshold_sys[CORR_WIDTH-1:5];
 wire thresh_hit_sys = !zero_ext_thresh_sys &&
-                      (corr_max_sys >= corr_threshold_sys[3:0]);
+                      (corr_max_sys >= corr_threshold_sys[4:0]);
 
 wire sync_fire_sys = valid_in_sys & thresh_hit_sys & ~holdoff_active_sys;
 
@@ -234,8 +240,8 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
     else if (reset_peak_sys)
         corr_peak_sys <= {CORR_WIDTH{1'b0}};
     else if (valid_in_sys &&
-             {{(CORR_WIDTH-4){1'b0}}, corr_max_sys} > corr_peak_sys)
-        corr_peak_sys <= {{(CORR_WIDTH-4){1'b0}}, corr_max_sys};
+             {{(CORR_WIDTH-5){1'b0}}, corr_max_sys} > corr_peak_sys)
+        corr_peak_sys <= {{(CORR_WIDTH-5){1'b0}}, corr_max_sys};
 end
 
 endmodule
