@@ -1632,6 +1632,9 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
     def _dump_this(idx):
         if isinstance(dump_burst, (set, list, tuple)):
             return idx in dump_burst
+        # -3 = dump ALL bursts (full bit-exact forensic mode)
+        if dump_burst == -3:
+            return True
         return dump_burst == idx
 
     if dump_burst == -2:
@@ -1705,6 +1708,13 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                         break
 
             print(f"\n[#{idx:3d}] SB  {slot_tag} corr={corr:.3f}  ", end='')
+
+            if _dump_this(idx):
+                sb_dibits_str = ''.join(str(int(d)) for d in dibits) if dibits is not None else 'n/a'
+                print(f"  ROUNDTRIP_DUMP_SB sb_dibits={sb_dibits_str}")
+                if sb1_crc and sb1_info is not None:
+                    si_str = ''.join(str(int(b)) for b in sb1_info)
+                    print(f"  ROUNDTRIP_DUMP_SB sb1_info_60b={si_str}")
 
             if sb1_crc:
                 n_sb_ok += 1

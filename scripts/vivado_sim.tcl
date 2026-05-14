@@ -160,7 +160,7 @@ if {![info exists MODULE_FILES($MODULE)]} {
 # Create Vivado Project (in-memory)
 # =============================================================================
 
-create_project -in_memory -part xc7z020clg484-1
+create_project -in_memory -part xc7z020clg400-1
 
 # Set Verilog-2001 as default
 set_property default_lib work [current_project]

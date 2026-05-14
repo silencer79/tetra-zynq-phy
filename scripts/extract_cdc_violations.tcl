@@ -186,7 +186,7 @@ foreach entry $control_signals {
 }
 
 foreach entry $pulse_signals {
-    lassassign $entry from_pin to_pin from_clock to_clock
+    lassign $entry from_pin to_pin from_clock to_clock
     puts $csv_file "Pulse_Signal,$from_pin,$to_pin,1,$from_clock,$to_clock,Toggle_Sync"
 }
 
