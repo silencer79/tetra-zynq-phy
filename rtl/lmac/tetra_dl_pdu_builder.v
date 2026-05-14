@@ -130,6 +130,13 @@ module tetra_dl_pdu_builder (
         .start                        (builder_start),
         .ssi                          (lat_ssi),
         .addr_type                    (lat_addr_type),
+        /* Phase 7 G.7 — UsageMarker for addr_type=6 (SsiAndUsageMarker).
+         * Gold burst #5887 D-CONNECT uses a per-call usage marker; first-pass
+         * we hardcode marker=1 (matches single-call test setup, call_id=1).
+         * Future: route from mailbox/call-FSM for multi-call support. */
+        /* Gold #5887 zeigt UsageMarker=11 (=0b001011, 6-bit) für aktiven Call.
+         * Hardcoded 11 bis Multi-Call-Support (Phase Y.5+) per-Call Marker liefert. */
+        .usage_marker                 ((lat_addr_type == 3'd6) ? 6'd11 : 6'd0),
         .ns                           (lat_ns),
         .nr                           (lat_nr),
         .llc_pdu_type                 (lat_llc_pdu_type),
@@ -142,20 +149,19 @@ module tetra_dl_pdu_builder (
          * mm=2/mm=11 (lat_mle_pd != 010): legacy sg_flag=1 (bit-identisch). */
         .slot_granting_flag           ((lat_mle_pd == 3'b010) ? 1'b0 : 1'b1),
         .slot_granting_element        (slotgrant_packed_w),
-        /* ChanAlloc per bluestation `rx_u_setup` Z. 519-525 (= reference impl):
-         *   alloc_type=00 (Replace=0 per decoder/bluestation)
-         *   ts_assigned=0010 (EIN Bit pro Call — bluestation setzt
-         *                     timeslots[circuit.ts-1]=true, hier TS3=TN=2 air)
+        /* ChanAlloc — Gold-bit-exact #5887/#5895/#5903 (2026-05-14):
+         *   alloc_type=00 (Replace)
+         *   ts_assigned=0100 (bitmap value 4 — decoder TS=4)
          *   ul_dl=11 (Both)
-         *   clch=0 (bluestation setzt das nicht)
+         *   clch=1 (Gold setzt clch_permission)
          *   cell_chg=0
-         *   carrier_num=0x5FA=1530 (unsere Zelle main carrier)
+         *   carrier_num=0x5FA=1530 (UNSERE Zelle — Gold hat 3719, cell-spezifisch)
          *   ext_flag=0
-         *   mon_pattern=10 (=2, kein frame18-Extension)
-         * = {00, 0010, 11, 0, 0, 010111111010, 0, 10}
-         * = 25 bits MSB-first: 0000101100010111111010010 = 0x162FD2 right-aligned. */
+         *   mon_pattern=11 (=3, Gold)
+         * = {00, 0100, 11, 1, 0, 010111111010, 0, 11}
+         * = 25 bits MSB-first: 0001001110010111111010011 = 0x272FD3 right-aligned. */
         .chan_alloc_flag              ((lat_mle_pd == 3'b010) ? 1'b1 : 1'b0),
-        .chan_alloc_element           ((lat_mle_pd == 3'b010) ? 32'h0016_2FD2
+        .chan_alloc_element           ((lat_mle_pd == 3'b010) ? 32'h0027_2FD3
                                                                 : 32'd0),
         .chan_alloc_element_len       ((lat_mle_pd == 3'b010) ? 5'd25 : 5'd0),
         .second_pdu_valid             (1'b0),

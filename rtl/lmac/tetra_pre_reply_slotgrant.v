@@ -120,6 +120,7 @@ module tetra_pre_reply_slotgrant (
         .start                        (builder_start),
         .ssi                          (lat_ssi),
         .addr_type                    (`PDUC_PRE_REPLY_SLOTGRANT_ADDRTYPE),
+        .usage_marker                 (6'd0),    /* SlotGrant uses SSI addr_type=1 */
         .ns                           (1'b0),
         .nr                           (1'b0),
         .llc_pdu_type                 (`PDUC_PRE_REPLY_SLOTGRANT_LLC),

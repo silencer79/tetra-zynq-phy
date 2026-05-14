@@ -153,6 +153,11 @@ module tetra_mle_registration_fsm (
     output wire [2:0]                  accept_build_mle_pd,
     output wire                        accept_build_ns,
     output wire                        accept_build_nr,
+    /* Phase 7 G.7 — AACH pattern per PDU-class.  CMCE BL-UDATA bursts
+     * (D-CONNECT/D-SETUP/D-TX-GRANTED) use idle AACH (Gold 0x0249) since
+     * no UL-slot grant is implied; ATTACH/grpack BL-ADATA use 0x0009.
+     * Driven combinationally from latched raw_mle_pd. */
+    output wire [13:0]                 accept_build_aach_pattern,
     input  wire                        accept_build_done,
     input  wire [431:0]                accept_build_coded,
 
@@ -268,10 +273,27 @@ module tetra_mle_registration_fsm (
     // (SCH/F) — confirmed in `rtl/include/tetra_pdu_class.vh`.  The only
     // per-PDU difference is the MM body bits + ns/nr (mm=2 uses 0/0, mm=11
     // uses LLC stop-and-wait alternation supplied by SW).
+    /* Phase 7 G.7 — Per-PDU-class field plane.  When raw_mode + MLE-PD=CMCE
+     * (=3'b010) the FSM switches to D-CONNECT/D-SETUP/D-TX-GRANTED layout
+     * (Gold burst #5887 verified 2026-05-13):
+     *   addr_type  = SsiAndUsageMarker (6, with 8-bit usage marker)
+     *   llc_pdu_type = BL-UDATA (no NS/NR stop-and-wait)
+     *   aach_pattern = IDLE 0x0249 (no UL-slot grant)
+     * ATTACH/grpack paths (raw_mle_pd != CMCE) keep the legacy LU_ACCEPT
+     * fields → bit-identity preserved. */
+    wire cmce_path_w = lat_raw_mode_flag && (lat_raw_mle_pd == 3'b010);
+
     assign accept_build_ssi                = lat_ssi;
-    assign accept_build_addr_type          = lat_addr_type;
-    assign accept_build_llc_pdu_type       = `PDUC_FINAL_LU_ACCEPT_LLC;
+    assign accept_build_addr_type          = cmce_path_w
+                                             ? `PDUC_CMCE_D_CONNECT_ADDRTYPE
+                                             : lat_addr_type;
+    assign accept_build_llc_pdu_type       = cmce_path_w
+                                             ? `PDUC_CMCE_D_CONNECT_LLC
+                                             : `PDUC_FINAL_LU_ACCEPT_LLC;
     assign accept_build_random_access_flag = `PDUC_FINAL_LU_ACCEPT_RA;
+    assign accept_build_aach_pattern       = cmce_path_w
+                                             ? `PDUC_CMCE_D_CONNECT_AACH
+                                             : `PDUC_FINAL_LU_ACCEPT_AACH;
     assign accept_build_mm_pdu_bits        =
         lat_raw_mode_flag ? lat_raw_mm_bits : dloc_mm_bits_w;
     /* MLE-PD: raw-mode uses staged value (defaulted to MM=001 by mailbox

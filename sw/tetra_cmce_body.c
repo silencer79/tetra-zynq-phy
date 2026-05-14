@@ -30,6 +30,7 @@
 #define D_CONNECT          2u
 #define D_RELEASE          6u
 #define D_SETUP            7u
+#define D_TX_CEASED        9u
 #define D_TX_GRANTED      11u
 
 static void put_bits(uint8_t *dst, int *pos, uint32_t value, int nbits)
@@ -108,13 +109,26 @@ int tetra_cmce_build_d_connect(const cmce_meta_t *m, uint8_t *out)
     memset(out, 0, TETRA_CMCE_MAX_BYTES);
     int pos = 0;
 
-    /* Layout per bluestation `cmce/pdus/d_connect.rs::to_bitbuf` lines 115-166.
-     * Bluestation `rx_u_setup` (Z. 484-498) baut D-CONNECT mit:
-     *   transmission_grant = Granted
-     *   transmission_request_permission = false (= 0 = "allowed to request")
-     *   call_ownership = true
-     *   alle Type-2/Type-3 IEs = None → o-bit = 0
-     * Body = 30 Bits exakt. */
+    /* Phase 7 G.7+ — Gold-bit-exact D-CONNECT body.
+     * Verifiziert via `GOLD_DL_…GRUPPENRUF.wav` Burst #5887/5895/5903
+     * (alle 3 bit-identisch), info_hex=
+     *   0x007e282ff42c89dd0ec9080080031021fe2f4d642c12380100026194a0bfd1...
+     * Body-Layout (39 bits):
+     *   pdu_type(5) + call_id(14) + call_time_out(4) +
+     *   hook(1) + simplex(1) + tx_grant(2) + trp(1) + call_own(1) +
+     *   o-bit(1) +
+     *   Type-2: p_call_priority_present(1) + value(4) +
+     *           p_bsi_present(1) +              ← Gold = 0 (KEIN BSI!)
+     *           p_tmp_addr_present(1) +
+     *           p_notif_present(1) +
+     *   m-bit(1).
+     *
+     * Gold-verifizierte Felder (Caller setzt diese Werte):
+     *   call_time_out = 0 (Infinite)
+     *   transmission_grant = 0 (Granted)
+     *   trp = 0 ("allowed to request")
+     *   call_ownership = 0 (Gold pattern — NICHT 1)
+     *   call_priority = 1 (Gold pattern, von p_call_priority IE) */
     put_bits(out, &pos, D_CONNECT,                            5);
     put_bits(out, &pos, m->call_identifier & 0x3FFFu,        14);
     put_bits(out, &pos, m->call_time_out & 0x0Fu,             4);
@@ -123,8 +137,22 @@ int tetra_cmce_build_d_connect(const cmce_meta_t *m, uint8_t *out)
     put_bits(out, &pos, m->transmission_grant & 0x03u,        2);
     put_bits(out, &pos, m->transmission_request_permission & 0x01u, 1);
     put_bits(out, &pos, m->call_ownership & 0x01u,            1);
-    put_bits(out, &pos, 0u, 1);                              /* o-bit = 0 */
-    return pos;                                              /* 30 bits */
+
+    /* o-bit = 1 — Type-2 IE follows */
+    put_bits(out, &pos, 1u, 1);
+    /* p_call_priority_present = 1 (Gold present) + 4-bit value */
+    put_bits(out, &pos, 1u, 1);
+    put_bits(out, &pos, m->call_priority & 0x0Fu,             4);
+    /* p_basic_service_information_present = 0 (Gold has NO BSI in D-CONNECT) */
+    put_bits(out, &pos, 0u, 1);
+    /* p_temporary_address_present = 0 */
+    put_bits(out, &pos, 0u, 1);
+    /* p_notification_indicator_present = 0 */
+    put_bits(out, &pos, 0u, 1);
+    /* m-bit termination (no Type-3 IEs) */
+    put_bits(out, &pos, 0u, 1);
+
+    return pos;                                              /* 39 bits */
 }
 
 int tetra_cmce_build_d_tx_granted(const cmce_meta_t *m, uint8_t *out)
@@ -143,6 +171,24 @@ int tetra_cmce_build_d_tx_granted(const cmce_meta_t *m, uint8_t *out)
     /* o-bit = 0 — bluestation returns early without trailing m-bit. */
     put_bits(out, &pos, 0u, 1);
     return pos;     /* expected = 5+14+2+1+1+1+1 = 25 bits */
+}
+
+int tetra_cmce_build_d_tx_ceased(const cmce_meta_t *m, uint8_t *out)
+{
+    /* D-TX-CEASED (ETSI §14.7.1.16) per bluestation `d_tx_ceased.rs`:
+     * Type-1 mandatories:
+     *   pdu_type(5) + call_identifier(14) + transmission_request_permission(1)
+     * + o-bit(1) — early return if 0 (no Type-2/3).
+     * Body = 21 bits exakt ohne IEs. */
+    if (m == NULL || out == NULL) return 0;
+    memset(out, 0, TETRA_CMCE_MAX_BYTES);
+    int pos = 0;
+
+    put_bits(out, &pos, D_TX_CEASED,                          5);
+    put_bits(out, &pos, m->call_identifier & 0x3FFFu,        14);
+    put_bits(out, &pos, m->transmission_request_permission & 0x01u, 1);
+    put_bits(out, &pos, 0u, 1);                              /* o-bit = 0 */
+    return pos;     /* expected = 21 bits */
 }
 
 int tetra_cmce_build_d_release(const cmce_meta_t *m, uint8_t *out)

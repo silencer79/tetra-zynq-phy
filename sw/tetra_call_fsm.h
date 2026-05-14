@@ -34,6 +34,8 @@ typedef struct {
     call_state_t state;
     uint8_t      ns;             /* LLC stop-and-wait per call slot         */
     uint8_t      nr;
+    uint8_t      hook_method;        /* echoed from U-SETUP (Phase 7 G.7+) */
+    uint8_t      simplex_duplex;     /* echoed from U-SETUP                */
     uint32_t     last_activity_poll_cnt;  /* for stale-call eviction        */
 } call_slot_t;
 

@@ -68,9 +68,14 @@ module tetra_mac_resource_dl_builder #(
     // 1-cycle pulse: sample inputs and begin assembly
     input  wire                  start,
 
-    // MAC address — MVP only SSI supported
+    // MAC address — supported: 3'b001 (SSI, 24-bit address slot)
+    //                          3'b110 (SsiAndUsageMarker, 30-bit slot: SSI+6 bit marker)
     input  wire [23:0]           ssi,
-    input  wire [2:0]            addr_type,      // usually 3'b001 (SSI)
+    input  wire [2:0]            addr_type,
+    /* Phase 7 G.7 — UsageMarker (6 bit per ETSI 21.4.3.1 Table 21.55) appended
+     * after SSI when addr_type=6.  Ignored otherwise.  Drives CMCE call-bound
+     * addressing (D-CONNECT/D-SETUP/D-TX-GRANTED) per Gold burst #5887. */
+    input  wire [5:0]            usage_marker,
 
     // LLC sequence numbers (from active-session-table per-MS state)
     input  wire                  ns,
@@ -207,6 +212,7 @@ module tetra_mac_resource_dl_builder #(
     localparam       LLC_HAS_FCS_OFF   = 1'b0;
     localparam [1:0] LLC_PDUT_BL_ADATA = 2'b00;
     localparam [1:0] LLC_PDUT_BL_DATA  = 2'b01;
+    localparam [1:0] LLC_PDUT_BL_UDATA = 2'b10;
     localparam [3:0] LLC_PDUT_AL_SETUP = 4'd8;
     localparam [3:0] LLC_PDUT_L2SIG    = 4'd14;
 
@@ -220,6 +226,7 @@ module tetra_mac_resource_dl_builder #(
     // -------------------------------------------------------------------------
     reg [23:0]       lat_ssi;
     reg [2:0]        lat_addr_type;
+    reg [5:0]        lat_usage_marker;
     reg              lat_ns, lat_nr;
     reg [3:0]        lat_llc_pdu_type;
     reg              lat_random_access_flag;
@@ -319,18 +326,28 @@ module tetra_mac_resource_dl_builder #(
         end else if (lat_llc_pdu_type == {2'b00, LLC_PDUT_BL_ADATA}) begin
             tl_sdu_len_c   = MLE_PD_BITS + {1'b0, lat_mm_len};
             llc_hdr_bits_c = 6;
+        end else if (lat_llc_pdu_type == {2'b00, LLC_PDUT_BL_UDATA}) begin
+            /* BL-UDATA — link(1) + fcs(1) + pdu_type(2) = 4-bit header, no ns/nr.
+             * Gold uses BL-UDATA for CMCE D-CONNECT (Phase 7 G.7). */
+            tl_sdu_len_c   = MLE_PD_BITS + {1'b0, lat_mm_len};
+            llc_hdr_bits_c = 4;
         end else begin
             tl_sdu_len_c   = MLE_PD_BITS + {1'b0, lat_mm_len};
             llc_hdr_bits_c = 5;
         end
         llc_cov_len_c      = {5'd0, llc_hdr_bits_c} + tl_sdu_len_c;
         mac_tm_sdu_len_c   = llc_cov_len_c;
-        // mac_hdr_bits = 40 (base) + 3 (mandatory flag bits)
+        // Phase 7 G.7 — address slot widens by 6 bits when addr_type=6
+        // (SsiAndUsageMarker, ETSI 21.4.3.1 Table 21.55: 24-bit SSI + 6-bit
+        // UsageMarker = 30 bits address slot, total base header = 46 bits).
+        // For addr_type=1 (SSI) the slot is 24 bits, base header = 40 bits.
+        //
+        // mac_hdr_bits = base (40 or 46) + 3 (mandatory flag bits)
         //              + 4  if pc_flag
         //              + 8  if sg_flag
         //              + ca_element_len if ca_flag
         // Matches bluestation mac_resource.rs::compute_header_len (Z.289-319).
-        mac_hdr_bits_c     = 9'd40 + 9'd3
+        mac_hdr_bits_c     = ((lat_addr_type == 3'd6) ? 9'd46 : 9'd40) + 9'd3
                              + (lat_pc_flag ? 9'd4 : 9'd0)
                              + (lat_sg_flag ? 9'd8 : 9'd0)
                              + (lat_ca_flag ? {4'd0, lat_ca_element_len} : 9'd0);
@@ -416,6 +433,7 @@ module tetra_mac_resource_dl_builder #(
             state              <= S_IDLE;
             lat_ssi            <= 24'd0;
             lat_addr_type      <= 3'd0;
+            lat_usage_marker   <= 6'd0;
             lat_ns             <= 1'b0;
             lat_nr             <= 1'b0;
             lat_llc_pdu_type   <= 4'd1;
@@ -472,6 +490,7 @@ module tetra_mac_resource_dl_builder #(
                 if (start) begin
                     lat_ssi               <= ssi;
                     lat_addr_type         <= addr_type;
+                    lat_usage_marker      <= usage_marker;
                     lat_ns                <= ns;
                     lat_nr                <= nr;
                     lat_llc_pdu_type      <= llc_pdu_type;
@@ -548,8 +567,9 @@ module tetra_mac_resource_dl_builder #(
                 // address packing before they go on air.  Flag mis-use in
                 // simulation so we notice before HW-deploy.
                 // synthesis translate_off
-                if (lat_addr_type != 3'b001 && lat_addr_type != 3'b011) begin
-                    $display("[%0t tetra_mac_resource_dl_builder] FATAL: addr_type=%0d not supported (MVP accepts only 1=SSI / 3=USSI). Variable-width packing is TODO.",
+                if (lat_addr_type != 3'b001 && lat_addr_type != 3'b011
+                    && lat_addr_type != 3'b110) begin
+                    $display("[%0t tetra_mac_resource_dl_builder] FATAL: addr_type=%0d not supported (accepts 1=SSI, 3=USSI, 6=SsiAndUsage).",
                              $time, lat_addr_type);
                     $fatal;
                 end
@@ -585,6 +605,16 @@ module tetra_mac_resource_dl_builder #(
                                 lat_mle_pd,           // 3 (default MM=001, CMCE=010)
                                 lat_mm_bits,          // 128
                                 7'd0};                // pad
+                end else if (lat_llc_pdu_type == {2'b00, LLC_PDUT_BL_UDATA}) begin
+                    /* BL-UDATA: 1+1+2 + 3 + 128 = 135, pad 9 → 144.
+                     * No ns/nr — unacknowledged data, Gold-konform für
+                     * CMCE D-CONNECT/D-SETUP/D-TX-GRANTED (Phase 7 G.7). */
+                    llc_buf <= {LLC_LINK_TYPE_BL,     // 1
+                                LLC_HAS_FCS_OFF,      // 1
+                                LLC_PDUT_BL_UDATA,    // 2
+                                lat_mle_pd,           // 3
+                                lat_mm_bits,          // 128
+                                9'd0};                // pad
                 end else begin
                     // BL-DATA: 1+1+2+1 + 3 + 128 = 136, pad 8 → 144
                     llc_buf <= {LLC_LINK_TYPE_BL,     // 1
@@ -632,11 +662,15 @@ module tetra_mac_resource_dl_builder #(
             // is the first bit transmitted on air.
             // -----------------------------------------------------------------
             S_MAC_HEAD: begin
-                // ---- Step 1: base 40-bit MAC header at MSB end --------------
-                // Straight concat, identical layout to pre-43-bit refactor for
-                // the first 40 bits so the existing [261] RandAccFlag bit
-                // position / [265] FillBit / [260:255] LengthInd spot checks
-                // in tb_mac_resource_dl_builder keep working.
+                // Phase 7 G.7 — base header is 40 bits for addr_type=1 (SSI)
+                // or 46 bits for addr_type=6 (SSI+UsageMarker).  All mandatory
+                // flag positions are anchored relative to `base_hdr` so
+                // SSI-only paths stay bit-identical to pre-Phase-7G.
+                //
+                // ---- Step 1: 40-bit base header at MSB end ------------------
+                // Identical layout to pre-43-bit refactor for the first 40
+                // bits so existing TB spot checks ([261] RandAccFlag, [265]
+                // FillBit, [260:255] LengthInd) still pass.
                 complete_pdu_bits <=
                     ( { 2'b00,
                         fill_bit_ind,
@@ -647,37 +681,49 @@ module tetra_mac_resource_dl_builder #(
                         lat_addr_type,
                         lat_ssi,
                         {(PDU_BITS - 40){1'b0}} }
-                    // ---- Step 2: mandatory pc_flag at bit 40 ----------------
-                    // target LSB-index = PDU_BITS - 1 - 40 = PDU_BITS - 41
-                    | ({{(PDU_BITS-1){1'b0}}, lat_pc_flag}  << (PDU_BITS - 41))
+                    // ---- Step 1b: UsageMarker (6 bit) for addr_type=6 -----
+                    // Placed immediately after SSI (bits PDU_BITS-41..PDU_BITS-46).
+                    // For addr_type=1 this OR is zero (no overlap with subsequent
+                    // fields since base_hdr stays at 40).
+                    | ((lat_addr_type == 3'd6)
+                        ? ({{(PDU_BITS-6){1'b0}}, lat_usage_marker} << (PDU_BITS - 46))
+                        : {PDU_BITS{1'b0}})
+                    // ---- Step 2: mandatory pc_flag at bit base_hdr ----------
+                    // base_hdr = 40 (SSI) or 46 (SSI+Usage).  target LSB-index
+                    // = PDU_BITS - 1 - base_hdr.
+                    | ({{(PDU_BITS-1){1'b0}}, lat_pc_flag}
+                        << (PDU_BITS - 1 - ((lat_addr_type == 3'd6) ? 9'd46 : 9'd40)))
                     // ---- Step 3: pc_element (4 bit) when flag=1 -------------
-                    // target MSB-position = 41, width = 4
-                    // → shifted left by (PDU_BITS - 41 - 4) = PDU_BITS - 45
+                    // target MSB-position = base_hdr + 1, width = 4
                     | (lat_pc_flag
-                        ? ({{(PDU_BITS-4){1'b0}}, lat_pc_element} << (PDU_BITS - 45))
+                        ? ({{(PDU_BITS-4){1'b0}}, lat_pc_element}
+                            << (PDU_BITS - 1 - 4
+                                - ((lat_addr_type == 3'd6) ? 9'd46 : 9'd40)))
                         : {PDU_BITS{1'b0}})
                     // ---- Step 4: sg_flag ------------------------------------
-                    // target MSB-position = 41 + (pc_flag?4:0)
+                    // target MSB-position = base_hdr + 1 + (pc_flag?4:0)
                     | ({{(PDU_BITS-1){1'b0}}, lat_sg_flag}
-                        << (PDU_BITS - 41 - 1 - (lat_pc_flag ? 4 : 0)))
+                        << (PDU_BITS - 1 - 1
+                            - ((lat_addr_type == 3'd6) ? 9'd46 : 9'd40)
+                            - (lat_pc_flag ? 4 : 0)))
                     // ---- Step 5: sg_element (8 bit) when flag=1 -------------
-                    // target MSB-position = 42 + (pc_flag?4:0)
                     | (lat_sg_flag
                         ? ({{(PDU_BITS-8){1'b0}}, lat_sg_element}
-                            << (PDU_BITS - 42 - 8 - (lat_pc_flag ? 4 : 0)))
+                            << (PDU_BITS - 2 - 8
+                                - ((lat_addr_type == 3'd6) ? 9'd46 : 9'd40)
+                                - (lat_pc_flag ? 4 : 0)))
                         : {PDU_BITS{1'b0}})
                     // ---- Step 6: ca_flag ------------------------------------
-                    // target MSB-position = 42 + (pc_flag?4:0) + (sg_flag?8:0)
                     | ({{(PDU_BITS-1){1'b0}}, lat_ca_flag}
-                        << (PDU_BITS - 42 - 1
+                        << (PDU_BITS - 2 - 1
+                            - ((lat_addr_type == 3'd6) ? 9'd46 : 9'd40)
                             - (lat_pc_flag ? 4 : 0)
                             - (lat_sg_flag ? 8 : 0)))
                     // ---- Step 7: ca_element (ca_len bit) when flag=1 --------
-                    // Right-aligned in lat_ca_element[31:0].  target MSB-pos =
-                    // 43 + pc_len + sg_len.  Shift the valid bits into place.
                     | (lat_ca_flag
                         ? ({{(PDU_BITS-32){1'b0}}, lat_ca_element}
-                            << (PDU_BITS - 43
+                            << (PDU_BITS - 3
+                                - ((lat_addr_type == 3'd6) ? 9'd46 : 9'd40)
                                 - (lat_pc_flag ? 4 : 0)
                                 - (lat_sg_flag ? 8 : 0)
                                 - lat_ca_element_len))

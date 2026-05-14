@@ -478,6 +478,7 @@ wire [31:0]  mle_accept_build_scramble_init_w;
 wire         mle_accept_build_ns_w;
 wire         mle_accept_build_nr_w;
 wire [2:0]   mle_accept_build_mle_pd_w;
+wire [13:0]  mle_accept_build_aach_pattern_w;   // Phase 7 G.7
 
 // Queue ↔ scheduler wiring
 wire         queue_head_valid_w;
@@ -2329,6 +2330,7 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
     .accept_build_ns                 (mle_accept_build_ns_w),
     .accept_build_nr                 (mle_accept_build_nr_w),
     .accept_build_mle_pd             (mle_accept_build_mle_pd_w),
+    .accept_build_aach_pattern       (mle_accept_build_aach_pattern_w),
     .accept_build_done               (dl_pdu_done_to_mle_w),
     .accept_build_coded              (dl_pdu_coded_w)
 );
@@ -2847,13 +2849,15 @@ wire [1:0]   mle_slot_wr_target_tn_w =
 wire         mle_slot_wr_second_pdu_present_w = mle_req_valid_w ? mle_req_second_pdu_present_w : 1'b0;
 wire         mle_slot_wr_second_pdu_nr_w      = mle_req_valid_w ? mle_req_second_pdu_nr_w      : 1'b0;
 
-// Every MLE producer (LU-ACCEPT / SlotGrant) is a signalling-class PDU.
-// Tag the queue entry with AACH pattern 0x0009 (signalling-active) so the
-// AACH encoder lifts the slot's broadcast from default 0x0249/0x32CB to
-// Unalloc/Unalloc on the carrier frame.  Both sources share the same AACH
-// symbol because the spec table in tetra_pdu_class.vh has them aligned
-// (`PDUC_FINAL_LU_ACCEPT_AACH == `PDUC_PRE_REPLY_SLOTGRANT_AACH).
-wire [13:0]  mle_slot_wr_aach_pattern_w = `PDUC_FINAL_LU_ACCEPT_AACH;
+// Phase 7 G.7 — Per-PDU-class AACH tag (was hardcoded 0x0009 pre-Phase-7G).
+// MLE-FSM exposes `accept_build_aach_pattern` driven by lat_raw_mle_pd:
+//   CMCE D-CONNECT (raw_mle_pd=2) → 0x0249 idle  (Gold #5887, BL-UDATA)
+//   ATTACH/grpack/SlotGrant       → 0x0009 signalling-active
+// SlotGrant Pre-Reply tags 0x0009 directly (single source per tetra_pdu_
+// class.vh PDUC_PRE_REPLY_SLOTGRANT_AACH == PDUC_FINAL_LU_ACCEPT_AACH).
+wire [13:0]  mle_slot_wr_aach_pattern_w =
+    mle_req_valid_w ? mle_accept_build_aach_pattern_w
+                    : `PDUC_PRE_REPLY_SLOTGRANT_AACH;
 
 // =============================================================================
 // Phase Z.13 (2026-05-04) — producer-side AACH pre-coding REMOVED.

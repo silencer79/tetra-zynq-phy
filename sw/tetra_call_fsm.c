@@ -112,16 +112,14 @@ static int stage_d_connect(tetra_hal_t *hal, call_slot_t *s)
     m.ns                      = s->ns;
     m.nr                      = s->nr;
     m.cmce.call_identifier    = s->call_id & 0x3FFFu;
-    m.cmce.call_time_out      = 7;                     /* T5m per bluestation */                     /* infinite — call holds until release */
-    m.cmce.transmission_grant = CMCE_TG_GRANTED;       /* 0 = Initiator-talker granted */
-    m.cmce.transmission_request_permission = 1;        /* further demands allowed  */
-    m.cmce.call_ownership     = 1;                     /* MS owns the call         */
-    /* BSI present per Gold #5887 — MS muss wissen dass Speech-Service
-     * confirmiert ist, sonst startet sie keinen TCH/S TX. */
-    m.cmce.bsi_circuit_mode_type  = 0;                 /* TchS */
-    m.cmce.bsi_encryption_flag    = 0;
-    m.cmce.bsi_communication_type = 1;
-    m.cmce.bsi_speech_service     = 0;
+    /* Gold-verifizierte Werte (#5887 bit-exact, 2026-05-14): */
+    m.cmce.call_time_out      = 0;                     /* Gold: Infinite (war 7 T5m) */
+    m.cmce.hook_method_selection    = s->hook_method;
+    m.cmce.simplex_duplex_selection = s->simplex_duplex;
+    m.cmce.transmission_grant = CMCE_TG_GRANTED;       /* 0 = Granted ✓ */
+    m.cmce.transmission_request_permission = 0;        /* ✓ */
+    m.cmce.call_ownership     = 0;                     /* Gold: 0 (war 1) */
+    m.cmce.call_priority      = 1;                     /* Gold: p_call_priority=1 IE */
     return tetra_tx_submit(hal, TX_D_CONNECT, &m);
 }
 
@@ -172,39 +170,35 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
         s->group_gssi = (p->called_party_type_identifier == 1u
                         || p->called_party_type_identifier == 2u)
                        ? (p->called_party_ssi & 0x00FFFFFFu) : 0u;
+        /* Echo MS-side hook_method + simplex_duplex (Phase 7 G.7+) — MS
+         * needs to see its own selections reflected in D-CONNECT to enter
+         * TX state. */
+        s->hook_method    = p->hook_method_selection & 0x1u;
+        s->simplex_duplex = p->simplex_duplex_selection & 0x1u;
         s->state = CALL_STATE_CONNECTING;
 
-        /* Bluestation `cc_bs.rs::rx_u_setup` 3-Schritt-Sequenz:
-         *   1) D-CALL-PROCEEDING an Caller MS (BS-NS=0)
-         *   2) D-CONNECT an Caller MS (BS-NS=1, transmission_grant=Granted)
-         *   3) D-SETUP an Group GSSI (broadcast, GrantedToOtherUser, BSI echoed) */
-        int rc1 = stage_d_call_proceeding(hal, s);
-        fprintf(stderr,
-                "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CALL-PROCEEDING "
-                "call_id=%u ns=%u nr=%u rc=%d\n",
-                ssi, s->group_gssi, s->call_id, s->ns, s->nr, rc1);
-        nsnr_step_bs(s);
-        int rc2 = stage_d_connect(hal, s);
-        fprintf(stderr,
-                "tetra_call_fsm: U-SETUP → D-CONNECT call_id=%u ns=%u nr=%u rc=%d\n",
-                s->call_id, s->ns, s->nr, rc2);
-        nsnr_step_bs(s);
-        int rc3 = (s->group_gssi != 0u) ? stage_d_setup(hal, s) : 0;
-        if (s->group_gssi != 0u) {
+        /* Phase 7 G.7 — Gold-konforme Sequenz (verifiziert via WAV-Forensik
+         * `GOLD_DL_…GRUPPENRUF.wav` Burst #5887/#5895/#5903, 2026-05-13):
+         * BS sendet NUR 3× D-CONNECT (BL-UDATA, idle AACH, addr=SSI+Usage),
+         * KEIN D-CALL-PROCEEDING, KEIN D-SETUP.  Unacknowledged Retransmit
+         * sorgt für Empfangswahrscheinlichkeit ohne Stop-and-Wait. */
+        int rc = 0;
+        for (int i = 0; i < 3; i++) {
+            rc = stage_d_connect(hal, s);
             fprintf(stderr,
-                    "tetra_call_fsm: U-SETUP → D-SETUP→GSSI 0x%06X ns=%u nr=%u rc=%d\n",
-                    s->group_gssi, s->ns, s->nr, rc3);
-            nsnr_step_bs(s);
+                    "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[%d/3] "
+                    "call_id=%u rc=%d\n",
+                    ssi, s->group_gssi, i + 1, s->call_id, rc);
         }
-        /* Phase Y.4.1 — Group-Call aktiv: voice-slot Mask setzen.  Bit 1
-         * = tn_sys=1 RTL.  AACH auf diesem Slot schaltet auf FN-Rotation
-         * (0x32CB / 0x22C9 / 0x2049) solange Call aktiv. */
+        /* Phase Y.4.1 — Voice-Active-Mask setzen.  Unsere ChanAlloc-IE
+         * tagged ts_assigned=0100 (bit 1 from MSB) = TS=2 air-side
+         * = tn_sys=1 RTL.  AACH auf diesem Slot soll 0x22C9 zeigen
+         * solange Call aktiv ist (Gold #6136-Pattern). */
         tetra_reg_write(hal, REG_VOICE_ACTIVE_MASK, 0x02u);
         fprintf(stderr,
                 "tetra_call_fsm: VOICE_ACTIVE_MASK=0x02 (tn_sys=1 voice-slot allocated)\n");
         s->state = CALL_STATE_CONNECTED;
-        (void)rc1; (void)rc3;
-        return rc2;
+        return rc;
     }
 
     case CMCE_U_TX_DEMAND: {
@@ -225,10 +219,21 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
     case CMCE_U_TX_CEASED: {
         if (s == NULL) return -1;
         s->state = CALL_STATE_CONNECTED;
+        /* Phase 7 G.7+ — D-TX-CEASED-Bestätigung an Gruppe (broadcast auf GSSI).
+         * Ohne diesen ACK retried MS U-TX-CEASED bis zu 10× (Stop-and-Wait pro
+         * ETSI/bluestation). Adressiert an Group-GSSI weil alle Group-Member
+         * informiert werden müssen dass Talker aufgehört hat. */
+        tx_pdu_meta_t m;
+        memset(&m, 0, sizeof(m));
+        m.target_ssi           = s->group_gssi ? s->group_gssi : s->ssi;
+        m.cmce.call_identifier = s->call_id & 0x3FFFu;
+        m.cmce.transmission_request_permission = 0;   /* 0 = "allowed to request" per bluestation */
+        int rc = tetra_tx_submit(hal, TX_D_TX_CEASED, &m);
         fprintf(stderr,
-                "tetra_call_fsm: U-TX-CEASED ssi=0x%06X (call_id=%u)\n",
-                ssi, s->call_id);
-        return 0;
+                "tetra_call_fsm: U-TX-CEASED ssi=0x%06X → D-TX-CEASED gssi=0x%06X "
+                "call_id=%u rc=%d\n",
+                ssi, m.target_ssi, s->call_id, rc);
+        return rc;
     }
 
     case CMCE_U_RELEASE: {

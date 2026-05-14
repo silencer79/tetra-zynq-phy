@@ -60,14 +60,16 @@
 // -----------------------------------------------------------------------------
 // Address-type ETSI EN 300 392-2 Table 21.66
 // -----------------------------------------------------------------------------
-`define PDUC_ADDRTYPE_SSI  3'd1
+`define PDUC_ADDRTYPE_SSI                3'd1
+`define PDUC_ADDRTYPE_SSI_AND_USAGE      3'd6   // ETSI 21.4.3.1, MAC addressing for call-bound bursts
 
 // -----------------------------------------------------------------------------
 // LLC PDU-type encodings (ETSI EN 300 392-2 §23.4)
 // -----------------------------------------------------------------------------
 `define PDUC_LLC_BL_ADATA   4'd0
-`define PDUC_LLC_BL_UDATA   4'd1
-`define PDUC_LLC_BL_ACK     4'd2
+`define PDUC_LLC_BL_DATA    4'd1
+`define PDUC_LLC_BL_UDATA   4'd2
+`define PDUC_LLC_BL_ACK     4'd3
 `define PDUC_LLC_AL_SETUP   4'd8
 // LLC notes:
 //   BL-ADATA  — carries MLE+MM
@@ -118,6 +120,22 @@
 `define PDUC_GROUP_ACK_ADDRTYPE  `PDUC_ADDRTYPE_SSI
 `define PDUC_GROUP_ACK_LLC       `PDUC_LLC_BL_ADATA
 `define PDUC_GROUP_ACK_RA        1'b0
+
+// =============================================================================
+// PDUC_CMCE_D_CONNECT — D-CONNECT / D-SETUP / D-TX-GRANTED Group-Call bursts.
+// Gold-Cell `GOLD_DL_…GRUPPENRUF.wav` Burst #5887/#5895/#5903 (2026-05-13):
+//   - SCH/F (NDB1) 432-bit coded
+//   - AACH 0x0249 idle (NOT signalling-active — CMCE has no UL-slot grant)
+//   - addr_type=SsiAndUsageMarker (= 6, includes 8-bit UsageMarker)
+//   - LLC = BL-UDATA (unacknowledged — no NS/NR stop-and-wait)
+//   - RA=0 (addressed, not random access)
+// Repeated 3× in Gold for reliability (BL-UDATA has no acknowledgement).
+// =============================================================================
+`define PDUC_CMCE_D_CONNECT_FMT       `PDUC_SLOTFMT_SCH_F
+`define PDUC_CMCE_D_CONNECT_AACH      `PDUC_AACH_IDLE
+`define PDUC_CMCE_D_CONNECT_ADDRTYPE  `PDUC_ADDRTYPE_SSI_AND_USAGE
+`define PDUC_CMCE_D_CONNECT_LLC       `PDUC_LLC_BL_UDATA
+`define PDUC_CMCE_D_CONNECT_RA        1'b0
 
 // =============================================================================
 // PDUC_BL_ACK_POST_FRAG2 — Post-Frag-2 BL-ACK LI=6 SCH/HD blk1

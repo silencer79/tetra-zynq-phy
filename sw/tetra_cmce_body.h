@@ -83,6 +83,7 @@ int tetra_cmce_build_d_setup           (const cmce_meta_t *m, uint8_t *out);
 int tetra_cmce_build_d_call_proceeding (const cmce_meta_t *m, uint8_t *out);
 int tetra_cmce_build_d_connect         (const cmce_meta_t *m, uint8_t *out);
 int tetra_cmce_build_d_tx_granted      (const cmce_meta_t *m, uint8_t *out);
+int tetra_cmce_build_d_tx_ceased       (const cmce_meta_t *m, uint8_t *out);
 int tetra_cmce_build_d_release         (const cmce_meta_t *m, uint8_t *out);
 
 #endif /* TETRA_CMCE_BODY_H */

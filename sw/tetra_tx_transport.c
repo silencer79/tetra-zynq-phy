@@ -25,6 +25,7 @@
 
 #include <stddef.h>
 #include <string.h>
+#include <unistd.h>
 
 /* Indirect-write helper — match the (INDEX → DATA) sequence used in the
  * legacy daemon so the FPGA latches `data` at word `idx`. */
@@ -32,6 +33,34 @@ static void reply_write(tetra_hal_t *hal, uint32_t idx, uint32_t data)
 {
     tetra_reg_write(hal, REG_REPLY_INDEX, idx);
     tetra_reg_write(hal, REG_REPLY_DATA,  data);
+}
+
+/* Phase 7 G.6 — Reply-Mailbox is single-slot, so multi-PDU sequences
+ * (D-CALL-PROCEEDING + D-CONNECT + D-SETUP) must serialize: each writer
+ * waits until the MLE-FSM has consumed the previous staging.  REG_REPLY_
+ * STATUS[0] mirrors `mle_busy_w` (clk_sys, 2-FF resynced to clk_axi).
+ *
+ * Sequence per stage:
+ *   1. spin-wait while busy==1 (MLE consuming prior payload + signal queue
+ *      push), up to a timeout (~50 ms ≫ one FSM build cycle)
+ *   2. write W0..W13 + REG_REPLY_GO pulse
+ *   3. brief settle wait so busy reliably asserts before the next caller
+ *      polls (guards against caller seeing stale busy=0)
+ *
+ * If busy never clears we drop the new PDU — better than corrupting the
+ * in-flight one.  Returns 0 on ok, -1 on timeout. */
+static int reply_wait_idle(tetra_hal_t *hal)
+{
+    const int max_poll_us  = 50000;     /* 50 ms — one MLE build is ≪ 1 ms */
+    const int poll_step_us = 200;
+    int waited = 0;
+    while (waited < max_poll_us) {
+        uint32_t st = tetra_reg_read(hal, REG_REPLY_STATUS);
+        if ((st & 0x1u) == 0u) return 0;
+        usleep((useconds_t)poll_step_us);
+        waited += poll_step_us;
+    }
+    return -1;
 }
 
 /* mm=1 / mm=4 — D-LOC-UPDATE-ACCEPT / -REJECT body.
@@ -54,6 +83,8 @@ static int submit_lu(tetra_hal_t *hal, const tx_pdu_meta_t *m,
     uint32_t gila_lifetime = (result == 0u) ? (m->gila_lifetime & 0x3u)    : 0u;
     uint32_t gila_present  = (result == 0u) ? (m->gila_present & 0x1u)     : 0u;
 
+    if (reply_wait_idle(hal) < 0) return -2;
+
     reply_write(hal, 0, m->target_ssi & 0x00FFFFFFu);
     reply_write(hal, 1, m->la & 0x3FFFu);
     reply_write(hal, 2, 0x1u);                   /* addr_type = Ssi+EventLabel */
@@ -75,6 +106,7 @@ static int submit_lu(tetra_hal_t *hal, const tx_pdu_meta_t *m,
     reply_write(hal, 13, 0x00000000u);
 
     tetra_reg_write(hal, REG_REPLY_GO, 0x1u);
+    usleep(200);
     return 0;
 }
 
@@ -135,6 +167,13 @@ static int stage_raw_mm(tetra_hal_t *hal,
         }
     }
 
+    uint32_t w9 = (1u << 31)
+                | ((uint32_t)(mle_pd & 0x7u) << 10)
+                | ((uint32_t)(nr & 0x1u) << 9)
+                | ((uint32_t)(ns & 0x1u) << 8)
+                | ((uint32_t) mm_len & 0xFFu);
+    if (reply_wait_idle(hal) < 0) return -2;
+
     reply_write(hal, 0, target_ssi & 0x00FFFFFFu);
     reply_write(hal, 1, 0u);
     reply_write(hal, 2, 0x1u);
@@ -144,12 +183,6 @@ static int stage_raw_mm(tetra_hal_t *hal,
     reply_write(hal, 6, 0u);
     reply_write(hal, 7, 0u);
     reply_write(hal, 8, 0u);
-
-    uint32_t w9 = (1u << 31)
-                | ((uint32_t)(mle_pd & 0x7u) << 10)
-                | ((uint32_t)(nr & 0x1u) << 9)
-                | ((uint32_t)(ns & 0x1u) << 8)
-                | ((uint32_t) mm_len & 0xFFu);
     reply_write(hal,  9, w9);
     reply_write(hal, 10, w_raw[0]);
     reply_write(hal, 11, w_raw[1]);
@@ -157,6 +190,7 @@ static int stage_raw_mm(tetra_hal_t *hal,
     reply_write(hal, 13, w_raw[3]);
 
     tetra_reg_write(hal, REG_REPLY_GO, 0x1u);
+    usleep(200);    /* let busy assert (mle_busy_w → axi resync = ~10 cycles) */
     return 0;
 }
 
@@ -220,6 +254,8 @@ int tetra_tx_submit(tetra_hal_t *hal, tx_pdu_class_t cls,
         return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_connect);
     case TX_D_TX_GRANTED:
         return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_tx_granted);
+    case TX_D_TX_CEASED:
+        return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_tx_ceased);
     case TX_D_RELEASE:
         return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_release);
     default:
