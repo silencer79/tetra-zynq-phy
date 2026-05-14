@@ -14,14 +14,14 @@ Quelle: rtl/rx/tetra_{rx_frontend,timing_recovery,pi4dqpsk_demod,sync_detect,bur
 
 ---
 
-### tetra_rx_frontend.v  (791 Zeilen)
+### tetra_rx_frontend.v (791 Zeilen)
 **Ports:**
 - `clk_sys, rst_n_sys` (system 100 MHz domain)
 - `clk_lvds, rst_n_lvds, rx_i_lvds[15:0], rx_q_lvds[15:0], rx_valid_lvds` (AD9361 LVDS-Domain)
 - `loopback_en_sys` (digital loopback flag)
 - → `i_out_sys[15:0], q_out_sys[15:0], out_valid_sys`
 
-**Funktion:** Drei-Stufen-RX-Frontend mit Clock-Domain-Crossing.  Schritt 1: 32-bit XPM async FIFO `u_iq_cdc_fifo` (Tiefe 16, READ_LATENCY=1) packt {I,Q} aus `clk_lvds` in `clk_sys`.  Schritt 2: 5-stufiger CIC-Dezimator R=64, M=1 (interne 46-bit Akku, Gain-Shift `CIC_GAIN_SHF=6` für ×64 vor Sättigung auf 16 bit; bei `loopback_en_sys`=1 wird der Gain umgangen und unity-Slice [45:30] genutzt).  Schritt 3: 33-tap RRC-Matched-Filter, α=0.35, Q14-Koeffizienten als `RRC_H00..RRC_H32` Localparams, sequenzielle MAC mit 1 DSP48 über 33 Zyklen.  Ausgabe `out_valid_sys` puls je 72 kHz Symbolsample.
+**Funktion:** Drei-Stufen-RX-Frontend mit Clock-Domain-Crossing. Schritt 1: 32-bit XPM async FIFO `u_iq_cdc_fifo` (Tiefe 16, READ_LATENCY=1) packt {I,Q} aus `clk_lvds` in `clk_sys`. Schritt 2: 5-stufiger CIC-Dezimator R=64, M=1 (interne 46-bit Akku, Gain-Shift `CIC_GAIN_SHF=6` für ×64 vor Sättigung auf 16 bit; bei `loopback_en_sys`=1 wird der Gain umgangen und unity-Slice [45:30] genutzt). Schritt 3: 33-tap RRC-Matched-Filter, α=0.35, Q14-Koeffizienten als `RRC_H00..RRC_H32` Localparams, sequenzielle MAC mit 1 DSP48 über 33 Zyklen. Ausgabe `out_valid_sys` puls je 72 kHz Symbolsample.
 
 **State:** RRC-MAC FSM (1 bit) S_IDLE / S_MAC. `S_IDLE→S_MAC` bei `cic_valid_sys`. `S_MAC→S_IDLE` wenn `mac_cnt_sys == RRC_TAPS-1` (= 32). Akkumulator wird auf erstem MAC-Zyklus mit erstem Produkt geladen, sonst summiert.
 
@@ -42,10 +42,10 @@ Quelle: rtl/rx/tetra_{rx_frontend,timing_recovery,pi4dqpsk_demod,sync_detect,bur
 
 ---
 
-### tetra_timing_recovery.v  (407 Zeilen)
+### tetra_timing_recovery.v (407 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, i_in_sys[15:0], q_in_sys[15:0], sample_valid_in_sys` → `i_out_sys[15:0], q_out_sys[15:0], sample_valid_out_sys, timing_locked_sys, timing_error_sys[15:0]`
 
-**Funktion:** Gardner Symbol-Timing-Recovery aus 4×oversampleten 72 kHz Samples.  Schiebt jedes Sample in 4-Tap-Register `i_s0..i_s3` (16-bit signed) und berechnet bei NCO-Overflow `e = i_s1*(i_in - i_s3) + q_s1*(q_in - q_s3)`.  PI-Loop: Proportionalterm `>>> KP_SHIFT=4`, Integralterm `>>> KI_SHIFT=8`.  NCO 32-bit Akkumulator, Nominalschritt `NCO_NOMINAL = 32'h4000_0000` → 4 Steps = Overflow alle 4 Eingangssamples.  Bei Overflow werden `i_in, q_in` als On-Time-Sample latched und `sample_valid_out_sys` ausgegeben (18 kHz).
+**Funktion:** Gardner Symbol-Timing-Recovery aus 4×oversampleten 72 kHz Samples. Schiebt jedes Sample in 4-Tap-Register `i_s0..i_s3` (16-bit signed) und berechnet bei NCO-Overflow `e = i_s1*(i_in - i_s3) + q_s1*(q_in - q_s3)`. PI-Loop: Proportionalterm `>>> KP_SHIFT=4`, Integralterm `>>> KI_SHIFT=8`. NCO 32-bit Akkumulator, Nominalschritt `NCO_NOMINAL = 32'h4000_0000` → 4 Steps = Overflow alle 4 Eingangssamples. Bei Overflow werden `i_in, q_in` als On-Time-Sample latched und `sample_valid_out_sys` ausgegeben (18 kHz).
 
 **State:** Keine explizite FSM. Lock-Detection registriert: `lock_cnt_sys` (8 bit, sat. bei 255) inkrementiert wenn `|TED| < LOCK_THRESH=256`, Reset auf Großfehler. `timing_locked_sys` geht hoch wenn `lock_cnt >= LOCK_COUNT=144` und gut, runter bei jedem schlechten Sample.
 
@@ -59,10 +59,10 @@ Quelle: rtl/rx/tetra_{rx_frontend,timing_recovery,pi4dqpsk_demod,sync_detect,bur
 
 ---
 
-### tetra_pi4dqpsk_demod.v  (447 Zeilen)
+### tetra_pi4dqpsk_demod.v (447 Zeilen)
 **Ports:** `clk_sample, rst_n_sample, i_in[15:0], q_in[15:0], sample_valid` → `dibit_out[1:0], dibit_valid, phase_error[15:0]` (signed)
 
-**Funktion:** π/4-DQPSK-Demodulator basierend auf CORDIC-Vectoring.  Pro Symbol: 1 Zyklus Quadrantenkorrektur (`I<0,Q≥0` → Rotation +π/2, `I<0,Q<0` → −π/2, sonst 0), 16 Zyklen CORDIC-Iteration (ATAN-LUT als case mit 14 nicht-trivialen Werten), 1 Zyklus Entscheidung. Δφ = `cordic_z - phase_prev`. Dibit-Mapping: Δφ∈[0,+π/2)→00, [+π/2,+π)→01, (−π/2,0)→10, (−π,−π/2]→11. `phase_error = Δφ - ideal_Δφ`.
+**Funktion:** π/4-DQPSK-Demodulator basierend auf CORDIC-Vectoring. Pro Symbol: 1 Zyklus Quadrantenkorrektur (`I<0,Q≥0` → Rotation +π/2, `I<0,Q<0` → −π/2, sonst 0), 16 Zyklen CORDIC-Iteration (ATAN-LUT als case mit 14 nicht-trivialen Werten), 1 Zyklus Entscheidung. Δφ = `cordic_z - phase_prev`. Dibit-Mapping: Δφ∈[0,+π/2)→00, [+π/2,+π)→01, (−π/2,0)→10, (−π,−π/2]→11. `phase_error = Δφ - ideal_Δφ`.
 
 **State:** 2-bit FSM `S_IDLE/S_INIT/S_ITER/S_DECIDE`. `S_IDLE→S_INIT` bei `sample_valid`. `S_INIT→S_ITER` unbedingt. `S_ITER→S_DECIDE` wenn `iter_cnt==15`. `S_DECIDE→S_IDLE` unbedingt. `phase_locked_sample` wird in erstem `S_DECIDE` gesetzt — unterdrückt `dibit_valid`-Puls auf allererstes Symbol (kein gültiges `phase_prev`).
 
@@ -76,10 +76,10 @@ Quelle: rtl/rx/tetra_{rx_frontend,timing_recovery,pi4dqpsk_demod,sync_detect,bur
 
 ---
 
-### tetra_sync_detect.v  (466 Zeilen)
+### tetra_sync_detect.v (466 Zeilen)
 **Ports:** `clk_sample, rst_n_sample, dibit_in[1:0], dibit_valid, corr_threshold[5:0], seq_select[1:0]` → `sync_found, sync_locked, slot_position[7:0], slot_number[1:0], corr_peak[5:0]`
 
-**Funktion:** Sliding-Correlator gegen drei Trainingssequenzen NTS (11 sym, 22 bit), ETS (15 sym, 30 bit), STS (19 sym, 38 bit).  Hält 38-Symbol (76-bit) flachen Shift-Register, vergleicht beim eingehenden Dibit (`sreg_shifted = {sreg[73:0],dibit_in}`) gegen die per `seq_select` gewählte Referenz, zählt matchende Dibits in einem unrollten Adder-Tree.  `sync_fire_sample = (corr >= corr_threshold) & ~holdoff & dibit_valid`.  `sync_found` ist registrierte 1-Zyklus-Version davon.  Holdoff-Counter 8-bit (`HOLDOFF=220`).
+**Funktion:** Sliding-Correlator gegen drei Trainingssequenzen NTS (11 sym, 22 bit), ETS (15 sym, 30 bit), STS (19 sym, 38 bit). Hält 38-Symbol (76-bit) flachen Shift-Register, vergleicht beim eingehenden Dibit (`sreg_shifted = {sreg[73:0],dibit_in}`) gegen die per `seq_select` gewählte Referenz, zählt matchende Dibits in einem unrollten Adder-Tree. `sync_fire_sample = (corr >= corr_threshold) & ~holdoff & dibit_valid`. `sync_found` ist registrierte 1-Zyklus-Version davon. Holdoff-Counter 8-bit (`HOLDOFF=220`).
 
 **State:** Lock-FSM mit 3 Zuständen `S_HUNT/S_ACQR/S_LOCK`:
 - `S_HUNT→S_ACQR` bei erstem `sync_fire`
@@ -99,10 +99,10 @@ Quelle: rtl/rx/tetra_{rx_frontend,timing_recovery,pi4dqpsk_demod,sync_detect,bur
 
 ---
 
-### tetra_burst_demux.v  (308 Zeilen)
+### tetra_burst_demux.v (308 Zeilen)
 **Ports:** `clk_sample, rst_n_sample, dibit_in[1:0], dibit_valid, sync_found, sync_locked, slot_position[7:0], slot_number[1:0], seq_select[1:0]` → `block1_data[215:0], block2_data[215:0], bb_data[29:0], slot_num_out[1:0], slot_valid, burst_type[1:0]`
 
-**Funktion:** Extrahiert NDB-Felder aus dem Symbolstrom.  Capture-Fenster nach `slot_position`:
+**Funktion:** Extrahiert NDB-Felder aus dem Symbolstrom. Capture-Fenster nach `slot_position`:
 - BB-Feld (AACH, 30 bit): pos 0..14, in `bb_shift_sample`
 - Block2 (216 bit): pos 15..122, in `block2_shift_sample`
 - emit-Puls: pos 123 (Block2 fertig)
@@ -122,10 +122,10 @@ Auf `sync_found` werden Block1 (das vor diesem Sync vollständig aufgesammelte) 
 
 ---
 
-### tetra_frame_counter.v  (185 Zeilen)
+### tetra_frame_counter.v (185 Zeilen)
 **Ports:** `clk_sample, rst_n_sample, sync_locked, slot_pulse` → `timeslot_num[1:0], frame_num[4:0], multiframe_num[5:0], hyperframe_num[15:0], is_control_frame, frame_18_slot1`
 
-**Funktion:** Zählt TETRA-TDMA-Hierarchie. Pro `slot_pulse` (= `slot_valid` aus burst_demux): `timeslot_num` 0→1→2→3→0; bei TS-Boundary (`timeslot_num==3`) `frame_num` 1..18; bei FN-Boundary (`frame_num==18`) `multiframe_num` 1..60; bei MF-Boundary (`multiframe_num==60`) `hyperframe_num++` (free-running 16-bit).  `is_control_frame` HIGH solange `frame_num==18`; `frame_18_slot1` 1-Zyklus-Puls eine Frame-Cycle-Edge nachdem TN=1 von Frame 18 abgeschlossen ist.
+**Funktion:** Zählt TETRA-TDMA-Hierarchie. Pro `slot_pulse` (= `slot_valid` aus burst_demux): `timeslot_num` 0→1→2→3→0; bei TS-Boundary (`timeslot_num==3`) `frame_num` 1..18; bei FN-Boundary (`frame_num==18`) `multiframe_num` 1..60; bei MF-Boundary (`multiframe_num==60`) `hyperframe_num++` (free-running 16-bit). `is_control_frame` HIGH solange `frame_num==18`; `frame_18_slot1` 1-Zyklus-Puls eine Frame-Cycle-Edge nachdem TN=1 von Frame 18 abgeschlossen ist.
 
 **State:** Keine FSM, nur Counter-Register. Reset auf `!rst_n_sample` ODER `!sync_locked` setzt alle Counter auf Init (TS=0, FN=1, MF=1, HF=0).
 
@@ -139,7 +139,7 @@ Auf `sync_found` werden Block1 (das vor diesem Sync vollständig aufgesammelte) 
 
 ---
 
-### tetra_rx_burst_fifo.v  (220 Zeilen)
+### tetra_rx_burst_fifo.v (220 Zeilen)
 **Ports:**
 - Push A: `push_a_pulse_sys, push_a_bits_sys[91:0], push_a_ssi_sys[23:0], push_a_meta_sys[7:0]`
 - Push B: `push_b_pulse_sys, push_b_bits_sys[91:0], push_b_ssi_sys[23:0], push_b_meta_sys[7:0]`
@@ -147,7 +147,7 @@ Auf `sync_found` werden Block1 (das vor diesem Sync vollständig aufgesammelte) 
 - Pop: `pop_pulse_axi` → `data0_axi[31:0], data1_axi[31:0], data2_axi[31:0], meta_axi[31:0], ts_axi[31:0], status_axi[31:0]`
 - Telemetrie: `count_sys[4:0], drop_cnt_sys[15:0]`
 
-**Funktion:** 16-tiefer BRAM-FIFO (DEPTH=16, ENTRY_WIDTH=148 bit = 92 bits + 24 SSI + 24 TS + 8 META) für UL-Bursts.  Zwei Push-Ports mit Priorität A>B; bei Konflikt B verworfen mit `drop_cnt++`.  Pop-Seite (clk_axi==clk_sys): `mem[rp]` ständig in `rd_q_sys` registriert, `pop_pulse_axi` advances `rp`.  Status-Wort: `{drop_cnt[15:0], 8'b0, count[3:0], full, halffull, 1'b0, empty}`.
+**Funktion:** 16-tiefer BRAM-FIFO (DEPTH=16, ENTRY_WIDTH=148 bit = 92 bits + 24 SSI + 24 TS + 8 META) für UL-Bursts. Zwei Push-Ports mit Priorität A>B; bei Konflikt B verworfen mit `drop_cnt++`. Pop-Seite (clk_axi==clk_sys): `mem[rp]` ständig in `rd_q_sys` registriert, `pop_pulse_axi` advances `rp`. Status-Wort: `{drop_cnt[15:0], 8'b0, count[3:0], full, halffull, 1'b0, empty}`.
 
 **State:** Keine FSM, nur Counter (`wp_sys`, `rp_sys`, `cnt_sys`, `drop_cnt_sys_r`).
 
@@ -156,13 +156,13 @@ Auf `sync_found` werden Block1 (das vor diesem Sync vollständig aufgesammelte) 
 **Nachbarn:** ↑ Top-Level `tetra_zynq_top` (vermutlich; nicht in rx_chain instanziiert lt. grep — siehe Kapitel 4 Anmerkung).
 
 **Auffälligkeiten:**
-- Modul wird in `tetra_rx_chain.v` NICHT instanziiert (rx_chain hat keinen rx_burst_fifo).  Es wird vermutlich in `tetra_zynq_top.v` direkt instanziiert.
+- Modul wird in `tetra_rx_chain.v` NICHT instanziiert (rx_chain hat keinen rx_burst_fifo). Es wird vermutlich in `tetra_zynq_top.v` direkt instanziiert.
 - Header beschreibt Phase H.4.1, Anbindung an MAC-ACCESS/BL-ACK frag-1 (Push A) und MAC-END-HU Continuation (Push B).
 - BRAM-Storage als `(* ram_style = "block" *) reg [ENTRY_WIDTH-1:0] mem_sys [0:DEPTH-1]` — Tools sollen 1× RAMB18 erkennen (2368 bits genutzt von 18 kbit).
 
 ---
 
-### tetra_rx_chain.v  (497 Zeilen)
+### tetra_rx_chain.v (497 Zeilen)
 **Ports (Container, ausgewählte Top-Signale):**
 - `clk_lvds, rst_n_lvds, rx_i_lvds[15:0], rx_q_lvds[15:0], rx_valid_lvds`
 - `clk_sys, rst_n_sys, corr_threshold_sys[23:0], seq_select_sys[1:0], loopback_en_sys`
@@ -177,7 +177,7 @@ Auf `sync_found` werden Block1 (das vor diesem Sync vollständig aufgesammelte) 
 - ILA-Debug: `dbg_fe_valid_sys, dbg_tr_valid_sys, dbg_demod_valid_sys`
 - Phase Y.4.2: `ul_demod_dibit_out_sys[1:0], ul_demod_valid_out_sys`
 
-**Funktion:** Top-Container der RX-Kette.  Instanziiert in Reihenfolge:
+**Funktion:** Top-Container der RX-Kette. Instanziiert in Reihenfolge:
 1. `u_rx_frontend` (CIC+RRC+CDC) → `fe_i_sys, fe_q_sys, fe_valid_sys` (72 kHz)
 2. `u_timing_recovery` (Gardner+NCO) → `tr_i_sys, tr_q_sys, tr_valid_sys` (18 kHz)
 3. `u_demod` (pi4dqpsk_demod) → `demod_dibit_sys, demod_valid_sys, demod_phase_err_sys`
@@ -193,7 +193,7 @@ Auf `sync_found` werden Block1 (das vor diesem Sync vollständig aufgesammelte) 
 ```
 // Phase Y.4.2 — UL demod dibit stream (hard) for voice forwarding.
 // Source = continuous main pi4dqpsk_demod (NOT u_ul_demod which is
-// SCH/HU-sync-gated and doesn't fire on TCH/S voice bursts).  RX-LO is
+// SCH/HU-sync-gated and doesn't fire on TCH/S voice bursts). RX-LO is
 // tuned to UL-band (428.25 MHz), so demod_dibit_sys IS the MS UL signal.
 // Continuous 18 kHz dibit stream — voice_capture FSM slot-windows it.
 ```

@@ -18,48 +18,48 @@
 module tb_sync_detect_ul_wav;
 
 localparam integer MAX_DIBITS = 700_000;
-localparam integer CLK_PERIOD = 10;      // 10 ns = 100 MHz
-localparam integer STROBE_PERIOD = 6;    // cycles between dibit_valid pulses
-                                         // (just a few cycles for sim speed)
+localparam integer CLK_PERIOD = 10; // 10 ns = 100 MHz
+localparam integer STROBE_PERIOD = 6; // cycles between dibit_valid pulses
+ // (just a few cycles for sim speed)
 
 // Correlation threshold (out of 15 possible). Override via +THR=N on cmdline.
 localparam [5:0] THRESHOLD_DEFAULT = 6'd10;
 reg [5:0] threshold;
 
-reg  [3:0] dibit_mem [0:MAX_DIBITS-1];
-integer    n_dibits;
+reg [3:0] dibit_mem [0:MAX_DIBITS-1];
+integer n_dibits;
 
 reg clk;
 reg rst_n;
 reg [1:0] dibit_in;
-reg       dibit_valid;
+reg dibit_valid;
 
-wire       sync_found;
-wire       sync_locked;
+wire sync_found;
+wire sync_locked;
 wire [7:0] slot_position;
 wire [1:0] slot_number;
 wire [5:0] corr_peak;
 
 tetra_sync_detect #(
-    .CORR_WIDTH   (6),
-    .SEQ_LEN_MAX  (19),
-    .HOLDOFF      (50),       // short holdoff so adjacent bursts can all fire
-    .LOCK_COUNT   (4),
-    .SLOT_SYMS    (255),
-    .LOCK_TOL     (30),
-    .LOCK_TIMEOUT (3060)
+.CORR_WIDTH (6),
+.SEQ_LEN_MAX (19),
+.HOLDOFF (50), // short holdoff so adjacent bursts can all fire
+.LOCK_COUNT (4),
+.SLOT_SYMS (255),
+.LOCK_TOL (30),
+.LOCK_TIMEOUT (3060)
 ) dut (
-    .clk_sample    (clk),
-    .rst_n_sample  (rst_n),
-    .dibit_in      (dibit_in),
-    .dibit_valid   (dibit_valid),
-    .corr_threshold(threshold),
-    .seq_select    (2'd1),    // ETS x-seq
-    .sync_found    (sync_found),
-    .sync_locked   (sync_locked),
-    .slot_position (slot_position),
-    .slot_number   (slot_number),
-    .corr_peak     (corr_peak)
+.clk_sample (clk),
+.rst_n_sample (rst_n),
+.dibit_in (dibit_in),
+.dibit_valid (dibit_valid),
+.corr_threshold(threshold),
+.seq_select (2'd1), // ETS x-seq
+.sync_found (sync_found),
+.sync_locked (sync_locked),
+.slot_position (slot_position),
+.slot_number (slot_number),
+.corr_peak (corr_peak)
 );
 
 initial clk = 1'b0;
@@ -71,87 +71,87 @@ integer sym_idx;
 
 // Log every sync_found pulse with dibit index
 always @(posedge clk) begin
-    if (rst_n && sync_found) begin
-        $display("  [sym=%0d] sync_found  corr_peak=%0d  gap_syms=%0d",
-                 sym_idx, corr_peak,
-                 (last_sync_sym < 0) ? 0 : (sym_idx - last_sync_sym));
-        sync_count    = sync_count + 1;
-        last_sync_sym = sym_idx;
-    end
+ if (rst_n && sync_found) begin
+ $display(" [sym=%0d] sync_found corr_peak=%0d gap_syms=%0d",
+ sym_idx, corr_peak,
+ (last_sync_sym < 0) ? 0: (sym_idx - last_sync_sym));
+ sync_count = sync_count + 1;
+ last_sync_sym = sym_idx;
+ end
 end
 
 integer i, burst_start_sym;
 integer first_in_burst_sym;
 
 initial begin
-    $dumpfile("sim_out/tb_sync_detect_ul_wav.vcd");
-    // No full dumpvars — file is too big. Only DUT top-level.
-    $dumpvars(1, dut);
+ $dumpfile("sim_out/tb_sync_detect_ul_wav.vcd");
+ // No full dumpvars — file is too big. Only DUT top-level.
+ $dumpvars(1, dut);
 
-    for (i = 0; i < MAX_DIBITS; i = i + 1)
-        dibit_mem[i] = 4'h0;
-    $readmemh("sim_out/ul_ra_dibits.hex", dibit_mem);
+ for (i = 0; i < MAX_DIBITS; i = i + 1)
+ dibit_mem[i] = 4'h0;
+ $readmemh("sim_out/ul_ra_dibits.hex", dibit_mem);
 
-    // Count actual dibits by scanning until we hit first "unfilled" cell
-    // — but the whole array was zeroed, so we need a different approach.
-    // Use a sentinel — trust caller to know the count. We'll walk all
-    // entries and stop when we've processed enough.
-    n_dibits = 628233;
+ // Count actual dibits by scanning until we hit first "unfilled" cell
+ // — but the whole array was zeroed, so we need a different approach.
+ // Use a sentinel — trust caller to know the count. We'll walk all
+ // entries and stop when we've processed enough.
+ n_dibits = 628233;
 
-    threshold = THRESHOLD_DEFAULT;
-    if ($value$plusargs("THR=%d", threshold))
-        $display("(threshold override from +THR: %0d)", threshold);
+ threshold = THRESHOLD_DEFAULT;
+ if ($value$plusargs("THR=%d", threshold))
+ $display("(threshold override from +THR: %0d)", threshold);
 
-    sync_count    = 0;
-    last_sync_sym = -1;
-    sym_idx       = 0;
+ sync_count = 0;
+ last_sync_sym = -1;
+ sym_idx = 0;
 
-    rst_n       = 1'b0;
-    dibit_in    = 2'b00;
-    dibit_valid = 1'b0;
+ rst_n = 1'b0;
+ dibit_in = 2'b00;
+ dibit_valid = 1'b0;
 
-    repeat (10) @(posedge clk);
-    rst_n = 1'b1;
-    repeat (5) @(posedge clk);
+ repeat (10) @(posedge clk);
+ rst_n = 1'b1;
+ repeat (5) @(posedge clk);
 
-    $display("=== tb_sync_detect_ul_wav: feeding %0d dibits, seq_select=1, threshold=%0d/15 ===", n_dibits, threshold);
+ $display("=== tb_sync_detect_ul_wav: feeding %0d dibits, seq_select=1, threshold=%0d/15 ===", n_dibits, threshold);
 
-    for (i = 0; i < n_dibits; i = i + 1) begin
-        @(posedge clk);
-        #1;
-        dibit_in    = dibit_mem[i][1:0];
-        dibit_valid = 1'b1;
-        sym_idx     = i + 1;
-        @(posedge clk);
-        #1;
-        dibit_valid = 1'b0;
-        // inter-symbol gap so holdoff/lock timing behaves sensibly
-        repeat (STROBE_PERIOD - 2) @(posedge clk);
-    end
+ for (i = 0; i < n_dibits; i = i + 1) begin
+ @(posedge clk);
+ #1;
+ dibit_in = dibit_mem[i][1:0];
+ dibit_valid = 1'b1;
+ sym_idx = i + 1;
+ @(posedge clk);
+ #1;
+ dibit_valid = 1'b0;
+ // inter-symbol gap so holdoff/lock timing behaves sensibly
+ repeat (STROBE_PERIOD - 2) @(posedge clk);
+ end
 
-    // Drain
-    repeat (20) @(posedge clk);
+ // Drain
+ repeat (20) @(posedge clk);
 
-    $display("=============================================");
-    $display("sync_found pulses: %0d", sync_count);
-    $display("corr_peak (max seen): %0d / 15", corr_peak);
-    $display("dibits processed: %0d (~%0d ms real time)",
-             n_dibits, n_dibits / 18);
-    if (sync_count >= 30) begin
-        $display("RESULT: PASS (>=30 sync pulses over ~42 RA-bursts)");
-    end else if (sync_count > 0) begin
-        $display("RESULT: PARTIAL (%0d pulses - threshold/timing)", sync_count);
-    end else begin
-        $display("RESULT: FAIL (0 sync pulses)");
-    end
-    $display("=============================================");
-    $finish;
+ $display("=============================================");
+ $display("sync_found pulses: %0d", sync_count);
+ $display("corr_peak (max seen): %0d / 15", corr_peak);
+ $display("dibits processed: %0d (~%0d ms real time)",
+ n_dibits, n_dibits / 18);
+ if (sync_count >= 30) begin
+ $display("RESULT: PASS (>=30 sync pulses over ~42 RA-bursts)");
+ end else if (sync_count > 0) begin
+ $display("RESULT: PARTIAL (%0d pulses - threshold/timing)", sync_count);
+ end else begin
+ $display("RESULT: FAIL (0 sync pulses)");
+ end
+ $display("=============================================");
+ $finish;
 end
 
 initial begin
-    #3_000_000_000;
-    $display("WATCHDOG timeout");
-    $finish;
+ #3_000_000_000;
+ $display("WATCHDOG timeout");
+ $finish;
 end
 
 endmodule

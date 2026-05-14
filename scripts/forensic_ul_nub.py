@@ -3,7 +3,7 @@
 forensic_ul_nub.py — UL TCH/S NUB-Burst-Forensik (Phase B2)
 
 Ziel: bit-genaue Map der TETRA UL Normal-Uplink-Burst Struktur aus
-einer Gold-UL-WAV mit aktivem Voice-TX (TCH/S).
+einer -UL-WAV mit aktivem Voice-TX (TCH/S).
 
 Vorgehen:
  1. WAV laden (250 kHz I/Q stereo)

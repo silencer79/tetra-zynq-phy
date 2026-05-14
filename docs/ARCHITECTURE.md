@@ -42,7 +42,7 @@ Vollständige TETRA-Base-Station für Amateurfunk (70-cm-Band, 438.25 MHz DL / 4
 
 ### 2.2 Warum FPGA-heavy
 
-- SW-getriebenes Scheduling ist fragil (Race zwischen SW-Register-Write und `tx_slot_pulse`). Bisher 1 % NDB-Decoderate auf unserem eigenen WAV (vs. 100 % auf Gold).
+- SW-getriebenes Scheduling ist fragil (Race zwischen SW-Register-Write und `tx_slot_pulse`). Bisher 1 % NDB-Decoderate auf unserem eigenen WAV (vs. 100 % auf ).
 - TDMA-Counter + Scheduling müssen deterministisch pro `(TN, FN, MN, HN)` sitzen. Die einzige Instanz die "wo bin ich" kennt, ist das RTL.
 - ACELP-Sprach-Codec für Voice-Relay (Gruppenruf) nicht nötig: bit-transparenter UL-TCH → DL-TCH Pass-Through, alles in RTL.
 - Response-Latenz-Budget: 1 Slot = 14 ms, ARM kann das nicht garantieren.
@@ -83,15 +83,15 @@ Slice-Druck stieg auf 97.82 % nach Phase 7 F.7 (MLE-FSM allein 10172 LUTs). Phas
 - ✅ X.3 SW-DB-Lookup + Auto-Enroll (commits `baeb9e2` + `2711bd0`) — `sw/tetra_db.[ch]` 256-Slot-DB mit atomic db.tsv-write + mtime-reload, Host-TB 59/59 PASS. `REG_DB_POLICY` Bit 0/1 (`accept_unknown_issi`/`gssi`). Polish: W1 LA aus REG_CELL_LA, deploy.sh --init startet Daemon. **Live-verifiziert 2026-05-03 22:35:** MTP3550 GSSI-Wunsch `0x000001` (nicht in DB) → AUTOENROLL → db.tsv appendet → GILA spiegelt MS-Wunsch. **Phase-D-rev "MS-GSSI-Wunsch ignoriert" Bug damit architektonisch gelöst.**
 - ✅ X.4 RTL-Cleanup (commit `75c639a`) — EntityTable + ProfileTable + ActiveSessionTable + 7 TBs gelöscht. MLE-FSM States 35→7 (Multi-Lookup raus, profile0_m2_guard raus). REG_REPLY_USE_SW Reset 0→1. LOC −3804. Slice 92.57%→91.75%. **Regression entdeckt:** S_BUILD_SHORT_*-Pfad versehentlich mitgelöscht, der die Slot-Grant-Pre-Reply baute → MS bekam keinen Frag-2-Slot. Fix in X.5b.
 - ✅ X.4.5 WebUI Cleanup + DB-Edit (commit `9ef14a7`) — entities.cgi direktes db.tsv-Editing (atomic), policy.cgi Bit-1, sessions.cgi AST-Reads raus + Mailbox-Status, profiles.cgi gelöscht (Profile SW-hardcoded), index.html Profiles-Tab raus + DB-Status-Block. LOC −237.
-- ✅ X.5+X.5b Pre-Reply Sequenz (commits `778d4d5`+`1fcf121`) — zwei parallele Mini-FSMs für die volle 6-Schritt-Gold-Sequenz:
-  - **`tetra_pre_reply_slotgrant`** (X.5b NEU) auf `frag1_pulse_w` → SCH/F MAC-RESOURCE mit `slot_grant_packed (capacity_allocation=0, granting_delay=1)`. Pipeline: existing `basic_slotgrant_encoder` + `mac_resource_dl_builder` + `sch_f_encoder`. Gibt MS einen UL-Slot für Frag-2.
-  - **`tetra_pre_reply_blck`** (X.5 mit korrigiertem Trigger) auf `mle_demand_parsed_valid_sys` → BL-ACK LI=7 als ACK auf das Frag-1+Frag-2-Pair. Triggert MS' Frag-3.
-  - Mux am MLE-Producer-Slot in DL-Signal-Queue: MLE-Final-ACCEPT priorisiert (mb_go_pulse-Pfad), SlotGrant fallback. Kein dl_signal_queue.v-Touch.
-  - TBs: tb_pre_reply_blck 15/15 PASS, tb_pre_reply_slotgrant 14/14 PASS bit-exact.
-  - Slice 91.75%→**97.65%** (+5.9 ppt, kritisch). Build durch, WNS +0.006 ns. Builder-Duplikate sind der Schmerzpunkt.
-  - **Live-verifiziert 2026-05-04 01:18 BST:** MTP3550 Frag-1 → SlotGrant → Frag-2 → BL-ACK → Frag-3 → ACCEPT → eingebucht. `tetra_attach_daemon: serviced #1 ssi=0x282F91 la=0x0001 lut=3 cnt=1 gila_gssi=0x000001 (profile=0, issi=hit, gssi=ok)`. **Phase-X-Migration komplett, MS-Anmeldung End-to-End funktional.**
+- ✅ X.5+X.5b Pre-Reply Sequenz (commits `778d4d5`+`1fcf121`) — zwei parallele Mini-FSMs für die volle 6-Schritt--Sequenz:
+ - **`tetra_pre_reply_slotgrant`** (X.5b NEU) auf `frag1_pulse_w` → SCH/F MAC-RESOURCE mit `slot_grant_packed (capacity_allocation=0, granting_delay=1)`. Pipeline: existing `basic_slotgrant_encoder` + `mac_resource_dl_builder` + `sch_f_encoder`. Gibt MS einen UL-Slot für Frag-2.
+ - **`tetra_pre_reply_blck`** (X.5 mit korrigiertem Trigger) auf `mle_demand_parsed_valid_sys` → BL-ACK LI=7 als ACK auf das Frag-1+Frag-2-Pair. Triggert MS' Frag-3.
+ - Mux am MLE-Producer-Slot in DL-Signal-Queue: MLE-Final-ACCEPT priorisiert (mb_go_pulse-Pfad), SlotGrant fallback. Kein dl_signal_queue.v-Touch.
+ - TBs: tb_pre_reply_blck 15/15 PASS, tb_pre_reply_slotgrant 14/14 PASS bit-exact.
+ - Slice 91.75%→**97.65%** (+5.9 ppt, kritisch). Build durch, WNS +0.006 ns. Builder-Duplikate sind der Schmerzpunkt.
+ - **Live-verifiziert 2026-05-04 01:18 BST:** MTP3550 Frag-1 → SlotGrant → Frag-2 → BL-ACK → Frag-3 → ACCEPT → eingebucht. `tetra_attach_daemon: serviced #1 ssi=0x282F91 la=0x0001 lut=3 cnt=1 gila_gssi=0x000001 (profile=0, issi=hit, gssi=ok)`. **Phase-X-Migration komplett, MS-Anmeldung End-to-End funktional.**
 - ✅ X.6 Builder-Sharing (commit `50b4144`) — neuer `tetra_dl_pdu_builder.v` instanziiert ONE `basic_slotgrant_encoder` + ONE `mac_resource_dl_builder` + ONE `sch_f_encoder`. Inline-Arbiter im zynq_top mit strict-priority MLE>SlotGrant + Owner-Tracking + Backpressure. Bonus: dead chan_alloc_encoder entfernt. Builder-Instanzen 6→3. **Slice 97.65%→95.28% (−2.37 ppt)**, LUTs −3463, FFs −1738, WNS +0.006→**+0.009 ns** (Routing-Margin gewonnen). 6 TBs alle grün (incl. tb_d_location_update_encoder 34/34 für M2-Bit-Identity). **Live-verifiziert 2026-05-04 02:09:** MTP3550 ITSI-Attach durch — gleiche Sequenz wie pre-X.6, gila_gssi=0x000001 MS-Wunsch, la=0x0001 REG_CELL_LA.
-- ✅ X.7 Cleanup-Sweep (commit `8a2699a` + Pragma-Fix) — DELETE `tetra_db_mgr.c`+`tetra_dbsync.sh`+`tetra_autoenroll.sh` (X.3 zentral); MLE-FSM Dead-Code-Latches (`lat_la`/`lat_loc_upd_type`/`lat_gila_*`) + `use_sw_body`-Mux raus (USE_SW=1 ist Lock seit X.4); Encoder-Legacy-124-bit-Pfad raus (`subscriber_class`, `address_extension`, `pdu_bits[123:0]`). MM-Body unverändert. Slice 95.28%→**94.80%**, LOC −556. **Vivado-Pragma-Pitfall:** Wort `translate_off` im Kommentar wurde fälschlich als Pragma erkannt → File-Parse-Fail; iverilog hat das nicht detected. **Live-verifiziert 2026-05-04 09:21:** ul_req:accept=**1:1** (Gold-Klasse 1-shot), reass_ok=1, Frag-3-BL-ACK in ul_mon — sauberer als pre-X.7.
+- ✅ X.7 Cleanup-Sweep (commit `8a2699a` + Pragma-Fix) — DELETE `tetra_db_mgr.c`+`tetra_dbsync.sh`+`tetra_autoenroll.sh` (X.3 zentral); MLE-FSM Dead-Code-Latches (`lat_la`/`lat_loc_upd_type`/`lat_gila_*`) + `use_sw_body`-Mux raus (USE_SW=1 ist Lock seit X.4); Encoder-Legacy-124-bit-Pfad raus (`subscriber_class`, `address_extension`, `pdu_bits[123:0]`). MM-Body unverändert. Slice 95.28%→**94.80%**, LOC −556. **Vivado-Pragma-Pitfall:** Wort `translate_off` im Kommentar wurde fälschlich als Pragma erkannt → File-Parse-Fail; iverilog hat das nicht detected. **Live-verifiziert 2026-05-04 09:21:** ul_req:accept=**1:1** (-Klasse 1-shot), reass_ok=1, Frag-3-BL-ACK in ul_mon — sauberer als pre-X.7.
 - ➡️ **Phase X komplett.**
 
 **Phase Y — Group-Attach + Group-Call (in Arbeit)**
@@ -116,32 +116,32 @@ Detail-Memo: `project_arch_fpga_thin_signaling.md`.
 
 ```
 AD9361 IQ ──► [axi_ad9361 IP] ──► [adapter] ──► [RX Frontend: CIC+RRC]
-                                                      │
-                                                      ▼
-          [Demod] ──► [Timing Recovery] ──► [Sync Detect]
-                                                      │
-                                                      ▼
-                 [Burst Demux] ──► [Frame Counter] (TDMA-Status)
-                                                      │
-                    ┌─────────────────────────────────┘
-                    ▼
+ │
+ ▼
+ [Demod] ──► [Timing Recovery] ──► [Sync Detect]
+ │
+ ▼
+ [Burst Demux] ──► [Frame Counter] (TDMA-Status)
+ │
+ ┌─────────────────────────────────┘
+ ▼
  [LMAC RX: descramble → deinterleave → Viterbi → CRC → Reed-Muller]
-                    │
-                    ▼
+ │
+ ▼
  [MAC-ACCESS Parser] ──► [MLE Registration FSM] ──► [Active Session Table]
-                                                             │
-                                                             ▼
-                                        [MAC-RESOURCE DL Builder]
-                                        [D-LOCATION-UPDATE Encoder]
-                                                             │
-                                                             ▼
+ │
+ ▼
+ [MAC-RESOURCE DL Builder]
+ [D-LOCATION-UPDATE Encoder]
+ │
+ ▼
  [LMAC TX: CRC → RCPC → interleave → scramble] ──► [π/4-DQPSK Mod]
-                                                             │
-                                                             ▼
-                                  [RRC → CIC → DAC → axi_ad9361 IP]
-                                                             │
-                                                             ▼
-                                                         AD9361 IQ
+ │
+ ▼
+ [RRC → CIC → DAC → axi_ad9361 IP]
+ │
+ ▼
+ AD9361 IQ
 ```
 
 ### 3.2 Modulbaum (aktueller Stand)
@@ -151,47 +151,47 @@ tetra_zynq_top.v
 ├── tetra_ad9361_axis_adapter.v
 │
 ├── tetra_rx_chain.v
-│   ├── tetra_rx_frontend.v          (CIC + RRC)
-│   ├── tetra_pi4dqpsk_demod.v       (CORDIC)
-│   ├── tetra_timing_recovery.v      (Gardner TED + NCO)
-│   ├── tetra_sync_detect.v          (Training-Seq-Correlator)
-│   ├── tetra_burst_demux.v          (4-Slot Demux)
-│   ├── tetra_frame_counter.v        (TDMA-Hierarchie)
-│   ├── tetra_ul_sync_detect_os4.v   (UL-RA-Sync, 4× oversampled)
-│   ├── tetra_ul_burst_capture.v     (UL-RA-Ring-Buffer)
-│   ├── tetra_ul_pi4dqpsk_demod.v    (UL Demod 5-bit Soft-out)
-│   ├── tetra_ul_sch_hu_decoder.v    (K=168, a=13, 92 info bits)
-│   └── tetra_ul_viterbi_r14.v       (ETSI-konformer UL-Viterbi)
+│ ├── tetra_rx_frontend.v (CIC + RRC)
+│ ├── tetra_pi4dqpsk_demod.v (CORDIC)
+│ ├── tetra_timing_recovery.v (Gardner TED + NCO)
+│ ├── tetra_sync_detect.v (Training-Seq-Correlator)
+│ ├── tetra_burst_demux.v (4-Slot Demux)
+│ ├── tetra_frame_counter.v (TDMA-Hierarchie)
+│ ├── tetra_ul_sync_detect_os4.v (UL-RA-Sync, 4× oversampled)
+│ ├── tetra_ul_burst_capture.v (UL-RA-Ring-Buffer)
+│ ├── tetra_ul_pi4dqpsk_demod.v (UL Demod 5-bit Soft-out)
+│ ├── tetra_ul_sch_hu_decoder.v (K=168, a=13, 92 info bits)
+│ └── tetra_ul_viterbi_r14.v (ETSI-konformer UL-Viterbi)
 │
 ├── tetra_tx_chain.v
-│   ├── tetra_pi4dqpsk_mod.v         (Symbol-Mapping)
-│   ├── tetra_rrc_filter.v           (α=0.35)
-│   ├── tetra_burst_builder.v        (255-sym Slot-Content)
-│   ├── tetra_burst_mux.v            (4-Slot Multiplexer)
-│   ├── tetra_tx_frontend.v          (CIC-Interpolation)
-│   ├── tetra_sb1_encoder.v          (BSCH/SYNC-PDU)
-│   ├── tetra_sch_f_encoder.v        (SCH/F 268→432)
-│   └── tetra_aach_encoder.v         (Reed-Muller 30/14)
+│ ├── tetra_pi4dqpsk_mod.v (Symbol-Mapping)
+│ ├── tetra_rrc_filter.v (α=0.35)
+│ ├── tetra_burst_builder.v (255-sym Slot-Content)
+│ ├── tetra_burst_mux.v (4-Slot Multiplexer)
+│ ├── tetra_tx_frontend.v (CIC-Interpolation)
+│ ├── tetra_sb1_encoder.v (BSCH/SYNC-PDU)
+│ ├── tetra_sch_f_encoder.v (SCH/F 268→432)
+│ └── tetra_aach_encoder.v (Reed-Muller 30/14)
 │
 ├── tetra_lmac.v
-│   ├── tetra_scrambler.v
-│   ├── tetra_interleaver.v
-│   ├── tetra_rcpc_encoder.v
-│   ├── tetra_viterbi_decoder.v      (DL-Path, 16-state)
-│   ├── tetra_reed_muller.v
-│   ├── tetra_crc16.v
-│   ├── tetra_steal_detect.v
-│   ├── tetra_ul_mac_access_parser.v (MAC-ACCESS Header → AXI-Mailbox)
-│   ├── tetra_mle_registration_fsm.v (UL-RA → AST-Query → ACCEPT → DL-Queue)
-│   ├── tetra_d_location_update_encoder.v (MM-PDU-Builder)
-│   ├── tetra_mac_resource_dl_builder.v   (MAC-RESOURCE-Wrapper)
-│   ├── tetra_active_session_table.v      (ISSI → Slot-Alloc BRAM)
-│   ├── tetra_dl_signal_queue.v           (depth-4 Drop-Newest FIFO)
-│   └── tetra_dl_signal_scheduler.v       (MLE > CMCE > SDS, 1 frame ahead)
+│ ├── tetra_scrambler.v
+│ ├── tetra_interleaver.v
+│ ├── tetra_rcpc_encoder.v
+│ ├── tetra_viterbi_decoder.v (DL-Path, 16-state)
+│ ├── tetra_reed_muller.v
+│ ├── tetra_crc16.v
+│ ├── tetra_steal_detect.v
+│ ├── tetra_ul_mac_access_parser.v (MAC-ACCESS Header → AXI-Mailbox)
+│ ├── tetra_mle_registration_fsm.v (UL-RA → AST-Query → ACCEPT → DL-Queue)
+│ ├── tetra_d_location_update_encoder.v (MM-PDU-Builder)
+│ ├── tetra_mac_resource_dl_builder.v (MAC-RESOURCE-Wrapper)
+│ ├── tetra_active_session_table.v (ISSI → Slot-Alloc BRAM)
+│ ├── tetra_dl_signal_queue.v (depth-4 Drop-Newest FIFO)
+│ └── tetra_dl_signal_scheduler.v (MLE > CMCE > SDS, 1 frame ahead)
 │
-├── tetra_axi_dma_bridge.v            (PL → PS S2MM)
-├── tetra_axi_lite_regs.v             (Reg-Bank + Shadow-BRAM-Window)
-└── tetra_clk_reset.v                 (Reset-Sync, MMCM)
+├── tetra_axi_dma_bridge.v (PL → PS S2MM)
+├── tetra_axi_lite_regs.v (Reg-Bank + Shadow-BRAM-Window)
+└── tetra_clk_reset.v (Reset-Sync, MMCM)
 ```
 
 ### 3.3 Verilog-Konventionen
@@ -202,26 +202,26 @@ tetra_zynq_top.v
 - **Keine Arrays** in Synthese-Code — flache Busse statt `reg [7:0] mem [0:255]`
 - `snake_case` für Signale, `UPPER_CASE` für Parameter, `tetra_` Prefix für alle Module
 - FSM: separater `always`-Block für State-Register und kombinatorische Next-State-Logik
-- Pipeline-Dokumentation pro Stufe mit `// Pipeline Stage N: ...`-Kommentar
+- Pipeline-Dokumentation pro Stufe mit `// Pipeline Stage N:...`-Kommentar
 
 ---
 
 ## 4. Meilensteine
 
 ```
-M1: MS sieht BS, RACH sichtbar       ✅ fertig (UL-Decode HW-verifiziert 2026-04-22)
-M2: MS bucht sich ein                ✅ HW-verifiziert 2026-04-25 12:18 (Build `26191b4`, MTP3550 attached)
-M3: Gruppenruf mit Voice-Relay       ⏳ Phase 3 (komplett in RTL geplant)
-M4: Einzelrufe + Paging              ⏳ Phase 4
+M1: MS sieht BS, RACH sichtbar ✅ fertig (UL-Decode HW-verifiziert 2026-04-22)
+M2: MS bucht sich ein ✅ HW-verifiziert 2026-04-25 12:18 (Build `26191b4`, MTP3550 attached)
+M3: Gruppenruf mit Voice-Relay ⏳ Phase 3 (komplett in RTL geplant)
+M4: Einzelrufe + Paging ⏳ Phase 4
 ```
 
 ### 4.1 M1 — MS sieht BS, sendet RACH ✅
 
 | Substep | Scope | Status |
 |---------|-------|--------|
-| M1.1 SYSINFO PDU | `sw/tetra_hal.c` — `build_sysinfo_pdu()`, `late_entry=1`, `cell_service_level=service_available` | ✅ bit-exakt Gold-WAV |
+| M1.1 SYSINFO PDU | `sw/tetra_hal.c` — `build_sysinfo_pdu()`, `late_entry=1`, `cell_service_level=service_available` | ✅ bit-exakt WAV |
 | M1.2 ACCESS_DEFINE in BNCH | `sw/tetra_hal.c` — echte PDU statt PN-Filler | ✅ BNCH echter Content |
-| M1.3 AACH Access Assignment | `build_aach()` — CapAlloc F1-17, F18 DL/UL-Assign mit MN%4-Rotation | ✅ matcht Gold |
+| M1.3 AACH Access Assignment | `build_aach()` — CapAlloc F1-17, F18 DL/UL-Assign mit MN%4-Rotation | ✅ matcht |
 | M1.4 NTS Sync-Detection für UL | `tetra_sync_detect.v` — NTS 11-sym + STS 19-sym schaltbar | ✅ |
 | M1.5 UL Burst Demux / NUB+CUB | Neuer UL-RX-Pfad (127-sym CB für RA) | ✅ HW-verifiziert MTP3550 |
 | M1.6 RACH-Erkennung | 41/42 CRC-Pass gegen Python-Baseline | ✅ 2026-04-22 |
@@ -233,13 +233,13 @@ M4: Einzelrufe + Paging              ⏳ Phase 4
 |---------|--------|
 | M2.1 SCH/HU Channel-Decoding | ✅ `tetra_ul_sch_hu_decoder.v` + `tetra_ul_viterbi_r14.v` (ETSI-konform), HW-verifiziert |
 | M2.2 MAC Layer (MAC-RESOURCE Builder + AST) | ✅ `tetra_mac_resource_dl_builder.v` + `tetra_active_session_table.v` |
-| M2.3 MLE Registration FSM + D-LOC-UPDATE-Encoder | ✅ Two-Phase-Attach (SCH/HD AL-SETUP + SCH/F BL-ADATA), 102-bit MM body bit-exakt zur Gold-Ref, ra_flag=0 im Accept |
+| M2.3 MLE Registration FSM + D-LOC-UPDATE-Encoder | ✅ Two-Phase-Attach (SCH/HD AL-SETUP + SCH/F BL-ADATA), 102-bit MM body bit-exakt zur -Ref, ra_flag=0 im Accept |
 | M2.4 Per-Slot TX-Content-Mux | ✅ `tetra_slot_content_mux.v` + `tetra_dl_signal_queue.v` + `tetra_dl_signal_scheduler.v` (Refactor 2026-04-23) + `sched_active_sys` Bus für AACH-Override (2026-04-25) |
 | M2.5 SYSINFO Frame-Counter im RTL | ⚠️ Teilweise — `tx_frame_cnt_sys` läuft frei, aber Frame-Nummer wird aus SW geschrieben (siehe §5) |
 | M2.6 DL-Signal-Queue/Scheduler | ✅ Lock-Spec validiert + AACH dynamic Unalloc/Unalloc + 1-Frame Pre-Reply→Accept-Gap |
 | M2.7 UL-Parser bluestation-aligned | ✅ 2-bit addr_type + 24-bit ISSI (Commit `eeabf1f`..`1f1ec3a`) |
 | M2.8 MLE-FSM mm_type=2 als U-LOC-UPDATE-DEMAND | ✅ Commit `545cc50` — `MmPduTypeUl` ist UL-PDU-Type-Authority |
-| M2.9 MM-Body bit-exakter Gold-Ref-Replay | ✅ Commit `26191b4` — 102-bit, GILA mit GSSI=0x2F4D61 |
+| M2.9 MM-Body bit-exakter Ref-Replay | ✅ Commit `26191b4` — 102-bit, GILA mit GSSI=0x2F4D61 |
 
 **Verifikation (2026-04-25 12:18 ZULU, Build `26191b4`):** `tetra_ul_mon.log`
 zeigt 1 Demand-Fragment vom MTP3550, dann Stille. AXI-Counter
@@ -283,26 +283,26 @@ Re-Demand-Loop. Siehe `PROTOCOL.md §9` für komplette Wegfindung.
 
 ```
  ┌──────────────────────────────────────────────────────────────────┐
- │ tetra_tdma_timebase                                              │
- │  TN[1:0] FN[4:0] MN[5:0] HN[5:0]  (+1 pro tx_slot_pulse)        │
- │  sync_load_strobe (AXI) → SW lädt absolute Zeit bei Boot         │
- │  tdma_tick  → 1 Sys-Takt vor slot_pulse (Preload-Window)         │
+ │ tetra_tdma_timebase │
+ │ TN[1:0] FN[4:0] MN[5:0] HN[5:0] (+1 pro tx_slot_pulse) │
+ │ sync_load_strobe (AXI) → SW lädt absolute Zeit bei Boot │
+ │ tdma_tick → 1 Sys-Takt vor slot_pulse (Preload-Window) │
  └─┬──────────────────────┬──────────────────────┬─────────────────┘
-   │                      │                      │ (FN)
-   ▼                      ▼                      ▼
- ┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐
- │ slot_schedule│  │ bsch_encoder     │  │ aach_encoder     │
- │ BRAM 288×16  │  │ SYNC-PDU → 120b  │  │ 14b→RM(30,14)    │
- └─┬────────────┘  └──┬───────────────┘  └─────────────┬────┘
-   │ schedule_entry   │ sb_sb1                         │ bb
-   ▼                  ▼                                ▼
+ │ │ │ (FN)
+ ▼ ▼ ▼
+ ┌──────────────┐ ┌──────────────────┐ ┌──────────────────┐
+ │ slot_schedule│ │ bsch_encoder │ │ aach_encoder │
+ │ BRAM 288×16 │ │ SYNC-PDU → 120b │ │ 14b→RM(30,14) │
+ └─┬────────────┘ └──┬───────────────┘ └─────────────┬────┘
+ │ schedule_entry │ sb_sb1 │ bb
+ ▼ ▼ ▼
  ┌────────────────────────────────────────────────────────────────┐
- │ slot_content_mux                                                │
- │  payload_class wählt: {BSCH+BNCH+AACH, MCCH, NDB-SYSINFO,      │
- │                        NULL-PDU, empty}                        │
+ │ slot_content_mux │
+ │ payload_class wählt: {BSCH+BNCH+AACH, MCCH, NDB-SYSINFO, │
+ │ NULL-PDU, empty} │
  └─┬──────────────────────────────────────────────────────────────┘
-   │ {block1, block2, bb, sb1, bkn2, nts_sel, burst_type}
-   ▼
+ │ {block1, block2, bb, sb1, bkn2, nts_sel, burst_type}
+ ▼
  [tetra_burst_builder]
 ```
 
@@ -316,13 +316,13 @@ Re-Demand-Loop. Siehe `PROTOCOL.md §9` für komplette Wegfindung.
 
 Eintrag-Format (16 bit):
 ```
-[15:12] payload_class  (0=STATIC_BROADCAST, 1=NULL_PDU, 2=TCH, 3..15=reserved)
-[11:6]  payload_idx    (Variant/Slot/Channel-Nummer innerhalb der Klasse)
-[5:4]   burst_type     (00=NDB, 01=SDB, 10=reserved, 11=idle)
-[3]     ndb2           (Training-Seq 2 vs. 1)
-[2]     enable         (0 = blank burst, kein RF)
-[1]     sys_time_inject (obsolet, Umwidmung möglich)
-[0]     reserved
+[15:12] payload_class (0=STATIC_BROADCAST, 1=NULL_PDU, 2=TCH, 3..15=reserved)
+[11:6] payload_idx (Variant/Slot/Channel-Nummer innerhalb der Klasse)
+[5:4] burst_type (00=NDB, 01=SDB, 10=reserved, 11=idle)
+[3] ndb2 (Training-Seq 2 vs. 1)
+[2] enable (0 = blank burst, kein RF)
+[1] sys_time_inject (obsolet, Umwidmung möglich)
+[0] reserved
 ```
 
 **Stufe 3.5 — `tetra_bsch_encoder.v`** (neu): BSCH 60 type-1 → CRC16 → tail → RCPC 2/3 → interleave 8×15 → scramble(init=3) → 120 type-5. Inputs: `tn/fn/mn` aus Timebase + Cell-Config-Register (MCC/MNC/CC/System-Code etc.). Budget: ~400 Sys-Takte = 4 µs bei 100 MHz.
@@ -333,14 +333,14 @@ Eintrag-Format (16 bit):
 
 **Stufe 5 — Cell-Config-Register** (`0xE0` CELL_CFG_0, `0xE4` CELL_CFG_1): MCC, MNC, sys_code, sharing_mode, ts_reserved_frames, U-plane-DTX, neigh_cell_bc, cell_service_level, late_entry.
 
-**Stufe 6 — NULL-PDU-Register** (`0x340..0x34F`, 4× 32 bit = 128 Bit): statisches 124-Bit-Pattern `0x0010_8000_0000_…_0000` (Gold-Messung: 97/97 Vorkommen bit-identisch). SW schreibt einmal beim Boot via `build_schf_null_pdu()`.
+**Stufe 6 — NULL-PDU-Register** (`0x340..0x34F`, 4× 32 bit = 128 Bit): statisches 124-Bit-Pattern `0x0010_8000_0000_…_0000` (-Messung: 97/97 Vorkommen bit-identisch). SW schreibt einmal beim Boot via `build_schf_null_pdu()`.
 
-**Stufe 7 — Gold-Schedule-Preset**: `scripts/gold_schedule.py` erzeugt 288-Byte Blob, SW `memcpy` ins AXI-Fenster. Gold-Muster:
+**Stufe 7 — -Schedule-Preset**: `scripts/schedule.py` erzeugt 288-Byte Blob, SW `memcpy` ins AXI-Fenster. -Muster:
 - TN=1,2,3 (ETSI 2,3,4): alle SDB mit `sys_time_inject=1`
 - TN=0 (ETSI 1): F18 MN%4==2 = SDB, sonst MCCH (ACCESS-DEFINE), sonst NDB-SYSINFO/NULL-PDU je MN%4
-- Alle `enable=1` — Gold sendet durchgehend
+- Alle `enable=1` — sendet durchgehend
 
-**Stufe 8 — SW-Migration**: `tetra_sysinfo` schreibt Cell-Config + Gold-Preset + NULL-PDU-Register nur einmal beim Boot. Per-Slot-Encoding-Pfade (BSCH, AACH) werden aus SW entfernt.
+**Stufe 8 — SW-Migration**: `tetra_sysinfo` schreibt Cell-Config + -Preset + NULL-PDU-Register nur einmal beim Boot. Per-Slot-Encoding-Pfade (BSCH, AACH) werden aus SW entfernt.
 
 ### 5.4 Aktueller Status TDMA-Umbau
 
@@ -360,7 +360,7 @@ Eintrag-Format (16 bit):
 | UL RX Chain (RA) | 6 | 5 | ✅ 5/5 PASS (HW-verifiziert) | 2 |
 | LMAC DL+UL | 11 | 11 | ✅ 11/11 PASS | 2 |
 | TX Chain | 6 | 6 | ✅ 6/6 PASS | 3 |
-| Signalling (MLE/MAC-RES/DL-Queue) | 6 | 6 | ✅ 6/6 PASS (incl. Golden-SCH/F) | 2 |
+| Signalling (MLE/MAC-RES/DL-Queue) | 6 | 6 | ✅ 6/6 PASS (incl. Reference-SCH/F) | 2 |
 | Infra (AXI-Regs, DMA, Reset) | 3 | 3 | ✅ 3/3 PASS | 1 |
 | **Total** | **~40** | **~35** | **Integration ok** | — |
 
@@ -404,7 +404,7 @@ Eintrag-Format (16 bit):
 | `tetra_dl_signal_scheduler` | ~300 | ~500 | 0 | 0 | ok | MLE>CMCE>SDS, 1 frame ahead |
 | `tetra_mle_registration_fsm` | ~500 | ~700 | 0 | 0 | 4/4 | FSM + AST-Handshake + SCH/F-Encoder |
 | `tetra_slot_content_mux` | ~200 | ~300 | 0 | 0 | 8/8 | 4-TN-Sweep inkl. SIGNALLING-Routing |
-| `tetra_axi_lite_regs` | ~500 | ~400 | 0 | 0 | 10/10 | 0x00..0x1AC + SB/NDB + Gold-Schedule |
+| `tetra_axi_lite_regs` | ~500 | ~400 | 0 | 0 | 10/10 | 0x00..0x1AC + SB/NDB + -Schedule |
 | `tetra_axi_dma_bridge` | ~120 | ~570 | 0 | 0 | 7/7 | S2MM 32-bit |
 | **Summe** | **~12,000** | **~25,000** | **~10** | **~5** | | — |
 
@@ -455,7 +455,7 @@ Eintrag-Format (16 bit):
 | 2026-04-23 | Bug #9: FCS Coverage-Scope (ganz LLC) + kein Pre-Shift bei len<32 | MAC-RESOURCE-Builder | osmo-style: TL-SDU-only + `crc <<= (32-len)` |
 | 2026-04-24 | RandAccFlag=0 hartverdrahtet | MAC-RESOURCE-Builder | `90bda0a` — =1 für ISSI-adressierte Accept (ETSI §21.4.3.1) |
 | 2026-04-24 | LLC BL-ADATA+FCS statt BL-DATA + MM bluestation-aligned | MLE-FSM, Encoder | `e056439` |
-| 2026-04-24 | Two-Phase-Attach-Flow fehlte | DL-Signalling | `2c8ad4a` — SCH/HD AL-SETUP LI=7 pre-reply + SCH/F BL-ADATA LI=21 Accept (matcht Gold-Ref Burst #727+#735) |
+| 2026-04-24 | Two-Phase-Attach-Flow fehlte | DL-Signalling | `2c8ad4a` — SCH/HD AL-SETUP LI=7 pre-reply + SCH/F BL-ADATA LI=21 Accept (matcht Ref Burst #727+#735) |
 | 2026-04-25 | UL MAC-ACCESS-Parser falsch aligned: `addr_type=3 bit` + `short_ssi=10 bit` ergab konstant 523 für jede Motorola-MS | `rtl/lmac/tetra_ul_mac_access_parser.v` | `eeabf1f` — bluestation-Layout (2-bit `addr_type` + 24-bit ISSI) |
 | 2026-04-25 | REG_UL_PDU_SSI 10-bit-mask | `rtl/infra/tetra_axi_lite_regs.v`, `sw/tetra_ul_mon.c` | `83f2cdc` + `eb42913` — auf 24-bit (`0xFFFFFF`) erweitert |
 | 2026-04-25 | 24-bit ISSI nicht durch CDC propagiert | `rtl/tetra_zynq_top.v` | `26035a9` |
@@ -463,7 +463,7 @@ Eintrag-Format (16 bit):
 | 2026-04-25 | TB-Coverage für ISSI-Pfad | `tb/tb_ul_mac_access_parser.v` + `tb/tb_mle_registration_fsm.v` | `1f1ec3a` — externe-BS- + MTP3550-on-air-Vektoren, 31/31 + 6/6 PASS |
 | 2026-04-25 | UL-MM-Type-Filter mismatch | `rtl/tetra_zynq_top.v` | `545cc50` — mm_type=2 (= U-LOC-UPDATE-DEMAND per `MmPduTypeUl`) als Trigger akzeptiert (DL-Tabelle hatte =4 erwartet) |
 | 2026-04-25 | AACH statisch + Pre-Reply→Accept Gap fehlte | `rtl/tx/tetra_aach_encoder.v`, `rtl/lmac/tetra_dl_signal_scheduler.v`, `rtl/lmac/tetra_mle_registration_fsm.v` | `b994e5d` — dynamic AACH Unalloc/Unalloc + 1-Frame Gap S_WAIT_GAP_FRAME |
-| 2026-04-25 | MM-Body-Inhalt nicht bit-exakt zur Gold-Ref | `rtl/lmac/tetra_d_location_update_encoder.v` + `rtl/lmac/tetra_mle_registration_fsm.v` | `26191b4` — 102-bit MM body bit-exakt, GILA mit GSSI=0x2F4D61, ra_flag=0 im Accept → **MTP3550 attached** |
+| 2026-04-25 | MM-Body-Inhalt nicht bit-exakt zur Ref | `rtl/lmac/tetra_d_location_update_encoder.v` + `rtl/lmac/tetra_mle_registration_fsm.v` | `26191b4` — 102-bit MM body bit-exakt, GILA mit GSSI=0x2F4D61, ra_flag=0 im Accept → **MTP3550 attached** |
 | 2026-04-25 | Subscriber-Shadow Permit-Check fehlte (jeder ISSI durfte attachen) | `rtl/lmac/tetra_d_location_update_reject_encoder.v` (NEU) + `rtl/lmac/tetra_mle_registration_fsm.v` (S_SHADOW_QUERY/WAIT/PERMIT_DECIDE) + `rtl/tetra_zynq_top.v` (Shadow.q_* Verdrahtung + DB-Policy CDC) + `rtl/infra/tetra_axi_lite_regs.v` (REG_DB_POLICY @ 0x1AC) | `2af8e8c` — Phase A der Subscriber-DB; Default `accept_unknown=1` bewahrt M2-Verhalten, `=0` aktiviert strict permit-check |
 | 2026-04-25 | U-ITSI-DETACH räumt AST-Slot nicht; AST-`last_seen` fehlte für TTL-Sweep | AST 64→128 bit + free-running 24-bit Multiframe-Counter (`mf_global_cnt_sys`) + `S_DETACH_QUERY/WAIT/CLEAR` States + `REG_AST_DETACH_CNT @ 0x1A4` | `cae0ebc` — Phase B; AST schlüsselt mit ISSI im Top-Block, `last_seen` rollt nach 197 Tagen, Detach-Trigger=mm_pdu_type=1 |
 | 2026-04-25 | Stille AST-Slots werden nie geräumt (Zombie-Risiko) — Detach-Path verlässt sich auf NUB-RX-Pfad der noch nicht da ist | AST single-port BRAM mit Sweep-Mux (Vivado `INBB-3` verbietet two-driver-pattern), neuer Sweeper-FSM (SW_IDLE→READ→CHECK→INVALIDATE) intern im AST-Modul + REG_AST_TTL_MULTIFRAMES @ 0x1A8 (default 84706 ≈ 24 h) + REG_AST_TTL_EVICT_CNT @ 0x1B0 | `e51cc6c` + `a9d0f1a` — Phase C; 1 Slot pro Multiframe, on-air verifiziert (TTL=30 → ≥1 Evict in <2 s) |
@@ -486,14 +486,14 @@ Diese sind für M2 nicht relevant gewesen, werden aber für M3 gebraucht:
 - Group-Identity-Attach (echter Path mit dynamischer GILA aus Subscriber-DB)
 - Voice-Pfad (CMCE D-SETUP/D-CONNECT, ACELP)
 - **UL-RX-Lücke war Sync-Threshold, kein NUB-Pfad-Bug** (RESOLVED 2026-04-25):
-  Air-Capture zeigte 12 Bursts vs. 3 in `ul_mon` → Hypothese "NUB-Pfad
-  fehlt" widerlegt: alle 12 sind SCH/HU mit gültigem CRC, davon 4× echte
-  `U-ITSI-DETACH` (mm_type=1 per `MmPduTypeUl`, decode_ul.py hatte's
-  als U-AUTH gelabelt — DL-Tabelle statt UL). Echte Ursache:
-  `tetra_ul_sync_detect_os4` 4-bit-corr saturiert bei 15, geteilter
-  `REG_SYNC_THRESH` Default 0x0F filterte ~75% raus. Live auf 0x0D
-  getuned, `0x1A4` zählt seither on-air. Default-Fix Commit `4bd43e3`,
-  decoder-Tabelle `4d673d3`. Memory: `project_ul_os4_threshold.md`.
+ Air-Capture zeigte 12 Bursts vs. 3 in `ul_mon` → Hypothese "NUB-Pfad
+ fehlt" widerlegt: alle 12 sind SCH/HU mit gültigem CRC, davon 4× echte
+ `U-ITSI-DETACH` (mm_type=1 per `MmPduTypeUl`, decode_ul.py hatte's
+ als U-AUTH gelabelt — DL-Tabelle statt UL). Echte Ursache:
+ `tetra_ul_sync_detect_os4` 4-bit-corr saturiert bei 15, geteilter
+ `REG_SYNC_THRESH` Default 0x0F filterte ~75% raus. Live auf 0x0D
+ getuned, `0x1A4` zählt seither on-air. Default-Fix Commit `4bd43e3`,
+ decoder-Tabelle `4d673d3`. Memory: `project_ul_os4_threshold.md`.
 
 ---
 
@@ -502,9 +502,9 @@ Diese sind für M2 nicht relevant gewesen, werden aber für M3 gebraucht:
 ### 8.1 Zeitplan (Schätzung)
 
 ```
-Woche 1-3:   M1 — MS sieht BS, RACH sichtbar         ✅ fertig (UL-Decode HW-verifiziert)
-Woche 4-8:   M2 — Einbuchen (Stack-Rebuild Bluestation-style)
-Woche 9-15:  M3 — Gruppenruf mit Voice-Relay
+Woche 1-3: M1 — MS sieht BS, RACH sichtbar ✅ fertig (UL-Decode HW-verifiziert)
+Woche 4-8: M2 — Einbuchen (Stack-Rebuild Bluestation-style)
+Woche 9-15: M3 — Gruppenruf mit Voice-Relay
 Woche 16-19: M4 — Einzelrufe + Paging
 ```
 
@@ -514,7 +514,7 @@ Woche 16-19: M4 — Einzelrufe + Paging
 
 | # | Risiko | Impact | Mitigation |
 |---|--------|--------|------------|
-| 1 | ~~MS-Registration-Blocker~~ ✅ **gelöst 2026-04-25 12:18** durch bit-exakten Gold-Ref MM-Body-Replay (Build `26191b4`) | M2 abgeschlossen | — |
+| 1 | ~~MS-Registration-Blocker~~ ✅ **gelöst 2026-04-25 12:18** durch bit-exakten Ref MM-Body-Replay (Build `26191b4`) | M2 abgeschlossen | — |
 | 2 | FDD RF-Isolation — TX desensibilisiert RX bei Single-Antenna | Reduzierte RX-Empfindlichkeit | Duplexer oder 2 Antennen mit Abstand (Lab: 2 Antennen 10 cm) |
 | 3 | UL Timing Advance — MS sendet Burst zu früh/spät | Sync-Fenster-Miss | Sync-Fenster breit (±2 Symbole), bereits implementiert |
 | 4 | CUB-Erkennung — kurzer Burst (127 sym), 2 sym Guard | RA-Miss | NTS-Threshold angepasst, Holdoff kurz (verifiziert 41/42) |
@@ -547,24 +547,24 @@ Total: **2 BRAM18k** von 140 verfügbar auf Zynq-7020.
 **Entity Table (64 bit):**
 
 ```
-[63:40]  entity_id     24    ISSI ODER GSSI
-[39]     entity_type    1    0=ISSI, 1=GSSI
-[38:35]  profile_id     4    Index in Profile Table (0..5)
-[34: 1]  reserved      34
-[ 0]     valid          1
+[63:40] entity_id 24 ISSI ODER GSSI
+[39] entity_type 1 0=ISSI, 1=GSSI
+[38:35] profile_id 4 Index in Profile Table (0..5)
+[34: 1] reserved 34
+[ 0] valid 1
 ```
 
 **Profile Table (32 bit, 6 Slots):**
 
 ```
-[31:24]  max_call_duration  8    Sekunden, 0=unlimited, max 255 s
-[23:16]  hangtime           8    × 100 ms, max 25.5 s
-[15:12]  priority           4
-[11: 4]  reserved           8    (encryption_class, dispatcher_allowed später)
-[ 3]     permit_voice       1
-[ 2]     permit_data        1
-[ 1]     permit_reg         1
-[ 0]     valid              1
+[31:24] max_call_duration 8 Sekunden, 0=unlimited, max 255 s
+[23:16] hangtime 8 × 100 ms, max 25.5 s
+[15:12] priority 4
+[11: 4] reserved 8 (encryption_class, dispatcher_allowed später)
+[ 3] permit_voice 1
+[ 2] permit_data 1
+[ 1] permit_reg 1
+[ 0] valid 1
 ```
 
 Profile 0 = "minimal-permit" (`permit_reg=1`, alles andere 0) — Default
@@ -573,12 +573,12 @@ für Auto-Enrollment unbekannter ISSIs/GSSIs.
 **AST (256 bit, 64 Slots):**
 
 ```
-[255:232]  ISSI                  24
-[231:208]  last_seen_multiframe  24    24-bit-Counter, rollover ≈ 197 Tage
-[207:200]  shadow_idx             8    Backref Entity Table
-[199:196]  state                  4    0=FREE, 1=REG, 2=CALL_SETUP, 3=VOICE, 4=PAGING
-[195:192]  group_count            4    0..8 gültige GSSIs
-[191:  0]  group_list[8]        192    8 × 24 bit GSSI
+[255:232] ISSI 24
+[231:208] last_seen_multiframe 24 24-bit-Counter, rollover ≈ 197 Tage
+[207:200] shadow_idx 8 Backref Entity Table
+[199:196] state 4 0=FREE, 1=REG, 2=CALL_SETUP, 3=VOICE, 4=PAGING
+[195:192] group_count 4 0..8 gültige GSSIs
+[191: 0] group_list[8] 192 8 × 24 bit GSSI
 ```
 
 ### 9.3 Datenfluss
@@ -587,36 +587,36 @@ für Auto-Enrollment unbekannter ISSIs/GSSIs.
 
 ```
 1. Entity.query(ISSI, type=ISSI) → record + profile_id
-   Profile.lookup(profile_id) → permit_reg?
-     ├─ permit_reg=0 → REJECT (D-LOC-UPDATE-REJECT)
-     └─ permit_reg=1 → continue
+ Profile.lookup(profile_id) → permit_reg?
+ ├─ permit_reg=0 → REJECT (D-LOC-UPDATE-REJECT)
+ └─ permit_reg=1 → continue
 2. Falls miss UND REG_DB_POLICY[0] (accept_unknown)=1:
-     Entity.alloc → write {ISSI, profile_id=0, valid=1}
+ Entity.alloc → write {ISSI, profile_id=0, valid=1}
 3. (Optional) MS sendet GSSI-Liste über LocUpdate-Demand-IE
-   `group_identity_location_demand` ODER separates
-   `U-ATTACH-DETACH-GROUP-IDENTITY`.
-   Pro vom MS gewünschter GSSI:
-     Entity.query(GSSI, type=GSSI) → profile_id
-     Profile.lookup(profile_id) → permit_voice/data → accept_or_reject
+ `group_identity_location_demand` ODER separates
+ `U-ATTACH-DETACH-GROUP-IDENTITY`.
+ Pro vom MS gewünschter GSSI:
+ Entity.query(GSSI, type=GSSI) → profile_id
+ Profile.lookup(profile_id) → permit_voice/data → accept_or_reject
 
-   **WICHTIG (Bit-Forensik 2026-04-26):** der MS-seitige
-   `group_identity_location_demand`-IE liegt **nicht** im ersten Burst,
-   sondern im **2. Burst (MAC-U-BLCK Continuation)** des Demand-
-   Reassemblies. UL#0 trägt MAC-ACCESS frag=1 mit nur 44 Bit MM-Body-
-   Anfang; UL#1 trägt PDU-Type=1 (MAC-U-BLCK) mit 88 Bit Continuation.
-   BS reassembliert UL#0[48..91] + UL#1[4..91] zu einem 132-bit MM
-   body, der erst dann die GSSI-IE enthält. Aktuelle Implementation
-   (Phase D-rev) macht kein Reassembly — die MS-GSSI-Wunschliste wird
-   ignoriert, BS diktiert die GSSI über das `group_identity_downlink`-
-   IE im D-LOC-UPDATE-ACCEPT (EntityTable Default-GSSI-Lookup).
-   Memory: `project_ms_gssi_wish_in_demand.md`. Reassembly +
-   IE-Parser ist Sprint-Voraussetzung für M3 wenn echte
-   MS-Group-Verhandlung gewünscht ist (M2-Operator-zentriertes Modell
-   ohne Reassembly funktioniert weiter, nur die MS-Wunsch-GSSI ist
-   ignoriert).
+ **WICHTIG (Bit-Forensik 2026-04-26):** der MS-seitige
+ `group_identity_location_demand`-IE liegt **nicht** im ersten Burst,
+ sondern im **2. Burst (MAC-U-BLCK Continuation)** des Demand-
+ Reassemblies. UL#0 trägt MAC-ACCESS frag=1 mit nur 44 Bit MM-Body-
+ Anfang; UL#1 trägt PDU-Type=1 (MAC-U-BLCK) mit 88 Bit Continuation.
+ BS reassembliert UL#0[48..91] + UL#1[4..91] zu einem 132-bit MM
+ body, der erst dann die GSSI-IE enthält. Aktuelle Implementation
+ (Phase D-rev) macht kein Reassembly — die MS-GSSI-Wunschliste wird
+ ignoriert, BS diktiert die GSSI über das `group_identity_downlink`-
+ IE im D-LOC-UPDATE-ACCEPT (EntityTable Default-GSSI-Lookup).
+ Memory: `project_ms_gssi_wish_in_demand.md`. Reassembly +
+ IE-Parser ist Sprint-Voraussetzung für M3 wenn echte
+ MS-Group-Verhandlung gewünscht ist (M2-Operator-zentriertes Modell
+ ohne Reassembly funktioniert weiter, nur die MS-Wunsch-GSSI ist
+ ignoriert).
 4. AST.query(ISSI):
-     hit  → reuse slot, update last_seen, group_list
-     miss → AST.alloc → AST.write {ISSI, last_seen=now, state=REG, groups[]}
+ hit → reuse slot, update last_seen, group_list
+ miss → AST.alloc → AST.write {ISSI, last_seen=now, state=REG, groups[]}
 5. Build D-LOC-UPDATE-ACCEPT mit GILA aus AST-group_list (nicht hardcoded)
 6. Send AL-SETUP (SCH/HD) + Accept (SCH/F) two-phase (wie M2)
 ```
@@ -625,8 +625,8 @@ für Auto-Enrollment unbekannter ISSIs/GSSIs.
 
 ```
 AST.query(ISSI):
-  hit  → AST.write(slot, valid=0)  + counter mle_detach_cnt++
-  miss → ignore (MS detached without ever attached)
+ hit → AST.write(slot, valid=0) + counter mle_detach_cnt++
+ miss → ignore (MS detached without ever attached)
 Kein DL-ACK (ETSI: ITSI-DETACH ist one-way).
 Entity Table NICHT angefasst — Subscriber bleibt berechtigt.
 ```
@@ -636,8 +636,8 @@ Entity Table NICHT angefasst — Subscriber bleibt berechtigt.
 ```
 Free-running 24-bit Multiframe-Counter `now`.
 For each AST slot where valid=1:
-  if (now - last_seen) > REG_AST_TTL_MULTIFRAMES (default 84706 ≈ 24h):
-    AST.write(slot, valid=0)
+ if (now - last_seen) > REG_AST_TTL_MULTIFRAMES (default 84706 ≈ 24h):
+ AST.write(slot, valid=0)
 ```
 
 `last_seen` wird bei JEDER UL-Aktivität dieser ISSI aktualisiert (Demand,
@@ -718,22 +718,22 @@ Spec-Anhang lebt dort, hier nur Architektur-Entscheidungen.
 #### 9.8.1 Reassembly-Buffer
 
 ```
-tetra_ul_demand_reassembly.v   (NEU, sitzt zwischen ul_mac_access_parser und MLE-FSM)
-  - 144-bit-Buffer (für UL#0[48..91] (44) ++ UL#1[7..91] (85) = 129-bit MM body + Reserve)
-  - SSI-Tag (24 bit) — pro MS in flight ein Slot
-  - T0-Timer (Default 2 Frames = 113 ms, AXI-konfigurierbar)
-  - 2 Slots simultan in flight (zwei MS attachen gleichzeitig — selten aber möglich)
-  - **WICHTIG (Korrektur 2026-04-26 nach F.1-Audit):** UL#1 ist MAC-END-HU
-    auf SCH/HU (mac_pdu_type=1, 1-bit), header 7 bit, payload 85 bit. NICHT
-    MAC-FRAG/MAC-U-BLCK auf SCH/F (das wurde initial fälschlich angenommen).
-    Channel/Layout-Lock per bluestation `umac/pdus/mac_end_hu.rs`.
+tetra_ul_demand_reassembly.v (NEU, sitzt zwischen ul_mac_access_parser und MLE-FSM)
+ - 144-bit-Buffer (für UL#0[48..91] (44) ++ UL#1[7..91] (85) = 129-bit MM body + Reserve)
+ - SSI-Tag (24 bit) — pro MS in flight ein Slot
+ - T0-Timer (Default 2 Frames = 113 ms, AXI-konfigurierbar)
+ - 2 Slots simultan in flight (zwei MS attachen gleichzeitig — selten aber möglich)
+ - **WICHTIG (Korrektur 2026-04-26 nach F.1-Audit):** UL#1 ist MAC-END-HU
+ auf SCH/HU (mac_pdu_type=1, 1-bit), header 7 bit, payload 85 bit. NICHT
+ MAC-FRAG/MAC-U-BLCK auf SCH/F (das wurde initial fälschlich angenommen).
+ Channel/Layout-Lock per bluestation `umac/pdus/mac_end_hu.rs`.
 ```
 
 State-Maschine pro Slot:
 ```
 IDLE → MAC-ACCESS frag=1 + ssi=X arrival → BUFFERED (latch UL#0[48..91], start T0)
 BUFFERED → MAC-U-BLCK arrival within T0 (ssi=X)? → REASSEMBLED (132-bit body ready)
-                                       no → T0-expiry → IDLE, drop_cnt++
+ no → T0-expiry → IDLE, drop_cnt++
 ```
 
 Output: `reassembled_body[131:0]` + `reassembled_valid` Pulse + `reassembled_ssi[23:0]`.
@@ -747,24 +747,24 @@ Phase G fügt parallelen **CMCE-Pfad** hinzu, dispatched anhand `MLE.disc`:
 
 ```
 S_IDLE
-  ├── ul_req_valid (MM/U-LOC-UPD-DEMAND)        → S_ENTITY_QUERY_ISSI (Phase D-rev path)
-  ├── ul_cmce_setup (CMCE/U-SETUP)              → S_CC_SETUP_VALIDATE (Phase G NEU)
-  ├── ul_cmce_tx_demand (CMCE/U-TX-DEMAND)       → S_CC_TX_GRANT (Phase G NEU)
-  ├── ul_cmce_release (CMCE/U-RELEASE)           → S_CC_RELEASE (Phase G NEU)
-  └── ul_detach_valid (MM/U-ITSI-DETACH)         → S_DETACH_QUERY (Phase B path)
+ ├── ul_req_valid (MM/U-LOC-UPD-DEMAND) → S_ENTITY_QUERY_ISSI (Phase D-rev path)
+ ├── ul_cmce_setup (CMCE/U-SETUP) → S_CC_SETUP_VALIDATE (Phase G NEU)
+ ├── ul_cmce_tx_demand (CMCE/U-TX-DEMAND) → S_CC_TX_GRANT (Phase G NEU)
+ ├── ul_cmce_release (CMCE/U-RELEASE) → S_CC_RELEASE (Phase G NEU)
+ └── ul_detach_valid (MM/U-ITSI-DETACH) → S_DETACH_QUERY (Phase B path)
 ```
 
 CMCE-Sub-States:
 ```
 S_CC_SETUP_VALIDATE → AST.query(called_party_ssi=GSSI, type=group)
-                     hit + group is registered → alloc call_id (14 bit) + AST.state=2
-                     → S_BUILD_D_CALL_PROCEEDING → S_BUILD_D_CONNECT (mit transmission_grant=Granted)
-                     miss → REJECT mit D-RELEASE cause=UnknownTetraIdentity (=16)
+ hit + group is registered → alloc call_id (14 bit) + AST.state=2
+ → S_BUILD_D_CALL_PROCEEDING → S_BUILD_D_CONNECT (mit transmission_grant=Granted)
+ miss → REJECT mit D-RELEASE cause=UnknownTetraIdentity (=16)
 
 S_CC_TX_GRANT → if AST.state in {VOICE_TX_GRANTED, IDLE_OK} → S_BUILD_D_TX_GRANTED
-                else → S_BUILD_D_TX_WAIT (queue) or D-TX-GRANTED with grant=NotGranted
+ else → S_BUILD_D_TX_WAIT (queue) or D-TX-GRANTED with grant=NotGranted
 
-S_CC_RELEASE → AST.state := REG (call_id freigeben), S_BUILD_D_RELEASE → AACH-Slot wieder Random
+S_CC_RELEASE → AST.state:= REG (call_id freigeben), S_BUILD_D_RELEASE → AACH-Slot wieder Random
 ```
 
 Output zur DL-Signalling-Queue (existing): D-CALL-PROCEEDING + D-CONNECT + D-TX-GRANTED + D-RELEASE im Two-Phase-Reply-Pattern (wie M2 Accept).
@@ -778,16 +778,16 @@ Phase D-rev hat AST 256 bit:
 
 Phase G erweitert auf **320 bit** (passt in 1 BRAM18k bei 64 Slots = 20 kbit):
 ```
-[319:296] ISSI                       (24)  unverändert
-[295:272] last_seen_multiframe       (24)  unverändert
-[271:264] shadow_idx                  (8)  unverändert
-[263:260] state                       (4)  0=FREE 1=REG 2=CALL_SETUP 3=VOICE_RX 4=VOICE_TX_GRANTED 5=PAGING
-[259:246] call_id                    (14)  Phase G NEU — aktiv-Call-Allocation, 0 wenn idle
-[245:243] group_count                 (3)  0..7 — gleicher Wert wie Phase D-rev (group[0]=primary GSSI)
-[242:241] talker_dir                  (2)  Phase G NEU — 0=idle, 1=this MS is current talker (UL→DL relay), 2=this MS hört zu
-[240:217] active_gssi                (24)  Phase G NEU — die GSSI dieses Calls (= group[0] meistens)
-[216:  1] group_list[8]+padding     (216)  ↑ Achtung: Pos shifted vs Phase D-rev
-[  0]     valid                       (1)
+[319:296] ISSI (24) unverändert
+[295:272] last_seen_multiframe (24) unverändert
+[271:264] shadow_idx (8) unverändert
+[263:260] state (4) 0=FREE 1=REG 2=CALL_SETUP 3=VOICE_RX 4=VOICE_TX_GRANTED 5=PAGING
+[259:246] call_id (14) Phase G NEU — aktiv-Call-Allocation, 0 wenn idle
+[245:243] group_count (3) 0..7 — gleicher Wert wie Phase D-rev (group[0]=primary GSSI)
+[242:241] talker_dir (2) Phase G NEU — 0=idle, 1=this MS is current talker (UL→DL relay), 2=this MS hört zu
+[240:217] active_gssi (24) Phase G NEU — die GSSI dieses Calls (= group[0] meistens)
+[216: 1] group_list[8]+padding (216) ↑ Achtung: Pos shifted vs Phase D-rev
+[ 0] valid (1)
 ```
 
 **Migration:** AST-REC_WIDTH 256 → 320, alle 4 AST-Konsumenten (Sweeper, MLE-FSM-Pfade, AXI-Read in Phase G) müssen mit. group_list-Layout-Migration kostet 1 Sprint, wird Sprint G.0 vor allen anderen.
@@ -799,9 +799,9 @@ Heute (Phase 6): AACH zeigt im Voice-Slot `Random` (für RA) oder `Common` (für
 Pro Slot pro Frame entscheidet die `tetra_aach_encoder.v`-Erweiterung:
 ```
 if AST hat aktiven Call der diesen Slot belegt:
-    → AACH = Allocated, slot=N, ssi=GSSI (kein Random für andere MS)
+ → AACH = Allocated, slot=N, ssi=GSSI (kein Random für andere MS)
 else:
-    → wie heute (Random/Common/CapAlloc)
+ → wie heute (Random/Common/CapAlloc)
 ```
 
 Bei aktiver MS-Schedule kommt das pro-Slot aus einer neuen `tetra_call_slot_alloc.v`-Tabelle, die aus den AST-State-Bits ableitet welche Slots belegt sind. Die TX-TDMA-Pipeline muss in diesen Slots dann Voice statt SYSINFO/Filler senden.
@@ -809,11 +809,11 @@ Bei aktiver MS-Schedule kommt das pro-Slot aus einer neuen `tetra_call_slot_allo
 #### 9.8.5 Voice-Relay-Pfad
 
 ```
-UL-NUB-Slot N  (UL-RX-Pfad: ul_pi4dqpsk_demod → ul_burst_capture → tetra_ul_nub_demod → tch_s_decoder)
-   ↓
-[1-Frame-FIFO]  (= 4 × 432 bit pro half-block × 2 half-blocks = ~4 kbit; reicht 1 BRAM18k)
-   ↓
-DL-NUB-Slot N  (TX-Pfad: tch_s_encoder → tetra_dl_nub_burst_builder → tetra_pi4dqpsk_mod)
+UL-NUB-Slot N (UL-RX-Pfad: ul_pi4dqpsk_demod → ul_burst_capture → tetra_ul_nub_demod → tch_s_decoder)
+ ↓
+[1-Frame-FIFO] (= 4 × 432 bit pro half-block × 2 half-blocks = ~4 kbit; reicht 1 BRAM18k)
+ ↓
+DL-NUB-Slot N (TX-Pfad: tch_s_encoder → tetra_dl_nub_burst_builder → tetra_pi4dqpsk_mod)
 ```
 
 **Bit-transparent**: UL-Voice-Bits werden NICHT decoded (kein ACELP), nur scrambled-descrambled-rescrambled und über RCPC/Interleaver konvertiert (UL→DL Code-Set ist gleich für TCH/S, daher quasi pass-through).
@@ -859,10 +859,10 @@ Vorhandene Tabelle `§9.7` erweitern:
 
 | Phase | Inhalt | Status |
 |---|---|---|
-| **F** | UL-Demand-Reassembly (`tetra_ul_demand_reassembly.v` 144-bit-Buffer × 2 Slots + T0-Timer; UL#1 = MAC-END-HU auf SCH/HU, 7-bit-Header, payload[7..91]=85 bit, reassembled body 129 bit per `40d41e3` Korrektur); GroupIdentityLocationDemand-IE-Parser (`tetra_ul_demand_ie_parser.v`, sequential 129-bit walker); MLE-FSM Multi-GSSI-Lookup (S_PARSE_FULL_DEMAND → S_GSSI_LOOP_NEXT, pro angefragter GSSI Entity.query+Profile.permit); AXI-Mailbox 0x1B4 (REG_UL_PDU_STATUS_2 mit decoded LLC/MLE/MM types) + 0x1DC (REASSEMBLY_T0) + 0x1E0 (REASSEMBLY_STATS); ul_mon-Daemon zeigt 2-zeilig pro PDU. **Inkl. Reparatur**: profiles.cgi GET aus AXI-Read 0x1C8 (REG_PROFILE_DATA_RD) statt TSV-Mirror, drift-frei. | ✅ 2026-04-26 (Commits `583100e` F.1 + `7e30d25` F.2 + `49cb28c` F.3 + `87e3e4e` F.4, Build PASS WNS=−0.058 ns DRC=0). TBs: tb_ul_demand_reassembly 20/20, tb_ul_demand_ie_parser 26/26, tb_ul_mac_access_parser 31/31, tb_ul_mac_access_parser_bl_ack 15/15, tb_mle_registration_fsm 20/20 (incl. profile0_m2_guard bit-exakt grün, +T18 multi_gssi_attach group_count=2, +T19 gssi_wish_ignored_old_path), tb_tetra_axi_lite_regs 13/13, tb_profile_table 16/16. **F.1 wip-Stop `a0a0776`** war richtig: bluestation+Memory hatten UL#1 als MAC-FRAG/U-BLCK fehlspezifiziert; Gold-Ref-Hex `D4`=`11010100` zeigt MAC-END-HU mit length_ind=10 → Korrektur `40d41e3` + Goldregel "Gold > Bluestation > ETSI" eingeführt. |
-| **F.7** | U-ATTACH-DETACH-GROUP-IDENTITY (mm_pdu_type=7) + D-ATTACH-DETACH-GRP-ID-ACK (mm_pdu_type=11): IE-Parser-Erweiterung mit `body_kind_sys`-Selektor (mm=2 LOC-UPDATE-DEMAND vs mm=7 ATTACH-DETACH-Walker); MLE-FSM neue Pfad-Schleife (S_GROUP_AST_QUERY → S_GROUP_LOOP_NEXT pro requested GSSI; Entity.query type=1 + Profile.permit_voice/data; replace_all=1 löscht AST.group_list vor dem Append); per-AST-Slot NR/NS-Tracking (lat_ast_nr_ns[127:0], stop-and-wait alternation post-attach); neuer Encoder `tetra_d_attach_detach_group_identity_ack_encoder.v` (combinatorial, MM body 58 bit MSB-aligned, bit-exakt zu allen 5 Gold-Ref-Slices in `reference_group_attach_bitexact.md`); Reply-Path single-burst SCH/F (kein SCH/HD pre-reply); zweiter MAC-RESOURCE-DL-Builder + u_sch_f-Source-Mux. | ✅ 2026-04-26 (Commits `b6485da` F.7.1 + `a03fb36` F.7.2 + `fe205b3` F.7.3 + `3967c10` F.7.4 + `dfadf59` F.7.5). TBs: tb_ul_demand_ie_parser 57/57 (4 mm=2 + 5 mm=7 + 1 regression), tb_d_attach_detach_group_identity_ack_encoder 8/8 (5 gold_ref_replay_slice_1..5 bit-exakt + reject + multi_record + attach+detach), tb_mle_registration_fsm 24/24 (T1..T19 unverändert + T20..T23 group-attach Cases). profile0_m2_guard bit-exakt grün durch alle Sprints. |
-| **H.0–H.6** | Slice-Cleanup (Phase 7 F.7-Output raus, MLE-FSM 10172→6287 LUTs) → BRAM-Inferenz-Fix slot_schedule (split mem_lo/mem_hi, +965 slices) → Single-Burst-Bypass entfernt (H.3.1) → Diagnose-Counter UL_CONT_CNT/SCHHU_VALID/SCHHU_CRC → AACH-Encoder F18 MN%4-Rotation komplettiert + 0x0049→0x0040 + Branch-Reorder Gold-bit-genau. | ✅ 2026-04-26 bis 2026-05-01 (Commits c0cd37c → dbc3718). Slice-Auslastung 97.82 % → 90.26 %, WNS +0.003 ns. AACH-Pattern 1:1 zu Gold-Idle-Capture. |
-| **H.7** | D-NWRK-BROADCAST periodic push: neues RTL-Modul `tetra_dl_nwrk_broadcast.v` (432-bit Shadow + Trigger-Edge-Detect → Push in DL-Signal-Queue CMCE-Slot), 4 AXI-Regs Indirect-Window 0x1D0/D4/D8/E4, SW-Daemon-Tick alle 7 s mit C-Port von `encode_sch_f` (CRC-16 + R=1/4 conv + R=2/3 punc + N=432 a=103 interleave + cell scramble) und dynamischer Network-Time aus `time(NULL)` UTC. Phase-1 Encoder-Round-Trip (`scripts/verify_sch_f_roundtrip` + decoder `--dump-burst`-Hook): 0/432 bit-Diffs gegen Gold-Burst #423, 0/216 bit-Diffs gegen unsere SCH/HD NULL-PDU + SYSINFO. | ✅ 2026-05-01 (Commits `e322760` H.7 + `f36e038` tcl-Fix). TB tb_tetra_dl_nwrk_broadcast 14/14 PASS. Hypothese: D-NWRK-BROADCAST = primärer "Cell-aktiv"-Trigger für MS-Cell-Selection, fehlte bisher komplett (Gold sendet 11× / 110 s, wir 0×). Erfolg-Kriterium = MS sendet nach Deploy Frag-1+Frag-2-Paare. |
+| **F** | UL-Demand-Reassembly (`tetra_ul_demand_reassembly.v` 144-bit-Buffer × 2 Slots + T0-Timer; UL#1 = MAC-END-HU auf SCH/HU, 7-bit-Header, payload[7..91]=85 bit, reassembled body 129 bit per `40d41e3` Korrektur); GroupIdentityLocationDemand-IE-Parser (`tetra_ul_demand_ie_parser.v`, sequential 129-bit walker); MLE-FSM Multi-GSSI-Lookup (S_PARSE_FULL_DEMAND → S_GSSI_LOOP_NEXT, pro angefragter GSSI Entity.query+Profile.permit); AXI-Mailbox 0x1B4 (REG_UL_PDU_STATUS_2 mit decoded LLC/MLE/MM types) + 0x1DC (REASSEMBLY_T0) + 0x1E0 (REASSEMBLY_STATS); ul_mon-Daemon zeigt 2-zeilig pro PDU. **Inkl. Reparatur**: profiles.cgi GET aus AXI-Read 0x1C8 (REG_PROFILE_DATA_RD) statt TSV-Mirror, drift-frei. | ✅ 2026-04-26 (Commits `583100e` F.1 + `7e30d25` F.2 + `49cb28c` F.3 + `87e3e4e` F.4, Build PASS WNS=−0.058 ns DRC=0). TBs: tb_ul_demand_reassembly 20/20, tb_ul_demand_ie_parser 26/26, tb_ul_mac_access_parser 31/31, tb_ul_mac_access_parser_bl_ack 15/15, tb_mle_registration_fsm 20/20 (incl. profile0_m2_guard bit-exakt grün, +T18 multi_gssi_attach group_count=2, +T19 gssi_wish_ignored_old_path), tb_tetra_axi_lite_regs 13/13, tb_profile_table 16/16. **F.1 wip-Stop `a0a0776`** war richtig: bluestation+Memory hatten UL#1 als MAC-FRAG/U-BLCK fehlspezifiziert; Ref-Hex `D4`=`11010100` zeigt MAC-END-HU mit length_ind=10 → Korrektur `40d41e3` + Spec-Regel " > Bluestation > ETSI" eingeführt. |
+| **F.7** | U-ATTACH-DETACH-GROUP-IDENTITY (mm_pdu_type=7) + D-ATTACH-DETACH-GRP-ID-ACK (mm_pdu_type=11): IE-Parser-Erweiterung mit `body_kind_sys`-Selektor (mm=2 LOC-UPDATE-DEMAND vs mm=7 ATTACH-DETACH-Walker); MLE-FSM neue Pfad-Schleife (S_GROUP_AST_QUERY → S_GROUP_LOOP_NEXT pro requested GSSI; Entity.query type=1 + Profile.permit_voice/data; replace_all=1 löscht AST.group_list vor dem Append); per-AST-Slot NR/NS-Tracking (lat_ast_nr_ns[127:0], stop-and-wait alternation post-attach); neuer Encoder `tetra_d_attach_detach_group_identity_ack_encoder.v` (combinatorial, MM body 58 bit MSB-aligned, bit-exakt zu allen 5 Ref-Slices in `reference_group_attach_bitexact.md`); Reply-Path single-burst SCH/F (kein SCH/HD pre-reply); zweiter MAC-RESOURCE-DL-Builder + u_sch_f-Source-Mux. | ✅ 2026-04-26 (Commits `b6485da` F.7.1 + `a03fb36` F.7.2 + `fe205b3` F.7.3 + `3967c10` F.7.4 + `dfadf59` F.7.5). TBs: tb_ul_demand_ie_parser 57/57 (4 mm=2 + 5 mm=7 + 1 regression), tb_d_attach_detach_group_identity_ack_encoder 8/8 (5 ref_replay_slice_1..5 bit-exakt + reject + multi_record + attach+detach), tb_mle_registration_fsm 24/24 (T1..T19 unverändert + T20..T23 group-attach Cases). profile0_m2_guard bit-exakt grün durch alle Sprints. |
+| **H.0–H.6** | Slice-Cleanup (Phase 7 F.7-Output raus, MLE-FSM 10172→6287 LUTs) → BRAM-Inferenz-Fix slot_schedule (split mem_lo/mem_hi, +965 slices) → Single-Burst-Bypass entfernt (H.3.1) → Diagnose-Counter UL_CONT_CNT/SCHHU_VALID/SCHHU_CRC → AACH-Encoder F18 MN%4-Rotation komplettiert + 0x0049→0x0040 + Branch-Reorder bit-genau. | ✅ 2026-04-26 bis 2026-05-01 (Commits c0cd37c → dbc3718). Slice-Auslastung 97.82 % → 90.26 %, WNS +0.003 ns. AACH-Pattern 1:1 zu -Idle-Capture. |
+| **H.7** | D-NWRK-BROADCAST periodic push: neues RTL-Modul `tetra_dl_nwrk_broadcast.v` (432-bit Shadow + Trigger-Edge-Detect → Push in DL-Signal-Queue CMCE-Slot), 4 AXI-Regs Indirect-Window 0x1D0/D4/D8/E4, SW-Daemon-Tick alle 7 s mit C-Port von `encode_sch_f` (CRC-16 + R=1/4 conv + R=2/3 punc + N=432 a=103 interleave + cell scramble) und dynamischer Network-Time aus `time(NULL)` UTC. Phase-1 Encoder-Round-Trip (`scripts/verify_sch_f_roundtrip` + decoder `--dump-burst`-Hook): 0/432 bit-Diffs gegen -Burst #423, 0/216 bit-Diffs gegen unsere SCH/HD NULL-PDU + SYSINFO. | ✅ 2026-05-01 (Commits `e322760` H.7 + `f36e038` tcl-Fix). TB tb_tetra_dl_nwrk_broadcast 14/14 PASS. Hypothese: D-NWRK-BROADCAST = primärer "Cell-aktiv"-Trigger für MS-Cell-Selection, fehlte bisher komplett ( sendet 11× / 110 s, wir 0×). Erfolg-Kriterium = MS sendet nach Deploy Frag-1+Frag-2-Paare. |
 | **G.0** | AST 256 → 320 bit (+ call_id, talker_dir, active_gssi); Sweeper + alle Konsumenten migrieren | ⏳ Plan |
 | **G.1** | UL-NUB-Demod + NUB-Burst-Capture + TCH/S-Decoder | ⏳ Plan |
 | **G.2** | DL-NUB-Burst-Builder + TCH/S-Encoder + Voice-Relay-FIFO | ⏳ Plan |

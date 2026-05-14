@@ -4,10 +4,10 @@
 # Philip: Hardware bereits auf FPGA, LTX laden + triggern
 #
 # Usage:
-#   vivado -mode batch -source scripts/ila_autonomous_capture.tcl
+# vivado -mode batch -source scripts/ila_autonomous_capture.tcl
 #
 # Output:
-#   build/ila_data_*.csv — Captured ILA data
+# build/ila_data_*.csv — Captured ILA data
 # =============================================================================
 
 set PROJ_DIR [file dirname [file dirname [info script]]]
@@ -40,7 +40,7 @@ puts "Available targets: $targets"
 
 # Erstes Target auswählen
 if {[llength $targets] == 0} {
-    error "ERROR: No hardware targets found!"
+ error "ERROR: No hardware targets found!"
 }
 
 set target [lindex $targets 0]
@@ -55,7 +55,7 @@ open_hw_target $target
 puts "\n=== Step 3: Load LTX File ==="
 
 if {![file exists $LTX_FILE]} {
-    error "ERROR: LTX file not found: $LTX_FILE"
+ error "ERROR: LTX file not found: $LTX_FILE"
 }
 
 # Geräte auflisten (sollte das FPGA-Device sein)
@@ -63,21 +63,21 @@ set devices [get_hw_devices]
 puts "Available devices: $devices"
 
 if {[llength $devices] == 0} {
-    error "ERROR: No hardware devices found!"
+ error "ERROR: No hardware devices found!"
 }
 
 # Wähle xc7z020 Device (nicht arm_dap)
 set device ""
 foreach d $devices {
-    if {[string match "*xc7z020*" $d]} {
-        set device $d
-        break
-    }
+ if {[string match "*xc7z020*" $d]} {
+ set device $d
+ break
+ }
 }
 
 # Fallback: letztes Device wenn kein xc7z020 gefunden
 if {$device eq ""} {
-    set device [lindex $devices end]
+ set device [lindex $devices end]
 }
 
 puts "Using device: $device"
@@ -91,17 +91,17 @@ set hw_debug_core [get_hw_debug_cores $device]
 puts "Debug cores found: $hw_debug_core"
 
 if {[llength $hw_debug_core] == 0} {
-    puts "WARNING: No debug cores found! Design may not have ILA."
-    puts "Checking if LTX was loaded correctly..."
+ puts "WARNING: No debug cores found! Design may not have ILA."
+ puts "Checking if LTX was loaded correctly..."
 
-    # Versuch LTX explizit zu laden
-    set_property PROBE_FILE $LTX_FILE [get_hw_devices $device]
-    refresh_hw_device $device
+ # Versuch LTX explizit zu laden
+ set_property PROBE_FILE $LTX_FILE [get_hw_devices $device]
+ refresh_hw_device $device
 
-    set hw_debug_core [get_hw_debug_cores $device]
-    if {[llength $hw_debug_core] == 0} {
-        error "ERROR: Still no debug cores. Check if design has ILA instantiated."
-    }
+ set hw_debug_core [get_hw_debug_cores $device]
+ if {[llength $hw_debug_core] == 0} {
+ error "ERROR: Still no debug cores. Check if design has ILA instantiated."
+ }
 }
 
 set ila_core [lindex $hw_debug_core 0]
@@ -146,31 +146,31 @@ set start_time [clock seconds]
 set triggered false
 
 while {[clock seconds] - $start_time < $timeout_seconds} {
-    # Status prüfen
-    set status [get_property STATUS $ila_core]
+ # Status prüfen
+ set status [get_property STATUS $ila_core]
 
-    if {$status eq "TRIGGERED"} {
-        set triggered true
-        puts "ILA TRIGGERED!"
-        break
-    }
+ if {$status eq "TRIGGERED"} {
+ set triggered true
+ puts "ILA TRIGGERED!"
+ break
+ }
 
-    # 1 Sekunde warten
-    after 1000
-    puts -nonewline "."
-    flush stdout
+ # 1 Sekunde warten
+ after 1000
+ puts -nonewline "."
+ flush stdout
 }
 
 puts ""
 
 if {!$triggered} {
-    puts "WARNING: ILA did not trigger within timeout!"
-    puts "This could mean:"
-    puts "  - No TETRA signal present at RF input"
-    puts "  - RX chain not properly configured"
-    puts "  - sync_detect module is not locking"
-    puts ""
-    puts "Uploading captured data anyway (may contain post-trigger data)..."
+ puts "WARNING: ILA did not trigger within timeout!"
+ puts "This could mean:"
+ puts " - No TETRA signal present at RF input"
+ puts " - RX chain not properly configured"
+ puts " - sync_detect module is not locking"
+ puts ""
+ puts "Uploading captured data anyway (may contain post-trigger data)..."
 }
 
 # =============================================================================

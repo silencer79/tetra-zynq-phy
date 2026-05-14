@@ -5,12 +5,12 @@ Quelle: `rtl/infra/tetra_clk_reset.v` (199 Zeilen) + Top-Level Verdrahtung in
 
 ## Clock-Domains (im Design real benutzt)
 
-| Domain      | Quelle                                  | Frequenz             | Verbraucher                                                                                          |
+| Domain | Quelle | Frequenz | Verbraucher |
 |-------------|-----------------------------------------|----------------------|------------------------------------------------------------------------------------------------------|
-| `clk_sys`   | `i_clk` (Zynq PS FCLK_CLK0)             | 100 MHz              | Fast jedes RTL-Modul: LMAC, MLE-FSM, Mailboxes, Scheduler, Burst-Dispatcher, AACH/SB1-Encoder etc.   |
-| `clk_axi`  = `s_axi_aclk` | Zynq PS (selbe PLL-Quelle wie `clk_sys`) | 100 MHz | `tetra_axi_lite_regs`-Slave + AXI-Lite Statemachines + Schedule-BRAM Port A                          |
-| `clk_lvds`  = `l_clk`     | `axi_ad9361` IP Output       | ~61.44 MHz typ.      | `tetra_ad9361_axis_adapter` (RX/TX I/Q), `tetra_rx_chain` (Frontend/Demod), `tetra_tx_chain` letzte Stufe |
-| `clk_sample`| identisch verbunden mit `clk_sys`        | 100 MHz             | Im Top-Level (`u_clk_reset .clk_sample(clk_sys)`) tot — kein eigener Konsument, `rst_n_sample` unconnected. |
+| `clk_sys` | `i_clk` (Zynq PS FCLK_CLK0) | 100 MHz | Fast jedes RTL-Modul: LMAC, MLE-FSM, Mailboxes, Scheduler, Burst-Dispatcher, AACH/SB1-Encoder etc. |
+| `clk_axi` = `s_axi_aclk` | Zynq PS (selbe PLL-Quelle wie `clk_sys`) | 100 MHz | `tetra_axi_lite_regs`-Slave + AXI-Lite Statemachines + Schedule-BRAM Port A |
+| `clk_lvds` = `l_clk` | `axi_ad9361` IP Output | ~61.44 MHz typ. | `tetra_ad9361_axis_adapter` (RX/TX I/Q), `tetra_rx_chain` (Frontend/Demod), `tetra_tx_chain` letzte Stufe |
+| `clk_sample`| identisch verbunden mit `clk_sys` | 100 MHz | Im Top-Level (`u_clk_reset.clk_sample(clk_sys)`) tot — kein eigener Konsument, `rst_n_sample` unconnected. |
 
 `rtl/tetra_zynq_top.v:206` setzt `.clk_sample(clk_sys)` und `.rst_n_sample()`.
 Die im `tetra_clk_reset` vorgesehene vierte Domain ist im aktuellen Aufbau
@@ -44,7 +44,7 @@ Assert ist asynchron (fällt sofort bei `arst_n` ↓), Deassert ist synchron mit
 **Top-Wires:**
 - `wire clk_sys; assign clk_sys = i_clk;` (Zeile 189–190)
 - `wire clk_lvds;` (Zeile 193) — getrieben von `tetra_ad9361_axis_adapter.clk_lvds = l_clk`
-  (`rtl/tetra_ad9361_axis_adapter.v:140`).
+ (`rtl/tetra_ad9361_axis_adapter.v:140`).
 - `wire rst_n_sys, rst_n_lvds, rst_n_axi;` (Z. 199–201)
 
 **Reset-Instanz:** `u_clk_reset` Z. 203–213.
@@ -55,14 +55,14 @@ Welche Brücken werden im Top zwischen den Domains gefahren? Komplette Liste
 siehe `00_zynq_top_overview.md`. Hier nur die strukturellen Muster:
 
 - **clk_sys → clk_axi:**
-  - Frame/slot-Zähler werden Gray-coded vor 2-FF resynced (Z. 1362–1408).
-  - Pulse (irq_mac_block, crc_error) werden toggle-CDC'd (Z. 1412–1432, 1449–1471).
-  - 16-bit Counter direkt 2-FF (`dma_blk_cnt_axi_r0/r1` Z. 1496ff.).
+ - Frame/slot-Zähler werden Gray-coded vor 2-FF resynced (Z. 1362–1408).
+ - Pulse (irq_mac_block, crc_error) werden toggle-CDC'd (Z. 1412–1432, 1449–1471).
+ - 16-bit Counter direkt 2-FF (`dma_blk_cnt_axi_r0/r1` Z. 1496ff.).
 - **clk_axi → clk_sys:**
-  - Statische Configs (CELL_CFG, COLOUR_CODE, CELL_LA, DB_POLICY, signal_target_tn) per 2-FF (Z. 3425ff.).
-  - Strobes (TX_TDMA_LOAD bit[31]) 2-FF + Edge-Detect → 1-Cycle sys-Pulse (Z. 1815–1836).
+ - Statische Configs (CELL_CFG, COLOUR_CODE, CELL_LA, DB_POLICY, signal_target_tn) per 2-FF (Z. 3425ff.).
+ - Strobes (TX_TDMA_LOAD bit[31]) 2-FF + Edge-Detect → 1-Cycle sys-Pulse (Z. 1815–1836).
 - **clk_lvds → clk_sys:**
-  - `sym_toggle_lvds` (Symbol-Tick) → 2-FF + Edge → `sym_en_sys_w` (Z. 1014–1046).
+ - `sym_toggle_lvds` (Symbol-Tick) → 2-FF + Edge → `sym_en_sys_w` (Z. 1014–1046).
 
 ## Symbol-Tick-Erzeugung
 

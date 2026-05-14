@@ -1,7 +1,7 @@
 # IST — Kapitel 4: UL RX (oversampled Sync + RA-Burst Decode + Reassembly + Voice-Capture-Hack)
 Stand: 2026-05-14
 Quelle: rtl/rx/tetra_ul_{sync_detect_os4,burst_capture,pi4dqpsk_demod,sch_hu_decoder,viterbi_r14,demand_reassembly,voice_capture}.v
-        + rtl/lmac/tetra_{viterbi_decoder,deinterleaver,depuncture_r23,ul_mac_access_parser,ul_demand_ie_parser,steal_detect}.v
+ + rtl/lmac/tetra_{viterbi_decoder,deinterleaver,depuncture_r23,ul_mac_access_parser,ul_demand_ie_parser,steal_detect}.v
 
 ## Inhalt
 1. `tetra_ul_sync_detect_os4.v` — 4-Phasen ETS-x-seq Detector @ 72 kHz
@@ -20,10 +20,10 @@ Quelle: rtl/rx/tetra_ul_{sync_detect_os4,burst_capture,pi4dqpsk_demod,sch_hu_dec
 
 ---
 
-### tetra_ul_sync_detect_os4.v  (243 Zeilen)
+### tetra_ul_sync_detect_os4.v (243 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, reset_peak_sys, i_in_sys[15:0], q_in_sys[15:0], valid_in_sys, corr_threshold_sys[5:0]` → `sync_found_sys, corr_peak_sys[5:0], best_phase_sys[1:0]`
 
-**Funktion:** Oversampled (4 sps) Detector für die ETSI x-Sequenz (§9.4.4.3.3, 15 Symbole / 30 bit) auf dem post-RRC IQ-Stream bei 72 kHz.  Vier parallele Phasen-Demodulatoren: `phase_cnt_sys` 0..3, jede Phase hat eigene `i_hist[k]/q_hist[k]` (Sample 1 Symbol zuvor) und eigenen 30-bit Shift-Register `sreg0..sreg3`.  Pro Sample: Differentialprodukt `z = current × conj(prev[phase])` → 2-bit Dibit aus `{sign(Im),sign(Re)}`. Korrelation 4× separat, dann `max(corr0..corr3)`.  `sync_fire = corr_max >= threshold & valid_in & ~holdoff`. Holdoff `HOLDOFF=50` Samples.
+**Funktion:** Oversampled (4 sps) Detector für die ETSI x-Sequenz (§9.4.4.3.3, 15 Symbole / 30 bit) auf dem post-RRC IQ-Stream bei 72 kHz. Vier parallele Phasen-Demodulatoren: `phase_cnt_sys` 0..3, jede Phase hat eigene `i_hist[k]/q_hist[k]` (Sample 1 Symbol zuvor) und eigenen 30-bit Shift-Register `sreg0..sreg3`. Pro Sample: Differentialprodukt `z = current × conj(prev[phase])` → 2-bit Dibit aus `{sign(Im),sign(Re)}`. Korrelation 4× separat, dann `max(corr0..corr3)`. `sync_fire = corr_max >= threshold & valid_in & ~holdoff`. Holdoff `HOLDOFF=50` Samples.
 
 **State:** Keine FSM. `corr_peak_sys` ist sticky-max, clearable über `reset_peak_sys`-Puls.
 
@@ -38,10 +38,10 @@ Quelle: rtl/rx/tetra_ul_{sync_detect_os4,burst_capture,pi4dqpsk_demod,sch_hu_dec
 
 ---
 
-### tetra_ul_burst_capture.v  (241 Zeilen)
+### tetra_ul_burst_capture.v (241 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, i_in_sys[15:0], q_in_sys[15:0], valid_in_sys, sync_found_sys, best_phase_sys[1:0]` → `i_out_sys[15:0], q_out_sys[15:0], iq_valid_sys, iq_first_sys, iq_last_sys, iq_half_sys, capture_busy_sys, bursts_captured_sys[15:0]`
 
-**Funktion:** Ringbuffer-basierter Phase-aligned Reader.  BRAM 512×16 für I und Q, kontinuierlich beschrieben auf jedem `valid_in_sys`.  Bei `sync_found_sys`: Anchor berechnet (Anker = ringidx von x[14] am Winning-Phase, via `(phase_cnt-1-best_phase) mod 4`), 168 Samples Post-Wait, dann zwei Halbsequenzen je 43 Samples streamen: CB1 ab `anchor - 228` (= 57 sym × 4 sps zurück), CB2 ab Anchor. Stride SPS=4 → korrekte Symbol-Phase. Metadaten `iq_first_sys` markiert Diff-Ref jeder Hälfte; `iq_last_sys` = letztes Sample CB2; `iq_half_sys` = 0/1 für CB1/CB2.
+**Funktion:** Ringbuffer-basierter Phase-aligned Reader. BRAM 512×16 für I und Q, kontinuierlich beschrieben auf jedem `valid_in_sys`. Bei `sync_found_sys`: Anchor berechnet (Anker = ringidx von x[14] am Winning-Phase, via `(phase_cnt-1-best_phase) mod 4`), 168 Samples Post-Wait, dann zwei Halbsequenzen je 43 Samples streamen: CB1 ab `anchor - 228` (= 57 sym × 4 sps zurück), CB2 ab Anchor. Stride SPS=4 → korrekte Symbol-Phase. Metadaten `iq_first_sys` markiert Diff-Ref jeder Hälfte; `iq_last_sys` = letztes Sample CB2; `iq_half_sys` = 0/1 für CB1/CB2.
 
 **State:** 2-bit FSM `S_IDLE/S_WAIT_POST/S_STREAM_CB1/S_STREAM_CB2`.
 - `S_IDLE→S_WAIT_POST` bei `sync_found_sys` (latcht Anchor)
@@ -59,7 +59,7 @@ Quelle: rtl/rx/tetra_ul_{sync_detect_os4,burst_capture,pi4dqpsk_demod,sch_hu_dec
 
 ---
 
-### tetra_ul_pi4dqpsk_demod.v  (171 Zeilen)
+### tetra_ul_pi4dqpsk_demod.v (171 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, i_in_sys[15:0], q_in_sys[15:0], iq_valid_sys, iq_first_sys, iq_last_sys, iq_half_sys` → `soft_bit0_sys[7:0], soft_bit1_sys[7:0], soft_valid_sys, soft_first_sys, soft_last_sys, soft_half_sys`
 
 **Funktion:** Konsumiert 43 phase-aligned IQ-Samples pro Burst-Hälfte und liefert 42 Soft-Dibit-Paare. Pro Symbol k (1..42): `z = IQ(k) × conj(IQ(k-1))`. `soft_bit0 = sign+magnitude von Re(z)` (slice MSB-aligned), `soft_bit1` analog von Im(z). 3-stufige Pipeline: S1 Multipliziere (4 Produkte), S2 Summenbilden (Re=ii+qq, Im=qi-iq), S3 MSB-Slice (`SOFT_WIDTH=8`).
@@ -76,10 +76,10 @@ Quelle: rtl/rx/tetra_ul_{sync_detect_os4,burst_capture,pi4dqpsk_demod,sch_hu_dec
 
 ---
 
-### tetra_viterbi_decoder.v  (500 Zeilen)
+### tetra_viterbi_decoder.v (500 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, soft_bit_0[2:0], soft_bit_1[2:0], soft_bit_2[2:0], soft_bit_3[2:0], input_valid, num_stages[8:0], punct_pattern[2:0]` → `decoded_bit, decoded_valid, block_done, path_metric_min[15:0]`
 
-**Funktion:** 16-State Soft-Decision Viterbi für ETSI K=5 r=1/4 Mutter-Code. Generators G1=0x13, G2=0x1D, G3=0x17, G4=0x1B.  Soft 3-bit unsigned (0=strong-0, 7=strong-1, 4=erasure).  Trellis-Konvention: `state[3]=oldest bit`, `new_state = {input_bit, prev_state[3:1]}`.  ACS rein kombinatorisch über generate-Block (16 Butterflies), Pfadmetriken in flachem 256-bit Register, Survivor-Bits in 16× MAX_STAGES-bit Flat-Regs. Argmin via 5-Level binärer Tree.  FSM: `S_IDLE→S_ACS→S_TB_INIT→S_TRACEBACK→S_OUTPUT→S_IDLE`.
+**Funktion:** 16-State Soft-Decision Viterbi für ETSI K=5 r=1/4 Mutter-Code. Generators G1=0x13, G2=0x1D, G3=0x17, G4=0x1B. Soft 3-bit unsigned (0=strong-0, 7=strong-1, 4=erasure). Trellis-Konvention: `state[3]=oldest bit`, `new_state = {input_bit, prev_state[3:1]}`. ACS rein kombinatorisch über generate-Block (16 Butterflies), Pfadmetriken in flachem 256-bit Register, Survivor-Bits in 16× MAX_STAGES-bit Flat-Regs. Argmin via 5-Level binärer Tree. FSM: `S_IDLE→S_ACS→S_TB_INIT→S_TRACEBACK→S_OUTPUT→S_IDLE`.
 
 **State:** 3-bit `state_sys`. Next-state-Logik kombinatorisch. `stage_cnt_sys` 9-bit (0..MAX_STAGES-1). `acs_done`, `tb_done`, `out_done` kombinatorisch.
 
@@ -92,10 +92,10 @@ Quelle: rtl/rx/tetra_ul_{sync_detect_os4,burst_capture,pi4dqpsk_demod,sch_hu_dec
 
 ---
 
-### tetra_ul_viterbi_r14.v  (431 Zeilen)
+### tetra_ul_viterbi_r14.v (431 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, soft_bit_0[2:0], soft_bit_1[2:0], soft_bit_2[2:0], soft_bit_3[2:0], input_valid, num_stages[8:0]` → `decoded_bit, decoded_valid, block_done, path_metric_min[15:0]`
 
-**Funktion:** Strukturell wie `tetra_viterbi_decoder.v` aber mit ETSI-konformer Trellis-Konvention: `new_state = ((old_state << 1) | input) & 0xF`, also `state[0]=newest`, `state[3]=oldest`. Generators in new-state Koordinaten anders gefasst (G1_P0 = s[0]^s[1] etc).  Traceback startet immer aus State 0 (Tail-Bits = 0) statt aus argmin — Header: "argmin is only correct on a converged trellis".
+**Funktion:** Strukturell wie `tetra_viterbi_decoder.v` aber mit ETSI-konformer Trellis-Konvention: `new_state = ((old_state << 1) | input) & 0xF`, also `state[0]=newest`, `state[3]=oldest`. Generators in new-state Koordinaten anders gefasst (G1_P0 = s[0]^s[1] etc). Traceback startet immer aus State 0 (Tail-Bits = 0) statt aus argmin — Header: "argmin is only correct on a converged trellis".
 
 **State:** 3-bit `state_sys` `S_IDLE/S_ACS/S_TB_INIT/S_TRACEBACK/S_OUTPUT`. Identische FSM-Transitions wie `tetra_viterbi_decoder`.
 
@@ -110,12 +110,12 @@ Quelle: rtl/rx/tetra_ul_{sync_detect_os4,burst_capture,pi4dqpsk_demod,sch_hu_dec
 
 ---
 
-### tetra_deinterleaver.v  (181 Zeilen)
+### tetra_deinterleaver.v (181 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, block_size[8:0], data_in, data_in_valid` → `data_out, data_out_valid, block_done`
 
-**Funktion:** Multiplikativer Deinterleaver per ETSI §8.2.4.1.  FILL-Phase: sequenziell in `buf_data[wr_addr]` schreiben (0..K-1). DRAIN-Phase: `rd_addr` startet bei `a`, steppt um `a` mod K — pro Output-Position i=1..K liest aus `buf[(a*i) mod K]`.  Konstanten: BSCH a=11 (K=120), BNCH/SCH-HD a=101 (K=216), SCH/F a=103 (K=432).
+**Funktion:** Multiplikativer Deinterleaver per ETSI §8.2.4.1. FILL-Phase: sequenziell in `buf_data[wr_addr]` schreiben (0..K-1). DRAIN-Phase: `rd_addr` startet bei `a`, steppt um `a` mod K — pro Output-Position i=1..K liest aus `buf[(a*i) mod K]`. Konstanten: BSCH a=11 (K=120), BNCH/SCH-HD a=101 (K=216), SCH/F a=103 (K=432).
 
-**State:** 1-bit `state` (S_FILL/S_DRAIN).  `S_FILL→S_DRAIN` bei `wr_addr==K-1 & data_in_valid`. `S_DRAIN→S_FILL` bei `drain_cnt==K-1`.
+**State:** 1-bit `state` (S_FILL/S_DRAIN). `S_FILL→S_DRAIN` bei `wr_addr==K-1 & data_in_valid`. `S_DRAIN→S_FILL` bei `drain_cnt==K-1`.
 
 **Pipeline-Latenz:** K Zyklen FILL + K Zyklen DRAIN.
 
@@ -125,7 +125,7 @@ Quelle: rtl/rx/tetra_ul_{sync_detect_os4,burst_capture,pi4dqpsk_demod,sch_hu_dec
 
 ---
 
-### tetra_depuncture_r23.v  (126 Zeilen)
+### tetra_depuncture_r23.v (126 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, data_in, data_in_valid, block_start` → `soft_0[2:0], soft_1[2:0], soft_2[2:0], soft_3[2:0], output_valid, block_done`
 
 **Funktion:** Rate-2/3 → Rate-1/4 Depuncturer. Für jeweils 3 Input-Bits werden 2 Trellis-Stages × 4 Soft-Werte ausgegeben:
@@ -144,10 +144,10 @@ Bit→Soft: 0→0, 1→7, Punktiert→4.
 
 ---
 
-### tetra_ul_sch_hu_decoder.v  (471 Zeilen)
+### tetra_ul_sch_hu_decoder.v (471 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, scramb_init_sys[31:0], soft_bit0_sys[7:0], soft_bit1_sys[7:0], soft_valid_sys, soft_first_sys, soft_last_sys, soft_half_sys` → `info_bits_sys[91:0], info_valid_sys, crc_ok_sys, decodes_attempted_sys[15:0], decodes_ok_sys[15:0]`
 
-**Funktion:** Komplette SCH/HU-RX-Pipeline aus 168 Soft-Dibits zu 92 Info-Bits + CRC-OK-Flag.  Stufen: (1) Sammle 168 Soft-Bits (`buf_soft_sys[0..167]`), parallel LFSR §8.2.5 erzeugt Scrambler-Sequenz aus `scramb_init` (Galois 32-bit, Taps 0,6,9,10,16,20,21,22,24,25,27,28,30,31). (2) Descramble: Bit für Bit Sign-Flip bei `scramb_seq=1`. (3) Deinterleave (a=13, K=168, multiplikativ — Adresse inkrementell). (4) Feed Viterbi: 112 Stages × 4 Soft-Werte, Depuncture per `vit_is_kept_w` (`(stage*4+g) mod 8 ∈ {0,1,4}`); Nicht-kept → Erasure (VIT_CENTER=8). (5) Drain Viterbi: 112 Bits in `vit_out_buf_sys`, davon ersten 108 = 92 Info + 16 FCS. (6) Feed CRC16 (Modul `tetra_crc16`). (7) Latche `info_bits_sys=vit_out_buf[91:0]` mit `crc_ok_sys`, puls `info_valid_sys`.
+**Funktion:** Komplette SCH/HU-RX-Pipeline aus 168 Soft-Dibits zu 92 Info-Bits + CRC-OK-Flag. Stufen: (1) Sammle 168 Soft-Bits (`buf_soft_sys[0..167]`), parallel LFSR §8.2.5 erzeugt Scrambler-Sequenz aus `scramb_init` (Galois 32-bit, Taps 0,6,9,10,16,20,21,22,24,25,27,28,30,31). (2) Descramble: Bit für Bit Sign-Flip bei `scramb_seq=1`. (3) Deinterleave (a=13, K=168, multiplikativ — Adresse inkrementell). (4) Feed Viterbi: 112 Stages × 4 Soft-Werte, Depuncture per `vit_is_kept_w` (`(stage*4+g) mod 8 ∈ {0,1,4}`); Nicht-kept → Erasure (VIT_CENTER=8). (5) Drain Viterbi: 112 Bits in `vit_out_buf_sys`, davon ersten 108 = 92 Info + 16 FCS. (6) Feed CRC16 (Modul `tetra_crc16`). (7) Latche `info_bits_sys=vit_out_buf[91:0]` mit `crc_ok_sys`, puls `info_valid_sys`.
 
 **State:** 4-bit FSM 8 Zustände: `S_IDLE → S_COLLECT → S_DESCRAMBLE → S_DEINTERLEAVE → S_FEED_VIT → S_DRAIN_VIT → S_FEED_CRC → S_DONE → S_IDLE`. `decodes_attempted_sys++` beim ersten `soft_valid` (Eintritt S_COLLECT); `decodes_ok_sys++` nur bei CRC-OK.
 
@@ -162,7 +162,7 @@ Bit→Soft: 0→0, 1→7, Punktiert→4.
 
 ---
 
-### tetra_ul_mac_access_parser.v  (389 Zeilen)
+### tetra_ul_mac_access_parser.v (389 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, info_bits_sys[91:0], info_valid_sys, crc_ok_sys` →
 - MAC-Header: `pdu_type_sys, fill_bit_sys, encryption_mode_sys, ul_addr_type_sys[1:0], ul_issi_sys[23:0], ul_event_label_sys[9:0], optional_field_flag_sys, ul_frag_flag_sys, ul_reservation_req_sys[3:0], ul_length_ind_sys[4:0]`
 - TL-SDU/LLC: `mm_pdu_type_sys[3:0], loc_upd_type_sys[2:0], raw_info_bits_sys[91:0]`
@@ -191,10 +191,10 @@ LLC-Parse (TL-SDU): 4-bit `{link_type, has_fcs, bl_pdu_type[1:0]}` an [tl_sdu+0.
 
 ---
 
-### tetra_ul_demand_reassembly.v  (243 Zeilen)
+### tetra_ul_demand_reassembly.v (243 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, t0_frames_sys[3:0], frame_tick_sys, frag1_pulse_sys, frag1_ssi_sys[23:0], frag1_bits_sys[43:0], frag1_mm_type_sys[3:0], end_hu_pulse_sys, end_hu_ssi_sys[23:0], end_hu_bits_sys[84:0]` → `reassembled_valid_sys, reassembled_body_sys[128:0], reassembled_ssi_sys[23:0], reassembled_mm_type_sys[3:0], reassembled_cnt_sys[15:0], drop_cnt_sys[15:0], busy_slots_sys[1:0]`
 
-**Funktion:** Spleißt 44-bit MAC-ACCESS-Frag-1 mit 85-bit MAC-END-HU zu 129-bit MM-Body.  Zwei In-Flight-Slots (s0, s1).  Auf `frag1_pulse`: same-SSI Replace > erste freie Slot-Alloc > sonst drop_cnt++. Auf `end_hu_pulse` und SSI-Match: `reassembled_body_sys = {s_frag1, end_hu_bits_sys}` (MSB-first, bit 128 = erstes On-air-Bit), Slot freigeben, `reassembled_valid_sys` 1 Zyklus.  T0-Timer (Default 2 Frames ≈ 113 ms) pro Slot, dekrementiert auf `frame_tick_sys`; bei 0 → Slot frei + drop_cnt++.  `frag1_mm_type_sys` wird zusammen mit dem Fragment im Slot gelatcht und am Output passthrough.
+**Funktion:** Spleißt 44-bit MAC-ACCESS-Frag-1 mit 85-bit MAC-END-HU zu 129-bit MM-Body. Zwei In-Flight-Slots (s0, s1). Auf `frag1_pulse`: same-SSI Replace > erste freie Slot-Alloc > sonst drop_cnt++. Auf `end_hu_pulse` und SSI-Match: `reassembled_body_sys = {s_frag1, end_hu_bits_sys}` (MSB-first, bit 128 = erstes On-air-Bit), Slot freigeben, `reassembled_valid_sys` 1 Zyklus. T0-Timer (Default 2 Frames ≈ 113 ms) pro Slot, dekrementiert auf `frame_tick_sys`; bei 0 → Slot frei + drop_cnt++. `frag1_mm_type_sys` wird zusammen mit dem Fragment im Slot gelatcht und am Output passthrough.
 
 **State:** Keine FSM, nur Slot-Bookkeeping-Logik (`s0_occ`, `s0_ssi`, `s0_frag1`, `s0_t0_left`, `s0_mm_type` und analog s1).
 
@@ -208,7 +208,7 @@ LLC-Parse (TL-SDU): 4-bit `{link_type, has_fcs, bl_pdu_type[1:0]}` an [tl_sdu+0.
 
 ---
 
-### tetra_ul_demand_ie_parser.v  (940 Zeilen)
+### tetra_ul_demand_ie_parser.v (940 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, start_sys, body_sys[128:0], ssi_sys[23:0], mm_pdu_type_sys[3:0]` →
 - mm=2 LOC-UPDATE Felder: `location_update_type_sys[2:0], request_to_append_la_sys, cipher_control_sys, class_of_ms_sys[23:0], class_of_ms_valid_sys, energy_saving_mode_sys[2:0], energy_saving_mode_valid_sys, la_information_sys[13:0], la_information_valid_sys, ssi_field_sys[23:0], ssi_field_valid_sys, address_ext_sys[23:0], address_ext_valid_sys`
 - GILD: `gild_valid_sys, gild_gssi_sys[23:0], gild_class_of_usage_sys[2:0], gild_address_type_sys[1:0]`
@@ -216,7 +216,7 @@ LLC-Parse (TL-SDU): 4-bit `{link_type, has_fcs, bl_pdu_type[1:0]}` an [tl_sdu+0.
 - mm=7 ATTACH/DETACH-GROUP-ID: `gid_count_sys[1:0], gid_attach_detach_mode_sys, gid_group_identity_report_sys, gid_attach_detach_array_sys[2:0], gid_class_array_sys[8:0], gid_address_type_array_sys[5:0], gid_gssi_array_sys[71:0]`
 - Status: `parse_done_sys, parse_ok_sys`
 
-**Funktion:** Walker-FSM für das 129-bit MM-Body.  Auf `start_sys`: Body in `body_buf`, cursor=129, mm_pdu_type latched → Dispatch.
+**Funktion:** Walker-FSM für das 129-bit MM-Body. Auf `start_sys`: Body in `body_buf`, cursor=129, mm_pdu_type latched → Dispatch.
 - mm==2: `S_HEADER_T1` (3-bit loc_update_type, 1-bit req_to_append_la, 1-bit cipher_control; bei cipher=1 skip 10-bit cipher_params) → `S_OPT_OBIT` → Type-2-Presence-Chain (`S_T2_CLASS_P/ESM_P/LA_P/SSI_P/AE_P`) → `S_T3_M` Loop (m-bit Terminator). Für `elem_id=3` (GroupIdentityLocationDemand) snapshot `gild_buf`, dann `S_T3_PAYLOAD_GILD` decodet erstes GIU-Element. Andere elem_id → skip payload.
 - mm==7: `S_GAD_HDR` (group_identity_report + atd_mode) → `S_GAD_OBIT` → `S_GAD_M_REP` (peek for GroupReportResponse elem_id=4, optional skip) → `S_GAD_M_GIU` (elem_id=8) → pipelined GIU-Walker `S_GAD_GIU_INIT/REC_HDR/REC_GSSI`, bis zu 3 GIU-Records werden in Output-Arrays geschrieben.
 
@@ -229,13 +229,13 @@ LLC-Parse (TL-SDU): 4-bit `{link_type, has_fcs, bl_pdu_type[1:0]}` an [tl_sdu+0.
 **Auffälligkeiten:**
 - Header explizit: "Phase Y.1.a-fix — pipelined GIU walker": ursprünglicher One-Cycle-Walker hatte Timing-Violation (~29 logic levels @ 100 MHz). Aktueller Walker bricht record-Verarbeitung in 2 Zyklen (HDR + GSSI) auf.
 - `gild_buf` ist 256-bit obwohl GILD payload max ~57 bits — Reserve für flexible Snapshot-Shift `>> (cursor - cur_elem_len)`.
-- Block `S_T3_PAYLOAD_GILD : gild_decode` deklariert lokale `reg` Variablen mit Begin-End-Block (Verilog-2001-Syntax) statt Outer-Module-Regs.
+- Block `S_T3_PAYLOAD_GILD: gild_decode` deklariert lokale `reg` Variablen mit Begin-End-Block (Verilog-2001-Syntax) statt Outer-Module-Regs.
 - mm=7 GIU-Records werden gestackt in 3-Slot-Arrays (jedes Feld 3× breiter als Single-Record) — Limit 3 Records aus 6-bit num_elem (theoretisch bis 63).
 - atd_mode in GILD-Decoder wird gelesen aber TIE-OFF: Kommentar `// future: detach path`.
 
 ---
 
-### tetra_steal_detect.v  (145 Zeilen)
+### tetra_steal_detect.v (145 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, aach_data_sys[13:0], aach_valid_sys, slot_num_sys[1:0], burst_type_sys[1:0]` → `steal_active_sys[3:0], access_code0_sys[5:0], access_code1_sys[5:0], access_code2_sys[5:0], access_code3_sys[5:0]`
 
 **Funktion:** Dekodiert AACH-Access-Code aus den oberen 6 bit des 14-bit Reed-Muller-decodierten AACH-Felds. Steal-Bedingung: `access_code[5:3] == 3'b001` (deckt STCH=001000 und STCH+ACCH=001001 ab). Nur auf NDB (`burst_type==0`) aktiv; SB/NUB ignoriert. Per-Slot Bit `steal_active_sys[slot_num]` wird gesetzt/zurückgesetzt, und der 6-bit Access-Code wird in slot-spezifisches Register kopiert (access_code0..3).
@@ -252,7 +252,7 @@ LLC-Parse (TL-SDU): 4-bit `{link_type, has_fcs, bl_pdu_type[1:0]}` an [tl_sdu+0.
 
 ---
 
-### tetra_ul_voice_capture.v  (135 Zeilen)
+### tetra_ul_voice_capture.v (135 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, ul_dibit_sys[1:0], ul_dibit_valid_sys, tdma_slot_pulse_sys, tdma_tn_now_sys[1:0], tdma_fn_now_sys[4:0], voice_active_mask_sys[3:0]` → `voice_burst_valid_sys, voice_burst_coded_sys[431:0], voice_burst_target_tn_sys[1:0], voice_burst_aach_sys[13:0], voice_burst_pdu_type_sys[1:0], capture_cnt_sys[15:0]`
 
 **Funktion (laut Code):** Slot-aligned UL-Dibit-Capture. Auf jedem `tdma_slot_pulse_sys`: wenn `voice_active_mask_sys[tdma_tn_now_sys]=1` → setze `capturing_sys=1`, `dibit_idx=0`, latche TN+FN, leere `burst_buf`. Sonst → `capturing_sys=0`. Während `capturing_sys=1` UND `ul_dibit_valid_sys=1`: shift dibit in `burst_buf` MSB-first. Bei dibit 216 (= 432 Bits voll): emit `voice_burst_valid_sys`-Puls, übernimm `burst_buf` in Output, setze AACH-Wert nach FN-Mapping:
@@ -292,8 +292,8 @@ LLC-Parse (TL-SDU): 4-bit `{link_type, has_fcs, bl_pdu_type[1:0]}` an [tl_sdu+0.
 - Header-Kommentar mehrfach "Phase Y.4.2/Y.4.3" — frisch hinzugefügter Code.
 - `voice_burst_pdu_type_sys` immer `2'd0` (SCH/F NDB1), egal welcher AACH-Wert, lt. Kommentar bewusst — AACH steuert MS-Interpretation.
 - Die ursprünglich erwartete UL-RX-Pipeline (`u_ul_demod` SCH/HU-aligned) wird vom voice_capture NICHT genutzt; stattdessen direkter DL-demod-Dibitstrom. Damit ist die korrekte Anordnung "kontinuierlicher post-DQPSK Dibit-Strom" nur dann, wenn:
-  - RX-LO tatsächlich auf UL-Frequenz konfiguriert ist (nicht aus dem Code prüfbar, hängt von AXI-Setup)
-  - Timing-Recovery auf den MS-UL-Burst konvergiert (Gardner ist nicht UL-Burst-tauglich lt. Kommentar in `tetra_ul_sync_detect_os4.v`: "isolated UL bursts are only 127 symbols long (~7 ms), the Gardner TED in the main RX chain does not converge before the burst ends")
+ - RX-LO tatsächlich auf UL-Frequenz konfiguriert ist (nicht aus dem Code prüfbar, hängt von AXI-Setup)
+ - Timing-Recovery auf den MS-UL-Burst konvergiert (Gardner ist nicht UL-Burst-tauglich lt. Kommentar in `tetra_ul_sync_detect_os4.v`: "isolated UL bursts are only 127 symbols long (~7 ms), the Gardner TED in the main RX chain does not converge before the burst ends")
 - Aus dem Code-Verlauf direkt sichtbar: der Stream den `voice_capture` bekommt ist im DL-Stand-by exakt der DL-pi4dqpsk_demod-Strom mit DL-Symboltakt (Gardner-NCO-getrieben). Auf UL-Slot-Pulse-Edge ist der TX-TDMA-Counter aktiv, aber der Demod-Strom ist phänomenologisch nicht garantiert MS-UL.
 - `voice_burst_valid_sys_w` würde funktional pulsen wenn (a) AXI `voice_active_mask` non-zero gesetzt UND (b) im TX-Slot-TN-Fenster (TX-getriggert) 216 zusammenhängende dibit_valid-Pulse anfallen. Beim aktuellen Wiring kommen die dibit_valid-Pulse aber aus dem DL-pi4dqpsk_demod, der eine 18-Zyklus-Latenz pro Symbol braucht — bei 100 MHz / 18 kHz = 5556 Zyklen pro Symbol, ist genug Zeit. Der Demod gibt seine dibit_valid weiter solange die Timing-Recovery NCO überläuft. Ob der Stream während des MS-UL-Bursts überhaupt sinnvolle Bits produziert ist aus dem RTL-Verlauf nicht entscheidbar — der DL-demod hat KEINE Gate-Bedingung mit DL-`sync_locked` oder Burst-Fenster.
 

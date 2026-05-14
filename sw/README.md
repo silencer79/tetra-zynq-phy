@@ -33,15 +33,15 @@ insmod tetra_char_dev.ko
 
 # Check device node
 ls -l /dev/tetra
-# Expected: crw-rw---- 1 root root 247, 0 Apr  6 12:00 /dev/tetra
+# Expected: crw-rw---- 1 root root 247, 0 Apr 6 12:00 /dev/tetra
 
 # Read all registers
 cat /dev/tetra
 # Output:
-# 0000: 0x20260406  (VERSION)
-# 0004: 0x00000000  (STATUS)
-# 0008: 0x00000000  (CTRL)
-# ...
+# 0000: 0x20260406 (VERSION)
+# 0004: 0x00000000 (STATUS)
+# 0008: 0x00000000 (CTRL)
+#...
 
 # Write register (enable RX)
 echo "0x0008 0x00000001" > /dev/tetra
@@ -56,9 +56,9 @@ Add to your board's device tree (`.dts`):
 
 ```dts
 tetra_phy: tetra-phy@40000000 {
-    compatible = "midnightblue,tetra-phy";
-    reg = <0x40000000 0x10000>;
-    status = "okay";
+ compatible = "midnightblue,tetra-phy";
+ reg = <0x40000000 0x10000>;
+ status = "okay";
 };
 ```
 
@@ -66,15 +66,15 @@ tetra_phy: tetra-phy@40000000 {
 
 ## Register Map
 
-| Offset | Name       | R/W | Description                           |
+| Offset | Name | R/W | Description |
 |--------|------------|-----|---------------------------------------|
-| 0x0000 | VERSION    | R   | Hardware version (YYYYMMDD format)    |
-| 0x0004 | STATUS     | R   | Status flags (SYNC_LOCKED, etc.)      |
-| 0x0008 | CTRL       | R/W | Control register (RX/TX enable)       |
-| 0x000C | RX_FREQ    | R/W | RX LO frequency (Hz)                  |
-| 0x0010 | TX_FREQ    | R/W | TX LO frequency (Hz)                  |
-| 0x0014 | GAIN       | R/W | RX gain (0-73 dB)                     |
-| 0x0018 | SYNC       | R   | Sync detection status                 |
+| 0x0000 | VERSION | R | Hardware version (YYYYMMDD format) |
+| 0x0004 | STATUS | R | Status flags (SYNC_LOCKED, etc.) |
+| 0x0008 | CTRL | R/W | Control register (RX/TX enable) |
+| 0x000C | RX_FREQ | R/W | RX LO frequency (Hz) |
+| 0x0010 | TX_FREQ | R/W | TX LO frequency (Hz) |
+| 0x0014 | GAIN | R/W | RX gain (0-73 dB) |
+| 0x0018 | SYNC | R | Sync detection status |
 
 **STATUS Register Bits:**
 - Bit 0: `SYNC_LOCKED` — Sync sequence detected
@@ -99,44 +99,44 @@ tetra_phy: tetra-phy@40000000 {
 #include <sys/ioctl.h>
 #include <stdint.h>
 
-#define TETRA_IOC_MAGIC          'T'
-#define TETRA_IOCTL_GET_STATUS   _IOR(TETRA_IOC_MAGIC, 0x01, uint32_t)
-#define TETRA_IOCTL_START_RX     _IO(TETRA_IOC_MAGIC, 0x04)
+#define TETRA_IOC_MAGIC 'T'
+#define TETRA_IOCTL_GET_STATUS _IOR(TETRA_IOC_MAGIC, 0x01, uint32_t)
+#define TETRA_IOCTL_START_RX _IO(TETRA_IOC_MAGIC, 0x04)
 
 int main() {
-    int fd = open("/dev/tetra", O_RDWR);
-    if (fd < 0) {
-        perror("open /dev/tetra");
-        return 1;
-    }
+ int fd = open("/dev/tetra", O_RDWR);
+ if (fd < 0) {
+ perror("open /dev/tetra");
+ return 1;
+ }
 
-    // Start RX
-    if (ioctl(fd, TETRA_IOCTL_START_RX) < 0) {
-        perror("ioctl START_RX");
-        close(fd);
-        return 1;
-    }
+ // Start RX
+ if (ioctl(fd, TETRA_IOCTL_START_RX) < 0) {
+ perror("ioctl START_RX");
+ close(fd);
+ return 1;
+ }
 
-    printf("RX started\n");
+ printf("RX started\n");
 
-    // Poll status
-    uint32_t status;
-    while (1) {
-        if (ioctl(fd, TETRA_IOCTL_GET_STATUS, &status) < 0) {
-            perror("ioctl GET_STATUS");
-            break;
-        }
+ // Poll status
+ uint32_t status;
+ while (1) {
+ if (ioctl(fd, TETRA_IOCTL_GET_STATUS, &status) < 0) {
+ perror("ioctl GET_STATUS");
+ break;
+ }
 
-        if (status & 0x01) {  // SYNC_LOCKED
-            printf("Sync locked! STATUS=0x%08x\n", status);
-            break;
-        }
+ if (status & 0x01) { // SYNC_LOCKED
+ printf("Sync locked! STATUS=0x%08x\n", status);
+ break;
+ }
 
-        usleep(100000);  // 100 ms
-    }
+ usleep(100000); // 100 ms
+ }
 
-    close(fd);
-    return 0;
+ close(fd);
+ return 0;
 }
 ```
 
@@ -160,33 +160,33 @@ If you prefer not to use a kernel module, you can access registers directly via 
 #include <stdint.h>
 
 #define AXI_LITE_BASE 0x40000000
-#define REG_SIZE      0x10000
+#define REG_SIZE 0x10000
 
 int main() {
-    int fd = open("/dev/mem", O_RDWR);
-    if (fd < 0) {
-        perror("open /dev/mem");
-        return 1;
-    }
+ int fd = open("/dev/mem", O_RDWR);
+ if (fd < 0) {
+ perror("open /dev/mem");
+ return 1;
+ }
 
-    volatile uint32_t *regs = mmap(NULL, REG_SIZE,
-        PROT_READ | PROT_WRITE, MAP_SHARED, fd, AXI_LITE_BASE);
+ volatile uint32_t *regs = mmap(NULL, REG_SIZE,
+ PROT_READ | PROT_WRITE, MAP_SHARED, fd, AXI_LITE_BASE);
 
-    if (regs == MAP_FAILED) {
-        perror("mmap");
-        close(fd);
-        return 1;
-    }
+ if (regs == MAP_FAILED) {
+ perror("mmap");
+ close(fd);
+ return 1;
+ }
 
-    // Read STATUS
-    uint32_t status = regs[0x0004 / 4];
-    printf("STATUS: 0x%08x\n", status);
+ // Read STATUS
+ uint32_t status = regs[0x0004 / 4];
+ printf("STATUS: 0x%08x\n", status);
 
-    // Enable RX
-    regs[0x0008 / 4] = 0x00000001;
+ // Enable RX
+ regs[0x0008 / 4] = 0x00000001;
 
-    close(fd);
-    return 0;
+ close(fd);
+ return 0;
 }
 ```
 

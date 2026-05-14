@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """verify_empty_content.py — Charakterisiert "empty"-klassifizierte Bursts
-im Gold-WAV. Liefert harte Messungen ohne Interpretation:
+im WAV. Liefert harte Messungen ohne Interpretation:
   - Korrelation-Histogramme (STS / NTS1 / NTS2) über alle "empty"-Bursts
   - Autokorrelations-Peak-Positionen je Burst (zeigt versteckte Training-Seqs)
   - Power-Envelope je Symbol (prüft, ob irgendwo IQ-Lücke innerhalb Burst)
@@ -23,7 +23,7 @@ from decode_dl import (
     load_iq_file, estimate_freq_offset, rrc_filter,
     scrambler_seq, decode_channel, parse_sysinfo_sb,
 )
-from gold_schedule import _phase_correct
+from schedule import _phase_correct
 
 
 def analyze(wav_path):

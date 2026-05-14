@@ -27,7 +27,7 @@ from decode_dl import (
     load_iq_file, estimate_freq_offset, rrc_filter,
     scrambler_seq, decode_channel, parse_sysinfo_sb,
 )
-from gold_schedule import _phase_correct
+from schedule import _phase_correct
 
 
 def analyze(wav_path):

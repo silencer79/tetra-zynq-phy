@@ -35,39 +35,39 @@ vivado -mode batch -source scripts/vivado_build.tcl
 1. **Create Project** — `create_project tetra_zynq_phy build/vivado -part $PART -force`. Verilog default, `default_lib=work`, `simulator_language=Mixed`.
 
 2. **Add RTL Sources** — siehe Detail in `docs/ist/10_scripts.md` (vivado_build.tcl-Abschnitt). Categories:
-   - Infra (3 Files), AD9361-Adapter (1), RX-Chain (14), TX-Chain (12 + 1 zusätzliches `tetra_aach_rm_encoder.v`), LMAC (29), Top-Level (2).
-   - **Header:** `rtl/include/tetra_pdu_class.vh` mit `is_global_include=true` + Include-Path `rtl/include` (Phase Z.3).
-   - **Constraints:** `constraints/libresdr_tetra.xdc`, `constraints/adi_cdc_async_reg.xdc` (per `add_files -fileset constrs_1`).
+ - Infra (3 Files), AD9361-Adapter (1), RX-Chain (14), TX-Chain (12 + 1 zusätzliches `tetra_aach_rm_encoder.v`), LMAC (29), Top-Level (2).
+ - **Header:** `rtl/include/tetra_pdu_class.vh` mit `is_global_include=true` + Include-Path `rtl/include` (Phase Z.3).
+ - **Constraints:** `constraints/libresdr_tetra.xdc`, `constraints/adi_cdc_async_reg.xdc` (per `add_files -fileset constrs_1`).
 
 3. **Block Design** — `source scripts/create_bd.tcl`. Erzeugt `tetra_system.bd` + Wrapper. Top wird auf `tetra_system_top` gesetzt.
 
 4. **Synthesis:**
-   ```
-   synth_design -top tetra_system_top -part xc7z020clg400-1 \
-                -flatten_hierarchy rebuilt \
-                -directive PerformanceOptimized \
-                -retiming
-   ```
-   BD-Synth-Mode `SYNTH_CHECKPOINT_MODE=None` (Global statt OOC). Reports: `synth_utilization.rpt`, `synth_timing.rpt`. Checkpoint: `post_synth.dcp`.
+ ```
+ synth_design -top tetra_system_top -part xc7z020clg400-1 \
+ -flatten_hierarchy rebuilt \
+ -directive PerformanceOptimized \
+ -retiming
+ ```
+ BD-Synth-Mode `SYNTH_CHECKPOINT_MODE=None` (Global statt OOC). Reports: `synth_utilization.rpt`, `synth_timing.rpt`. Checkpoint: `post_synth.dcp`.
 
 5. **Implementation:**
-   - `opt_design` → `post_opt.dcp`.
-   - **ILA-Logik:**
-     - `get_nets -hierarchical -filter {MARK_DEBUG == "TRUE"}` Liste lesen.
-     - Wenn `ENABLE_ILA_DEBUG=1` UND Nets gefunden:
-       - Re-open `post_opt.dcp`.
-       - Klassifikation `*_lvds` → l_clk-Domain, sonst → clk_sys-Domain.
-       - Clock-Net aus bekannter Registered-Probe-Zelle (`dbg_sync_locked_sys_reg`).
-       - `create_ila u_ila_sys` mit Tiefe 4096, alle clk_sys-Probes.
-       - `u_ila_lvds` ist explizit DISABLED (l_clk nur aktiv nach AD9361-Init).
-       - `implement_debug_core` → ILA + dbg_hub + BSCAN.
-   - `place_design -directive Auto_1`.
-   - `phys_opt_design -directive AggressiveExplore`.
-   - `route_design -directive AggressiveExplore`.
-   - `phys_opt_design -directive AggressiveExplore`.
-   - Reports: `impl_utilization.rpt`, `impl_timing.rpt`, `clock_interaction.rpt`, `cdc_report.rpt`.
-   - WNS-Check (warn bei negativem Slack).
-   - Checkpoint: `post_route.dcp`.
+ - `opt_design` → `post_opt.dcp`.
+ - **ILA-Logik:**
+ - `get_nets -hierarchical -filter {MARK_DEBUG == "TRUE"}` Liste lesen.
+ - Wenn `ENABLE_ILA_DEBUG=1` UND Nets gefunden:
+ - Re-open `post_opt.dcp`.
+ - Klassifikation `*_lvds` → l_clk-Domain, sonst → clk_sys-Domain.
+ - Clock-Net aus bekannter Registered-Probe-Zelle (`dbg_sync_locked_sys_reg`).
+ - `create_ila u_ila_sys` mit Tiefe 4096, alle clk_sys-Probes.
+ - `u_ila_lvds` ist explizit DISABLED (l_clk nur aktiv nach AD9361-Init).
+ - `implement_debug_core` → ILA + dbg_hub + BSCAN.
+ - `place_design -directive Auto_1`.
+ - `phys_opt_design -directive AggressiveExplore`.
+ - `route_design -directive AggressiveExplore`.
+ - `phys_opt_design -directive AggressiveExplore`.
+ - Reports: `impl_utilization.rpt`, `impl_timing.rpt`, `clock_interaction.rpt`, `cdc_report.rpt`.
+ - WNS-Check (warn bei negativem Slack).
+ - Checkpoint: `post_route.dcp`.
 
 6. **Bitstream:** `write_bitstream -force build/tetra_zynq_phy.bit`, `write_debug_probes -force build/tetra_zynq_phy.ltx`.
 
@@ -76,27 +76,27 @@ vivado -mode batch -source scripts/vivado_build.tcl
 Erzeugt das Block-Design `tetra_system`. Aufruf aus `vivado_build.tcl`.
 
 **IP-Komponenten:**
-| Cell                | VLNV                                            | Konfiguration                                                                                |
+| Cell | VLNV | Konfiguration |
 |---------------------|-------------------------------------------------|----------------------------------------------------------------------------------------------|
-| `sys_ps7`           | `xilinx.com:ip:processing_system7:5.5`          | FCLK0=100 MHz, FCLK1=200 MHz, GP0+HP0(64b), SPI0/I2C0/UART0/ENET0/SD0 EMIO, GPIO 64b EMIO, DDR 534 MHz |
-| `sys_rstgen`        | `xilinx.com:ip:proc_sys_reset:5.0`              | 100 MHz, 1 Bus-Rst, 1 Perp-Rst                                                              |
-| `axi_ad9361_0`      | `analog.com:user:axi_ad9361:1.0`                | LVDS DDR (CMOS_OR_LVDS_N=0), MIMO_ENABLE=1, TDD_DISABLE=1, DAC_DDS_DISABLE=1, ADC_INIT_DELAY=30, IODELAY_CTRL=1, DELAY_REFCLK_FREQUENCY=200 |
-| `axi_dma_0`         | `xilinx.com:ip:axi_dma:7.1`                     | Nur S2MM (32-bit, SG enabled, c_sg_length_width=14, c_s2mm_burst_size=256, c_include_s2mm_dre=1) |
-| `axi_ic_ctrl`       | `xilinx.com:ip:axi_interconnect:2.1`            | NUM_MI=3, NUM_SI=1                                                                          |
-| `axi_ic_hp0`        | `xilinx.com:ip:axi_interconnect:2.1`            | NUM_MI=1, NUM_SI=2                                                                          |
-| `xlconcat_irq`      | `xilinx.com:ip:xlconcat:2.1`                    | NUM_PORTS=2                                                                                 |
-| `tetra_zynq_top_0`  | Module-Reference auf `tetra_zynq_top.v`         | `set_param ips.enableInterfaceArrayInference false` davor                                  |
+| `sys_ps7` | `xilinx.com:ip:processing_system7:5.5` | FCLK0=100 MHz, FCLK1=200 MHz, GP0+HP0(64b), SPI0/I2C0/UART0/ENET0/SD0 EMIO, GPIO 64b EMIO, DDR 534 MHz |
+| `sys_rstgen` | `xilinx.com:ip:proc_sys_reset:5.0` | 100 MHz, 1 Bus-Rst, 1 Perp-Rst |
+| `axi_ad9361_0` | `analog.com:user:axi_ad9361:1.0` | LVDS DDR (CMOS_OR_LVDS_N=0), MIMO_ENABLE=1, TDD_DISABLE=1, DAC_DDS_DISABLE=1, ADC_INIT_DELAY=30, IODELAY_CTRL=1, DELAY_REFCLK_FREQUENCY=200 |
+| `axi_dma_0` | `xilinx.com:ip:axi_dma:7.1` | Nur S2MM (32-bit, SG enabled, c_sg_length_width=14, c_s2mm_burst_size=256, c_include_s2mm_dre=1) |
+| `axi_ic_ctrl` | `xilinx.com:ip:axi_interconnect:2.1` | NUM_MI=3, NUM_SI=1 |
+| `axi_ic_hp0` | `xilinx.com:ip:axi_interconnect:2.1` | NUM_MI=1, NUM_SI=2 |
+| `xlconcat_irq` | `xilinx.com:ip:xlconcat:2.1` | NUM_PORTS=2 |
+| `tetra_zynq_top_0` | Module-Reference auf `tetra_zynq_top.v` | `set_param ips.enableInterfaceArrayInference false` davor |
 
 **Adressmap (PS GP0 0x4000_0000–0x7FFF_FFFF):**
-| Offset           | Range  | Slave                              |
+| Offset | Range | Slave |
 |------------------|--------|------------------------------------|
-| `0x4040_0000`    | 64 KB  | `axi_dma_0.S_AXI_LITE`             |
-| `0x43C0_0000`    | 64 KB  | `tetra_zynq_top_0.s_axi.reg0`      |
-| `0x7902_0000`    | 64 KB  | `axi_ad9361_0.s_axi`               |
+| `0x4040_0000` | 64 KB | `axi_dma_0.S_AXI_LITE` |
+| `0x43C0_0000` | 64 KB | `tetra_zynq_top_0.s_axi.reg0` |
+| `0x7902_0000` | 64 KB | `axi_ad9361_0.s_axi` |
 
 **HP0 (DMA Datenpfad):**
 - `axi_dma_0.Data_S2MM` → `sys_ps7/S_AXI_HP0/HP0_DDR_LOWOCM` (1 GB).
-- `axi_dma_0.Data_SG`   → `sys_ps7/S_AXI_HP0/HP0_DDR_LOWOCM` (1 GB).
+- `axi_dma_0.Data_SG` → `sys_ps7/S_AXI_HP0/HP0_DDR_LOWOCM` (1 GB).
 
 **Datenpfade:**
 - LVDS RX/TX (AD9361 ↔ axi_ad9361): `rx_clk_in_p/n`, `rx_frame_in_p/n`, `rx_data_in_p/n[5:0]`, gleiche TX-Signale. Individuell als externe BD-Ports (kein Interface-Bundle).
@@ -287,13 +287,13 @@ Standalone-Capture (kein `hw_deploy.sh`-Wrapper). Trigger auf `sync_found_sample
 
 Liest CDC-Violations aus `impl_1`, kategorisiert nach Bit-Width und Signal-Namen-Heuristik:
 
-| Bit-Width | Signal-Pattern         | Kategorie       | Fix-Strategie   |
+| Bit-Width | Signal-Pattern | Kategorie | Fix-Strategie |
 |-----------|------------------------|-----------------|-----------------|
-| > 16      | beliebig               | Data Bus        | XPM Async FIFO  |
-| 2..16     | `*cnt*/counter*/num*`  | Counter         | Gray-Code + 2FF |
-| 2..16     | sonst                  | Data Bus        | XPM Async FIFO  |
-| 1         | `*pulse*/valid*/req*`  | Pulse           | Toggle-Sync     |
-| 1         | sonst                  | Control         | 2FF Sync        |
+| > 16 | beliebig | Data Bus | XPM Async FIFO |
+| 2..16 | `*cnt*/counter*/num*` | Counter | Gray-Code + 2FF |
+| 2..16 | sonst | Data Bus | XPM Async FIFO |
+| 1 | `*pulse*/valid*/req*` | Pulse | Toggle-Sync |
+| 1 | sonst | Control | 2FF Sync |
 
 **Outputs:**
 - `reports/cdc_violations_detailed.rpt` (full `report_cdc -details` output).

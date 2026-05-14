@@ -31,122 +31,122 @@ Diese Dokumentation beschreibt was der Code **TUT**, nicht was er tun **sollte**
 ## Block-Diagramm (vereinfacht)
 
 ```
-                            ┌─────────────────────────────────────┐
-                            │       ARM PS (Linux userspace)       │
-                            │                                     │
-                            │  ┌────────────────┐  ┌────────────┐ │
-                            │  │ tetra_attach_  │  │ tetra_call │ │
-                            │  │ daemon         │  │ _fsm       │ │
-                            │  │ (10 ms poll)   │  │ (per-SSI)  │ │
-                            │  └───┬────────────┘  └─────┬──────┘ │
-                            │      │ AXI4-Lite           │        │
-                            │  ┌───▼─────────────────────▼──────┐ │
-                            │  │ tetra_hal (libtetra)            │ │
-                            │  └───┬─────────────────────────────┘ │
-                            └──────┼──────────────────────────────┘
-                                   │  s_axi (clk_axi)
+ ┌─────────────────────────────────────┐
+ │ ARM PS (Linux userspace) │
+ │ │
+ │ ┌────────────────┐ ┌────────────┐ │
+ │ │ tetra_attach_ │ │ tetra_call │ │
+ │ │ daemon │ │ _fsm │ │
+ │ │ (10 ms poll) │ │ (per-SSI) │ │
+ │ └───┬────────────┘ └─────┬──────┘ │
+ │ │ AXI4-Lite │ │
+ │ ┌───▼─────────────────────▼──────┐ │
+ │ │ tetra_hal (libtetra) │ │
+ │ └───┬─────────────────────────────┘ │
+ └──────┼──────────────────────────────┘
+ │ s_axi (clk_axi)
 ─────── PL ────────────────────────┼──────────────────────────────
-                            ┌──────▼──────────────────┐
-                            │ tetra_axi_lite_regs     │  Bank 0/1/2
-                            │   Bank 0: 0x000-0x1FC   │  ~300 regs
-                            │   Bank 1: 0x200-0x2FC   │  mailbox-ext
-                            │   Bank 2: 0x400-0x63F   │  schedule-BRAM
-                            └──────┬──────────────────┘
-                                   │ broadcasts to all clk_sys modules
-                                   │ (CDC: 2-FF resync for AXI→sys)
-        ┌──────────────────────────┼──────────────────────────────┐
-        │                          │                              │
-   ┌────▼─────────┐         ┌──────▼──────────┐          ┌────────▼─────────┐
-   │ Mailboxes    │         │ LMAC Signaling  │          │ TDMA Timebase    │
-   │ (demand,     │         │   FSMs          │          │ (TN/FN/MN/HN)    │
-   │  grp_demand, │         │ ┌─────────────┐ │          │ slot_pulse_sys   │
-   │  indirect,   │         │ │ MLE-Reg-FSM │ │          └────────┬─────────┘
-   │  reply)      │         │ │ PreReply-   │ │                   │
-   └────┬─────────┘         │ │   blck/sg   │ │                   │
-        │                   │ │ NwrkBcast   │ │                   │
-        │                   │ └──────┬──────┘ │                   │
-        │                   └────────┼────────┘                   │
-        │                            │                            │
-        │                            ▼                            │
-        │                   ┌─────────────────┐                   │
-        │                   │ DL Signal Queue │ MLE/CMCE/SDS-port│
-        │                   │  (4-entry,      │                  │
-        │                   │   strict prio)  │                  │
-        │                   └────────┬────────┘                  │
-        │                            │                           │
-        │                            ▼                           │
-        │                   ┌─────────────────┐                  │
-        │                   │ DL Signal Sched │ (head pop/frame) │
-        │                   └────────┬────────┘                  │
-        │                            │ sched_blk1/2_tnK          │
-        │                            ▼                           │
-   ┌────────────────────────────────────────────────┐            │
-   │ RX-Pipeline (rtl/rx)        TX-Pipeline (rtl/tx)│            │
-   │                                                 │            │
-   │  AD9361 ── rx_frontend ──┐  ┌── slot_content_mux│◄───────────┘
-   │  (clk_lvds) (CIC+RRC)    │  │  (schedule BRAM-prefetch)
-   │            CDC ──┘       │  │
-   │  ┌──────────────────────┘  ▼
-   │  │                       ┌──────────────────┐
-   │  ▼                       │ burst_dispatcher │ (Y.3, single-stage mux)
-   │ timing_recovery          └─────────┬────────┘
-   │  │ on-time samples 18kHz           │
-   │  ▼                                 ▼
-   │ pi4dqpsk_demod           ┌──────────────────┐
-   │  │ dibit_out             │ tx_chain         │
-   │  ▼                       │  ├ sb1_encoder   │
-   │ sync_detect (DL-style)   │  ├ pi4dqpsk_mod  │
-   │  │                       │  ├ RRC filter    │
-   │  ▼                       │  └ tx_frontend   │
-   │ burst_demux              └────┬─────────────┘
-   │  │                            │
-   │  ▼                            ▼
-   │ frame_counter            ad9361_axis_adapter
-   │                            (TX sample+hold)
-   │                                ▼ DAC (clk_lvds)
-   │                              AD9361
-   │
-   │ ── parallel UL path ──
-   │
-   │ rx_frontend (shared) ── ul_sync_detect_os4 ── ul_burst_capture
-   │                                                    │
-   │                                                    ▼
-   │                                         ul_pi4dqpsk_demod
-   │                                                    │
-   │                                                    ▼
-   │                                          ul_sch_hu_decoder
-   │                                            (RCPC+Viterbi)
-   │                                                    │
-   │                                                    ▼
-   │                                          ul_mac_access_parser
-   │                                                    │
-   │                                                    ▼
-   │                            ┌──────────────────────┴──────────────┐
-   │                            ▼                                     ▼
-   │                ul_demand_reassembly                  ul_demand_ie_parser
-   │                            │                                     │
-   │                            └──── AXI Mailboxes ──────────────────┘
-   │                                  (für SW-Polling)
-   │
-   │ ── (Working-Tree only) Y.4.2/Y.4.3 hack ──
-   │
-   │ rx_chain.ul_demod_dibit_out_sys = demod_dibit_sys  ← Working-Tree
-   │                                  = ul_soft0/1[MSB] ← Deployed Bitstream
-   │                                                    │
-   │                                                    ▼
-   │                                          ul_voice_capture
-   │                                          (216-Dibit FSM,
-   │                                           DL-slot-aligned)
-   │                                                    │
-   │                                                    ▼ voice_burst_valid
-   │                                          CMCE-port-mux (zynq_top)
-   │                                          (mit nwrk_bcast OR'd)
-   │                                                    │
-   │                                                    ▼
-   │                                          DL signal queue
-   │                                          (CMCE-port input)
-   │
-   └─────────────────────────────────────────────────────────
+ ┌──────▼──────────────────┐
+ │ tetra_axi_lite_regs │ Bank 0/1/2
+ │ Bank 0: 0x000-0x1FC │ ~300 regs
+ │ Bank 1: 0x200-0x2FC │ mailbox-ext
+ │ Bank 2: 0x400-0x63F │ schedule-BRAM
+ └──────┬──────────────────┘
+ │ broadcasts to all clk_sys modules
+ │ (CDC: 2-FF resync for AXI→sys)
+ ┌──────────────────────────┼──────────────────────────────┐
+ │ │ │
+ ┌────▼─────────┐ ┌──────▼──────────┐ ┌────────▼─────────┐
+ │ Mailboxes │ │ LMAC Signaling │ │ TDMA Timebase │
+ │ (demand, │ │ FSMs │ │ (TN/FN/MN/HN) │
+ │ grp_demand, │ │ ┌─────────────┐ │ │ slot_pulse_sys │
+ │ indirect, │ │ │ MLE-Reg-FSM │ │ └────────┬─────────┘
+ │ reply) │ │ │ PreReply- │ │ │
+ └────┬─────────┘ │ │ blck/sg │ │ │
+ │ │ │ NwrkBcast │ │ │
+ │ │ └──────┬──────┘ │ │
+ │ └────────┼────────┘ │
+ │ │ │
+ │ ▼ │
+ │ ┌─────────────────┐ │
+ │ │ DL Signal Queue │ MLE/CMCE/SDS-port│
+ │ │ (4-entry, │ │
+ │ │ strict prio) │ │
+ │ └────────┬────────┘ │
+ │ │ │
+ │ ▼ │
+ │ ┌─────────────────┐ │
+ │ │ DL Signal Sched │ (head pop/frame) │
+ │ └────────┬────────┘ │
+ │ │ sched_blk1/2_tnK │
+ │ ▼ │
+ ┌────────────────────────────────────────────────┐ │
+ │ RX-Pipeline (rtl/rx) TX-Pipeline (rtl/tx)│ │
+ │ │ │
+ │ AD9361 ── rx_frontend ──┐ ┌── slot_content_mux│◄───────────┘
+ │ (clk_lvds) (CIC+RRC) │ │ (schedule BRAM-prefetch)
+ │ CDC ──┘ │ │
+ │ ┌──────────────────────┘ ▼
+ │ │ ┌──────────────────┐
+ │ ▼ │ burst_dispatcher │ (Y.3, single-stage mux)
+ │ timing_recovery └─────────┬────────┘
+ │ │ on-time samples 18kHz │
+ │ ▼ ▼
+ │ pi4dqpsk_demod ┌──────────────────┐
+ │ │ dibit_out │ tx_chain │
+ │ ▼ │ ├ sb1_encoder │
+ │ sync_detect (DL-style) │ ├ pi4dqpsk_mod │
+ │ │ │ ├ RRC filter │
+ │ ▼ │ └ tx_frontend │
+ │ burst_demux └────┬─────────────┘
+ │ │ │
+ │ ▼ ▼
+ │ frame_counter ad9361_axis_adapter
+ │ (TX sample+hold)
+ │ ▼ DAC (clk_lvds)
+ │ AD9361
+ │
+ │ ── parallel UL path ──
+ │
+ │ rx_frontend (shared) ── ul_sync_detect_os4 ── ul_burst_capture
+ │ │
+ │ ▼
+ │ ul_pi4dqpsk_demod
+ │ │
+ │ ▼
+ │ ul_sch_hu_decoder
+ │ (RCPC+Viterbi)
+ │ │
+ │ ▼
+ │ ul_mac_access_parser
+ │ │
+ │ ▼
+ │ ┌──────────────────────┴──────────────┐
+ │ ▼ ▼
+ │ ul_demand_reassembly ul_demand_ie_parser
+ │ │ │
+ │ └──── AXI Mailboxes ──────────────────┘
+ │ (für SW-Polling)
+ │
+ │ ── (Working-Tree only) Y.4.2/Y.4.3 hack ──
+ │
+ │ rx_chain.ul_demod_dibit_out_sys = demod_dibit_sys ← Working-Tree
+ │ = ul_soft0/1[MSB] ← Deployed Bitstream
+ │ │
+ │ ▼
+ │ ul_voice_capture
+ │ (216-Dibit FSM,
+ │ DL-slot-aligned)
+ │ │
+ │ ▼ voice_burst_valid
+ │ CMCE-port-mux (zynq_top)
+ │ (mit nwrk_bcast OR'd)
+ │ │
+ │ ▼
+ │ DL signal queue
+ │ (CMCE-port input)
+ │
+ └─────────────────────────────────────────────────────────
 ```
 
 ## Konsolidierte Befunde (cross-chapter)

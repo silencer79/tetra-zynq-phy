@@ -80,9 +80,9 @@ Aus `wavs/local_cell_425-440mhz/DL_baseband_438343750Hz_19-42-53_14-05-2026.wav`
 - 1415 Bursts decoded, **100 % CRC OK** (1067 SB, 348 NDB)
 - MCC=901 MNC=9998 CC=49, Carrier=1530, DL=438.250 MHz
 - AACH-Pattern auf TN=2 (decoder) während voice_active_mask=0x02:
-  - FN 1-9: `0x32CB` (Y.4.1-fix voice TCH/S pattern) ✅
-  - FN 10-13: `0x22C9` (FACCH-stealing pattern) ✅
-  - FN 14-17: `0x2049` (idle filler) ✅
+ - FN 1-9: `0x32CB` (Y.4.1-fix voice TCH/S pattern) ✅
+ - FN 10-13: `0x22C9` (FACCH-stealing pattern) ✅
+ - FN 14-17: `0x2049` (idle filler) ✅
 - AACH-Encoder Y.4.1-fix FN-Rotation **funktioniert** — die korrekten 3 Pattern werden raus-emittiert.
 
 ## Was AKTUELL als Hack drinhängt aber inert ist
@@ -112,7 +112,7 @@ Aus den ursprünglichen Phase-Y.4-Tags im Working-Tree-Code:
 1. **Sync-Broadcast (SB/SCH-S)** auf TN=2/3/4 — 100 % CRC OK
 2. **NDB2 NULL-PDU + SYSINFO** auf MCCH (TN=1) — 100 % CRC OK
 3. **F18-Anchor** (BNCH-DMO Pattern) auf TN=0 FN=18
-4. **MS-Attach** (ITSI-Register, Gold-konforme MM-Body), bestätigt via `tetra_attach_daemon.log`
+4. **MS-Attach** (ITSI-Register, MM-Body), bestätigt via `tetra_attach_daemon.log`
 5. **Group-Switch** (mm=7 Frag-1+Frag-2+Pre-Reply+Frag-3+ACK)
 6. **CMCE Group-Call-Setup** bis D-CONNECT: MS akzeptiert, geht in TX-State
 7. **Y.4.1-fix AACH-FN-Rotation** auf voice-slot (decoder-verifiziert)

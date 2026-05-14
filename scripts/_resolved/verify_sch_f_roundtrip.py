@@ -8,7 +8,7 @@ Workflow:
      → 268 info bits + CRC-OK
   3. Diese 268 info bits durch gen_sch_f_tv::encode_sch_f schicken
      → 432 type-5 hard bits (mein Re-Encoder-Output)
-  4. Gold-Burst-Original 432 hard bits aus dem Soft-Decode neu rekonstruieren
+  4. -Burst-Original 432 hard bits aus dem Soft-Decode neu rekonstruieren
      (sign der Soft-Bits == Hard-Bit nach scrambling+interleave)
   5. Bit-für-Bit-Vergleich
 
@@ -29,7 +29,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import decode_dl
 from gen_sch_f_tv import encode_sch_f
 
-WAV = ROOT / "wavs/gold_standard_380-393mhz/GOLD_DL_ANMELDUNG_GRUPPENWECHSEL_GRUPPENRUF.wav"
+WAV = ROOT / "wavs/reference/reference-DL.wav"
 TARGET_INDEX = 423  # D-NWRK-BROADCAST burst per decode_dl_full.log
 
 

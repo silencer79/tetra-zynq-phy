@@ -3,7 +3,7 @@
 (non-continuous DL) oder nur Zero-Payload-Füller (continuous DL).
 
 Methode:
-  - anchor per BSCH wie in gold_schedule.py
+  - anchor per BSCH wie in schedule.py
   - pro Burst: RMS(|IQ|) über 255 Symbol-Samples
   - aggregieren nach Klasse (SB / NDB1 / NDB2 / empty)
   - Verhältnis empty_RMS / SB_RMS → echtes Silence oder Filler?
@@ -27,7 +27,7 @@ from decode_dl import (
     load_iq_file, estimate_freq_offset, rrc_filter,
     scrambler_seq, decode_channel, parse_sysinfo_sb,
 )
-from gold_schedule import _phase_correct
+from schedule import _phase_correct
 
 
 def analyze(wav_path):

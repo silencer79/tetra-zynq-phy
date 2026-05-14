@@ -3,8 +3,8 @@
 gen_d_nwrk_broadcast.py — Build a static D-NWRK-BROADCAST PDU as 432-bit
 type-5 pattern for the FPGA periodic-broadcast ROM.
 
-Source pattern: Gold-Cell capture
-  wavs/gold_standard_380-393mhz/GOLD_DL_ANMELDUNG_GRUPPENWECHSEL_GRUPPENRUF.wav
+Source pattern: -Cell capture
+  wavs/reference/reference-DL.wav
   Burst #423 (MN=44 FN=04 TN=1) — first sampled D-NWRK-BROADCAST.
   124-bit MAC-RESOURCE + LLC=BL-UDATA + MLE-disc=MLE → D-NWRK-BROADCAST
   addr=SSI ID=0xFFFFFF (broadcast), LI=16 (16 octets).
@@ -26,9 +26,9 @@ import sys
 
 
 # ---------------------------------------------------------------------------
-# Static 124-bit D-NWRK-BROADCAST info from Gold #423 (MSB-first on air)
+# Static 124-bit D-NWRK-BROADCAST info from  #423 (MSB-first on air)
 # ---------------------------------------------------------------------------
-GOLD_INFO_124 = (
+REF_INFO_124 = (
     "0010000010000001"  # 16  byte 0-1 MAC-RESOURCE header start
     "11111111"          # 24  addr_type=SSI bits
     "11111111"          # 32
@@ -45,7 +45,7 @@ GOLD_INFO_124 = (
     "00100011"          # 120
     "1111"              # 124
 )
-assert len(GOLD_INFO_124) == 124, f"info len={len(GOLD_INFO_124)}"
+assert len(REF_INFO_124) == 124, f"info len={len(REF_INFO_124)}"
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +151,7 @@ def main():
     ap.add_argument("-o", "--output", help="Write .memh ROM file")
     args = ap.parse_args()
 
-    type5 = build_d_nwrk_type5(GOLD_INFO_124, args.cc, args.mcc, args.mnc)
+    type5 = build_d_nwrk_type5(REF_INFO_124, args.cc, args.mcc, args.mnc)
 
     print(f"D-NWRK-BROADCAST type-5 (288 bits) — CC={args.cc} MCC={args.mcc} MNC={args.mnc}")
     print()

@@ -4,8 +4,8 @@
 # Philip: Automatische ILA-Erstellung ohne RTL-Änderung
 #
 # Usage:
-#   Vor Synthese in vivado_build.tcl sourcen:
-#   source scripts/ila_debug_setup.tcl
+# Vor Synthese in vivado_build.tcl sourcen:
+# source scripts/ila_debug_setup.tcl
 #
 # Methode: Vivado MARK_DEBUG property auf Signalen setzen → ILA auto-generated
 # =============================================================================
@@ -23,8 +23,8 @@ puts "===================================================================""
 # =============================================================================
 
 if {[catch {current_fileset}]} {
-    puts "ERROR: Kein Fileset geöffnet. Script muss innerhalb eines Vivado-Projekts laufen."
-    return
+ puts "ERROR: Kein Fileset geöffnet. Script muss innerhalb eines Vivado-Projekts laufen."
+ return
 }
 
 # =============================================================================
@@ -34,9 +34,9 @@ if {[catch {current_fileset}]} {
 set rtl_files [glob -nocomplain $PROJ_DIR/rtl/*.v $PROJ_DIR/rtl/*/*.v]
 
 if {[llength $rtl_files] == 0} {
-    puts "WARNING: Keine RTL-Dateien gefunden, fahre fort..."
+ puts "WARNING: Keine RTL-Dateien gefunden, fahre fort..."
 } else {
-    puts "Gefundene RTL-Dateien: [llength $rtl_files] Dateien"
+ puts "Gefundene RTL-Dateien: [llength $rtl_files] Dateien"
 }
 
 # =============================================================================
@@ -50,56 +50,56 @@ puts "\n=== Setting MARK_DEBUG properties ==="
 
 # Clock Domain sys (100 MHz) — TETRA Sync + Processing
 set debug_signals_sys {
-    "sync_found_sample"
-    "sync_locked_sample"
-    "i_data_sys"
-    "q_data_sys"
-    "symbol_valid_sample"
-    "dibit_valid_sample"
-    "slot_valid_sample"
-    "rcpc_enable_sys"
+ "sync_found_sample"
+ "sync_locked_sample"
+ "i_data_sys"
+ "q_data_sys"
+ "symbol_valid_sample"
+ "dibit_valid_sample"
+ "slot_valid_sample"
+ "rcpc_enable_sys"
 }
 
 # Clock Domain lvds (AD9361 samples)
 set debug_signals_lvds {
-    "i_sample_lvds"
-    "q_sample_lvds"
-    "sample_valid_lvds"
+ "i_sample_lvds"
+ "q_sample_lvds"
+ "sample_valid_lvds"
 }
 
 foreach sig $debug_signals_sys {
-    set hier_path "i_tetra_system_wrapper/i_design_1.tetra_zynq_top_0.inst.tetra_zynq_top_i.${sig}"
+ set hier_path "i_tetra_system_wrapper/i_design_1.tetra_zynq_top_0.inst.tetra_zynq_top_i.${sig}"
 
-    # Try to find the signal
-    if {[catch {set nets [get_nets -hierarchical -filter "NAME =~ *${sig}*"]}]]} {
-        puts "WARNING: Signal '${sig}' nicht gefunden, überspringe..."
-        continue
-    }
+ # Try to find the signal
+ if {[catch {set nets [get_nets -hierarchical -filter "NAME =~ *${sig}*"]}]]} {
+ puts "WARNING: Signal '${sig}' nicht gefunden, überspringe..."
+ continue
+ }
 
-    if {[llength $nets] > 0} {
-        set first_net [lindex $nets 0]
-        puts "  MARK_DEBUG: ${sig} -> ${first_net}"
-        set_property MARK_DEBUG true $first_net
-    } else {
-        puts "WARNING: Kein Netz für Signal '${sig}' gefunden"
-    }
+ if {[llength $nets] > 0} {
+ set first_net [lindex $nets 0]
+ puts " MARK_DEBUG: ${sig} -> ${first_net}"
+ set_property MARK_DEBUG true $first_net
+ } else {
+ puts "WARNING: Kein Netz für Signal '${sig}' gefunden"
+ }
 }
 
 foreach sig $debug_signals_lvds {
-    set hier_path "i_tetra_system_wrapper/i_design_1.tetra_zynq_top_0.inst.tetra_zynq_top_i.${sig}"
+ set hier_path "i_tetra_system_wrapper/i_design_1.tetra_zynq_top_0.inst.tetra_zynq_top_i.${sig}"
 
-    if {[catch {set nets [get_nets -hierarchical -filter "NAME =~ *${sig}*"]}]]} {
-        puts "WARNING: Signal '${sig}' nicht gefunden, überspringe..."
-        continue
-    }
+ if {[catch {set nets [get_nets -hierarchical -filter "NAME =~ *${sig}*"]}]]} {
+ puts "WARNING: Signal '${sig}' nicht gefunden, überspringe..."
+ continue
+ }
 
-    if {[llength $nets] > 0} {
-        set first_net [lindex $nets 0]
-        puts "  MARK_DEBUG: ${sig} -> ${first_net}"
-        set_property MARK_DEBUG true $first_net
-    } else {
-        puts "WARNING: Kein Netz für Signal '${sig}' gefunden"
-    }
+ if {[llength $nets] > 0} {
+ set first_net [lindex $nets 0]
+ puts " MARK_DEBUG: ${sig} -> ${first_net}"
+ set_property MARK_DEBUG true $first_net
+ } else {
+ puts "WARNING: Kein Netz für Signal '${sig}' gefunden"
+ }
 }
 
 # =============================================================================

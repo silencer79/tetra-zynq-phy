@@ -15,10 +15,10 @@ Quellen:
 **Parameter:** `NUM_WORDS = 16`, `INDEX_WIDTH = 4`.
 
 **Ports:**
-- IN  `clk_sys` (1), `rst_n_sys` (1)
-- IN  `data_words_sys` (NUM_WORDS*32) — Wrapper liefert Wortarray
-- IN  `push_valid_sys` (1), `push_drop_sys` (1)
-- IN  `index_sys` (INDEX_WIDTH), `ack_pulse_sys` (1)
+- IN `clk_sys` (1), `rst_n_sys` (1)
+- IN `data_words_sys` (NUM_WORDS*32) — Wrapper liefert Wortarray
+- IN `push_valid_sys` (1), `push_drop_sys` (1)
+- IN `index_sys` (INDEX_WIDTH), `ack_pulse_sys` (1)
 - OUT `pending_sys` (1), `drop_cnt_sys` (16), `data_out_sys` (32)
 
 **Funktion:** Geteilter Sub-Block für "RTL-Push, AXI-Pull"-Mailboxes. Hält ein
@@ -41,8 +41,8 @@ Pending-Flag, einen 16-bit-saturierenden Drop-Counter und liefert
 ## tetra_indirect_mailbox_wr.v (188 Zeilen)
 
 **Ports:**
-- IN  `clk_sys`, `rst_n_sys`
-- IN  `index_sys[3:0]`, `wdata_sys[31:0]`, `wr_en_sys`, `go_pulse_sys`
+- IN `clk_sys`, `rst_n_sys`
+- IN `index_sys[3:0]`, `wdata_sys[31:0]`, `wr_en_sys`, `go_pulse_sys`
 - OUT `rdata_sys[31:0]`, `words_flat_sys[16*32-1:0]`, `go_pulse_out_sys`
 
 **Funktion:** 16 × 32-bit Word-Storage, AXI-getriebenes Schreiben über Index/Data
@@ -67,11 +67,11 @@ Phase X.1 Wrapper über `tetra_indirect_mailbox`.
 
 **Ports:**
 - Push (RTL→Mailbox): `demand_parsed_valid_sys`, `demand_ul_ssi_sys[23:0]`,
-  `demand_gssi_count_sys[2:0]`, `demand_gssi_array_sys[71:0]`,
-  `demand_class_array_sys[8:0]`, `demand_loc_upd_type_sys[2:0]`,
-  `demand_la_sys[13:0]`.
+ `demand_gssi_count_sys[2:0]`, `demand_gssi_array_sys[71:0]`,
+ `demand_class_array_sys[8:0]`, `demand_loc_upd_type_sys[2:0]`,
+ `demand_la_sys[13:0]`.
 - Pull: `index_sys[3:0]`, `ack_consumed_pulse_sys`, `data_word_sys[31:0]`,
-  `pending_sys`, `drop_cnt_sys[15:0]`.
+ `pending_sys`, `drop_cnt_sys[15:0]`.
 
 **Funktion:** Beim ersten `demand_parsed_valid` ohne `pending` werden alle Felder
 in Latches kopiert (`ssi_lat_sys`, `count_lat_sys`, `gssi_arr_lat_sys`,
@@ -104,8 +104,8 @@ Phase Y.1.b Wrapper für mm=7 U-ATTACH-DETACH-GROUP-IDENTITY.
 
 **Ports (zusätzliche Snapshot-Felder vs mm=2):**
 - `grp_rec_count_sys[1:0]`, `grp_attach_detach_mode_sys`,
-  `grp_group_identity_report_sys`, `grp_adi_array_sys[2:0]`,
-  `grp_at_array_sys[5:0]`.
+ `grp_group_identity_report_sys`, `grp_adi_array_sys[2:0]`,
+ `grp_at_array_sys[5:0]`.
 
 **Word-Layout (W0..W6, W7..W15 reserviert):**
 - W0: `{8'hA7, 3'd0, rec_count[1:0], atd_mode, group_identity_report, 17'd0}` — Magic `0xA7`.
@@ -126,15 +126,15 @@ Phase X.2 SW-gepullter Reply, basiert auf `tetra_indirect_mailbox_wr`.
 **Ports (zentrale Field-Outputs):**
 - AXI Side: `index_sys[3:0]`, `wdata_sys[31:0]`, `wr_en_sys`, `go_pulse_sys`, `rdata_sys[31:0]`.
 - Field-Outputs in clk_sys-Domain (alle aus combinational Slicing der 16 Words):
-  - `mb_ssi_sys[23:0]`, `mb_la_sys[13:0]`, `mb_addr_type_sys[2:0]`, `mb_result_sys[1:0]`
-  - `mb_gila_gssi_sys[23:0]`, `mb_gila_class_sys[2:0]`, `mb_gila_lifetime_sys[1:0]`, `mb_gila_present_sys`
-  - `mb_encryption_sys[1:0]`, `mb_auth_result_sys[1:0]`
-  - `mb_go_pulse_sys`
-  - **Phase Y.2 Raw-Mode (W9..W13):**
-    - `mb_raw_mode_flag_sys = W9[31]`
-    - `mb_raw_mle_pd_sys[2:0] = W9[12:10]` (0=defaultMM, 1=MM, 2=CMCE — Phase 7 G.4)
-    - `mb_raw_nr_sys = W9[9]`, `mb_raw_ns_sys = W9[8]`, `mb_raw_mm_len_sys = W9[7:0]`
-    - `mb_raw_mm_bits_sys[127:0] = {W13, W12, W11, W10}`
+ - `mb_ssi_sys[23:0]`, `mb_la_sys[13:0]`, `mb_addr_type_sys[2:0]`, `mb_result_sys[1:0]`
+ - `mb_gila_gssi_sys[23:0]`, `mb_gila_class_sys[2:0]`, `mb_gila_lifetime_sys[1:0]`, `mb_gila_present_sys`
+ - `mb_encryption_sys[1:0]`, `mb_auth_result_sys[1:0]`
+ - `mb_go_pulse_sys`
+ - **Phase Y.2 Raw-Mode (W9..W13):**
+ - `mb_raw_mode_flag_sys = W9[31]`
+ - `mb_raw_mle_pd_sys[2:0] = W9[12:10]` (0=defaultMM, 1=MM, 2=CMCE — Phase 7 G.4)
+ - `mb_raw_nr_sys = W9[9]`, `mb_raw_ns_sys = W9[8]`, `mb_raw_mm_len_sys = W9[7:0]`
+ - `mb_raw_mm_bits_sys[127:0] = {W13, W12, W11, W10}`
 
 **Word-Layout (verbindlich, Header Z. 17–36):**
 - W0: `{8'd0, ssi[23:0]}`
@@ -165,8 +165,8 @@ Wörter über `wr_en_sys`-Pulse + `index_sys`, dann `go_pulse_sys` → wird zu
 **Auffälligkeiten:**
 - Header sagt "Module header / behavior bit-exact preserved (tb_reply_mailbox 32/32)".
 - Raw-Mode (Phase Y.2 Variante A) ist Multi-PDU-Bypass für mm=11
-  D-ATTACH-DETACH-GRP-ID-ACK. Bei `raw_mode_flag=1` wird der dloc-Encoder umgangen,
-  bei `=0` ist mm=2 ACCEPT bit-identisch zur Vorversion.
+ D-ATTACH-DETACH-GRP-ID-ACK. Bei `raw_mode_flag=1` wird der dloc-Encoder umgangen,
+ bei `=0` ist mm=2 ACCEPT bit-identisch zur Vorversion.
 - Phase X.4-Kommentar: SW path ist primärer Pfad (REG_REPLY_USE_SW @0x230 default=1).
 
 ## tetra_tx_pdu_mailbox.v (314 Zeilen)
@@ -181,11 +181,11 @@ Datei existiert, ist aber nicht aktive Datenpfad.
 
 **Ports:**
 - AXI-Side: `wr_data_pulse_axi` + `slot_idx_axi` + `word_idx_axi[3:0]` + `wr_data_axi[31:0]`.
-  `wr_hint_pulse_axi` + `hint_slot_idx_axi` + `hint_data_axi[14:0]`.
-  `wr_submit_pulse_axi` + `submit_mask_axi[3:0]`. `status_axi[31:0]` (kombi-Mux).
+ `wr_hint_pulse_axi` + `hint_slot_idx_axi` + `hint_data_axi[14:0]`.
+ `wr_submit_pulse_axi` + `submit_mask_axi[3:0]`. `status_axi[31:0]` (kombi-Mux).
 - TX-Side: `cur_tn_sys`, `cur_fn_sys`, `cur_mn_sys`, `cur_burst_type_sys`, `cur_query_valid_sys`.
-  Outputs `pdu_match_valid_sys`, `pdu_bits_sys[431:0]`, `pdu_burst_type_sys[1:0]`,
-  `pdu_slot_idx_sys[1:0]` + `pdu_consumed_sys` (Eingang).
+ Outputs `pdu_match_valid_sys`, `pdu_bits_sys[431:0]`, `pdu_burst_type_sys[1:0]`,
+ `pdu_slot_idx_sys[1:0]` + `pdu_consumed_sys` (Eingang).
 
 **Storage:**
 - `pdu_storage_sys [0:NUM_SLOTS-1] [PDU_WIDTH-1:0]` mit `(* ram_style = "distributed" *)`.
@@ -200,9 +200,9 @@ und mn=63 sind Wildcards.
 - 2'b01 = `S_STAGING`
 - 2'b10 = `S_IN_FLIGHT`
 - Transitions:
-  - EMPTY → STAGING bei erster Data- oder Hint-Write auf den Slot.
-  - STAGING → IN_FLIGHT bei `wr_submit_pulse_axi & submit_mask_axi[i]`.
-  - IN_FLIGHT → EMPTY bei `pdu_consumed_sys & (pdu_slot_idx_sys == i)`.
+ - EMPTY → STAGING bei erster Data- oder Hint-Write auf den Slot.
+ - STAGING → IN_FLIGHT bei `wr_submit_pulse_axi & submit_mask_axi[i]`.
+ - IN_FLIGHT → EMPTY bei `pdu_consumed_sys & (pdu_slot_idx_sys == i)`.
 
 **Match-Logik:** Pro Slot vier strikte Equality-Checks (TN, FN, MN, BT) plus
 Wildcard auf FN=31 / MN=63. Lowest-Index-Priority-Encoder (case-Statement Slots
@@ -214,8 +214,8 @@ Wildcard auf FN=31 / MN=63. Lowest-Index-Priority-Encoder (case-Statement Slots
 - `[23:20]` slot3 status (bit0=EMPTY, bit1=STAGING, bit2=IN_FLIGHT, bit3=reserved)
 - `[19:16]` slot2
 - `[15:12]` slot1
-- `[11:8]`  slot0
-- `[7:0]`   reserved
+- `[11:8]` slot0
+- `[7:0]` reserved
 
 **Resource-Estimate (Header):** ~1728 FF storage + ~250 LUT.
 
@@ -230,22 +230,22 @@ S2MM-Bridge (PL → PS), packt LMAC-Blöcke in AXI4-Stream.
 **Parameter:** `MAX_BLOCK_BITS=432`, `MAX_DATA_WORDS=14`.
 
 **Ports:**
-- IN  `clk_sys`, `rst_n_sys`
-- IN  `mac_data_sys[431:0]`, `mac_len_sys[9:0]`, `mac_slot_sys[1:0]`,
-       `mac_burst_type_sys[1:0]`, `mac_frame_sys[15:0]`, `mac_valid_sys`
+- IN `clk_sys`, `rst_n_sys`
+- IN `mac_data_sys[431:0]`, `mac_len_sys[9:0]`, `mac_slot_sys[1:0]`,
+ `mac_burst_type_sys[1:0]`, `mac_frame_sys[15:0]`, `mac_valid_sys`
 - OUT `mac_ready_sys` (= `state == IDLE`)
 - AXI4-Stream Master: `m_axis_tvalid`, `m_axis_tready`, `m_axis_tdata[31:0]`,
-       `m_axis_tkeep[3:0]`, `m_axis_tlast`
+ `m_axis_tkeep[3:0]`, `m_axis_tlast`
 - OUT `dma_block_count_sys[15:0]`, `irq_mac_block_sys` (1-Cycle-Pulse pro Block),
-       `fifo_empty_sys` (= `state == IDLE`), `fifo_full_sys` (= 0, hardwired)
-- IN  `reset_counters_sys`
+ `fifo_empty_sys` (= `state == IDLE`), `fifo_full_sys` (= 0, hardwired)
+- IN `reset_counters_sys`
 
 **Funktion:** Bei `mac_valid_sys & state==IDLE` werden Header und Payload gelatcht.
 Header (Word 0):
 - `[31:30]` = `mac_slot_sys`
 - `[29:28]` = `mac_burst_type_sys`
 - `[27:16]` = `mac_len_sys` (12-bit Feld)
-- `[15:0]`  = `mac_frame_sys`
+- `[15:0]` = `mac_frame_sys`
 
 Payload: `mac_data_sys` (216 bit) wird auf 448 bit (14×32) zero-extended in
 `payload_reg_sys`. Anzahl Datenwörter = `ceil(mac_len/32)`. Auf `S_SEND` werden
@@ -255,14 +255,14 @@ Header + N Datenwörter sequentiell aus dem Flat-Bus ausgegeben.
 - last_bits == 0 → 4'hF
 - > 24 → 4'hF
 - > 16 → 4'h7
-- > 8  → 4'h3
+- > 8 → 4'h3
 - sonst → 4'h1
 
 **State (2-bit):**
 - `S_IDLE` (00): wartet auf `mac_valid_sys`.
 - `S_SEND` (01): tvalid=1, `word_cnt_sys` zählt 0..N hoch bei jedem Handshake.
-  Bei `word_cnt == num_data_words & tready` → zurück zu IDLE, IRQ-Puls,
-  Counter +1.
+ Bei `word_cnt == num_data_words & tready` → zurück zu IDLE, IRQ-Puls,
+ Counter +1.
 
 **Pipeline-Latenz:** 1 Zyklus IDLE→SEND, dann pro Wort 1 Handshake (variable
 Latenz wegen `m_axis_tready`).
@@ -282,32 +282,32 @@ Strukturelles Wrapper-Modul mit RX- und TX-Channel-Coding-Submodulen.
 
 **Ports:**
 - RX-Side (alle clk_sys):
-  - `rx_block1_sys[215:0]`, `rx_block2_sys[215:0]`, `rx_bb_sys[29:0]`, `rx_slot_valid_sys`
-  - `lfsr_init_sys[31:0]`, `load_lfsr_sys`, `punct_pattern_sys[2:0]`
-  - OUT `rx_decoded_bit_sys`, `rx_decoded_valid_sys`, `rx_block_done_sys`,
-    `rx_path_metric_sys[15:0]`
-  - OUT `rx_aach_data_sys[13:0]`, `rx_aach_done_sys`, `rx_aach_error_sys`
-  - OUT `rx_crc_ok_sys`, `rx_crc_valid_sys`, `rx_stolen_sys`
+ - `rx_block1_sys[215:0]`, `rx_block2_sys[215:0]`, `rx_bb_sys[29:0]`, `rx_slot_valid_sys`
+ - `lfsr_init_sys[31:0]`, `load_lfsr_sys`, `punct_pattern_sys[2:0]`
+ - OUT `rx_decoded_bit_sys`, `rx_decoded_valid_sys`, `rx_block_done_sys`,
+ `rx_path_metric_sys[15:0]`
+ - OUT `rx_aach_data_sys[13:0]`, `rx_aach_done_sys`, `rx_aach_error_sys`
+ - OUT `rx_crc_ok_sys`, `rx_crc_valid_sys`, `rx_stolen_sys`
 - TX-Side:
-  - IN  `tx_data_in_sys`, `tx_data_valid_sys`, `tx_flush_sys`
-  - IN  `tx_aach_in_sys[13:0]`, `tx_aach_valid_sys`
-  - OUT `tx_block1_sys[215:0]`, `tx_block2_sys[215:0]`, `tx_bb_sys[29:0]`, `tx_block_ready_sys`
+ - IN `tx_data_in_sys`, `tx_data_valid_sys`, `tx_flush_sys`
+ - IN `tx_aach_in_sys[13:0]`, `tx_aach_valid_sys`
+ - OUT `tx_block1_sys[215:0]`, `tx_block2_sys[215:0]`, `tx_bb_sys[29:0]`, `tx_block_ready_sys`
 
 **Submodule (interne Instanzen):**
 - RX:
-  - `u_rx_scrambler` — `tetra_scrambler` (descramble mode, MSB-first auf `rx_block1_sys`).
-  - `u_rx_deinterleaver` — `tetra_deinterleaver` (`block_size=216`).
-  - `u_depuncturer` — `tetra_depuncture_r23` (rate-2/3 → 4 soft per Stage).
-  - `u_viterbi` — `tetra_viterbi_decoder` (`num_stages=144` fest verdrahtet für BNCH).
-  - `u_rx_crc` — `tetra_crc16` (Continuous Check Mode, init bei `block_done`).
-  - `u_rm` — `tetra_reed_muller(30,14)` (Decode + Encode-Dual-Use für AACH).
-  - `u_steal_detect` — `tetra_steal_detect` (Slot 0 hardwired).
+ - `u_rx_scrambler` — `tetra_scrambler` (descramble mode, MSB-first auf `rx_block1_sys`).
+ - `u_rx_deinterleaver` — `tetra_deinterleaver` (`block_size=216`).
+ - `u_depuncturer` — `tetra_depuncture_r23` (rate-2/3 → 4 soft per Stage).
+ - `u_viterbi` — `tetra_viterbi_decoder` (`num_stages=144` fest verdrahtet für BNCH).
+ - `u_rx_crc` — `tetra_crc16` (Continuous Check Mode, init bei `block_done`).
+ - `u_rm` — `tetra_reed_muller(30,14)` (Decode + Encode-Dual-Use für AACH).
+ - `u_steal_detect` — `tetra_steal_detect` (Slot 0 hardwired).
 - TX:
-  - `u_rcpc_encoder` — `tetra_rcpc_encoder(K=5)`.
-  - Inline Puncture-Serializer (Z. 294–312): liefert 1-bit-Stream aus 2-bit Puncture-Output.
-  - `u_tx_interleaver` — `tetra_interleaver`.
-  - `u_tx_scrambler` — `tetra_scrambler` (TX-Pfad).
-  - (Reed-Muller-Encode-Pfad teilt sich Instanz mit RX `u_rm`.)
+ - `u_rcpc_encoder` — `tetra_rcpc_encoder(K=5)`.
+ - Inline Puncture-Serializer (Z. 294–312): liefert 1-bit-Stream aus 2-bit Puncture-Output.
+ - `u_tx_interleaver` — `tetra_interleaver`.
+ - `u_tx_scrambler` — `tetra_scrambler` (TX-Pfad).
+ - (Reed-Muller-Encode-Pfad teilt sich Instanz mit RX `u_rm`.)
 
 **Funktion (Phase 3, Header):** RX-Pfad eines Slots:
 `Block1 → Descrambler → Deinterleaver → Depuncturer → Viterbi → CRC-16` und
@@ -323,16 +323,16 @@ konstant 0 — kein TX-Datenpfad aktiv über dieses Modul.
 
 **Nachbarn:**
 - ↑ `tetra_zynq_top.v:843` (`u_lmac`) — bekommt `rx_block1/2_sys/rx_bb_sys` vom
-  `tetra_rx_chain`, RX-Outputs gehen an Accumulator (Z. 901ff.) → DMA-Bridge.
+ `tetra_rx_chain`, RX-Outputs gehen an Accumulator (Z. 901ff.) → DMA-Bridge.
 - ↓ tetra_scrambler (×2), tetra_deinterleaver, tetra_depuncture_r23,
-  tetra_viterbi_decoder, tetra_crc16, tetra_reed_muller, tetra_steal_detect,
-  tetra_rcpc_encoder, tetra_interleaver.
+ tetra_viterbi_decoder, tetra_crc16, tetra_reed_muller, tetra_steal_detect,
+ tetra_rcpc_encoder, tetra_interleaver.
 
 **Auffälligkeiten:**
 - TX-Datenpfad ist tot: `tx_block1/2_sys` = 0, `tx_data_in_sys = tx_data_valid_sys
-  = tx_flush_sys = 0` werden im Top-Level (Z. 869–872) als feste Konstanten
-  übergeben.
+ = tx_flush_sys = 0` werden im Top-Level (Z. 869–872) als feste Konstanten
+ übergeben.
 - `tx_aach_in_sys = 14'd0`, `tx_aach_valid_sys = 1'b0` ebenfalls (Z. 872–873).
 - `rx_stolen_sys` ist hardwired auf Slot 0 (`steal_active_w[0]`, Z. 263).
 - Header-Notiz: "Phase 3 structural only" + "soft-decision requires LLR from
-  the demodulator (future work)".
+ the demodulator (future work)".

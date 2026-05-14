@@ -68,16 +68,16 @@ Trade-off: ~5 LUT + ~32 FF Adapter-Overhead + ~2 BRAM18k interne IP-FIFOs — ve
 ```
 Block Design (Vivado BD):
 ├── axi_ad9361_0 (ADI IP @ 0x7902_0000)
-│   ├── LVDS DDR I/O (rx_clk_p/n, rx_frame_p/n, rx_data_p/n[5:0], tx_*)
-│   ├── AXI-Lite control interface
-│   └── Fabric-Side: adc_data_i0/q0, dac_data_i0/q0, l_clk, adc_valid, dac_valid
+│ ├── LVDS DDR I/O (rx_clk_p/n, rx_frame_p/n, rx_data_p/n[5:0], tx_*)
+│ ├── AXI-Lite control interface
+│ └── Fabric-Side: adc_data_i0/q0, dac_data_i0/q0, l_clk, adc_valid, dac_valid
 │
 └── tetra_zynq_top_0
-    └── tetra_ad9361_axis_adapter.v   ← THIN wrapper
-        ├── RX: adc_data_i0/q0 → rx_i/q_lvds  (combinatorial pass-through)
-        └── TX: tx_i/q_lvds    → dac_data_i0/q0  (registered sample-and-hold)
+ └── tetra_ad9361_axis_adapter.v ← THIN wrapper
+ ├── RX: adc_data_i0/q0 → rx_i/q_lvds (combinatorial pass-through)
+ └── TX: tx_i/q_lvds → dac_data_i0/q0 (registered sample-and-hold)
 
-deprecated/tetra_ad9361_interface.v   ← ARCHIVED (Custom LVDS, nicht mehr aktiv)
+deprecated/tetra_ad9361_interface.v ← ARCHIVED (Custom LVDS, nicht mehr aktiv)
 ```
 
 **Clock-Naming-Konvention:** Suffixe zeigen Clock-Domäne, nicht Signal-Quelle:
@@ -142,8 +142,8 @@ echo spi0.0 > /sys/bus/spi/drivers/ad9361/bind
 Die Flags `-d` und `-c` sind **exklusiv** (nicht kombinierbar):
 
 ```bash
-iio_attr -c ad9361-phy <channel> <attr> [value]   # Kanal-Attribut
-iio_attr -d ad9361-phy <attr> [value]              # Device-Attribut
+iio_attr -c ad9361-phy <channel> <attr> [value] # Kanal-Attribut
+iio_attr -d ad9361-phy <attr> [value] # Device-Attribut
 ```
 
 Kanäle: `voltage0` (RX1), `voltage1` (RX2), `altvoltage0` (RX_LO), `altvoltage1` (TX_LO). TX-Seite: `out_voltage0` (TX1 aktiv), `out_voltage1` (TX2 ungenutzt — §5.1).
@@ -166,8 +166,8 @@ Frühere Skripte haben irrtümlich `out_voltage1` gesetzt → keine TX-Leistungs
 **Format:** direkte dB, kein millidB:
 ```bash
 SYSFS=$(grep -rl 'ad9361-phy' /sys/bus/iio/devices/*/name | head -1 | xargs dirname)
-echo -50 > ${SYSFS}/out_voltage0_hardwaregain   # -50 dB Dämpfung
-cat ${SYSFS}/out_voltage0_hardwaregain           # Readback: -50.000000 dB
+echo -50 > ${SYSFS}/out_voltage0_hardwaregain # -50 dB Dämpfung
+cat ${SYSFS}/out_voltage0_hardwaregain # Readback: -50.000000 dB
 ```
 
 **AGC-Sweep (2026-04-13, 10 cm Luft-Loopback, RX=TX=429 MHz):**
@@ -235,7 +235,7 @@ Wenn auf SDR nur ein schmaler Träger sichtbar ist (LO-Leakage), aber kein 25-kH
 Der AD9361-Treiber stellt für den RX-Port die Quellen `TX_MONITOR1`, `TX_MONITOR2`, `TX_MONITOR1_2` — erlaubt TX-Pfad im Chip selbst gegen RX zu testen ohne Antennen:
 
 ```bash
-./scripts/tetra_ctrl.sh tx_monitor      # Host-Helper
+./scripts/tetra_ctrl.sh tx_monitor # Host-Helper
 ./scripts/tetra_ctrl.sh monitor
 ```
 
@@ -270,9 +270,9 @@ Alle CDC-Einträge werden hier dokumentiert (Stand 2026-04-07, Hardware seitdem 
 **2-FF Reset-Sync** (`tetra_clk_reset.v`):
 ```
 arst_n ────────────────────────────── (async assert)
-        │                    │
-        └─ D→[FF0]→[FF1] ──► rst_n_domain (sync deassert)
-             clk_domain    clk_domain
+ │ │
+ └─ D→[FF0]→[FF1] ──► rst_n_domain (sync deassert)
+ clk_domain clk_domain
 ```
 XDC: `set_false_path -to [get_cells {*rst_sync0_*}]`.
 
@@ -354,7 +354,7 @@ Siehe `sw/tetra_hal.h` für C-Symbole. Adressen können sich ändern — bei Kon
 | 0x19C | `REG_SIGNAL_TARGET_TN` | R/W | Default 0 (= ETSI TN=1) |
 | 0x1A0 | `REG_CELL_LA` | R/W | Cell Location Area (14 bit, default 1) |
 
-### 7.4 Gold-Schedule-BRAM
+### 7.4 Schedule-BRAM
 
 **0x400..0x63F** (576 Byte, 144 × 32-bit). Dual-Port-BRAM, SW schreibt pro Boot, RTL liest per Slot. Jedes Word enthält 2 Schedule-Einträge à 16 bit (siehe ARCHITECTURE.md §TDMA-Timebase).
 
@@ -391,9 +391,9 @@ Siehe `sw/tetra_hal.h` für C-Symbole. Adressen können sich ändern — bei Kon
 #include "tetra_hal.h"
 #define TETRA_AXI_BASE 0x43C00000
 
-tetra_reg_write(&hal, REG_CTRL, CTRL_RX_EN | CTRL_TX_EN);   // Enable beide
-tetra_reg_write(&hal, REG_TX_TEST, 1);                       // PRBS-Mode
-while (!(tetra_reg_read(&hal, REG_STATUS) & STATUS_PLL_LOCKED));  // Poll
+tetra_reg_write(&hal, REG_CTRL, CTRL_RX_EN | CTRL_TX_EN); // Enable beide
+tetra_reg_write(&hal, REG_TX_TEST, 1); // PRBS-Mode
+while (!(tetra_reg_read(&hal, REG_STATUS) & STATUS_PLL_LOCKED)); // Poll
 ```
 
 ---
@@ -443,7 +443,7 @@ Auch Builds mit negativen WNS bis -0.3 ns haben on-air stabil gefunkt. Für Prod
 |---------|---------|----------------|
 | **ADC sign-extend fehlt (KRITISCH)** | `cmd_adc_init` schrieb `0x01` statt `0x51` → dfmt gelöscht → negative ADC-Werte gleichgerichtet → SYNC unmöglich bei RF (Digital-Loopback umgeht ADC) | ✅ **Behoben** (`0x51` in `tetra_ctrl.sh`, 2026-04-13) |
 | AD9361 kein IIO nach Boot | Modul fehlt im Kernel | `insmod /root/kernel_modules32/ad9361_drv.ko` |
-| Bind schlägt fehl | `driver_override=spidev` | `echo '' > .../driver_override` |
+| Bind schlägt fehl | `driver_override=spidev` | `echo '' >.../driver_override` |
 | AD9361-Default nach Bitstream-Reload | Chip-Reinit durch Treiber | `full_init` nutzen (2× Bitstream + 2× AD9361) |
 | TX-Dämpfung ohne Wirkung | `out_voltage1_hardwaregain` → TX2 nicht verbunden | Immer `out_voltage0_hardwaregain` für TX1 |
 | `cf-ad9361-lpc` kein IIO | AXI-DMA nicht verbunden | Kein Problem — TETRA nutzt eigenen DMA-Pfad |

@@ -2,7 +2,7 @@
 
 **Stand:** 2026-05-14
 **Vor Phase C committen.**
-**Quellen:** docs/IST.md, docs/ist/04_ul_rx.md, docs/ist/05_tx_datapath.md, Phase B Forensik aus `scripts/forensic_ul_nub.py` auf `wavs/gold_standard_380-393mhz/UL_Gruppenruf_*.wav`.
+**Quellen:** docs/IST.md, docs/ist/04_ul_rx.md, docs/ist/05_tx_datapath.md, Phase B Forensik aus `scripts/forensic_ul_nub.py` auf `wavs/reference/UL_Gruppenruf_*.wav`.
 
 ## Ziel
 
@@ -67,21 +67,21 @@ Aus `rtl/tx/tetra_burst_builder.v` NTS1_REF + ETSI §9.4.4.3.4. 253 Symbole = 14
 
 ### C1 — `rtl/rx/tetra_ul_sync_detect_os4.v` (REFACTOR — parametrisieren)
 
-**Patch:** Add Parameter `SYNC_PATTERN [29:0]` (default = bisheriger ETS_REF x-seq) und `SYNC_LEN_SYM` (default = 15). `corr_count()` von 15-Term-Adder auf for-loop über SYNC_LEN_SYM (Verilog-2001 Part-Select `xr[2*i +: 2]`).  HOLDOFF bleibt Parameter wie bisher.
+**Patch:** Add Parameter `SYNC_PATTERN [29:0]` (default = bisheriger ETS_REF x-seq) und `SYNC_LEN_SYM` (default = 15). `corr_count()` von 15-Term-Adder auf for-loop über SYNC_LEN_SYM (Verilog-2001 Part-Select `xr[2*i +: 2]`). HOLDOFF bleibt Parameter wie bisher.
 
 **Instances in `rtl/rx/tetra_rx_chain.v`** (oder zynq_top, je nach existing):
 ```verilog
 tetra_ul_sync_detect_os4 #(
-    .SYNC_PATTERN(ETS_REF),     // default
-    .SYNC_LEN_SYM(15),
-    .HOLDOFF(50)
-) u_ul_sync_ra ( ... );
+.SYNC_PATTERN(ETS_REF), // default
+.SYNC_LEN_SYM(15),
+.HOLDOFF(50)
+) u_ul_sync_ra (... );
 
 tetra_ul_sync_detect_os4 #(
-    .SYNC_PATTERN({8'b0, NTS1_REF_22bit}),  // NTS1 in [21:0], top 8 zero
-    .SYNC_LEN_SYM(11),
-    .HOLDOFF(250)   // 1 Voice-Frame ≈ 250 samples @ 72 kHz post-RRC
-) u_ul_sync_nub ( ... );
+.SYNC_PATTERN({8'b0, NTS1_REF_22bit}), // NTS1 in [21:0], top 8 zero
+.SYNC_LEN_SYM(11),
+.HOLDOFF(250) // 1 Voice-Frame ≈ 250 samples @ 72 kHz post-RRC
+) u_ul_sync_nub (... );
 ```
 
 **LUT-Schätzung:** ~300 für beide Instanzen zusammen (vs. ~300 für nur RA bisher — wir gewinnen Sync-Funktionalität ohne Slice-Kosten zu verdoppeln, weil for-loop bei kleinerem LEN auch kleinerer Adder).
@@ -91,25 +91,25 @@ tetra_ul_sync_detect_os4 #(
 **Ports:**
 ```verilog
 module tetra_ul_nub_capture (
-    input  wire         clk_sys,
-    input  wire         rst_n_sys,
-    input  wire signed [15:0] i_in_sys,
-    input  wire signed [15:0] q_in_sys,
-    input  wire         valid_in_sys,
-    input  wire         sync_found_sys,
-    input  wire [1:0]   best_phase_sys,
+ input wire clk_sys,
+ input wire rst_n_sys,
+ input wire signed [15:0] i_in_sys,
+ input wire signed [15:0] q_in_sys,
+ input wire valid_in_sys,
+ input wire sync_found_sys,
+ input wire [1:0] best_phase_sys,
 
-    output reg  [431:0] coded_bits_sys,     // BKN1+BKN2 = 432 type-5 bits
-    output reg          coded_valid_sys,    // 1-cycle pulse on completion
-    output reg  [15:0]  bursts_captured_sys
+ output reg [431:0] coded_bits_sys, // BKN1+BKN2 = 432 type-5 bits
+ output reg coded_valid_sys, // 1-cycle pulse on completion
+ output reg [15:0] bursts_captured_sys
 );
 ```
 
 **Funktion (analog `tetra_ul_burst_capture.v`):**
 - Ringbuffer 512×16 für I+Q (parallel zu existing capture, oder shared mit Mux)
 - Bei `sync_found_sys`: Anchor = NTS1-Position, dann
-  - back: 121 symbols × 4 sps = 484 samples zurück → BKN1-Start
-  - forward: 108 sym BKN1, skip 7 sym BB1 + 11 sym NTS1 + 8 sym BB2 = 26 sym, 108 sym BKN2
+ - back: 121 symbols × 4 sps = 484 samples zurück → BKN1-Start
+ - forward: 108 sym BKN1, skip 7 sym BB1 + 11 sym NTS1 + 8 sym BB2 = 26 sym, 108 sym BKN2
 - Phase-aligned demod (best_phase_sys) → 432 hard dibits MSB-first in `coded_bits_sys`
 - Pulse `coded_valid_sys` 1 Zyklus bei Last-Dibit-In
 
@@ -120,18 +120,18 @@ module tetra_ul_nub_capture (
 **Ports:**
 ```verilog
 module tetra_voice_relay (
-    input  wire         clk_sys,
-    input  wire         rst_n_sys,
-    input  wire [3:0]   voice_active_mask_sys,
-    input  wire [1:0]   voice_slot_tn_sys,       // = lowest set bit in mask
-    input  wire [431:0] ul_coded_bits_sys,
-    input  wire         ul_coded_valid_sys,
-    input  wire         dl_slot_pulse_sys,
-    input  wire [1:0]   dl_tn_sys,
+ input wire clk_sys,
+ input wire rst_n_sys,
+ input wire [3:0] voice_active_mask_sys,
+ input wire [1:0] voice_slot_tn_sys, // = lowest set bit in mask
+ input wire [431:0] ul_coded_bits_sys,
+ input wire ul_coded_valid_sys,
+ input wire dl_slot_pulse_sys,
+ input wire [1:0] dl_tn_sys,
 
-    output reg  [431:0] relay_blk_sys,           // BKN1+BKN2 für dispatcher
-    output reg          relay_valid_sys,         // = 1 wenn relay_blk frisch
-    output reg  [15:0]  relay_cnt_sys
+ output reg [431:0] relay_blk_sys, // BKN1+BKN2 für dispatcher
+ output reg relay_valid_sys, // = 1 wenn relay_blk frisch
+ output reg [15:0] relay_cnt_sys
 );
 ```
 
@@ -150,17 +150,17 @@ Per-TN-Case-Block erweitern:
 ```verilog
 case (tx_slot_num_sys)
 2'd0: begin
-    if (voice_active_mask_sys[0] && relay_valid_sys && voice_slot_tn_sys == 2'd0) begin
-        sel_blk1_w = relay_blk_sys[431:216];
-        sel_blk2_w = relay_blk_sys[215:0];
-        sel_burst_type_w = 1'b0;  // NDB1 (SCH/F)
-        sel_ndb2_w       = 1'b0;
-        sel_enable_w     = 1'b1;
-    end else if (sched_active_sys[0] || bus_is_signal(...)) begin
-        // existing scheduler path
-    end else begin
-        // existing static schedule
-    end
+ if (voice_active_mask_sys[0] && relay_valid_sys && voice_slot_tn_sys == 2'd0) begin
+ sel_blk1_w = relay_blk_sys[431:216];
+ sel_blk2_w = relay_blk_sys[215:0];
+ sel_burst_type_w = 1'b0; // NDB1 (SCH/F)
+ sel_ndb2_w = 1'b0;
+ sel_enable_w = 1'b1;
+ end else if (sched_active_sys[0] || bus_is_signal(...)) begin
+ // existing scheduler path
+ end else begin
+ // existing static schedule
+ end
 end
 // analog 2'd1, 2'd2, 2'd3
 ```
@@ -192,30 +192,30 @@ End-to-End TB: stimuliere IQ-Samples eines synthetic NUB-Bursts (TAIL1 + zufäll
 - `tetra_voice_relay` puffert + pulst auf nächstem DL-Slot
 - `tetra_burst_dispatcher` wählt voice_override-Pfad
 
-**Golden-Vector** aus `scripts/forensic_ul_nub.py` Burst-Index 4 der Gold-UL-WAV: 432-bit BKN1+BKN2 als Reference.
+**Reference-Vector** aus `scripts/forensic_ul_nub.py` Burst-Index 4 der -UL-WAV: 432-bit BKN1+BKN2 als Reference.
 
 ## Pipeline-Stages
 
 ```
 AD9361 → rx_frontend (CIC+RRC) → 72 kHz IQ
-                                 │
-                                 ├─→ ul_sync_detect_os4 (x-seq, RA)
-                                 ├─→ ul_nub_sync (NTS1, NUB)  ← NEU C1
-                                 │
-                                 ├─→ ul_burst_capture (RA-format)
-                                 └─→ ul_nub_capture   ← NEU C2
-                                       │
-                                       │ coded_bits[431:0] + valid
-                                       ▼
-                                  voice_relay   ← NEU C3
-                                       │
-                                       │ relay_blk[431:0] + valid
-                                       ▼
-                                  burst_dispatcher  ← PATCH C4
-                                       │
-                                       │ sel_blk1/blk2 (voice-override)
-                                       ▼
-                                  tx_chain → AD9361 DAC
+ │
+ ├─→ ul_sync_detect_os4 (x-seq, RA)
+ ├─→ ul_nub_sync (NTS1, NUB) ← NEU C1
+ │
+ ├─→ ul_burst_capture (RA-format)
+ └─→ ul_nub_capture ← NEU C2
+ │
+ │ coded_bits[431:0] + valid
+ ▼
+ voice_relay ← NEU C3
+ │
+ │ relay_blk[431:0] + valid
+ ▼
+ burst_dispatcher ← PATCH C4
+ │
+ │ sel_blk1/blk2 (voice-override)
+ ▼
+ tx_chain → AD9361 DAC
 ```
 
 ## Acceptance-Kriterien Phase C Air-Test
@@ -259,6 +259,6 @@ Files in Commit:
 - ACELP-Decode/Encode (nie — bit-transparent ist Lock)
 - UL voice-burst content auswerten / loggen für Debug (Phase D3 falls nötig)
 
-## Forensik-Skript-Output für TB-Golden-Vector
+## Forensik-Skript-Output für TB-Reference-Vector
 
-`scripts/forensic_ul_nub.py` Burst-Index 4 der Gold-UL-WAV ist der erste klar lange Burst (20ms, dual-slot). Bessere Golden-Vector: **manuell ein synthetic NUB im TB generieren** (Stimulus aus bekannten TAIL1+random-BKN+NTS1+random-BKN+TAIL2-Bits), und Erwartungswert = die Random-Bits selbst. Damit ist die Capture-Funktion direkt durch Round-Trip prüfbar ohne Real-Hardware-Capture-Drift.
+`scripts/forensic_ul_nub.py` Burst-Index 4 der -UL-WAV ist der erste klar lange Burst (20ms, dual-slot). Bessere Reference-Vector: **manuell ein synthetic NUB im TB generieren** (Stimulus aus bekannten TAIL1+random-BKN+NTS1+random-BKN+TAIL2-Bits), und Erwartungswert = die Random-Bits selbst. Damit ist die Capture-Funktion direkt durch Round-Trip prüfbar ohne Real-Hardware-Capture-Drift.

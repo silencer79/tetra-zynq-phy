@@ -158,14 +158,14 @@ Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufn
 **Steps:**
 1. `create_project` (Vivado-Project in `build/vivado/`).
 2. RTL-Sourcen-Add:
-   - **Infra (3):** `tetra_clk_reset.v`, `tetra_axi_lite_regs.v`, `tetra_axi_dma_bridge.v`.
-   - **AD9361 Adapter:** `tetra_ad9361_axis_adapter.v` (Note: `tetra_ad9361_interface.v` referenced as kept-but-not-used).
-   - **RX Chain (14):** `tetra_rx_chain.v`, `tetra_rx_frontend.v`, `tetra_pi4dqpsk_demod.v`, `tetra_timing_recovery.v`, `tetra_sync_detect.v`, `tetra_ul_sync_detect_os4.v`, `tetra_ul_burst_capture.v`, `tetra_ul_voice_capture.v`, `tetra_ul_pi4dqpsk_demod.v`, `tetra_ul_sch_hu_decoder.v`, `tetra_ul_viterbi_r14.v`, `tetra_burst_demux.v`, `tetra_frame_counter.v`, `tetra_ul_demand_reassembly.v`.
-   - **TX Chain (12):** `tetra_tx_chain.v`, `tetra_tx_frontend.v`, `tetra_pi4dqpsk_mod.v`, `tetra_rrc_filter.v`, `tetra_tx_inv_sinc.v`, `tetra_burst_builder.v`, `tetra_burst_dispatcher.v`, `tetra_tdma_timebase.v`, `tetra_slot_schedule.v`, `tetra_slot_content_mux.v`, `tetra_sb1_encoder.v`, `tetra_aach_encoder.v`, `tetra_aach_rm_encoder.v`.
-   - **LMAC (28):** `tetra_lmac.v`, `tetra_scrambler.v`, `tetra_interleaver.v`, `tetra_deinterleaver.v`, `tetra_depuncture_r23.v`, `tetra_rcpc_encoder.v`, `tetra_viterbi_decoder.v`, `tetra_reed_muller.v`, `tetra_crc16.v`, `tetra_steal_detect.v`, `tetra_ul_mac_access_parser.v`, `tetra_d_location_update_encoder.v`, `tetra_d_location_update_reject_encoder.v`, `tetra_sch_hd_encoder.v`, `tetra_sch_f_encoder.v`, `tetra_basic_slotgrant_encoder.v`, `tetra_chan_alloc_encoder.v`, `tetra_mac_resource_dl_builder.v`, `tetra_mac_resource_bl_ack_builder.v`, `tetra_mle_registration_fsm.v`, `tetra_dl_signal_queue.v`, `tetra_dl_signal_scheduler.v`, `tetra_ul_demand_ie_parser.v`, `tetra_dl_nwrk_broadcast.v`, `tetra_indirect_mailbox.v`, `tetra_indirect_mailbox_wr.v`, `tetra_demand_mailbox.v`, `tetra_reply_mailbox.v`, `tetra_grp_demand_mailbox.v`, `tetra_pre_reply_blck.v`, `tetra_pre_reply_slotgrant.v`, `tetra_dl_pdu_builder.v`.
-   - **Top-Level:** `tetra_zynq_top.v`, `tetra_system_top.v`.
-   - **Constraints:** `libresdr_tetra.xdc`, `adi_cdc_async_reg.xdc`.
-   - **Header:** `rtl/include/tetra_pdu_class.vh` als `is_global_include=true`. Include-Path `rtl/include`.
+ - **Infra (3):** `tetra_clk_reset.v`, `tetra_axi_lite_regs.v`, `tetra_axi_dma_bridge.v`.
+ - **AD9361 Adapter:** `tetra_ad9361_axis_adapter.v` (Note: `tetra_ad9361_interface.v` referenced as kept-but-not-used).
+ - **RX Chain (14):** `tetra_rx_chain.v`, `tetra_rx_frontend.v`, `tetra_pi4dqpsk_demod.v`, `tetra_timing_recovery.v`, `tetra_sync_detect.v`, `tetra_ul_sync_detect_os4.v`, `tetra_ul_burst_capture.v`, `tetra_ul_voice_capture.v`, `tetra_ul_pi4dqpsk_demod.v`, `tetra_ul_sch_hu_decoder.v`, `tetra_ul_viterbi_r14.v`, `tetra_burst_demux.v`, `tetra_frame_counter.v`, `tetra_ul_demand_reassembly.v`.
+ - **TX Chain (12):** `tetra_tx_chain.v`, `tetra_tx_frontend.v`, `tetra_pi4dqpsk_mod.v`, `tetra_rrc_filter.v`, `tetra_tx_inv_sinc.v`, `tetra_burst_builder.v`, `tetra_burst_dispatcher.v`, `tetra_tdma_timebase.v`, `tetra_slot_schedule.v`, `tetra_slot_content_mux.v`, `tetra_sb1_encoder.v`, `tetra_aach_encoder.v`, `tetra_aach_rm_encoder.v`.
+ - **LMAC (28):** `tetra_lmac.v`, `tetra_scrambler.v`, `tetra_interleaver.v`, `tetra_deinterleaver.v`, `tetra_depuncture_r23.v`, `tetra_rcpc_encoder.v`, `tetra_viterbi_decoder.v`, `tetra_reed_muller.v`, `tetra_crc16.v`, `tetra_steal_detect.v`, `tetra_ul_mac_access_parser.v`, `tetra_d_location_update_encoder.v`, `tetra_d_location_update_reject_encoder.v`, `tetra_sch_hd_encoder.v`, `tetra_sch_f_encoder.v`, `tetra_basic_slotgrant_encoder.v`, `tetra_chan_alloc_encoder.v`, `tetra_mac_resource_dl_builder.v`, `tetra_mac_resource_bl_ack_builder.v`, `tetra_mle_registration_fsm.v`, `tetra_dl_signal_queue.v`, `tetra_dl_signal_scheduler.v`, `tetra_ul_demand_ie_parser.v`, `tetra_dl_nwrk_broadcast.v`, `tetra_indirect_mailbox.v`, `tetra_indirect_mailbox_wr.v`, `tetra_demand_mailbox.v`, `tetra_reply_mailbox.v`, `tetra_grp_demand_mailbox.v`, `tetra_pre_reply_blck.v`, `tetra_pre_reply_slotgrant.v`, `tetra_dl_pdu_builder.v`.
+ - **Top-Level:** `tetra_zynq_top.v`, `tetra_system_top.v`.
+ - **Constraints:** `libresdr_tetra.xdc`, `adi_cdc_async_reg.xdc`.
+ - **Header:** `rtl/include/tetra_pdu_class.vh` als `is_global_include=true`. Include-Path `rtl/include`.
 3. `source scripts/create_bd.tcl` → Block-Design + Wrapper.
 4. **Synth:** `synth_design -top tetra_system_top -flatten_hierarchy rebuilt -directive PerformanceOptimized -retiming`. BD-Synth-Mode `SYNTH_CHECKPOINT_MODE=None` (Global).
 5. **Impl:** `opt_design`, optional ILA-Insertion (siehe ENABLE_ILA_DEBUG), `place_design -directive Auto_1`, `phys_opt_design -directive AggressiveExplore`, `route_design -directive AggressiveExplore`, `phys_opt_design -directive AggressiveExplore`. Reports: `report_utilization`, `report_timing_summary`, `report_clock_interaction`, `report_cdc`.
@@ -275,13 +275,13 @@ Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufn
 - `--max-bursts` (default 200).
 - `--conjugate`, `--swap-iq` flags.
 - `-v`/`--verbose`.
-- `--capture` → ruft `rtl_sdr -d 0 -f $freq -s $sr ...` auf.
+- `--capture` → ruft `rtl_sdr -d 0 -f $freq -s $sr...` auf.
 - `--freq` (default 440106000).
 - `--gain` (default 40).
 - `--duration` (default 2.0).
 - `--dump-burst` (default `-1`, akzeptiert Comma-Liste oder `-2` für Grid-only).
 
-**Inputs:** WAV-Datei (stereo I/Q int16) ODER RTL-SDR uint8 .bin.
+**Inputs:** WAV-Datei (stereo I/Q int16) ODER RTL-SDR uint8.bin.
 **Outputs:** stdout — Burst-für-Burst Decode mit MAC/LLC/MLE-Parsing, Summary mit Counter pro PDU-Typ.
 
 **Wichtige Funktionen (Auswahl):**
@@ -379,10 +379,10 @@ Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufn
 **Auffälligkeiten:** Wird vom `hw_deploy.sh` automatisch nach ILA-Capture aufgerufen.
 
 ### scripts/analyze_empty_bits.py (198 Zeilen)
-**Aufgabe:** Dumpt die Bits der "empty"-klassifizierten Bursts aus Gold-WAV. Vergleicht gegen SDB/NSB/NDB-Formate, sucht Training-Seq-Matches an allen Offsets.
+**Aufgabe:** Dumpt die Bits der "empty"-klassifizierten Bursts aus WAV. Vergleicht gegen SDB/NSB/NDB-Formate, sucht Training-Seq-Matches an allen Offsets.
 **Inputs:** WAV-Pfad als Arg.
 **Outputs:** stdout — Bit-Identität, Burst-by-Burst Korrelations-Werte.
-**Auffälligkeiten:** Importiert `_phase_correct` aus `gold_schedule`. Wahrscheinlich Einmal-Forensik-Tool.
+**Auffälligkeiten:** Importiert `_phase_correct` aus `schedule`. Wahrscheinlich Einmal-Forensik-Tool.
 
 ### scripts/probe_sb_content.py (138 Zeilen)
 **Aufgabe:** Extrahiert stärksten SB1-Burst aus WAV, vergleicht gegen SW-Reference-Encoder für jede (TN,FN,MN)-Kombination, findet minimalen Hamming-Distance-Match.
@@ -396,11 +396,11 @@ Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufn
 **Outputs:** Bit-Diff zwischen on-air und SW-Reference.
 **Auffälligkeiten:** Importiert breit aus `verify_sb1_encoder`. Vermutlich Einmal-Forensik-Tool.
 
-### scripts/gold_schedule.py (410 Zeilen)
-**Aufgabe:** Tabelliert Burst-Typ pro (FN, TN) aus einer Gold-WAV. Klassifikation per STS/NTS1/NTS2-Korrelation, Anker aus BSCH-SYNC-PDU. Kann zusätzlich einen 576-Byte-Schedule-Blob oder C-Header emittieren.
+### scripts/schedule.py (410 Zeilen)
+**Aufgabe:** Tabelliert Burst-Typ pro (FN, TN) aus einer WAV. Klassifikation per STS/NTS1/NTS2-Korrelation, Anker aus BSCH-SYNC-PDU. Kann zusätzlich einen 576-Byte-Schedule-Blob oder C-Header emittieren.
 **CLI-Args:** `wav` (optional positional), `-o`/`--csv`, `--emit-blob PATH`, `--emit-c-header PATH`.
 **Outputs:** stdout/CSV — pro-Burst Klassifikation + Aggregation pro (FN,TN). Mit `--emit-blob` → 576-Byte Binary, mit `--emit-c-header` → C-Header.
-**Wichtige Funktionen:** `_phase_correct` (von anderen Scripts importiert), `analyze`, `gen_gold_schedule_blob`, `gen_gold_schedule_c_header`.
+**Wichtige Funktionen:** `_phase_correct` (von anderen Scripts importiert), `analyze`, `gen_schedule_blob`, `gen_schedule_c_header`.
 
 ---
 
@@ -432,9 +432,9 @@ Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufn
 **Auffälligkeiten:** RM(30,14) Generator-Matrix aus `sw/tetra_hal.c` kopiert.
 
 ### scripts/gen_d_nwrk_broadcast.py (183 Zeilen)
-**Aufgabe:** Generiert statisches D-NWRK-BROADCAST-PDU (432-bit type-5 Pattern) für FPGA-ROM. Quelle: Gold-Cell Burst #423 (MN=44 FN=04 TN=1).
+**Aufgabe:** Generiert statisches D-NWRK-BROADCAST-PDU (432-bit type-5 Pattern) für FPGA-ROM. Quelle: Cell Burst #423 (MN=44 FN=04 TN=1).
 **CLI-Args:** `--cc 49`, `--mcc 901`, `--mnc 9998`, `-o`/`--output`.
-**Outputs:** Verilog-Hex-Konstante (432-bit) für ROM, optional .memh.
+**Outputs:** Verilog-Hex-Konstante (432-bit) für ROM, optional.memh.
 **Pipeline:** 124-bit info → CRC-16 → 140 → +tail → 144 → rate-1/2 conv K=5 → 288 → matrix interleave a=11 → scramble → split 2×144.
 
 ### scripts/gen_sch_f_tv.py (99 Zeilen)
@@ -468,17 +468,17 @@ Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufn
 **Konstanten:** FULL_SYMS=103, FULL_PRE_SMP=400, FULL_POST_SMP=1200, FULL_SMP_PER_BURST=2012, AMPLITUDE=30000.
 
 ### scripts/verify_empty_content.py (208 Zeilen)
-**Aufgabe:** Charakterisiert "empty"-klassifizierte Bursts aus Gold-WAV. Korrelations-Histogramme, Autokorrelations-Peaks, Power-Envelope pro Symbol.
+**Aufgabe:** Charakterisiert "empty"-klassifizierte Bursts aus WAV. Korrelations-Histogramme, Autokorrelations-Peaks, Power-Envelope pro Symbol.
 **Inputs:** WAV-Pfad.
-**Auffälligkeiten:** Forensik-Tool aus dem Gold-Cell-Schedule-Reverse-Engineering. **Vermutlich obsolet** (Mission erledigt — siehe `project_gold_cell_mimic` Memory).
+**Auffälligkeiten:** Forensik-Tool aus dem Cell-Schedule-Reverse-Engineering. **Vermutlich obsolet** (Mission erledigt — siehe `removed-memory` Memory).
 
 ### scripts/verify_empty_power.py (170 Zeilen)
 **Aufgabe:** Prüft RMS(|IQ|) der "empty"-Bursts vs SB/NDB1/NDB2. Aggregation pro Burst-Klasse, Ratio empty/SB.
-**Auffälligkeiten:** Wie `verify_empty_content.py` — Gold-Forensik-Tool. **Vermutlich obsolet**.
+**Auffälligkeiten:** Wie `verify_empty_content.py` — Forensik-Tool. **Vermutlich obsolet**.
 
 ### scripts/verify_empty_sweep.py (202 Zeilen)
 **Aufgabe:** Sucht in "empty"-Bursts versteckte Training-Sequenz-Position+Länge. Differential-Mean-Symbol-Vektor über 300 Bursts, Peak-Detection.
-**Auffälligkeiten:** **Vermutlich obsolet** (Gold-Forensik).
+**Auffälligkeiten:** **Vermutlich obsolet** (Forensik).
 
 ### scripts/verify_sb1_encoder.py (255 Zeilen)
 **Aufgabe:** SW-Reference-Encoder für BSCH (SB1). Vergleicht SW-Pfad gegen RTL-Algorithmus. Mehrere primitive helper-Funktionen (`crc16`, `conv_encode_r14`, `puncture_r23`, `scramble_bsch`, `interleave_bsch`, `build_pdu`).
@@ -486,7 +486,7 @@ Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufn
 **Auffälligkeiten:** Wird aus mehreren `probe_sb_*.py` + `verify_sch_f_roundtrip.py` als helper-Library importiert.
 
 ### scripts/verify_sch_f_roundtrip.py (119 Zeilen)
-**Aufgabe:** Phase-1-Encoder-Round-Trip. WAV laden + Gold-Burst #423 (D-NWRK-BROADCAST, NDB1, TN=1 FN=04 MN=44) finden → soft-decode info → re-encode via `gen_sch_f_tv::encode_sch_f` → Bit-für-Bit-Vergleich gegen on-air.
+**Aufgabe:** Phase-1-Encoder-Round-Trip. WAV laden + -Burst #423 (D-NWRK-BROADCAST, NDB1, TN=1 FN=04 MN=44) finden → soft-decode info → re-encode via `gen_sch_f_tv::encode_sch_f` → Bit-für-Bit-Vergleich gegen on-air.
 **Auffälligkeiten:** Verifikation für SCH/F-Path. **Vermutlich obsolet** (Mission erledigt — siehe Memory).
 
 ### scripts/verify_sch_hu_decode.py (188 Zeilen)

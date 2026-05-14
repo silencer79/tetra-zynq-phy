@@ -21,7 +21,7 @@ auf `/cgi-bin/apply.cgi`, nicht `/apply.cgi`.
 
 - `GET /` → `index.html` mit Form (Frequenz, MCC/MNC/LA/CC, TX-Atten, …)
 - `GET /cgi-bin/apply.cgi?freq=…&mcc=…&...` → konfiguriert AD9361
-  TX/RX_LO + restartet `tetra_sysinfo` mit neuen CLI-Args
+ TX/RX_LO + restartet `tetra_sysinfo` mit neuen CLI-Args
 - `GET /cgi-bin/status.cgi[?brief=1]` → Daemon + Frequenz + Counter dump
 - `GET /cgi-bin/stop.cgi` → kill tetra_sysinfo
 

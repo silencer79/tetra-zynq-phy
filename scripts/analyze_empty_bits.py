@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""analyze_empty_bits.py — Dumpt die Bits der Gold-"empty"-Bursts.
+"""analyze_empty_bits.py — Dumpt die Bits der -"empty"-Bursts.
 Prüft Identität, vergleicht gegen ETSI-Burst-Formate (SDB/NSB/NDB),
 sucht Training-Sequenz-Treffer an allen Offset-Positionen.
 """
@@ -22,7 +22,7 @@ from decode_dl import (
     load_iq_file, estimate_freq_offset, rrc_filter,
     scrambler_seq, decode_channel, parse_sysinfo_sb,
 )
-from gold_schedule import _phase_correct
+from schedule import _phase_correct
 
 
 def dibit_match_rate(dibits_a, dibits_ref):

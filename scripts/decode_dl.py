@@ -1579,7 +1579,7 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
         # Linear-only: the slope estimate is noisy with short training (NTS=11 sym → 10
         # differential samples), and the quadratic extrapolation blows up at the burst
         # edges (|nr|≈130), wrecking BLK1/BLK2 Viterbi even when AACH still decodes.
-        # Using just the mean residual (ic) gives 100 % NDB decode on the Gold WAV.
+        # Using just the mean residual (ic) gives 100 % NDB decode on the  WAV.
         ts_ref = dibits_to_symbols(ts_dibits)
         ts_dr = ts_ref[1:] * np.conj(ts_ref[:-1])
         s_idx = np.arange(len(ts_dibits)) + ts_sym_offset

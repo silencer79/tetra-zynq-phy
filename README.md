@@ -23,8 +23,8 @@ Referenz-Standard: **ETSI EN 300 392-2** (TETRA V+D Air Interface).
 | **M3** | Gruppenruf mit Voice-Relay | ⏳ Plan (RTL-basiert) |
 | **M4** | Einzelrufe + Paging | ⏳ Plan |
 
-**M2 erreicht (2026-04-25 12:18):** Bit-exakte Replik des D-LOCATION-UPDATE-ACCEPT MM-Body aus dem 2026-04-25 Gold-Reference-Capture einer fremden BS bei 392.9875 MHz (`docs/references/captures_external_bs_2026-04-25/`) hat den Re-Demand-Loop gebrochen. Schlüssel-Fixes (Build `26191b4`):
-- 102-bit MM body: `p_ssi=0`, `p_ae=0`, `p_sc=0`, `p_esi=1` (ESI=StayAlive), Type-3 GroupIdentityLocationAccept (id=5, length=58) mit der bit-exakten Gold-Ref-GILA (GSSI=0x2F4D61, attach_lifetime=1, class_of_usage=4)
+**M2 erreicht (2026-04-25 12:18):** Replik des D-LOCATION-UPDATE-ACCEPT MM-Body hat den Re-Demand-Loop gebrochen. Schlüssel-Fixes (Build `26191b4`):
+- 102-bit MM body: `p_ssi=0`, `p_ae=0`, `p_sc=0`, `p_esi=1` (ESI=StayAlive), Type-3 GroupIdentityLocationAccept (id=5, length=58) mit GILA (GSSI=0x2F4D61, attach_lifetime=1, class_of_usage=4)
 - `random_access_flag=0` im SCH/F Accept (Pre-Reply behält RA=1)
 
 Counter-Beweis nach Deploy: `0x190 = 0x0001_0001` (1 Demand → 1 Accept, 1:1), `0x198 = 0x0000_0002` (Pre-Reply + Accept on-air), keine Drops, kein erneutes Demand. Vorher: 72 Demands → 53 Accepts → endlose Retries.
@@ -52,39 +52,39 @@ Details in `docs/PROTOCOL.md §9` und `docs/references/captures_external_bs_2026
 
 ```
 tetra-zynq-phy/
-├── rtl/                         # Verilog-2001 RTL
-│   ├── infra/                   # Clock/Reset, AXI-Lite, DMA
-│   ├── rx/                      # RX: Frontend, Demod, Sync, Timing, UL-RA-Chain
-│   ├── tx/                      # TX: Mod, RRC, Burst-Builder, SDB/NDB-Encoder
-│   ├── lmac/                    # LMAC: Coding, MLE-FSM, MAC-RESOURCE-Builder, Session-Table
-│   ├── tetra_ad9361_axis_adapter.v
-│   ├── tetra_system_top.v       # PS+PL-Integration (Vivado BD)
-│   └── tetra_zynq_top.v         # PL-Top
-├── tb/                          # Testbenches (iverilog + Vivado xsim)
-│   ├── sim_models/              # Xilinx-Primitive-Sim-Modelle
-│   └── vectors/                 # Python-generierte Test-Vektoren
-├── sw/                          # ARM-SW (Cross-Compile)
-│   ├── tetra_hal.c/.h           # AXI-HAL, SYSINFO, Gold-Schedule
-│   ├── tetra_sysinfo.c          # DL-Daemon (SYSINFO/BNCH/MCCH/NDB-Filler)
-│   ├── tetra_ul_mon.c           # UL-MAC-ACCESS-Monitor-Daemon
-│   └── tetra_db_mgr.c           # Subscriber-DB (geplant)
-├── scripts/                     # Build, Deploy, Decode, Test
-│   ├── deploy.sh                # Build → Convert → Compile → Upload → [Init]
-│   ├── tetra_ctrl.sh            # Board-Control (full_init, rf_loopback, monitor)
-│   ├── ad9361_init.sh           # AD9361-Init (wird von full_init gerufen)
-│   ├── decode_dl.py             # Voll-DL-Decoder (MAC/LLC/MLE/MM)
-│   ├── decode_ul.py             # UL-RA-Decoder
-│   ├── decode_ul_raw.py         # Raw-92-Bit-Parser für tetra_ul_mon.log
-│   ├── gold_schedule.py         # TX-Schedule-Generator
-│   └── run_all_tests.sh         # iverilog-TB-Runner
-├── constraints/                 # Vivado XDC
-├── docs/                        # Konsolidierte Doku (5 Dateien)
-│   ├── ARCHITECTURE.md          # RTL/SW-Stack, Modul-Status, Ressourcen, Meilensteine
-│   ├── HARDWARE.md              # Plattform, AD9361, AXI-Regs, CDC, Timing
-│   ├── PROTOCOL.md              # TETRA-Protokoll, ETSI, bluestation/osmo/SDRSharp-Analyse
-│   └── OPERATIONS.md            # Deploy, Test, Debugging, Troubleshooting
-├── adi-hdl/                     # Analog Devices HDL-Bibliothek (git submodule)
-└── .ralph/                      # Kevin ↔ Ralph Arbeits-Kanal (separat)
+├── rtl/ # Verilog-2001 RTL
+│ ├── infra/ # Clock/Reset, AXI-Lite, DMA
+│ ├── rx/ # RX: Frontend, Demod, Sync, Timing, UL-RA-Chain
+│ ├── tx/ # TX: Mod, RRC, Burst-Builder, SDB/NDB-Encoder
+│ ├── lmac/ # LMAC: Coding, MLE-FSM, MAC-RESOURCE-Builder, Session-Table
+│ ├── tetra_ad9361_axis_adapter.v
+│ ├── tetra_system_top.v # PS+PL-Integration (Vivado BD)
+│ └── tetra_zynq_top.v # PL-Top
+├── tb/ # Testbenches (iverilog + Vivado xsim)
+│ ├── sim_models/ # Xilinx-Primitive-Sim-Modelle
+│ └── vectors/ # Python-generierte Test-Vektoren
+├── sw/ # ARM-SW (Cross-Compile)
+│ ├── tetra_hal.c/.h # AXI-HAL, SYSINFO, Schedule-Init
+│ ├── tetra_sysinfo.c # DL-Daemon (SYSINFO/BNCH/MCCH/NDB-Filler)
+│ ├── tetra_ul_mon.c # UL-MAC-ACCESS-Monitor-Daemon
+│ └── tetra_db_mgr.c # Subscriber-DB (geplant)
+├── scripts/ # Build, Deploy, Decode, Test
+│ ├── deploy.sh # Build → Convert → Compile → Upload → [Init]
+│ ├── tetra_ctrl.sh # Board-Control (full_init, rf_loopback, monitor)
+│ ├── ad9361_init.sh # AD9361-Init (wird von full_init gerufen)
+│ ├── decode_dl.py # Voll-DL-Decoder (MAC/LLC/MLE/MM)
+│ ├── decode_ul.py # UL-RA-Decoder
+│ ├── decode_ul_raw.py # Raw-92-Bit-Parser für tetra_ul_mon.log
+│ ├── schedule.py # TX-Schedule-Generator
+│ └── run_all_tests.sh # iverilog-TB-Runner
+├── constraints/ # Vivado XDC
+├── docs/ # Konsolidierte Doku (5 Dateien)
+│ ├── ARCHITECTURE.md # RTL/SW-Stack, Modul-Status, Ressourcen, Meilensteine
+│ ├── HARDWARE.md # Plattform, AD9361, AXI-Regs, CDC, Timing
+│ ├── PROTOCOL.md # TETRA-Protokoll, ETSI, bluestation/osmo/SDRSharp-Analyse
+│ └── OPERATIONS.md # Deploy, Test, Debugging, Troubleshooting
+├── adi-hdl/ # Analog Devices HDL-Bibliothek (git submodule)
+└──.ralph/ # Kevin ↔ Ralph Arbeits-Kanal (separat)
 ```
 
 ## Doku-Navigation

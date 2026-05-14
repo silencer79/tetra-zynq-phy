@@ -8,7 +8,7 @@ differences for SCH/F vs SCH/HD are:
   - coded length 432 (not 216)
 
 The Python path has been bit-exact against RTL for BSCH / SCH/HD, so we
-trust it as the golden reference for the sized-up SCH/F chain.  This
+trust it as the reference for the sized-up SCH/F chain.  This
 matches the SW encoder `tetra_schf_encode()` in `sw/tetra_hal.c`.
 """
 

@@ -15,20 +15,20 @@ $readmemh("../tb/vectors/<module>_stimulus.hex", stimulus_mem);
 
 ## Script Status
 
-| Script                          | Module                    | Generiert       | Dateien vorhanden                                          |
+| Script | Module | Generiert | Dateien vorhanden |
 |---------------------------------|---------------------------|-----------------|-------------------------------------------------------------|
-| `gen_reset_vectors.py`          | `tetra_clk_reset`         | ❓ nicht genlaufen | —                                                        |
-| `gen_ad9361_vectors.py`         | `tetra_ad9361_interface`  | ✅ generiert    | `ad9361_iq_vectors.hex`                                     |
-| `gen_pi4dqpsk_vectors.py`       | `tetra_pi4dqpsk_demod`    | ✅ generiert    | `pi4dqpsk_iq_in.hex`, `pi4dqpsk_dibit_out.hex`             |
-| `gen_timing_recovery_vectors.py`| `tetra_timing_recovery`   | ❌ fehlen       | `timing_tc{0,1,2}_iq_in.hex`, `timing_tc{0,1,2}_ted.hex` fehlen |
-| `gen_rx_frontend_vectors.py`    | `tetra_rx_frontend`       | ❌ fehlen       | `rx_frontend_stimulus.hex`, `rx_frontend_expected.hex` fehlen |
-| `gen_sync_detect_vectors.py`    | `tetra_sync_detect`       | ❓ nicht genlaufen | TB nutzt inline-Stimuli, kein readmemh                  |
-| `gen_burst_vectors.py`          | `tetra_burst_demux`       | ❓ nicht genlaufen | TB nutzt inline-Stimuli, kein readmemh                  |
-| `gen_scrambler_vectors.py`      | `tetra_scrambler`         | ❓ nicht genlaufen | TB nutzt inline-Stimuli, kein readmemh                  |
-| `gen_interleaver_vectors.py`    | `tetra_interleaver`       | ❓ nicht genlaufen | TB nutzt inline-Stimuli, kein readmemh                  |
-| `gen_viterbi_vectors.py`        | `tetra_viterbi_decoder`   | ❓ nicht genlaufen | TB nutzt inline-Stimuli, kein readmemh                  |
-| `gen_reed_muller_vectors.py`    | `tetra_reed_muller`       | ✅ generiert    | `rm_encode_in.hex`, `rm_encode_out.hex`, `rm_decode_*.hex`  |
-| `gen_crc16_vectors.py`          | `tetra_crc16`             | ❓ nicht genlaufen | TB nutzt inline ref_crc16(), kein readmemh              |
+| `gen_reset_vectors.py` | `tetra_clk_reset` | ❓ nicht genlaufen | — |
+| `gen_ad9361_vectors.py` | `tetra_ad9361_interface` | ✅ generiert | `ad9361_iq_vectors.hex` |
+| `gen_pi4dqpsk_vectors.py` | `tetra_pi4dqpsk_demod` | ✅ generiert | `pi4dqpsk_iq_in.hex`, `pi4dqpsk_dibit_out.hex` |
+| `gen_timing_recovery_vectors.py`| `tetra_timing_recovery` | ❌ fehlen | `timing_tc{0,1,2}_iq_in.hex`, `timing_tc{0,1,2}_ted.hex` fehlen |
+| `gen_rx_frontend_vectors.py` | `tetra_rx_frontend` | ❌ fehlen | `rx_frontend_stimulus.hex`, `rx_frontend_expected.hex` fehlen |
+| `gen_sync_detect_vectors.py` | `tetra_sync_detect` | ❓ nicht genlaufen | TB nutzt inline-Stimuli, kein readmemh |
+| `gen_burst_vectors.py` | `tetra_burst_demux` | ❓ nicht genlaufen | TB nutzt inline-Stimuli, kein readmemh |
+| `gen_scrambler_vectors.py` | `tetra_scrambler` | ❓ nicht genlaufen | TB nutzt inline-Stimuli, kein readmemh |
+| `gen_interleaver_vectors.py` | `tetra_interleaver` | ❓ nicht genlaufen | TB nutzt inline-Stimuli, kein readmemh |
+| `gen_viterbi_vectors.py` | `tetra_viterbi_decoder` | ❓ nicht genlaufen | TB nutzt inline-Stimuli, kein readmemh |
+| `gen_reed_muller_vectors.py` | `tetra_reed_muller` | ✅ generiert | `rm_encode_in.hex`, `rm_encode_out.hex`, `rm_decode_*.hex` |
+| `gen_crc16_vectors.py` | `tetra_crc16` | ❓ nicht genlaufen | TB nutzt inline ref_crc16(), kein readmemh |
 
 ---
 
@@ -37,8 +37,8 @@ $readmemh("../tb/vectors/<module>_stimulus.hex", stimulus_mem);
 ```bash
 cd /home/kevin/claude-ralph/tetra
 for f in tb/vectors/gen_*.py; do
-    echo "Running $f ..."
-    python3 "$f"
+ echo "Running $f..."
+ python3 "$f"
 done
 ```
 

@@ -6,15 +6,15 @@
 // verifies the 92 info bits + crc_ok against the expected record.
 //
 // Stimulus files (sim_out/):
-//   ul_demod_iq.hex   — NBURSTS * 86 symbols * 2 lines (I then Q, 16-bit hex)
-//   ul_demod_exp.hex  — 13 bytes/burst: [crc:1][info:12]
+// ul_demod_iq.hex — NBURSTS * 86 symbols * 2 lines (I then Q, 16-bit hex)
+// ul_demod_exp.hex — 13 bytes/burst: [crc:1][info:12]
 //
 // IQ framing per burst (CB: 2 halves × 43 syms = ref + 42 data):
-//   sample 0  : iq_first=1, iq_half=0       (CB1 differential reference)
-//   samples 1..42 : iq_valid, iq_half=0
-//   sample 43 : iq_first=1, iq_half=1       (CB2 differential reference)
-//   samples 44..84: iq_valid, iq_half=1
-//   sample 85 : iq_valid, iq_half=1, iq_last=1
+// sample 0: iq_first=1, iq_half=0 (CB1 differential reference)
+// samples 1..42: iq_valid, iq_half=0
+// sample 43: iq_first=1, iq_half=1 (CB2 differential reference)
+// samples 44..84: iq_valid, iq_half=1
+// sample 85: iq_valid, iq_half=1, iq_last=1
 // =============================================================================
 
 `timescale 1ns/1ps
@@ -22,32 +22,32 @@
 
 module tb_ul_demod_sch_hu;
 
-localparam integer IQ_WIDTH    = 16;
-localparam integer SOFT_WIDTH  = 8;
-localparam integer N_BURSTS    = 4;
-localparam integer SYMS_HALF   = 43;
-localparam integer SYMS_BURST  = 2 * SYMS_HALF;   // 86
+localparam integer IQ_WIDTH = 16;
+localparam integer SOFT_WIDTH = 8;
+localparam integer N_BURSTS = 4;
+localparam integer SYMS_HALF = 43;
+localparam integer SYMS_BURST = 2 * SYMS_HALF; // 86
 localparam integer IQ_PER_BURST = SYMS_BURST * 2; // I,Q per symbol
-localparam integer CLK_PERIOD  = 10;
+localparam integer CLK_PERIOD = 10;
 
 reg clk;
 reg rst_n;
 
 reg signed [IQ_WIDTH-1:0] i_in;
 reg signed [IQ_WIDTH-1:0] q_in;
-reg                       iq_valid;
-reg                       iq_first;
-reg                       iq_last;
-reg                       iq_half;
+reg iq_valid;
+reg iq_first;
+reg iq_last;
+reg iq_half;
 
 wire signed [SOFT_WIDTH-1:0] soft_bit0_w, soft_bit1_w;
-wire                         soft_valid_w, soft_first_w, soft_last_w, soft_half_w;
+wire soft_valid_w, soft_first_w, soft_last_w, soft_half_w;
 
 reg [31:0] scramb_init;
 
 wire [91:0] info_bits;
-wire        info_valid;
-wire        crc_ok;
+wire info_valid;
+wire crc_ok;
 wire [15:0] decodes_attempted;
 wire [15:0] decodes_ok;
 
@@ -55,42 +55,42 @@ wire [15:0] decodes_ok;
 // DUT: demod → sch_hu_decoder chain
 // -------------------------------------------------------------------------
 tetra_ul_pi4dqpsk_demod #(
-    .IQ_WIDTH  (IQ_WIDTH),
-    .SOFT_WIDTH(SOFT_WIDTH)
+.IQ_WIDTH (IQ_WIDTH),
+.SOFT_WIDTH(SOFT_WIDTH)
 ) u_demod (
-    .clk_sys       (clk),
-    .rst_n_sys     (rst_n),
-    .i_in_sys      (i_in),
-    .q_in_sys      (q_in),
-    .iq_valid_sys  (iq_valid),
-    .iq_first_sys  (iq_first),
-    .iq_last_sys   (iq_last),
-    .iq_half_sys   (iq_half),
-    .soft_bit0_sys (soft_bit0_w),
-    .soft_bit1_sys (soft_bit1_w),
-    .soft_valid_sys(soft_valid_w),
-    .soft_first_sys(soft_first_w),
-    .soft_last_sys (soft_last_w),
-    .soft_half_sys (soft_half_w)
+.clk_sys (clk),
+.rst_n_sys (rst_n),
+.i_in_sys (i_in),
+.q_in_sys (q_in),
+.iq_valid_sys (iq_valid),
+.iq_first_sys (iq_first),
+.iq_last_sys (iq_last),
+.iq_half_sys (iq_half),
+.soft_bit0_sys (soft_bit0_w),
+.soft_bit1_sys (soft_bit1_w),
+.soft_valid_sys(soft_valid_w),
+.soft_first_sys(soft_first_w),
+.soft_last_sys (soft_last_w),
+.soft_half_sys (soft_half_w)
 );
 
 tetra_ul_sch_hu_decoder #(
-    .SOFT_IN_WIDTH(SOFT_WIDTH)
+.SOFT_IN_WIDTH(SOFT_WIDTH)
 ) u_decoder (
-    .clk_sys               (clk),
-    .rst_n_sys             (rst_n),
-    .scramb_init_sys       (scramb_init),
-    .soft_bit0_sys         (soft_bit0_w),
-    .soft_bit1_sys         (soft_bit1_w),
-    .soft_valid_sys        (soft_valid_w),
-    .soft_first_sys        (soft_first_w),
-    .soft_last_sys         (soft_last_w),
-    .soft_half_sys         (soft_half_w),
-    .info_bits_sys         (info_bits),
-    .info_valid_sys        (info_valid),
-    .crc_ok_sys            (crc_ok),
-    .decodes_attempted_sys (decodes_attempted),
-    .decodes_ok_sys        (decodes_ok)
+.clk_sys (clk),
+.rst_n_sys (rst_n),
+.scramb_init_sys (scramb_init),
+.soft_bit0_sys (soft_bit0_w),
+.soft_bit1_sys (soft_bit1_w),
+.soft_valid_sys (soft_valid_w),
+.soft_first_sys (soft_first_w),
+.soft_last_sys (soft_last_w),
+.soft_half_sys (soft_half_w),
+.info_bits_sys (info_bits),
+.info_valid_sys (info_valid),
+.crc_ok_sys (crc_ok),
+.decodes_attempted_sys (decodes_attempted),
+.decodes_ok_sys (decodes_ok)
 );
 
 initial clk = 1'b0;
@@ -99,8 +99,8 @@ always #(CLK_PERIOD/2) clk = ~clk;
 // -------------------------------------------------------------------------
 // Stimulus / expected memories
 // -------------------------------------------------------------------------
-reg [15:0] iq_mem  [0:N_BURSTS*IQ_PER_BURST-1];
-reg [7:0]  exp_mem [0:N_BURSTS*13-1];
+reg [15:0] iq_mem [0:N_BURSTS*IQ_PER_BURST-1];
+reg [7:0] exp_mem [0:N_BURSTS*13-1];
 
 integer pass_cnt, fail_cnt;
 
@@ -108,24 +108,24 @@ integer pass_cnt, fail_cnt;
 // info match helper (same mapping as tb_ul_sch_hu_decoder)
 // -------------------------------------------------------------------------
 function integer info_match;
-    input [91:0]  info_actual;
-    input integer burst_i;
-    integer       i, bit_actual, bit_expected;
-    reg [7:0]     eb;
-    begin
-        info_match = 1;
-        for (i = 0; i < 92; i = i + 1) begin
-            eb = exp_mem[burst_i*13 + 1 + (i/8)];
-            bit_expected = (eb >> (7 - (i%8))) & 1;
-            bit_actual   = info_actual[i];
-            if (bit_actual !== bit_expected) begin
-                info_match = 0;
-                if (i < 8)
-                    $display("    info[%0d] actual=%0d expected=%0d",
-                             i, bit_actual, bit_expected);
-            end
-        end
-    end
+ input [91:0] info_actual;
+ input integer burst_i;
+ integer i, bit_actual, bit_expected;
+ reg [7:0] eb;
+ begin
+ info_match = 1;
+ for (i = 0; i < 92; i = i + 1) begin
+ eb = exp_mem[burst_i*13 + 1 + (i/8)];
+ bit_expected = (eb >> (7 - (i%8))) & 1;
+ bit_actual = info_actual[i];
+ if (bit_actual !== bit_expected) begin
+ info_match = 0;
+ if (i < 8)
+ $display(" info[%0d] actual=%0d expected=%0d",
+ i, bit_actual, bit_expected);
+ end
+ end
+ end
 endfunction
 
 // -------------------------------------------------------------------------
@@ -136,104 +136,104 @@ integer wait_cycles;
 integer base;
 
 initial begin
-    $dumpfile("sim_out/tb_ul_demod_sch_hu.vcd");
-    $dumpvars(1, u_demod);
-    $dumpvars(1, u_decoder);
+ $dumpfile("sim_out/tb_ul_demod_sch_hu.vcd");
+ $dumpvars(1, u_demod);
+ $dumpvars(1, u_decoder);
 
-    scramb_init = 32'hE1670EC7;
-    if ($value$plusargs("SCRAMB_INIT=%h", scramb_init))
-        $display("(scramb_init override: 0x%08h)", scramb_init);
+ scramb_init = 32'hE1670EC7;
+ if ($value$plusargs("SCRAMB_INIT=%h", scramb_init))
+ $display("(scramb_init override: 0x%08h)", scramb_init);
 
-    for (k = 0; k < N_BURSTS*IQ_PER_BURST; k = k + 1)
-        iq_mem[k] = 16'h0000;
-    for (k = 0; k < N_BURSTS*13; k = k + 1)
-        exp_mem[k] = 8'h00;
+ for (k = 0; k < N_BURSTS*IQ_PER_BURST; k = k + 1)
+ iq_mem[k] = 16'h0000;
+ for (k = 0; k < N_BURSTS*13; k = k + 1)
+ exp_mem[k] = 8'h00;
 
-    $readmemh("sim_out/ul_demod_iq.hex",  iq_mem);
-    $readmemh("sim_out/ul_demod_exp.hex", exp_mem);
+ $readmemh("sim_out/ul_demod_iq.hex", iq_mem);
+ $readmemh("sim_out/ul_demod_exp.hex", exp_mem);
 
-    rst_n    = 1'b0;
-    i_in     = 16'sd0;
-    q_in     = 16'sd0;
-    iq_valid = 1'b0;
-    iq_first = 1'b0;
-    iq_last  = 1'b0;
-    iq_half  = 1'b0;
-    pass_cnt = 0;
-    fail_cnt = 0;
+ rst_n = 1'b0;
+ i_in = 16'sd0;
+ q_in = 16'sd0;
+ iq_valid = 1'b0;
+ iq_first = 1'b0;
+ iq_last = 1'b0;
+ iq_half = 1'b0;
+ pass_cnt = 0;
+ fail_cnt = 0;
 
-    repeat (10) @(posedge clk);
-    rst_n = 1'b1;
-    repeat (5) @(posedge clk);
+ repeat (10) @(posedge clk);
+ rst_n = 1'b1;
+ repeat (5) @(posedge clk);
 
-    $display("=== tb_ul_demod_sch_hu: %0d bursts, scramb_init=0x%08h ===",
-             N_BURSTS, scramb_init);
+ $display("=== tb_ul_demod_sch_hu: %0d bursts, scramb_init=0x%08h ===",
+ N_BURSTS, scramb_init);
 
-    for (b_idx = 0; b_idx < N_BURSTS; b_idx = b_idx + 1) begin
-        $display("-- burst #%0d --", b_idx);
-        base = b_idx * IQ_PER_BURST;
+ for (b_idx = 0; b_idx < N_BURSTS; b_idx = b_idx + 1) begin
+ $display("-- burst #%0d --", b_idx);
+ base = b_idx * IQ_PER_BURST;
 
-        // 86 IQ samples, one per clock
-        for (k = 0; k < SYMS_BURST; k = k + 1) begin
-            @(posedge clk);
-            #1;
-            i_in     = $signed(iq_mem[base + 2*k]);
-            q_in     = $signed(iq_mem[base + 2*k + 1]);
-            iq_valid = 1'b1;
-            iq_first = (k == 0) || (k == SYMS_HALF);
-            iq_last  = (k == SYMS_BURST - 1);
-            iq_half  = (k >= SYMS_HALF);
-        end
-        @(posedge clk);
-        #1;
-        iq_valid = 1'b0;
-        iq_first = 1'b0;
-        iq_last  = 1'b0;
-        iq_half  = 1'b0;
+ // 86 IQ samples, one per clock
+ for (k = 0; k < SYMS_BURST; k = k + 1) begin
+ @(posedge clk);
+ #1;
+ i_in = $signed(iq_mem[base + 2*k]);
+ q_in = $signed(iq_mem[base + 2*k + 1]);
+ iq_valid = 1'b1;
+ iq_first = (k == 0) || (k == SYMS_HALF);
+ iq_last = (k == SYMS_BURST - 1);
+ iq_half = (k >= SYMS_HALF);
+ end
+ @(posedge clk);
+ #1;
+ iq_valid = 1'b0;
+ iq_first = 1'b0;
+ iq_last = 1'b0;
+ iq_half = 1'b0;
 
-        // Decoder pipeline ≈ 600 cycles: collect 168 + descramble + deint +
-        // 112*4 vit feed + drain + CRC. Give generous window.
-        wait_cycles = 0;
-        while (!info_valid && wait_cycles < 20000) begin
-            @(posedge clk);
-            wait_cycles = wait_cycles + 1;
-        end
+ // Decoder pipeline ≈ 600 cycles: collect 168 + descramble + deint +
+ // 112*4 vit feed + drain + CRC. Give generous window.
+ wait_cycles = 0;
+ while (!info_valid && wait_cycles < 20000) begin
+ @(posedge clk);
+ wait_cycles = wait_cycles + 1;
+ end
 
-        if (!info_valid) begin
-            $display("  FAIL: info_valid never fired (timeout)");
-            fail_cnt = fail_cnt + 1;
-        end else begin
-            if (crc_ok && info_match(info_bits, b_idx)) begin
-                $display("  PASS  crc_ok=1 info[0:16]=%04h", info_bits[15:0]);
-                pass_cnt = pass_cnt + 1;
-            end else begin
-                $display("  FAIL  crc_ok=%0d info[0:16]=%04h exp=%02h %02h",
-                         crc_ok, info_bits[15:0],
-                         exp_mem[b_idx*13 + 1], exp_mem[b_idx*13 + 2]);
-                fail_cnt = fail_cnt + 1;
-            end
-        end
+ if (!info_valid) begin
+ $display(" FAIL: info_valid never fired (timeout)");
+ fail_cnt = fail_cnt + 1;
+ end else begin
+ if (crc_ok && info_match(info_bits, b_idx)) begin
+ $display(" PASS crc_ok=1 info[0:16]=%04h", info_bits[15:0]);
+ pass_cnt = pass_cnt + 1;
+ end else begin
+ $display(" FAIL crc_ok=%0d info[0:16]=%04h exp=%02h %02h",
+ crc_ok, info_bits[15:0],
+ exp_mem[b_idx*13 + 1], exp_mem[b_idx*13 + 2]);
+ fail_cnt = fail_cnt + 1;
+ end
+ end
 
-        repeat (20) @(posedge clk);
-    end
+ repeat (20) @(posedge clk);
+ end
 
-    $display("=============================================");
-    $display("decodes_attempted=%0d  decodes_ok=%0d",
-             decodes_attempted, decodes_ok);
-    $display("TB counters: pass=%0d  fail=%0d  / %0d bursts",
-             pass_cnt, fail_cnt, N_BURSTS);
-    if (pass_cnt == N_BURSTS)
-        $display("RESULT: PASS");
-    else
-        $display("RESULT: FAIL");
-    $display("=============================================");
-    $finish;
+ $display("=============================================");
+ $display("decodes_attempted=%0d decodes_ok=%0d",
+ decodes_attempted, decodes_ok);
+ $display("TB counters: pass=%0d fail=%0d / %0d bursts",
+ pass_cnt, fail_cnt, N_BURSTS);
+ if (pass_cnt == N_BURSTS)
+ $display("RESULT: PASS");
+ else
+ $display("RESULT: FAIL");
+ $display("=============================================");
+ $finish;
 end
 
 initial begin
-    #500_000_000;
-    $display("WATCHDOG timeout");
-    $finish;
+ #500_000_000;
+ $display("WATCHDOG timeout");
+ $finish;
 end
 
 endmodule
