@@ -13,7 +13,21 @@ Severity-Skala:
 
 ---
 
-## 🔴 BUG-001 — D-LOC-UPD-ACCEPT location_update_accept_type = Roaming
+## ✅ BUG-001 — D-LOC-UPD-ACCEPT location_update_accept_type = Roaming **[FIXED]**
+
+**Status: GEFIXT** (Commits `ca12a46` + `d5b3589`, verifiziert post-deploy 2026-05-15 23:03).
+
+Bit-exakt verifiziert mit neuer WAV-Aufnahme:
+- Vor Fix: D-LOC-UPD-ACCEPT `location_update_accept_type=0=RoamingLocationUpdating`
+- Nach Fix: D-LOC-UPD-ACCEPT `location_update_accept_type=3=ItsiAttach` (matched MS-Demand)
+
+Daemon-Log zeigt beide Pfade:
+```
+serviced #2 lut=3 → Accept mit accept_type=3 (ItsiAttach)
+serviced #1 lut=0 → Accept mit accept_type=0 (Roaming)
+```
+
+
 
 **Befund:**
 Lokale BS antwortet mit `location_update_accept_type=0=RoamingLocationUpdating`. Reference antwortet korrekt mit `location_update_accept_type=3=ItsiAttach`.
@@ -47,7 +61,13 @@ let pdu_response = DLocationUpdateAccept {
 
 ---
 
-## 🔴 BUG-002 — GSSI = 1 → **MS-Codeplug, NICHT BS-Code**
+## ✅ BUG-002 — GSSI = 1 **[NICHT-BUG, by design]**
+
+**Status: KEIN BUG.** Bestätigung vom User 2026-05-15: "Die MS ist so und soll es auch bleiben". Die MS demanded GSSI=1, das BS-Echo ist korrekt. Test-MS ist absichtlich mit GSSI=1 konfiguriert.
+
+---
+
+## 🔴 ~~BUG-002~~ (historisch, jetzt OK)
 
 **Stand: KEIN BlueStation-Code-Bug. Die lokale MS-Codeplug ist mit GSSI=1 konfiguriert.**
 
