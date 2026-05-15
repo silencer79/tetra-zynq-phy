@@ -108,20 +108,27 @@ let gid = GroupIdentityDownlink {
 
 ---
 
-## 🟠 BUG-003 — Keine D-SETUP für Group-Call-Page
+## ✅ BUG-003 — **VERWORFEN (Fehldiagnose)**
 
-**Befund:**
-Reference-BS sendet auf U-SETUP **erst D-SETUP an die Gruppe** (broadcast/multipoint Page an alle MS in der Gruppe), **dann D-CONNECT an die calling MS**. Unsere BS sendet nur D-CONNECT direkt — kein D-SETUP.
+**Korrektur 2026-05-15:** Re-Analyse der Reference-WAV zeigt: D-SETUP bei #6943 (t=98.347s) ist **kein** Group-Paging während des Outgoing-Calls. Es ist **Incoming-Call-Paging** (BS pagt die MS für einen eingehenden Anruf):
 
-**Konsequenz:** Andere MS in der Gruppe werden nicht gepaged. Bei echtem Group-Call würde nur die initiierende MS Audio empfangen können, alle anderen "verpassen" den Call.
+```
+t=98.347s  DL #6943  D-SETUP    (incoming call to MS)
+t=99.146s  UL #144   U-CONNECT-Antwort `41 41 7F A0 49 40 ...`
+```
 
-**Bit-exakte Belege:**
-- Reference DL #6943 (kommt später im Capture) → D-SETUP addr=SSI+Usage ID=3100004 LI=17 channel_allocation: ts=4 carrier=3719
-- Local: 0× D-SETUP im gesamten Capture
+Die 3× D-CONNECT für den **Outgoing-Call** (MS-initiated) sind bei #5887/95/03 (FN02/04/06 MN60) — und diese Sequenz hat unsere Cell **bereits korrekt** (`sw/tetra_call_fsm.c:185-192`):
 
-**Fix:** BlueStation CMCE-Subentity beim Empfang von U-SETUP: erst D-SETUP mit Multipoint-Adresse an die GSSI broadcasten, dann D-CONNECT für die calling MS.
+```c
+// Phase 7 G.7 — spec-konforme Sequenz (verifiziert via WAV-Forensik
+// reference-DL.wav Burst #5887/#5895/#5903, 2026-05-13):
+// BS sendet NUR 3× D-CONNECT (BL-UDATA, idle AACH, addr=SSI+Usage),
+// KEIN D-CALL-PROCEEDING, KEIN D-SETUP.
+```
 
-**Verifikation:** Nach Fix muss `docs/local_cell_decode/burst_inventory.md` einen D-SETUP-Eintrag in der signaling-PDU-Liste zeigen.
+`stage_d_setup()` existiert in `tetra_call_fsm.c:86` für die Incoming-Call-Variante, ist aber nicht aufgerufen weil aktuell keine Incoming-Calls im Use-Case.
+
+**Verbleibende Feature-Aufgabe (kein Bug):** D-SETUP für PSTN-Gateway / Dispatcher-Page implementieren wenn Incoming-Calls in Reichweite kommen. Aktuell nicht needed.
 
 ---
 
