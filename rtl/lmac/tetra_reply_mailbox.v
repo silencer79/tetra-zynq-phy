@@ -71,6 +71,10 @@ module tetra_reply_mailbox (
  output wire [13:0] mb_la_sys,
  output wire [2:0] mb_addr_type_sys,
  output wire [1:0] mb_result_sys,
+ // Bug-001 fix: location_update_accept_type echoed from MS demand
+ // (ETSI §16.10.35a). SW writes W3[4:2] = MS's location_update_type.
+ // FSM passes to D-LOC-UPDATE encoder so reply matches MS request.
+ output wire [2:0] mb_loc_acc_type_sys,
  output wire [23:0] mb_gila_gssi_sys,
  output wire [2:0] mb_gila_class_sys,
  output wire [1:0] mb_gila_lifetime_sys,
@@ -139,6 +143,9 @@ module tetra_reply_mailbox (
  assign mb_la_sys = w1_w[13:0];
  assign mb_addr_type_sys = w2_w[2:0];
  assign mb_result_sys = w3_w[1:0];
+ // Bug-001 fix — daemon writes MS-demand location_update_type into W3[4:2]
+ // alongside the 2-bit result code. 0 in pre-fix firmware (= Roaming).
+ assign mb_loc_acc_type_sys = w3_w[4:2];
  assign mb_gila_gssi_sys = w4_w[23:0];
  assign mb_gila_class_sys = w5_w[4:2];
  assign mb_gila_lifetime_sys = w5_w[1:0];

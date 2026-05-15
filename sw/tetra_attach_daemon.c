@@ -285,6 +285,7 @@ static void stage_accept_body(tetra_hal_t *hal,
  uint32_t ssi,
  uint32_t la,
  uint32_t result,
+ uint32_t loc_acc_type,
  uint32_t gila_gssi,
  uint32_t gila_class,
  uint32_t gila_lifetime,
@@ -294,6 +295,8 @@ static void stage_accept_body(tetra_hal_t *hal,
  meta.target_ssi = ssi;
  meta.la = (uint16_t)la;
  meta.result = (uint8_t)result;
+ /* Bug-001 fix — echo MS demand location_update_type (ETSI §16.10.35a). */
+ meta.loc_acc_type = (uint8_t)(loc_acc_type & 0x7u);
  meta.gila_gssi = gila_gssi;
  meta.gila_class = (uint8_t)gila_class;
  meta.gila_lifetime = (uint8_t)gila_lifetime;
@@ -535,7 +538,11 @@ int main(int argc, char **argv)
  gila_lifetime = 0;
  }
 
- stage_accept_body(&hal, ssi, la, result,
+ /* Bug-001 fix — pass MS-demand location_update_type (lut, already
+  * extracted from Demand-Mailbox W0[17:15]) so the D-LOC-UPD-ACCEPT
+  * mirrors the MS request per ETSI §16.10.35a. Pre-fix this was
+  * hardcoded to 0=RoamingLocationUpdating in RTL. */
+ stage_accept_body(&hal, ssi, la, result, lut,
  effective_gila_gssi,
  gila_class, gila_lifetime, gila_present);
 

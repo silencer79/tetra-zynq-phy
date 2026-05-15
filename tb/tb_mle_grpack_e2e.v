@@ -160,6 +160,8 @@ module tb_mle_grpack_e2e;
 .mb_la (mb_la),
 .mb_addr_type (mb_addr_type),
 .mb_result (mb_result),
+ // Bug-001 fix — Default to ItsiAttach (3) for this TB.
+.mb_loc_acc_type (3'b011),
 .mb_gila_gssi (mb_gila_gssi),
 .mb_gila_class (mb_gila_class),
 .mb_gila_lifetime (mb_gila_lifetime),

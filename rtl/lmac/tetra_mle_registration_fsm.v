@@ -96,6 +96,11 @@ module tetra_mle_registration_fsm (
  input wire [13:0] mb_la,
  input wire [2:0] mb_addr_type,
  input wire [1:0] mb_result,
+ // Bug-001 fix — SW echoes MS's location_update_type from U-LOC-UPD-DEMAND
+ // through the Reply-Pull-Mailbox so the D-LOC-UPDATE-ACCEPT mirrors it
+ // (ETSI §16.10.35a). Pre-fix this was tied to 3'b000 = RoamingLocationUpdating
+ // which broke MS that demanded ItsiAttach.
+ input wire [2:0] mb_loc_acc_type,
  input wire [23:0] mb_gila_gssi,
  input wire [2:0] mb_gila_class,
  input wire [1:0] mb_gila_lifetime,
@@ -229,12 +234,14 @@ module tetra_mle_registration_fsm (
  // encoder; NOT shared between FSMs (only one consumer). M2 bit-
  // identity is rooted here.
  //
- // loc_acc_type tied to 3'b000 — the field is part of the 102-bit MM
- // body but the ref Accept (Burst #735) uses 0 for ITSI-attach
- // replies, and the field had no SW staging path pre-X.7 (the legacy
- // lat_loc_upd_type latch was always 0 because ul_req_valid was never
- // wired). If we ever need a non-zero value, add an mb_loc_acc_type
- // field to the Reply-Pull-Mailbox.
+ // Bug-001 fix: loc_acc_type echoed from the Reply-Pull-Mailbox
+ // (mb_loc_acc_type), which SW loads with the MS demand's
+ // location_update_type read from the Demand-Mailbox W0[17:15].
+ // Pre-fix the input was tied to 3'b000 to match an older external-BS
+ // capture (Burst #735) that allegedly emitted 0 for ITSI-Attach. Our
+ // newer reference (docs/reference_decode/) shows the correct value is
+ // 3'b011 = ItsiAttach when MS demanded ItsiAttach. Per ETSI §16.10.35a
+ // the BS shall mirror the MS's location_update_type.
  // -------------------------------------------------------------------------
  wire [127:0] dloc_mm_bits_w;
  wire [7:0] dloc_mm_len_w;
@@ -242,7 +249,7 @@ module tetra_mle_registration_fsm (
  tetra_d_location_update_encoder u_dloc (
 .pdu_reject (1'b0),
 .energy_saving_info(cfg_energy_saving_info),
-.loc_acc_type (3'b000),
+.loc_acc_type (mb_loc_acc_type),
 .gila_gssi (mb_gila_gssi),
 .gila_class (mb_gila_class),
 .gila_lifetime (mb_gila_lifetime),

@@ -2361,6 +2361,9 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
 .mb_la (mb_la_sys_w),
 .mb_addr_type (mb_addr_type_sys_w),
 .mb_result (mb_result_sys_w),
+ // Bug-001 fix — Reply-Pull-Mailbox W3[4:2] carries MS demand
+ // location_update_type echoed by SW. Encoder consumes via mb_loc_acc_type.
+.mb_loc_acc_type (mb_loc_acc_type_sys_w),
 .mb_gila_gssi (mb_gila_gssi_sys_w),
 .mb_gila_class (mb_gila_class_sys_w),
 .mb_gila_lifetime (mb_gila_lifetime_sys_w),
@@ -3174,6 +3177,9 @@ wire [23:0] mb_ssi_sys_w;
 wire [13:0] mb_la_sys_w;
 wire [2:0] mb_addr_type_sys_w;
 wire [1:0] mb_result_sys_w;
+// Bug-001 fix — MS-demand location_update_type, echoed from Reply-Pull-Mailbox
+// W3[4:2] into D-LOC-UPDATE-ACCEPT loc_acc_type field (ETSI §16.10.35a).
+wire [2:0] mb_loc_acc_type_sys_w;
 wire [23:0] mb_gila_gssi_sys_w;
 wire [2:0] mb_gila_class_sys_w;
 wire [1:0] mb_gila_lifetime_sys_w;
@@ -3201,6 +3207,7 @@ tetra_reply_mailbox u_reply_mailbox (
 .mb_la_sys (mb_la_sys_w),
 .mb_addr_type_sys (mb_addr_type_sys_w),
 .mb_result_sys (mb_result_sys_w),
+.mb_loc_acc_type_sys (mb_loc_acc_type_sys_w),
 .mb_gila_gssi_sys (mb_gila_gssi_sys_w),
 .mb_gila_class_sys (mb_gila_class_sys_w),
 .mb_gila_lifetime_sys (mb_gila_lifetime_sys_w),

@@ -88,9 +88,11 @@ static int submit_lu(tetra_hal_t *hal, const tx_pdu_meta_t *m,
  reply_write(hal, 0, m->target_ssi & 0x00FFFFFFu);
  reply_write(hal, 1, m->la & 0x3FFFu);
  reply_write(hal, 2, 0x1u); /* addr_type = Ssi+EventLabel */
- reply_write(hal, 3, result & 0x3u); /* W3 selects ACCEPT(=0) vs
- * REJECT(!=0) branch in the
- * MLE-FSM (Z.5 dual-branch). */
+ /* Bug-001 fix: W3[1:0] = result code (ACCEPT/REJECT branch select),
+  * W3[4:2] = location_update_accept_type echoed from the MS demand
+  * (ETSI §16.10.35a). Pre-fix W3[4:2]=0 made BS always send
+  * RoamingLocationUpdating even when MS demanded ItsiAttach. */
+ reply_write(hal, 3, (result & 0x3u) | ((m->loc_acc_type & 0x7u) << 2));
  reply_write(hal, 4, gila_gssi);
  reply_write(hal, 5, (gila_class << 2) | gila_lifetime);
  reply_write(hal, 6, gila_present);

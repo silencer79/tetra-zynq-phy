@@ -57,6 +57,10 @@ typedef struct {
  /* ---- mm=1 / mm=4 (LU ACCEPT / REJECT) ---- */
  uint16_t la; /* 14-bit cell LA */
  uint8_t result; /* 0=accept, 1=reject-temp, 2=reject-perm */
+ uint8_t loc_acc_type; /* 3-bit (Bug-001 fix). Echoes MS's
+                                          * location_update_type from
+                                          * U-LOC-UPD-DEMAND (ETSI §16.10.35a).
+                                          * 3 = ItsiAttach, 0 = Roaming, etc. */
  uint32_t gila_gssi; /* 24-bit */
  uint8_t gila_class; /* 3-bit */
  uint8_t gila_lifetime; /* 2-bit */
