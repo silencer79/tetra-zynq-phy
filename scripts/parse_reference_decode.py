@@ -29,13 +29,24 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / 'docs' / 'reference_decode'
-OUT.mkdir(parents=True, exist_ok=True)
-DL_LOG = Path('/tmp/dl_full_decode.log')
-UL_LOG = Path('/tmp/ul_full_decode.log')
 
-WAV_DUR_DL = 103.979
-WAV_DUR_UL = 109.355
+# CLI: --dl-log /path --ul-log /path --out docs/dir --dl-dur S --ul-dur S
+import argparse as _argparse
+_ap = _argparse.ArgumentParser(description='Parse decoder logs into JSONL + Markdown.')
+_ap.add_argument('--dl-log', default='/tmp/dl_full_decode.log')
+_ap.add_argument('--ul-log', default='/tmp/ul_full_decode.log')
+_ap.add_argument('--out', default='docs/reference_decode')
+_ap.add_argument('--dl-dur', type=float, default=103.979)
+_ap.add_argument('--ul-dur', type=float, default=109.355)
+_args = _ap.parse_args()
+
+OUT = (ROOT / _args.out) if not Path(_args.out).is_absolute() else Path(_args.out)
+OUT.mkdir(parents=True, exist_ok=True)
+DL_LOG = Path(_args.dl_log)
+UL_LOG = Path(_args.ul_log)
+
+WAV_DUR_DL = _args.dl_dur
+WAV_DUR_UL = _args.ul_dur
 SLOT_S     = 14.167e-3                 # 1 TDMA slot
 SLOTS_MF   = 18 * 4                     # 72 slots / multiframe
 SLOTS_HF   = 60 * SLOTS_MF              # 4320 slots / hyperframe
@@ -746,10 +757,20 @@ def write_ul_full(ul):
                         f.write(f'  - LLC: type=`{l.get("llc_type_name")}` NS={l.get("ns", "-")} NR={l.get("nr", "-")}\n')
                     if p.get('mle'):
                         m = p['mle']
-                        f.write(f'  - MLE: disc=`{m.get("mle_disc_name")}`\n')
-                    if p.get('direct_mm'):
+                        f.write(f'  - MLE: disc=`{m.get("mle_disc_name")}`')
+                        if 'mm_name' in m:
+                            f.write(f' / MM type=`{m.get("mm_name")}`')
+                            mm = m.get('mm') or {}
+                            if 'location_update_type_name' in mm:
+                                f.write(f' / `{mm["location_update_type_name"]}`')
+                        f.write('\n')
+                    # `direct_mm` ist ein FALLBACK-Pfad der MM-PDU direkt nach MAC-Header
+                    # liest (ohne LLC-Unwrap). Nur anzeigen wenn decoded_mode = direct_mm,
+                    # sonst irreführend (z.B. UL-LOC-UPD-DEMAND wird sonst als U-ITSI-DETACH
+                    # gezeigt weil derselbe 4-bit-pattern an verschobener Position liegt).
+                    if p.get('decoded_mode') == 'direct_mm' and p.get('direct_mm'):
                         m = p['direct_mm']
-                        f.write(f'  - MM: type=`{m.get("mm_name")}`\n')
+                        f.write(f'  - MM (direct, no LLC): type=`{m.get("mm_name")}`\n')
                 else:
                     f.write(f'- **parsed (raw):** `{p}`\n')
             if u['crc'] == '-':

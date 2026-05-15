@@ -32,8 +32,7 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - pdu_type=`MAC-ACCESS`  fill=0  enc=0
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-DATA` NS=0 NR=-
-  - MLE: disc=`MM`
-  - MM: type=`U-ITSI-DETACH`
+  - MLE: disc=`MM` / MM type=`U-LOC-UPD-DEMAND` / `ITSI-Attach`
 
 ## #  1  t=12.602s  corrX=0.924  CRC=OK
 
@@ -76,7 +75,6 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-ACK` NS=- NR=1
   - MLE: disc=`SNDCP`
-  - MM: type=`U-MM-STATUS`
 
 ## #  3  t=20.819s  corrX=0.938  CRC=OK
 
@@ -98,8 +96,7 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - pdu_type=`MAC-ACCESS`  fill=1  enc=0
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-DATA` NS=1 NR=-
-  - MLE: disc=`MM`
-  - MM: type=`U-ITSI-DETACH`
+  - MLE: disc=`MM` / MM type=`U-ITSI-DETACH`
 
 ## #  4  t=37.195s  corrX=0.912  CRC=OK
 
@@ -121,8 +118,7 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - pdu_type=`MAC-ACCESS`  fill=0  enc=0
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-DATA` NS=0 NR=-
-  - MLE: disc=`MM`
-  - MM: type=`U-ITSI-DETACH`
+  - MLE: disc=`MM` / MM type=`U-LOC-UPD-DEMAND` / `ITSI-Attach`
 
 ## #  5  t=37.252s  corrX=0.915  CRC=OK
 
@@ -165,7 +161,6 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-ACK` NS=- NR=0
   - MLE: disc=`SNDCP`
-  - MM: type=`U-MM-STATUS`
 
 ## #  7  t=44.626s  corrX=0.923  CRC=OK
 
@@ -187,8 +182,7 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - pdu_type=`MAC-ACCESS`  fill=1  enc=0
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-DATA` NS=1 NR=-
-  - MLE: disc=`MM`
-  - MM: type=`U-ITSI-DETACH`
+  - MLE: disc=`MM` / MM type=`U-ITSI-DETACH`
 
 ## #  8  t=59.756s  corrX=0.893  CRC=OK
 
@@ -210,8 +204,7 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - pdu_type=`MAC-ACCESS`  fill=0  enc=0
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-DATA` NS=0 NR=-
-  - MLE: disc=`MM`
-  - MM: type=`U-ITSI-DETACH`
+  - MLE: disc=`MM` / MM type=`U-LOC-UPD-DEMAND` / `ITSI-Attach`
 
 ## #  9  t=59.805s  corrX=0.907  CRC=OK
 
@@ -254,7 +247,6 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-ACK` NS=- NR=1
   - MLE: disc=`SNDCP`
-  - MM: type=`U-MM-STATUS`
 
 ## # 11  t=69.616s  corrX=0.926  CRC=OK
 
@@ -276,8 +268,7 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - pdu_type=`MAC-ACCESS`  fill=0  enc=0
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-DATA` NS=1 NR=-
-  - MLE: disc=`MM`
-  - MM: type=`U-ITSI-DETACH`
+  - MLE: disc=`MM` / MM type=`U-ATTACH-DETACH-GRP-ID`
 
 ## # 12  t=69.665s  corrX=0.925  CRC=OK
 
@@ -320,7 +311,6 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-ACK` NS=- NR=0
   - MLE: disc=`SNDCP`
-  - MM: type=`U-MM-STATUS`
 
 ## # 14  t=76.805s  corrX=0.914  CRC=OK
 
@@ -342,8 +332,7 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - pdu_type=`MAC-ACCESS`  fill=0  enc=0
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-DATA` NS=0 NR=-
-  - MLE: disc=`MM`
-  - MM: type=`U-ITSI-DETACH`
+  - MLE: disc=`MM` / MM type=`U-ATTACH-DETACH-GRP-ID`
 
 ## # 15  t=76.862s  corrX=0.893  CRC=OK
 
@@ -385,8 +374,7 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - pdu_type=`MAC-ACCESS`  fill=0  enc=0
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-DATA` NS=0 NR=-
-  - MLE: disc=`MM`
-  - MM: type=`U-ITSI-DETACH`
+  - MLE: disc=`MM` / MM type=`U-ATTACH-DETACH-GRP-ID`
 
 ## # 17  t=77.202s  corrX=0.886  CRC=OK
 
@@ -429,7 +417,6 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-ACK` NS=- NR=1
   - MLE: disc=`SNDCP`
-  - MM: type=`U-MM-STATUS`
 
 ## # 19  t=81.566s  corrX=0.917  CRC=OK
 
@@ -451,8 +438,7 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - pdu_type=`MAC-ACCESS`  fill=0  enc=0
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-DATA` NS=1 NR=-
-  - MLE: disc=`MM`
-  - MM: type=`U-ITSI-DETACH`
+  - MLE: disc=`MM` / MM type=`U-ATTACH-DETACH-GRP-ID`
 
 ## # 20  t=81.622s  corrX=0.919  CRC=OK
 
@@ -495,7 +481,6 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-ACK` NS=- NR=0
   - MLE: disc=`SNDCP`
-  - MM: type=`U-MM-STATUS`
 
 ## # 22  t=84.859s  corrX=0.920  CRC=OK
 
@@ -518,7 +503,6 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-DATA` NS=0 NR=-
   - MLE: disc=`CMCE`
-  - MM: type=`U-ITSI-DETACH`
 
 ## # 23  t=85.093s  corrX=0.779  CRC=-
 
@@ -1507,7 +1491,6 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-DATA` NS=0 NR=-
   - MLE: disc=`CMCE`
-  - MM: type=`U-ITSI-DETACH`
 
 ## # 80  t=91.553s  corrX=0.801  CRC=-
 
@@ -2069,8 +2052,7 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - pdu_type=`MAC-ACCESS`  fill=0  enc=1
   - addr_type=`EventLabel` SSI=-
   - LLC: type=`L2SigPdu` NS=- NR=-
-  - MLE: disc=`MM`
-  - MM: type=`Reserved`
+  - MLE: disc=`MM` / MM type=`U-ATTACH-DETACH-GRP-ID`
 
 ## #111  t=93.650s  corrX=0.672  CRC=-
 
@@ -2687,7 +2669,6 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - addr_type=`Ssi(ISSI)` SSI=2633716
   - LLC: type=`BL-DATA` NS=0 NR=-
   - MLE: disc=`CMCE`
-  - MM: type=`U-ITSI-DETACH`
 
 ## #145  t=99.317s  corrX=0.788  CRC=-
 
@@ -3051,7 +3032,6 @@ Für CRC-FAIL Bursts (Voice TCH/S) ist `info` nicht semantisch dekodierbar, aber
   - pdu_type=`MAC-ACCESS`  fill=1  enc=0
   - addr_type=`Ssi(ISSI)` SSI=221931
   - LLC: type=`AL-ACK/RNR` NS=- NR=-
-  - MM: type=`U-DISABLE-STATUS`
 
 ## #165  t=100.507s  corrX=0.686  CRC=-
 
