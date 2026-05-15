@@ -21,9 +21,27 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static call_slot_t g_slots[CALL_FSM_MAX_CALLS];
 static uint16_t g_next_call_id = 1u;
+/* Cache: last value written to REG_VOICE_ACTIVE_MASK. Avoid issuing
+ * redundant AXI writes from the watchdog tick. */
+static uint32_t g_mask_cached = 0xFFFFFFFFu;
+
+static uint32_t mono_ms_lo(void)
+{
+ struct timespec ts;
+ clock_gettime(CLOCK_MONOTONIC, &ts);
+ return (uint32_t)((uint64_t)ts.tv_sec * 1000ull + ts.tv_nsec / 1000000ull);
+}
+
+static void mask_write_cached(tetra_hal_t *hal, uint32_t v)
+{
+ if (v == g_mask_cached) return;
+ tetra_reg_write(hal, REG_VOICE_ACTIVE_MASK, v);
+ g_mask_cached = v;
+}
 
 static call_slot_t *find_slot(uint32_t ssi)
 {
@@ -190,13 +208,13 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  "call_id=%u rc=%d\n",
  ssi, s->group_gssi, i + 1, s->call_id, rc);
  }
- /* Phase Y.4.1 — Voice-Active-Mask setzen. Unsere ChanAlloc-IE
- * tagged ts_assigned=0100 (bit 1 from MSB) = TS=2 air-side
- * = tn_sys=1 RTL. AACH auf diesem Slot soll 0x22C9 zeigen
- * solange Call aktiv ist ( #6136-Pattern). */
- tetra_reg_write(hal, REG_VOICE_ACTIVE_MASK, 0x02u);
- fprintf(stderr,
- "tetra_call_fsm: VOICE_ACTIVE_MASK=0x02 (tn_sys=1 voice-slot allocated)\n");
+ /* MER-Fix (2026-05-15): mask wird NICHT mehr beim U-SETUP gesetzt.
+ * AACH voice-pattern (0x32CB/0x22C9/0x2049) gilt nur während echte
+ * Voice-Bursts fließen, sonst kollidiert AACH-Encoding-Hinweis mit
+ * den signalling-bursts → SDR# MER 8-12 %. Mask wird in U-TX-DEMAND
+ * scharfgeschaltet und in U-TX-CEASED / U-RELEASE / Watchdog
+ * wieder zurückgesetzt. */
+ s->last_activity_poll_cnt = mono_ms_lo();
  s->state = CALL_STATE_CONNECTED;
  return rc;
  }
@@ -209,9 +227,13 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  nsnr_step_bs(s);
  int rc = stage_d_tx_granted(hal, s);
  s->state = CALL_STATE_TALKER;
+ s->last_activity_poll_cnt = mono_ms_lo();
+ /* MER-Fix (2026-05-15): mask erst hier scharfschalten — Voice-Bursts
+ * beginnen jetzt, AACH 0x32CB/0x22C9 darf nun voice-encoded sein. */
+ mask_write_cached(hal, 0x02u);
  fprintf(stderr,
  "tetra_call_fsm: U-TX-DEMAND ssi=0x%06X → D-TX-GRANTED "
- "call_id=%u ns=%u nr=%u rc=%d\n",
+ "call_id=%u ns=%u nr=%u rc=%d VOICE_ACTIVE_MASK=0x02\n",
  ssi, s->call_id, s->ns, s->nr, rc);
  return rc;
  }
@@ -219,6 +241,11 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  case CMCE_U_TX_CEASED: {
  if (s == NULL) return -1;
  s->state = CALL_STATE_CONNECTED;
+ s->last_activity_poll_cnt = mono_ms_lo();
+ /* MER-Fix (2026-05-15): Talker beendet, mask SOFORT zurück auf 0
+ * damit AACH wieder idle-pattern zeigt. Call-slot bleibt aktiv für
+ * mögliche Re-Key (U-TX-DEMAND erneut) oder U-RELEASE. */
+ mask_write_cached(hal, 0x00u);
  /* Phase 7 G.7+ — D-TX-CEASED-Bestätigung an Gruppe (broadcast auf GSSI).
  * Ohne diesen ACK retried MS U-TX-CEASED bis zu 10× (Stop-and-Wait pro
  * ETSI/bluestation). Adressiert an Group-GSSI weil alle Group-Member
@@ -231,7 +258,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  int rc = tetra_tx_submit(hal, TX_D_TX_CEASED, &m);
  fprintf(stderr,
  "tetra_call_fsm: U-TX-CEASED ssi=0x%06X → D-TX-CEASED gssi=0x%06X "
- "call_id=%u rc=%d\n",
+ "call_id=%u rc=%d VOICE_ACTIVE_MASK=0x00\n",
  ssi, m.target_ssi, s->call_id, rc);
  return rc;
  }
@@ -245,7 +272,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  "call_id=%u rc=%d\n",
  ssi, p->disconnect_cause, s->call_id, rc);
  /* Phase Y.4.1 — Call beendet, voice-slot zurück zu idle. */
- tetra_reg_write(hal, REG_VOICE_ACTIVE_MASK, 0x00u);
+ mask_write_cached(hal, 0x00u);
  free_slot(s);
  return rc;
  }
@@ -253,6 +280,54 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  default:
  return -2;
  }
+}
+
+void tetra_call_fsm_tick(tetra_hal_t *hal)
+{
+ if (hal == NULL) return;
+ uint32_t now = mono_ms_lo();
+ unsigned active = 0;
+ unsigned talker = 0;
+
+ for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
+ call_slot_t *s = &g_slots[i];
+ if (s->ssi == 0u) continue;
+ uint32_t age = now - s->last_activity_poll_cnt;
+
+ if (s->state == CALL_STATE_TALKER &&
+ age > CALL_FSM_TALKER_STALE_MS) {
+ /* Talker silent too long — most likely MS dropped RF mid-PTT
+ * without sending U-TX-CEASED. Drop back to CONNECTED. */
+ fprintf(stderr,
+ "tetra_call_fsm: WATCHDOG ssi=0x%06X call_id=%u TALKER "
+ "silent for %ums → forcing CONNECTED, mask=0\n",
+ s->ssi, s->call_id, age);
+ s->state = CALL_STATE_CONNECTED;
+ s->last_activity_poll_cnt = now;
+ mask_write_cached(hal, 0x00u);
+ }
+
+ if (s->state != CALL_STATE_IDLE &&
+ age > CALL_FSM_CALL_STALE_MS) {
+ /* Call abandoned — MS never sent U-RELEASE. Free slot. */
+ fprintf(stderr,
+ "tetra_call_fsm: WATCHDOG ssi=0x%06X call_id=%u idle for "
+ "%ums → freeing slot\n",
+ s->ssi, s->call_id, age);
+ free_slot(s);
+ continue;
+ }
+
+ active++;
+ if (s->state == CALL_STATE_TALKER) talker++;
+ }
+
+ /* Belt-and-suspenders: if no slot is talking right now, mask MUST be 0.
+ * Cached write avoids AXI traffic when already 0. */
+ if (talker == 0) {
+ mask_write_cached(hal, 0x00u);
+ }
+ (void)active;
 }
 
 void tetra_call_fsm_dump(void)

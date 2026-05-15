@@ -366,9 +366,16 @@ int main(int argc, char **argv)
 
  tetra_reg_write(&hal, REG_REPLY_USE_SW, 0x1u);
 
+ /* MER-Fix: VOICE_ACTIVE_MASK kann von einem vorherigen Call hängen
+  * bleiben wenn die MS keinen U-RELEASE sendet (power-cycle, sync-loss,
+  * timeout). Mit aktivem mask sendet der Voice-Relay-Pfad in idle-FN
+  * Garbage auf der voice-slot TN → SDR# zeigt 8-12% MER. Beim Daemon-
+  * Start IMMER auf 0 zurücksetzen damit Idle-Zelle sauberes Signal hat. */
+ tetra_reg_write(&hal, REG_VOICE_ACTIVE_MASK, 0x00u);
+
  fprintf(stderr,
  "tetra_attach_daemon: started — USE_SW=1, polling REG_DEMAND_STATUS, "
- "policy=0x%08X\n",
+ "policy=0x%08X, VOICE_ACTIVE_MASK reset to 0\n",
  tetra_reg_read(&hal, REG_DB_POLICY));
 
  uint32_t serviced = 0;
@@ -376,6 +383,13 @@ int main(int argc, char **argv)
  uint16_t last_ul_count = 0xFFFFu; /* sentinel: first PDU always triggers */
 
  while (keep_running) {
+ /* MER-Fix: Watchdog für hängende VOICE_ACTIVE_MASK. Wenn kein Slot
+ * gerade TALKER ist, mask = 0. Wenn ein TALKER über N ms still ist
+ * (RF-Drop, MS-Crash), force-fallback nach CONNECTED + mask=0.
+ * Wenn ein Slot über N ms gar nichts mehr macht (kein U-RELEASE
+ * trotz Power-Cycle), Slot freigeben. */
+ tetra_call_fsm_tick(&hal);
+
  /* Phase Y.1.e — service Group-Attach (mm=7) demand mailbox first.
  * It's a separate AXI window, independent of mm=2 ITSI Attach. */
  uint32_t grp_status = tetra_reg_read(&hal, REG_GRP_DEMAND_STATUS);

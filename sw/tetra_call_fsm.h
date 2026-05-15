@@ -19,6 +19,13 @@
 
 #define CALL_FSM_MAX_CALLS 8
 
+/* Watchdog thresholds (milliseconds, monotonic). MS keeps sending voice
+ * bursts every ~57ms while TALKER; ~3s silence ⇒ talker dead even if no
+ * U-TX-CEASED arrived. ~60s without ANY PDU ⇒ call abandoned (no U-RELEASE
+ * after MS power-cycle / RF loss) — slot is freed. */
+#define CALL_FSM_TALKER_STALE_MS 3000u
+#define CALL_FSM_CALL_STALE_MS 60000u
+
 typedef enum {
  CALL_STATE_IDLE = 0,
  CALL_STATE_CONNECTING = 1,
@@ -47,6 +54,13 @@ typedef struct {
  */
 int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  const cmce_pdu_t *p);
+
+/* Watchdog tick — must be called from the daemon's poll loop.
+ * - clears REG_VOICE_ACTIVE_MASK if no slot is in TALKER state (MER-fix:
+ *   AACH advertises voice only while voice actually flows)
+ * - force-evicts TALKER slots that went silent (MS dropped RF)
+ * - frees any slot abandoned > CALL_FSM_CALL_STALE_MS (no U-RELEASE) */
+void tetra_call_fsm_tick(tetra_hal_t *hal);
 
 /* Diagnostic: print all active slots. */
 void tetra_call_fsm_dump(void);
