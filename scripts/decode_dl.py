@@ -1616,18 +1616,25 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
     BER_ALPHA = 0.99
     BER_BETA = 0.01
 
-    # Helper: try SB1 decode with given burst symbols (soft-decision)
+    # Helper: try SB1 decode with given burst symbols (soft-decision).
+    # Returns (ok, info_60, dibits, chain) where `chain` is a dict with the
+    # full SB1 channel-coding chain (onair / descrambled / deinterleaved bits)
+    # for forensic dump.
     def _try_sb1_decode(burst_syms):
-        # Soft demod
         soft_bits = demod_pi4dqpsk_soft(burst_syms)
         sb1_s = (sb_off_sb1 - 1) * 2  # soft bits index (2 per dibit)
         if sb1_s < 0 or sb1_s + SDB_SB1 * 2 > len(soft_bits):
-            return False, None, demod_pi4dqpsk(burst_syms)
-        sb1_soft = soft_bits[sb1_s : sb1_s + SDB_SB1 * 2]
+            return False, None, demod_pi4dqpsk(burst_syms), None
+        sb1_soft_raw = soft_bits[sb1_s : sb1_s + SDB_SB1 * 2]
         # Soft descramble (BSCH init=3)
-        sb1_soft = descramble_soft(sb1_soft, 3, 120)
-        ok, info, _ = decode_channel_soft(sb1_soft, 120, 11, 60)
-        return ok, info, demod_pi4dqpsk(burst_syms)
+        sb1_soft_desc = descramble_soft(sb1_soft_raw, 3, 120)
+        ok, info, _ = decode_channel_soft(sb1_soft_desc, 120, 11, 60)
+        # Hard-bit forensic chain
+        t5 = (sb1_soft_raw < 0).astype(np.int32)[:120]
+        t4 = (sb1_soft_desc < 0).astype(np.int32)[:120]
+        t3 = deinterleave_perm(t4, 120, 11)
+        chain = {'t5': t5, 't4': t4, 't3': t3}
+        return ok, info, demod_pi4dqpsk(burst_syms), chain
 
     def _dump_this(idx):
         if isinstance(dump_burst, (set, list, tuple)):
@@ -1690,7 +1697,7 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
 
         if btype == 'SB':
             # --- Sync Burst with retry ---
-            sb1_crc, sb1_info, dibits = _try_sb1_decode(burst_syms)
+            sb1_crc, sb1_info, dibits, sb1_chain = _try_sb1_decode(burst_syms)
 
             # Retry with timing jitter if CRC fails
             if not sb1_crc:
@@ -1700,9 +1707,9 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                         timing_offset=retry_dt)
                     if retry_syms is None:
                         continue
-                    ok2, info2, db2 = _try_sb1_decode(retry_syms)
+                    ok2, info2, db2, ch2 = _try_sb1_decode(retry_syms)
                     if ok2:
-                        sb1_crc, sb1_info, dibits = ok2, info2, db2
+                        sb1_crc, sb1_info, dibits, sb1_chain = ok2, info2, db2, ch2
                         burst_syms = retry_syms
                         corr = retry_corr
                         break
@@ -1711,10 +1718,17 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
 
             if _dump_this(idx):
                 sb_dibits_str = ''.join(str(int(d)) for d in dibits) if dibits is not None else 'n/a'
-                print(f"  ROUNDTRIP_DUMP_SB sb_dibits={sb_dibits_str}")
+                print(f"  ROUNDTRIP_DUMP_SB sb_dibits={sb_dibits_str}", flush=True)
+                if sb1_chain is not None:
+                    t5_str = ''.join(str(int(b)) for b in sb1_chain['t5'])
+                    t4_str = ''.join(str(int(b)) for b in sb1_chain['t4'])
+                    t3_str = ''.join(str(int(b)) for b in sb1_chain['t3'])
+                    print(f"  ROUNDTRIP_DUMP_SB sb1_t5_onair_120b={t5_str}", flush=True)
+                    print(f"  ROUNDTRIP_DUMP_SB sb1_t4_descr_120b={t4_str}", flush=True)
+                    print(f"  ROUNDTRIP_DUMP_SB sb1_t3_deint_120b={t3_str}", flush=True)
                 if sb1_crc and sb1_info is not None:
                     si_str = ''.join(str(int(b)) for b in sb1_info)
-                    print(f"  ROUNDTRIP_DUMP_SB sb1_info_60b={si_str}")
+                    print(f"  ROUNDTRIP_DUMP_SB sb1_info_60b={si_str}", flush=True)
 
             if sb1_crc:
                 n_sb_ok += 1
@@ -1777,7 +1791,7 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                 mac = parse_mac_pdu(bkn2_info, 124)
                 _print_mac("  BKN2", mac, bkn2_info, verbose)
 
-            # BB (AACH) decode
+            # BB (AACH) decode — SB carries AACH on a single BB block
             bb_start = sb_off_bb - 1
             if bb_start + SDB_BB > len(dibits):
                 continue
@@ -1785,6 +1799,14 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
             bb_bits = dibits_to_bits(bb_dibits)
             bb_descr = (bb_bits ^ scrambler_seq(scramb_code, 30)) & 1
             aach_info, aach_dist = rm3014_decode(bb_descr)
+            if _dump_this(idx):
+                bb_raw_str = ''.join(str(int(b)) for b in bb_bits)
+                bb_desc_str = ''.join(str(int(b)) for b in bb_descr)
+                print(f"  ROUNDTRIP_DUMP_AACH bb_raw_30b={bb_raw_str}", flush=True)
+                print(f"  ROUNDTRIP_DUMP_AACH bb_descr_30b={bb_desc_str}", flush=True)
+                if aach_info is not None:
+                    ai_str = f'{aach_info:014b}'
+                    print(f"  ROUNDTRIP_DUMP_AACH aach_info_14b={ai_str} dist={aach_dist}", flush=True)
             if aach_info is not None:
                 aach = parse_aach(aach_info)
                 _print_aach("  AACH", aach, aach_dist)
@@ -1812,6 +1834,14 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                 _print_aach("AACH", aach, aach_dist)
             else:
                 print(f"AACH decode fail (dist={aach_dist})")
+            if _dump_this(idx):
+                bb_raw_str = ''.join(str(int(b)) for b in bb_bits)
+                bb_desc_str = ''.join(str(int(b)) for b in bb_descr)
+                print(f"  ROUNDTRIP_DUMP_AACH bb_raw_30b={bb_raw_str}", flush=True)
+                print(f"  ROUNDTRIP_DUMP_AACH bb_descr_30b={bb_desc_str}", flush=True)
+                if aach_info is not None:
+                    ai_str = f'{aach_info:014b}'
+                    print(f"  ROUNDTRIP_DUMP_AACH aach_info_14b={ai_str} dist={aach_dist}", flush=True)
 
             # BLK1 + BLK2 — routing depends on burst type:
             #   NDB1 (n_bits training, §9.4.4.3.1): SCH/F, one logical channel,

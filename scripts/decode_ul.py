@@ -645,7 +645,7 @@ def main():
         x_pos, x_corr = refine_x_position(iq, sps, best_pos, search_syms=2)
 
         if x_corr < 0.5:
-            print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f}  SKIP (weak x)')
+            print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f}  SKIP (weak x)', flush=True)
             continue
 
         # Per-burst CFO via x-seq pilot (constant fit). Linear-chirp fit was
@@ -667,6 +667,7 @@ def main():
 
         result = (False, None, None, None)
         cfo_A = cfo_A0
+        blk1_final, blk2_final = None, None
         for tim_off in tim_offsets:
             x_pos_try = x_pos + tim_off
             cfo_A0t, _ = estimate_burst_cfo(iq, sps, x_pos_try, linear=False)
@@ -675,9 +676,12 @@ def main():
                 blk1_cb, blk2_cb = sample_half_soft_bits(iq, sps, x_pos_try, RA_CB_SYMS, cfo_try, 0.0)
                 r = try_channel_decode(blk1_cb, blk2_cb, scramb_init, 'schhu')
                 if r[0]:
-                    result = r; cfo_A = cfo_try; break
+                    result = r; cfo_A = cfo_try
+                    blk1_final, blk2_final = blk1_cb, blk2_cb
+                    break
                 if result[1] is None:
                     result = r; cfo_A = cfo_try
+                    blk1_final, blk2_final = blk1_cb, blk2_cb
             if result[0]:
                 break
         cfo_B = 0.0
@@ -687,17 +691,37 @@ def main():
             r2 = try_channel_decode(blk1_nub, blk2_nub, scramb_init, 'schhd')
             if r2[0]:
                 result = r2
+                blk1_final, blk2_final = blk1_nub, blk2_nub
             else:
                 r3 = try_channel_decode(blk1_nub, blk2_nub, scramb_init, 'schf')
                 if r3[0]:
                     result = r3
+                    blk1_final, blk2_final = blk1_nub, blk2_nub
         crc_ok, info_bits, type5_hard = result[0], result[1], result[2]
         variant = result[3] if len(result) > 3 and result[3] else ''
         type5_patterns.append(type5_hard if type5_hard is not None else np.zeros(168, dtype=np.int8))
 
         tag = 'OK' if crc_ok else '-'
         pdu_hex = bits_to_hex(info_bits[:48])[:23] if info_bits is not None else ''
-        print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f} {cfo_A*1000:+9.2f} {cfo_B*1000:+9.2f} {tag:>4} {variant:>14}  {pdu_hex}')
+        print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f} {cfo_A*1000:+9.2f} {cfo_B*1000:+9.2f} {tag:>4} {variant:>14}  {pdu_hex}', flush=True)
+
+        # ROUNDTRIP_DUMP — per-burst bit dump so parse_reference_decode.py can
+        # show every channel-coding layer in ul_full.md. Emit even for CRC FAIL
+        # bursts (= TCH/S voice payload — bits are not signaling but ARE the
+        # over-air sample.)
+        if blk1_final is not None and blk2_final is not None:
+            soft = np.concatenate([blk1_final, blk2_final])
+            t5_onair = (soft < 0).astype(np.int32)
+            t5_str = ''.join(str(int(b)) for b in t5_onair)
+            print(f'  ROUNDTRIP_DUMP_HU type5_onair={t5_str}', flush=True)
+            print(f'  ROUNDTRIP_DUMP_HU scramb_code=0x{scramb_init:08x}', flush=True)
+            print(f'  ROUNDTRIP_DUMP_HU variant={variant}', flush=True)
+            if type5_hard is not None:
+                t4_str = ''.join(str(int(b)) for b in type5_hard)
+                print(f'  ROUNDTRIP_DUMP_HU type4_descr={t4_str}', flush=True)
+            if info_bits is not None:
+                info_str = ''.join(str(int(b)) for b in info_bits)
+                print(f'  ROUNDTRIP_DUMP_HU info={info_str}', flush=True)
         if crc_ok:
             crc_hits += 1
             decoded_pdus.append(info_bits)
