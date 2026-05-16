@@ -18,6 +18,8 @@
 #include "tetra_call_fsm.h"
 #include "tetra_tx_transport.h"
 #include "tetra_cmce_body.h"
+#include "tetra_voice_filler.h"
+#include "tetra_db.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -98,14 +100,19 @@ static int stage_d_call_proceeding(tetra_hal_t *hal, call_slot_t *s)
  return tetra_tx_submit(hal, TX_D_CALL_PROCEEDING, &m);
 }
 
-/* D-SETUP wird an die Group-GSSI gebroadcastet (bluestation Z. 532-561) —
- * tells other group members "someone has the floor". transmission_grant =
- * GrantedToOtherUser (=3, NICHT Granted=0), BSI echoed aus U-SETUP. */
+/* D-SETUP wird an das Call-Target adressiert:
+ *   - Group-Call: Group-GSSI (broadcast an alle Group-Member,
+ *     "someone has the floor")
+ *   - Individual-Call: Callee-ISSI (incoming-call-Alert an einzelne MS)
+ * transmission_grant = GrantedToOtherUser (=3, NICHT Granted=0),
+ * BSI echoed aus U-SETUP. */
 static int stage_d_setup(tetra_hal_t *hal, call_slot_t *s)
 {
  tx_pdu_meta_t m;
  memset(&m, 0, sizeof(m));
- m.target_ssi = s->group_gssi ? s->group_gssi: s->ssi;
+ m.target_ssi = s->group_gssi ? s->group_gssi
+              : s->target_issi ? s->target_issi
+              : s->ssi;
  m.ns = s->ns;
  m.nr = s->nr;
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
@@ -114,10 +121,13 @@ static int stage_d_setup(tetra_hal_t *hal, call_slot_t *s)
  m.cmce.transmission_request_permission = 0; /* allowed to request */
  m.cmce.call_priority = 4;
  m.cmce.calling_party_ssi = s->ssi;
- /* BSI echoed from U-SETUP: TchS speech */
+ /* BSI echoed from U-SETUP: TchS speech.
+  *   communication_type: 0=Point-to-Point (Individual), 1=P2MP (Group),
+  *   2=Ack-Group, 3=Broadcast. Hier zwischen Group und Individual
+  *   schalten, sonst zeigt SDR# (und MS) jeden Call als Group an. */
  m.cmce.bsi_circuit_mode_type = 0;
  m.cmce.bsi_encryption_flag = 0;
- m.cmce.bsi_communication_type = 1;
+ m.cmce.bsi_communication_type = s->group_gssi ? 1 : 0;
  m.cmce.bsi_speech_service = 0;
  return tetra_tx_submit(hal, TX_D_SETUP, &m);
 }
@@ -184,10 +194,31 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  return -1;
  }
  }
- /* Group-GSSI aus U-SETUP called_party übernehmen (CPTI=SSI). */
- s->group_gssi = (p->called_party_type_identifier == 1u
+ /* Called-party-SSI aus U-SETUP übernehmen. Group vs Individual
+  * steht im BSI.communication_type (ETSI §14.8.41):
+  *   00 = Point-to-Point (= Individual call, target = ISSI)
+  *   01 = Point-to-Multipoint (Group call, target = GSSI)
+  *   10 = Acknowledged Group call (target = GSSI)
+  *   11 = Broadcast call (target = Broadcast-GSSI)
+  * DB-Lookup-Validierung (cp_ssi muss als GSSI registriert sein für
+  * group-calls) als Belt-and-Suspenders, falls die MS einen falschen
+  * communication_type signalisiert. */
+ uint32_t cp_ssi = (p->called_party_type_identifier == 1u
  || p->called_party_type_identifier == 2u)
  ? (p->called_party_ssi & 0x00FFFFFFu): 0u;
+ uint8_t ct = p->bsi.communication_type;
+ int cp_is_group = (cp_ssi != 0u) && (ct == 1u || ct == 2u || ct == 3u);
+ /* Wenn Group laut BSI: DB validate; wenn nicht in GSSI-Tabelle →
+  * fallback auf Individual (= MS sendet vermutlich falschen ct). */
+ if (cp_is_group && tetra_db_lookup(cp_ssi, 1u, NULL) != 1) {
+ fprintf(stderr,
+ "tetra_call_fsm: U-SETUP ssi=0x%06X cp=0x%06X ct=%u "
+ "advertised group but not in GSSI table → individual\n",
+ ssi, cp_ssi, ct);
+ cp_is_group = 0;
+ }
+ s->group_gssi = cp_is_group ? cp_ssi: 0u;
+ s->target_issi = cp_is_group ? 0u : cp_ssi;
  /* Echo MS-side hook_method + simplex_duplex (Phase 7 G.7+) — MS
  * needs to see its own selections reflected in D-CONNECT to enter
  * TX state. */
@@ -195,11 +226,12 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  s->simplex_duplex = p->simplex_duplex_selection & 0x1u;
  s->state = CALL_STATE_CONNECTING;
 
- /* Phase 7 G.7 — spec-konforme Sequenz (verifiziert via WAV-Forensik
- * `reference-DL.wav` Burst #5887/#5895/#5903, 2026-05-13):
- * BS sendet NUR 3× D-CONNECT (BL-UDATA, idle AACH, addr=SSI+Usage),
- * KEIN D-CALL-PROCEEDING, KEIN D-SETUP. Unacknowledged Retransmit
- * sorgt für Empfangswahrscheinlichkeit ohne Stop-and-Wait. */
+ /* Gold-konforme Group-Call-Setup-Sequenz (2026-05-16, verifiziert
+  * via reference dl_events.jsonl #5887/95/03 + #6943):
+  *   1. D-CONNECT × 3 an Caller-MS-ISSI (= individual call-leg-ACK)
+  *   2. D-SETUP × 1 an Group-GSSI (= broadcast für Group-Member)
+  * Vorherige Annahme "nur D-CONNECT, kein D-SETUP" war Drift — die
+  * Group-Member sahen keinen Broadcast und ignorierten den Voice-Slot. */
  int rc = 0;
  for (int i = 0; i < 3; i++) {
  rc = stage_d_connect(hal, s);
@@ -208,19 +240,41 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  "call_id=%u rc=%d\n",
  ssi, s->group_gssi, i + 1, s->call_id, rc);
  }
+ if (s->group_gssi != 0u || s->target_issi != 0u) {
+ int src = stage_d_setup(hal, s);
+ fprintf(stderr,
+ "tetra_call_fsm: D-SETUP → %s=0x%06X "
+ "call_id=%u rc=%d\n",
+ s->group_gssi ? "gssi": "issi",
+ s->group_gssi ? s->group_gssi : s->target_issi,
+ s->call_id, src);
+ }
  /* MER-Fix (2026-05-16 rev2): mask MUSS ab U-SETUP scharf sein —
   * unsere D-CONNECT-Antwort trägt transmission_grant=Granted, die
   * MS überspringt damit U-TX-DEMAND und sendet sofort UL-Voice.
-  * Erwartet voice-busy AACH (0x32CB/0x22C9/0x2049) auf voice-slot.
-  * Ohne mask=0x02 sieht MS idle-AACH → "PTT abgewiesen" und schickt
-  * U-TX-CEASED. Idle-MER-Schutz übernimmt Watchdog: mask=0 sobald
-  * relay_cnt > 1.5s stillsteht. */
+  * Erwartet voice-busy AACH (0x32CB) auf voice-slot. Ohne mask=0x02
+  * sieht MS idle-AACH → "PTT abgewiesen". */
  mask_write_cached(hal, 0x02u);
  s->last_activity_poll_cnt = mono_ms_lo();
  s->state = CALL_STATE_CONNECTED;
+ /* Phase 7 G.8 — Voice-Slot-Filler installieren: SW-encoded SCH/F
+  *   MAC-RESOURCE NULL-PDU mit Call-Target-Adresse (GSSI für Group-
+  *   Call, ISSI für Individual). MS sieht AACH=0x32CB + valid PDU
+  *   addressed an Call-target → akzeptiert. Bei vorigem Call mit
+  *   anderer Adresse würde sonst der alte Filler hängen → MS denkt
+  *   falscher Call läuft noch. */
+ uint32_t fill_target = s->group_gssi ? s->group_gssi : s->target_issi;
+ if (fill_target != 0u) {
+ (void)tetra_voice_filler_install(hal, fill_target);
+ } else {
+ tetra_voice_filler_clear(hal);
+ }
  fprintf(stderr,
- "tetra_call_fsm: VOICE_ACTIVE_MASK=0x02 (U-SETUP → call_id=%u)\n",
- s->call_id);
+ "tetra_call_fsm: VOICE_ACTIVE_MASK=0x02 (U-SETUP → call_id=%u, "
+ "voice-filler %s=0x%06X)\n",
+ s->call_id,
+ s->group_gssi ? "gssi" : "issi",
+ fill_target);
  return rc;
  }
 
@@ -277,6 +331,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  ssi, p->disconnect_cause, s->call_id, rc);
  /* Phase Y.4.1 — Call beendet, voice-slot zurück zu idle. */
  mask_write_cached(hal, 0x00u);
+ tetra_voice_filler_clear(hal);
  free_slot(s);
  return rc;
  }
@@ -322,6 +377,7 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  "tetra_call_fsm: WATCHDOG ssi=0x%06X call_id=%u idle for "
  "%ums → freeing slot\n",
  s->ssi, s->call_id, age);
+ tetra_voice_filler_clear(hal);
  free_slot(s);
  continue;
  }

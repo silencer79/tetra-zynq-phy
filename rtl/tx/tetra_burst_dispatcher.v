@@ -105,18 +105,20 @@ module tetra_burst_dispatcher #(
  input wire tx_busy_sys,
 
  // -------------------------------------------------------------------------
- // Phase C voice-relay-override REMOVED 2026-05-16. Voice-Pipeline mit
- // MAC-Adress-Rewrite (ISSI→GSSI für Group-Calls) gehört per Architektur-
- // Lock (project_arch_fpga_thin_signaling.md) in SW. Diese Eingänge
- // bleiben hier nur zwecks Modul-Port-Kompatibilität (tied off im top)
- // bis sie sauber entfernt werden können.
+ // Phase 7 G.8 — Voice-Slot Filler-Mailbox override.
+ // SW encoded SCH/F type-5 burst (NULL-PDU oder echte voice-PDU mit
+ // GSSI-Adresse) wird via tetra_voice_filler_mailbox in vfill_blk1/2 +
+ // vfill_valid eingespeist. Bei aktivem voice-call (voice_active_mask &
+ // voice_slot_tn match) UND voice-FN (1..17 = fn_sys 0..16) UND
+ // vfill_valid=1, überschreibt der dispatcher den scheduler/static-
+ // fallback mit den filler-bits.
  // -------------------------------------------------------------------------
- input wire [3:0] voice_active_mask_sys, // genutzt im aach_encoder, nicht hier
- input wire [1:0] voice_slot_tn_sys, // unused
+ input wire [3:0] voice_active_mask_sys, // mask bit per tn
+ input wire [1:0] voice_slot_tn_sys, // tn_sys of active voice slot
  input wire [4:0] tx_fn_sys, // 0-based fn (ETSI FN-1)
- input wire voice_relay_valid_sys, // unused
- input wire [BLOCK_BITS-1:0] voice_relay_blk1_sys, // unused
- input wire [BLOCK_BITS-1:0] voice_relay_blk2_sys, // unused
+ input wire vfill_valid_sys, // SW: filler-mailbox loaded
+ input wire [BLOCK_BITS-1:0] vfill_blk1_sys, // type-5 bits 0..215
+ input wire [BLOCK_BITS-1:0] vfill_blk2_sys, // type-5 bits 216..431
  input wire [BLOCK_BITS-1:0] null_pdu_bits_sys, // 216-bit NULL-PDU for NDB2-filler
 
  // -------------------------------------------------------------------------
@@ -207,15 +209,22 @@ always @(*) begin
  sel_burst_type_w = 1'b0;
  sel_ndb2_w = 1'b0;
  sel_enable_w = 1'b0;
- // Voice-override (Phase C) entfernt 2026-05-16: Voice-Relay-Pfad
- // verletzte den FPGA-thin-Signaling Architektur-Lock (siehe
- // project_arch_fpga_thin_signaling.md) — die Voice-Pipeline mit
- // MAC-Adress-Rewrite ISSI→GSSI muss in SW laufen, nicht im RTL.
+ // Voice-Slot-Override gate (gemeinsam für alle 4 TN): SW-Filler liefert
+ // pre-encoded SCH/F bits in voice-FN, AACH 0x32CB advertised voice.
+ // FN 18 (fn_sys=17) bleibt BSCH-Anchor (kein override).
  case (tx_slot_num_sys)
  2'd0: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys0);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys0);
- if (sched_active_sys[0] || bus_is_signal(sched_entry_reg_sys0)) begin
+ if (voice_active_mask_sys[0] & vfill_valid_sys
+ & (voice_slot_tn_sys == 2'd0)
+ & (tx_fn_sys <= 5'd16)) begin
+ sel_blk1_w = vfill_blk1_sys;
+ sel_blk2_w = vfill_blk2_sys;
+ sel_burst_type_w = 1'b0;  // NDB
+ sel_ndb2_w = 1'b0;        // NDB1 SCH/F
+ sel_enable_w = 1'b1;
+ end else if (sched_active_sys[0] || bus_is_signal(sched_entry_reg_sys0)) begin
  sel_blk1_w = sched_blk1_tn0_sys;
  sel_blk2_w = sched_blk2_tn0_sys;
  sel_ndb2_w = sched_ndb2_sys[0];
@@ -228,7 +237,15 @@ always @(*) begin
  2'd1: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys1);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys1);
- if (sched_active_sys[1] || bus_is_signal(sched_entry_reg_sys1)) begin
+ if (voice_active_mask_sys[1] & vfill_valid_sys
+ & (voice_slot_tn_sys == 2'd1)
+ & (tx_fn_sys <= 5'd16)) begin
+ sel_blk1_w = vfill_blk1_sys;
+ sel_blk2_w = vfill_blk2_sys;
+ sel_burst_type_w = 1'b0;
+ sel_ndb2_w = 1'b0;
+ sel_enable_w = 1'b1;
+ end else if (sched_active_sys[1] || bus_is_signal(sched_entry_reg_sys1)) begin
  sel_blk1_w = sched_blk1_tn1_sys;
  sel_blk2_w = sched_blk2_tn1_sys;
  sel_ndb2_w = sched_ndb2_sys[1];
@@ -241,7 +258,15 @@ always @(*) begin
  2'd2: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys2);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys2);
- if (sched_active_sys[2] || bus_is_signal(sched_entry_reg_sys2)) begin
+ if (voice_active_mask_sys[2] & vfill_valid_sys
+ & (voice_slot_tn_sys == 2'd2)
+ & (tx_fn_sys <= 5'd16)) begin
+ sel_blk1_w = vfill_blk1_sys;
+ sel_blk2_w = vfill_blk2_sys;
+ sel_burst_type_w = 1'b0;
+ sel_ndb2_w = 1'b0;
+ sel_enable_w = 1'b1;
+ end else if (sched_active_sys[2] || bus_is_signal(sched_entry_reg_sys2)) begin
  sel_blk1_w = sched_blk1_tn2_sys;
  sel_blk2_w = sched_blk2_tn2_sys;
  sel_ndb2_w = sched_ndb2_sys[2];
@@ -254,7 +279,15 @@ always @(*) begin
  2'd3: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys3);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys3);
- if (sched_active_sys[3] || bus_is_signal(sched_entry_reg_sys3)) begin
+ if (voice_active_mask_sys[3] & vfill_valid_sys
+ & (voice_slot_tn_sys == 2'd3)
+ & (tx_fn_sys <= 5'd16)) begin
+ sel_blk1_w = vfill_blk1_sys;
+ sel_blk2_w = vfill_blk2_sys;
+ sel_burst_type_w = 1'b0;
+ sel_ndb2_w = 1'b0;
+ sel_enable_w = 1'b1;
+ end else if (sched_active_sys[3] || bus_is_signal(sched_entry_reg_sys3)) begin
  sel_blk1_w = sched_blk1_tn3_sys;
  sel_blk2_w = sched_blk2_tn3_sys;
  sel_ndb2_w = sched_ndb2_sys[3];

@@ -255,14 +255,15 @@ wire [31:0] db_policy_axi_w;
 wire [31:0] voice_active_mask_axi_w;
 wire [31:0] voice_nub_sync_thresh_axi_w;
 
-// Phase C — UL-NUB capture outputs (rx_chain → voice_relay)
+// Phase C — UL-NUB capture outputs (rx_chain). bits/valid currently
+// unused at top-level (voice-relay-RTL removed 2026-05-16; future SW
+// pipeline will read via dedicated AXI bit-dump mailbox).
 wire [431:0] voice_nub_coded_bits_sys_w;
 wire voice_nub_coded_valid_sys_w;
 wire [15:0] voice_nub_rx_cnt_sys_w;
-// Phase C — voice_relay outputs (→ burst_dispatcher)
-wire [431:0] voice_relay_blk_sys_w;
-wire voice_relay_valid_sys_w;
-wire [15:0] voice_relay_cnt_sys_w;
+// Phase 7 G.8 — relay_cnt deprecated; tied to 0 since voice_relay was
+// removed. SW reads REG_VOICE_RELAY_CNT @ 0x264 = always 0.
+wire [15:0] voice_relay_cnt_sys_w = 16'd0;
 // Phase X.4 — REG_AST_TTL_MFS removed (AST migrated to SW).
 
 // Synchronize static AXI control bits into the consuming clock domains.
@@ -1287,13 +1288,13 @@ tetra_burst_dispatcher #(
 .sb_sb1_in_sys (sb1_coded_sys_w),
  // Builder feedback (reserved)
 .tx_busy_sys (disp_tx_busy_sys_w),
- // Phase C voice-relay override inputs
+ // Phase 7 G.8 voice-slot filler-mailbox inputs (SW-encoded SCH/F)
 .voice_active_mask_sys (voice_active_mask_sys_r1),
 .voice_slot_tn_sys (voice_slot_tn_sys_w),
 .tx_fn_sys (tx_tdma_state_fn_sys),
-.voice_relay_valid_sys (voice_relay_valid_sys_w),
-.voice_relay_blk1_sys (voice_relay_blk_sys_w[431:216]),
-.voice_relay_blk2_sys (voice_relay_blk_sys_w[215:0]),
+.vfill_valid_sys (vfill_valid_sys_w),
+.vfill_blk1_sys (vfill_blk1_sys_w),
+.vfill_blk2_sys (vfill_blk2_sys_w),
  // Outputs to tetra_tx_chain
 .build_block1_sys (disp_block1_sys_w),
 .build_block2_sys (disp_block2_sys_w),
@@ -1305,16 +1306,11 @@ tetra_burst_dispatcher #(
 );
 
 // =============================================================================
-// Phase C — Voice-Relay ENTFERNT 2026-05-16. Voice-Pipeline mit
-// MAC-Adress-Rewrite (ISSI→GSSI für Group-Calls) gehört per Architektur-
-// Lock (project_arch_fpga_thin_signaling.md) in SW. UL-NUB-Capture
-// bleibt im RX-Pfad als Quelle für SW (via REG_VOICE_NUB_RX_CNT + ggf.
-// neuer Bit-Dump-Mailbox). DL-Voice-Bursts kommen über den existierenden
-// Signalling-Pfad (tetra_tx_submit) wenn SW-Pipeline gebaut ist.
+// Phase 7 G.8 — Voice-Slot DL kommt jetzt aus voice_filler_mailbox
+// (u_voice_filler_mailbox unten). SW encodes SCH/F type-5 burst →
+// schreibt via AXI → dispatcher emittiert in voice-FN. UL-NUB-Capture
+// bleibt für künftige Phase B (dynamic UL→DL voice-relay via SW).
 // =============================================================================
-assign voice_relay_blk_sys_w = 432'd0;
-assign voice_relay_valid_sys_w = 1'b0;
-assign voice_relay_cnt_sys_w = 16'd0;
 
 // Keep synth sinks on legacy AXI-driven SB wires + unused content-mux
 // debug probes so opt_design does not remove the AXI write path or the
@@ -2143,6 +2139,14 @@ tetra_axi_lite_regs u_axi_regs (
 .reply_rdata_axi_i (reply_rdata_axi_r1),
 .reply_busy_axi_i (reply_busy_axi_r1),
 .reply_use_sw_axi_o (reply_use_sw_axi_w),
+ // Phase 7 G.8 — Voice-Filler Mailbox extension window 0x270..0x27C
+.vfill_index_axi_o (vfill_index_axi_w),
+.vfill_wdata_axi_o (vfill_wdata_axi_w),
+.vfill_we_axi_o (vfill_we_axi_w),
+.vfill_go_trigger_axi_o (vfill_go_trigger_w),
+.vfill_go_consume_axi (vfill_go_consume_axi_r1),
+.vfill_rdata_axi_i (vfill_rdata_axi_r1),
+.vfill_valid_axi_i (vfill_valid_axi_r1),
  // Phase Y.1.f — Group-Attach mailbox extension window 0x240..0x25C
 .grp_demand_pending_axi_i (grp_demand_pending_axi_r1),
 .grp_demand_drop_cnt_axi_i (grp_demand_drop_cnt_axi_r1),
@@ -3248,6 +3252,129 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  end else begin
  reply_go_consume_axi_r0 <= reply_go_pulse_sys_w;
  reply_go_consume_axi_r1 <= reply_go_consume_axi_r0;
+ end
+end
+
+// =============================================================================
+// Phase 7 G.8 — Voice-Filler-Mailbox CDC + instance.
+//
+// Bit-pipe for SW-encoded SCH/F type-5 burst (432 bits). SW writes
+// W0..W13 (432 bits packed LSB-first), W14[0]=1 to mark valid, pulses GO.
+// burst_dispatcher consumes blk1_sys/blk2_sys on voice-slot + voice-FN
+// when voice_active_mask + valid_sys are both set. SW is the encoder
+// (CRC + conv + interleave + scramble); RTL is just bit-pipe + routing.
+// =============================================================================
+wire [3:0] vfill_index_axi_w;
+wire [31:0] vfill_wdata_axi_w;
+wire vfill_we_axi_w;
+wire vfill_go_trigger_w;
+
+// 2-FF resync: index, wdata (slow-changing, follows reply-mailbox pattern)
+(* ASYNC_REG = "TRUE" *) reg [3:0] vfill_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0] vfill_index_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [31:0] vfill_wdata_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] vfill_wdata_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ vfill_index_sys_r0 <= 4'd0;
+ vfill_index_sys_r1 <= 4'd0;
+ vfill_wdata_sys_r0 <= 32'd0;
+ vfill_wdata_sys_r1 <= 32'd0;
+ end else begin
+ vfill_index_sys_r0 <= vfill_index_axi_w;
+ vfill_index_sys_r1 <= vfill_index_sys_r0;
+ vfill_wdata_sys_r0 <= vfill_wdata_axi_w;
+ vfill_wdata_sys_r1 <= vfill_wdata_sys_r0;
+ end
+end
+
+// 2-FF resync + edge-detect of we to 1-cycle clk_sys pulse.
+(* ASYNC_REG = "TRUE" *) reg vfill_we_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg vfill_we_sys_r1;
+reg vfill_we_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ vfill_we_sys_r0 <= 1'b0;
+ vfill_we_sys_r1 <= 1'b0;
+ vfill_we_sys_r2 <= 1'b0;
+ end else begin
+ vfill_we_sys_r0 <= vfill_we_axi_w;
+ vfill_we_sys_r1 <= vfill_we_sys_r0;
+ vfill_we_sys_r2 <= vfill_we_sys_r1;
+ end
+end
+wire vfill_we_pulse_sys_w = vfill_we_sys_r1 & ~vfill_we_sys_r2;
+
+// 2-FF resync + edge-detect of GO trigger.
+(* ASYNC_REG = "TRUE" *) reg vfill_go_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg vfill_go_sys_r1;
+reg vfill_go_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ vfill_go_sys_r0 <= 1'b0;
+ vfill_go_sys_r1 <= 1'b0;
+ vfill_go_sys_r2 <= 1'b0;
+ end else begin
+ vfill_go_sys_r0 <= vfill_go_trigger_w;
+ vfill_go_sys_r1 <= vfill_go_sys_r0;
+ vfill_go_sys_r2 <= vfill_go_sys_r1;
+ end
+end
+wire vfill_go_pulse_sys_w = vfill_go_sys_r1 & ~vfill_go_sys_r2;
+
+// Voice-Filler-Mailbox instance (clk_sys).
+wire [31:0] vfill_rdata_sys_w;
+wire [215:0] vfill_blk1_sys_w;
+wire [215:0] vfill_blk2_sys_w;
+wire vfill_valid_sys_w;
+wire vfill_go_pulse_out_sys_w;
+tetra_voice_filler_mailbox u_voice_filler_mailbox (
+.clk_sys (clk_sys),
+.rst_n_sys (rst_n_sys),
+.index_sys (vfill_index_sys_r1),
+.wdata_sys (vfill_wdata_sys_r1),
+.wr_en_sys (vfill_we_pulse_sys_w),
+.go_pulse_sys (vfill_go_pulse_sys_w),
+.rdata_sys (vfill_rdata_sys_w),
+.blk1_sys (vfill_blk1_sys_w),
+.blk2_sys (vfill_blk2_sys_w),
+.valid_sys (vfill_valid_sys_w),
+.go_pulse_out_sys (vfill_go_pulse_out_sys_w)
+);
+// vfill_go_pulse_out_sys_w currently unused — reserved for future SW-FSM
+// trigger pattern (e.g., one-shot voice-burst submit). Keep tied to keep
+// signal alive for ILA debug.
+(* keep = "true" *) wire _vfill_go_pulse_keep = vfill_go_pulse_out_sys_w;
+
+// CDC: rdata + valid clk_sys → clk_axi.
+(* ASYNC_REG = "TRUE" *) reg [31:0] vfill_rdata_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] vfill_rdata_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg vfill_valid_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg vfill_valid_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) begin
+ vfill_rdata_axi_r0 <= 32'd0;
+ vfill_rdata_axi_r1 <= 32'd0;
+ vfill_valid_axi_r0 <= 1'b0;
+ vfill_valid_axi_r1 <= 1'b0;
+ end else begin
+ vfill_rdata_axi_r0 <= vfill_rdata_sys_w;
+ vfill_rdata_axi_r1 <= vfill_rdata_axi_r0;
+ vfill_valid_axi_r0 <= vfill_valid_sys_w;
+ vfill_valid_axi_r1 <= vfill_valid_axi_r0;
+ end
+end
+
+// CDC: GO-consume pulse clk_sys → clk_axi.
+(* ASYNC_REG = "TRUE" *) reg vfill_go_consume_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg vfill_go_consume_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) begin
+ vfill_go_consume_axi_r0 <= 1'b0;
+ vfill_go_consume_axi_r1 <= 1'b0;
+ end else begin
+ vfill_go_consume_axi_r0 <= vfill_go_pulse_sys_w;
+ vfill_go_consume_axi_r1 <= vfill_go_consume_axi_r0;
  end
 end
 

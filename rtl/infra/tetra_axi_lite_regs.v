@@ -448,6 +448,24 @@ module tetra_axi_lite_regs (
  input wire reply_busy_axi_i,
  output wire reply_use_sw_axi_o,
 
+ // ------------------------------------------------------------------
+ // Phase 7 G.8 — Voice-Slot Filler-Mailbox (0x270..0x27C, Bank-1).
+ // Bit-pipe for SW-encoded SCH/F type-5 burst (432 bits) emitted on
+ // voice-slot during active group-call. SW is encoder.
+ // REG_VOICE_FILLER_INDEX @ 0x270 R/W [3:0] word selector 0..15
+ // REG_VOICE_FILLER_DATA  @ 0x274 R/W [31:0] indirect via INDEX
+ // REG_VOICE_FILLER_GO    @ 0x278 W1S [0] pulse to mailbox
+ // REG_VOICE_FILLER_STATUS @ 0x27C RO  [0] filler_valid mirror
+ // Same CDC pattern as REG_REPLY (caller does 2-FF resyncs).
+ // ------------------------------------------------------------------
+ output wire [3:0] vfill_index_axi_o,
+ output wire [31:0] vfill_wdata_axi_o,
+ output wire vfill_we_axi_o,
+ output wire vfill_go_trigger_axi_o,
+ input wire vfill_go_consume_axi,
+ input wire [31:0] vfill_rdata_axi_i,
+ input wire vfill_valid_axi_i,
+
  // Phase Y.1.f — Group-Attach mailbox extension window 0x240..0x25C.
  // Demand: 0x240..0x24C (analog Phase X.1 demand mailbox)
  // Reply: 0x250..0x25C (analog Phase X.2 reply mailbox)
@@ -833,6 +851,11 @@ localparam [6:0] REG_GRP_DEMAND_ACK = 7'h13; // 0x24C
 localparam [6:0] REG_VOICE_NUB_RX_CNT = 7'h18; // 0x260 RO [15:0] bursts_captured
 localparam [6:0] REG_VOICE_RELAY_CNT = 7'h19; // 0x264 RO [15:0] relay_cnt
 localparam [6:0] REG_VOICE_NUB_SYNC_THRESH = 7'h1A; // 0x268 R/W [4:0] corr threshold (default 8)
+// Phase 7 G.8 — Voice-Slot Filler-Mailbox (0x270..0x27C, Bank-1)
+localparam [6:0] REG_VOICE_FILLER_INDEX = 7'h1C; // 0x270 R/W [3:0] word selector
+localparam [6:0] REG_VOICE_FILLER_DATA = 7'h1D; // 0x274 R/W [31:0] indirect via INDEX
+localparam [6:0] REG_VOICE_FILLER_GO = 7'h1E; // 0x278 W1S [0] commit pulse
+localparam [6:0] REG_VOICE_FILLER_STATUS = 7'h1F; // 0x27C RO  [0] filler_valid mirror
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -1016,6 +1039,10 @@ reg demand_ack_trigger_r; // W1S ACK reg
 reg [3:0] reply_index_axi; // 4-bit indirect-window word selector
 reg reply_go_trigger_r; // W1S GO trigger, HW-clr on go_consume
 reg reply_use_sw_r; // R/W use_sw_body toggle
+
+// Phase 7 G.8 voice-filler mailbox AXI-side state (analog Reply pattern)
+reg [3:0] vfill_index_axi; // 4-bit indirect-window word selector
+reg vfill_go_trigger_r; // W1S GO trigger, HW-clr on go_consume
 
 // Phase Y.1.f Group-Attach Demand mailbox AXI-side state (Phase Y.2: reply
 // side removed, demand kept).
@@ -1222,6 +1249,11 @@ always @(*) begin
  REG_VOICE_NUB_RX_CNT: rdata_mux_axi = {16'd0, voice_nub_rx_cnt_axi};
  REG_VOICE_RELAY_CNT: rdata_mux_axi = {16'd0, voice_relay_cnt_axi};
  REG_VOICE_NUB_SYNC_THRESH: rdata_mux_axi = voice_nub_sync_thresh_axi;
+ // Phase 7 G.8 — Voice-Filler mailbox
+ REG_VOICE_FILLER_INDEX: rdata_mux_axi = {28'd0, vfill_index_axi};
+ REG_VOICE_FILLER_DATA: rdata_mux_axi = vfill_rdata_axi_i;
+ REG_VOICE_FILLER_GO: rdata_mux_axi = {31'd0, vfill_go_trigger_r};
+ REG_VOICE_FILLER_STATUS: rdata_mux_axi = {31'd0, vfill_valid_axi_i};
  default: rdata_mux_axi = 32'd0;
  endcase
  end
@@ -2413,6 +2445,35 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
  if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_REPLY_GO)
  & wr_strb_axi[0] & wr_data_axi[0])
  reply_go_trigger_r <= 1'b1;
+ end
+end
+
+// ---------------------------------------------------------------------------
+// Phase 7 G.8 — Voice-Filler-Mailbox AXI-side state (clk_axi)
+// Analog Reply-Mailbox pattern (0x220..0x22C) but for voice-slot bit-pipe.
+// ---------------------------------------------------------------------------
+assign vfill_index_axi_o = vfill_index_axi;
+assign vfill_wdata_axi_o = wr_data_axi;
+assign vfill_we_axi_o = wr_en_x1_axi & (wr_addr_axi[8:2] == REG_VOICE_FILLER_DATA);
+assign vfill_go_trigger_axi_o = vfill_go_trigger_r;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ vfill_index_axi <= 4'd0;
+ else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_VOICE_FILLER_INDEX)
+ & wr_strb_axi[0])
+ vfill_index_axi <= wr_data_axi[3:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ vfill_go_trigger_r <= 1'b0;
+ else begin
+ if (vfill_go_consume_axi)
+ vfill_go_trigger_r <= 1'b0;
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_VOICE_FILLER_GO)
+ & wr_strb_axi[0] & wr_data_axi[0])
+ vfill_go_trigger_r <= 1'b1;
  end
 end
 

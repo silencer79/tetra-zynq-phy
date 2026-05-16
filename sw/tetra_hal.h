@@ -322,6 +322,18 @@
 #define REG_VOICE_RELAY_CNT 0x264
 #define REG_VOICE_NUB_SYNC_THRESH 0x268
 
+/* Phase 7 G.8 — Voice-Slot Filler-Mailbox (Bank-1 0x270..0x27C).
+ * Bit-pipe for SW-encoded SCH/F type-5 burst (432 bits). SW writes
+ * W0..W13 via INDEX+DATA (LSB-first packing within each word), sets
+ * W14[0]=1, then pulses GO. Burst-dispatcher emits blk1/blk2 on
+ * voice-slot during active group-call (voice_active_mask bit set).
+ * SW is the encoder (CRC + conv + interleave + scramble); RTL is
+ * bit-pipe + slot-routing only — per project_arch_fpga_thin_signaling.md. */
+#define REG_VOICE_FILLER_INDEX 0x270 /* R/W [3:0] word selector 0..15 */
+#define REG_VOICE_FILLER_DATA 0x274 /* R/W [31:0] indirect via INDEX */
+#define REG_VOICE_FILLER_GO 0x278 /* W1S [0] commit pulse */
+#define REG_VOICE_FILLER_STATUS 0x27C /* RO [0] filler_valid mirror */
+
 /* Phase H.6.3 — AACH UL-Slot-Grant override (single-shot pulse) */
 #define REG_AACH_GRANT_HINT 0x1F4 /* R/W [31] pending, [13:0] info14 */
 
