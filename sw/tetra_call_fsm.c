@@ -208,14 +208,19 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  "call_id=%u rc=%d\n",
  ssi, s->group_gssi, i + 1, s->call_id, rc);
  }
- /* MER-Fix (2026-05-15): mask wird NICHT mehr beim U-SETUP gesetzt.
- * AACH voice-pattern (0x32CB/0x22C9/0x2049) gilt nur während echte
- * Voice-Bursts fließen, sonst kollidiert AACH-Encoding-Hinweis mit
- * den signalling-bursts → SDR# MER 8-12 %. Mask wird in U-TX-DEMAND
- * scharfgeschaltet und in U-TX-CEASED / U-RELEASE / Watchdog
- * wieder zurückgesetzt. */
+ /* MER-Fix (2026-05-16 rev2): mask MUSS ab U-SETUP scharf sein —
+  * unsere D-CONNECT-Antwort trägt transmission_grant=Granted, die
+  * MS überspringt damit U-TX-DEMAND und sendet sofort UL-Voice.
+  * Erwartet voice-busy AACH (0x32CB/0x22C9/0x2049) auf voice-slot.
+  * Ohne mask=0x02 sieht MS idle-AACH → "PTT abgewiesen" und schickt
+  * U-TX-CEASED. Idle-MER-Schutz übernimmt Watchdog: mask=0 sobald
+  * relay_cnt > 1.5s stillsteht. */
+ mask_write_cached(hal, 0x02u);
  s->last_activity_poll_cnt = mono_ms_lo();
  s->state = CALL_STATE_CONNECTED;
+ fprintf(stderr,
+ "tetra_call_fsm: VOICE_ACTIVE_MASK=0x02 (U-SETUP → call_id=%u)\n",
+ s->call_id);
  return rc;
  }
 
@@ -228,8 +233,8 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  int rc = stage_d_tx_granted(hal, s);
  s->state = CALL_STATE_TALKER;
  s->last_activity_poll_cnt = mono_ms_lo();
- /* MER-Fix (2026-05-15): mask erst hier scharfschalten — Voice-Bursts
- * beginnen jetzt, AACH 0x32CB/0x22C9 darf nun voice-encoded sein. */
+ /* Re-Key während Call: mask wieder scharf, falls Watchdog sie nach
+  * Idle-Phase auf 0 gesetzt hatte. */
  mask_write_cached(hal, 0x02u);
  fprintf(stderr,
  "tetra_call_fsm: U-TX-DEMAND ssi=0x%06X → D-TX-GRANTED "
@@ -242,11 +247,10 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  if (s == NULL) return -1;
  s->state = CALL_STATE_CONNECTED;
  s->last_activity_poll_cnt = mono_ms_lo();
- /* MER-Fix (2026-05-15): Talker beendet, mask SOFORT zurück auf 0
- * damit AACH wieder idle-pattern zeigt. Call-slot bleibt aktiv für
- * mögliche Re-Key (U-TX-DEMAND erneut) oder U-RELEASE. */
- mask_write_cached(hal, 0x00u);
- /* Phase 7 G.7+ — D-TX-CEASED-Bestätigung an Gruppe (broadcast auf GSSI).
+ /* Talker beendet, Watchdog wird mask=0 setzen sobald relay_cnt
+  * stillsteht (1.5 s). Hier mask NICHT direkt 0 setzen — Call-Slot
+  * bleibt aktiv, evtl. Re-Key kommt sofort.
+  * Phase 7 G.7+ — D-TX-CEASED-Bestätigung an Gruppe (broadcast auf GSSI).
  * Ohne diesen ACK retried MS U-TX-CEASED bis zu 10× (Stop-and-Wait pro
  * ETSI/bluestation). Adressiert an Group-GSSI weil alle Group-Member
  * informiert werden müssen dass Talker aufgehört hat. */
@@ -287,29 +291,33 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  if (hal == NULL) return;
  uint32_t now = mono_ms_lo();
  unsigned active = 0;
- unsigned talker = 0;
+
+ /* Aktivitäts-Heartbeat = REG_VOICE_NUB_RX_CNT bei thresh=10. Zählt
+  * dann nur echte UL-TCH/S-Bursts (FP=0 im Idle, ~36 /s bei aktiver
+  * MS-TX). Voice-Bursts brauchen kein CMCE-PDU → nub_rx ist der
+  * einzig zuverlässige Echtzeit-Indikator. */
+ static uint16_t s_last_nub_cnt = 0;
+ static uint32_t s_nub_last_bump_ms = 0;
+ static int s_nub_seen = 0;
+ uint16_t nub_cnt = (uint16_t)(tetra_reg_read(hal, REG_VOICE_NUB_RX_CNT)
+ & 0xFFFFu);
+ if (nub_cnt != s_last_nub_cnt) {
+ s_nub_last_bump_ms = now;
+ s_nub_seen = 1;
+ s_last_nub_cnt = nub_cnt;
+ }
+ uint32_t nub_quiet_ms = s_nub_seen ? (now - s_nub_last_bump_ms): 0;
 
  for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
  call_slot_t *s = &g_slots[i];
  if (s->ssi == 0u) continue;
+ /* NUB-Burst gesehen → Slot-last_activity refresh (verhindert
+  * Stale-Free während aktiver PTT). */
+ if (nub_quiet_ms == 0) s->last_activity_poll_cnt = now;
+
  uint32_t age = now - s->last_activity_poll_cnt;
-
- if (s->state == CALL_STATE_TALKER &&
- age > CALL_FSM_TALKER_STALE_MS) {
- /* Talker silent too long — most likely MS dropped RF mid-PTT
- * without sending U-TX-CEASED. Drop back to CONNECTED. */
- fprintf(stderr,
- "tetra_call_fsm: WATCHDOG ssi=0x%06X call_id=%u TALKER "
- "silent for %ums → forcing CONNECTED, mask=0\n",
- s->ssi, s->call_id, age);
- s->state = CALL_STATE_CONNECTED;
- s->last_activity_poll_cnt = now;
- mask_write_cached(hal, 0x00u);
- }
-
  if (s->state != CALL_STATE_IDLE &&
  age > CALL_FSM_CALL_STALE_MS) {
- /* Call abandoned — MS never sent U-RELEASE. Free slot. */
  fprintf(stderr,
  "tetra_call_fsm: WATCHDOG ssi=0x%06X call_id=%u idle for "
  "%ums → freeing slot\n",
@@ -317,17 +325,19 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  free_slot(s);
  continue;
  }
-
  active++;
- if (s->state == CALL_STATE_TALKER) talker++;
  }
 
- /* Belt-and-suspenders: if no slot is talking right now, mask MUST be 0.
- * Cached write avoids AXI traffic when already 0. */
- if (talker == 0) {
+ /* Mask-Lifecycle:
+  * - Kein aktiver Slot → mask=0.
+  * - Aktiver Slot + NUB seit > VOICE_QUIET_MS still → mask=0
+  *   (AACH wird wieder idle, MER bleibt 0 %). Re-Key über neuen
+  *   U-SETUP / U-TX-DEMAND setzt mask=0x02 wieder. */
+ if (active == 0) {
+ mask_write_cached(hal, 0x00u);
+ } else if (s_nub_seen && nub_quiet_ms > CALL_FSM_VOICE_QUIET_MS) {
  mask_write_cached(hal, 0x00u);
  }
- (void)active;
 }
 
 void tetra_call_fsm_dump(void)

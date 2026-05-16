@@ -19,12 +19,17 @@
 
 #define CALL_FSM_MAX_CALLS 8
 
-/* Watchdog thresholds (milliseconds, monotonic). MS keeps sending voice
- * bursts every ~57ms while TALKER; ~3s silence ⇒ talker dead even if no
- * U-TX-CEASED arrived. ~60s without ANY PDU ⇒ call abandoned (no U-RELEASE
- * after MS power-cycle / RF loss) — slot is freed. */
-#define CALL_FSM_TALKER_STALE_MS 3000u
-#define CALL_FSM_CALL_STALE_MS 60000u
+/* Watchdog thresholds (milliseconds, monotonic).
+ * - VOICE_QUIET_MS: REG_VOICE_NUB_RX_CNT zählt seit N ms nicht hoch
+ *   → mask=0. Mit REG_VOICE_NUB_SYNC_THRESH=10 hat der UL-NUB
+ *   keine False-Positives im Idle (gemessen 2026-05-16: 0 bumps/s
+ *   vs. 48 bumps/s bei default thresh=8). Echte UL-TCH/S-Bursts
+ *   kommen ~36 /s während aktiver PTT — 500 ms quiet ⇒ MS hat
+ *   garantiert aufgehört zu senden.
+ * - CALL_STALE_MS: kein NUB-Burst seit N s ⇒ Slot freigeben (MS
+ *   power-cycle / RF-Drop ohne U-RELEASE). */
+#define CALL_FSM_VOICE_QUIET_MS 500u
+#define CALL_FSM_CALL_STALE_MS 5000u
 
 typedef enum {
  CALL_STATE_IDLE = 0,
