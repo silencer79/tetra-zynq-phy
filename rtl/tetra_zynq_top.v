@@ -1305,23 +1305,16 @@ tetra_burst_dispatcher #(
 );
 
 // =============================================================================
-// Phase C — Voice-Relay (1-frame buffer UL→DL bit-transparent)
+// Phase C — Voice-Relay ENTFERNT 2026-05-16. Voice-Pipeline mit
+// MAC-Adress-Rewrite (ISSI→GSSI für Group-Calls) gehört per Architektur-
+// Lock (project_arch_fpga_thin_signaling.md) in SW. UL-NUB-Capture
+// bleibt im RX-Pfad als Quelle für SW (via REG_VOICE_NUB_RX_CNT + ggf.
+// neuer Bit-Dump-Mailbox). DL-Voice-Bursts kommen über den existierenden
+// Signalling-Pfad (tetra_tx_submit) wenn SW-Pipeline gebaut ist.
 // =============================================================================
-tetra_voice_relay #(
-.TIMEOUT_FRAMES(2)
-) u_voice_relay (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
-.voice_active_mask_sys (voice_active_mask_sys_r1),
-.voice_slot_tn_sys (voice_slot_tn_sys_w),
-.ul_coded_bits_sys (voice_nub_coded_bits_sys_w),
-.ul_coded_valid_sys (voice_nub_coded_valid_sys_w),
-.dl_slot_pulse_sys (tx_tdma_state_slot_pulse_sys),
-.dl_tn_sys (tx_tdma_state_tn_sys),
-.relay_blk_sys (voice_relay_blk_sys_w),
-.relay_valid_sys (voice_relay_valid_sys_w),
-.relay_cnt_sys (voice_relay_cnt_sys_w)
-);
+assign voice_relay_blk_sys_w = 432'd0;
+assign voice_relay_valid_sys_w = 1'b0;
+assign voice_relay_cnt_sys_w = 16'd0;
 
 // Keep synth sinks on legacy AXI-driven SB wires + unused content-mux
 // debug probes so opt_design does not remove the AXI write path or the

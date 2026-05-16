@@ -211,19 +211,16 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  end else if (tn_sys == 2'd0) begin
  info_sys <= signalling_active_sys ? 14'h0009: 14'h0249;
  end else if (voice_active_mask_sys[tn_sys]) begin
- /* Phase Y.4.1-fix ( #6100..#6168 bit-exact, 2026-05-14):
- * Voice-Phase AACH rotiert PRO FN auf voice-slot:
- * FN 1.. 9 (fn_sys=0..8) → 0x32CB voice NDB1 SCH/F (TCH/S)
- * FN 10..13 (fn_sys=9..12) → 0x22C9 FACCH NDB2 SCH/HD (BL-ACK stealing)
- * FN 14..17 (fn_sys=13..16)→ 0x2049 idle NDB2 SCH/HD
- * FN 18 (fn_sys=17) → F18-Pfad above (0x2249 BSCH-anchor)
- * NICHT durchgehend 0x22C9 wie initial Y.4.1 (wrong). */
- if (fn_sys <= 5'd8)
- info_sys <= 14'h32CB; // voice TCH/S
- else if (fn_sys <= 5'd12)
- info_sys <= 14'h22C9; // FACCH stealing
- else
- info_sys <= 14'h2049; // idle filler
+ /* MER-Fix 2026-05-16 (gold-audit dl_events.jsonl mn=60..N):
+  * Die echte BS sendet AACH=0x32CB DURCHGEHEND für FN 1-17 auf
+  * dem voice-slot, unabhängig vom emittierten Burst-Typ (NDB1
+  * voice ODER NDB2 SCH/HD signalling). 0x32CB ist der Voice-
+  * Call-Allocation-Marker, nicht ein burst-encoding-Indicator.
+  * Vorherige FN-Rotation (0x32CB/0x22C9/0x2049) war Drift:
+  * 0x22C9 (n=11 in Gold) und 0x2049 (n=151 in Gold) gelten
+  * für Transition/Idle-Slots, nicht aktiven Voice-Call.
+  * FN 18 (fn_sys=17) bleibt BSCH-Anchor (oberer Pfad). */
+ info_sys <= 14'h32CB;
  end else begin
  // F1-17 TN!=0 idle (Traffic-Slots) — rotiert nach FN/MN%4
  if (mn_low2_sys == 2'd1 &&
