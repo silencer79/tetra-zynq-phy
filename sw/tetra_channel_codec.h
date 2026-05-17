@@ -53,4 +53,43 @@ int tetra_codec_schf_encode(const uint8_t *info_268,
                             uint16_t mcc, uint16_t mnc,
                             uint8_t *out_432);
 
+/* Descramble (XOR with cell-identity LFSR). Cell-init identisch zu
+ * scrambler in tetra_codec_schf_encode. type5 → type4. */
+void tetra_codec_descramble(const uint8_t *type5_in, int len,
+                            uint8_t colour_code, uint8_t slot_num,
+                            uint16_t mcc, uint16_t mnc,
+                            uint8_t *type4_out);
+
+/* Inverse multiplicative permutation. Wenn interleave_perm
+ *   out[j-1] = in[k-1] mit j = 1 + (a*k) mod N
+ * setzt, dann ist die Inverse:
+ *   inv_out[k-1] = in[j-1] mit gleicher j-Formel.
+ * I.e. dieselbe Permutationsformel, nur Rollen vertauscht. */
+void tetra_codec_deinterleave_perm(const uint8_t *in, int N, int a,
+                                   uint8_t *out);
+
+/* P_2/3 depuncture (Inverse zu tetra_codec_puncture_r23). 3 punctured
+ * bits pro 8 mother bits werden in {0,1,4} eingesetzt; Erasures (=2)
+ * auf {2,3,5,6,7}. in_len muss vielfaches von 3 sein. Output-Länge =
+ * (in_len/3) × 8. */
+void tetra_codec_depuncture_r23(const uint8_t *in_punct, int in_len,
+                                uint8_t *out_mother);
+
+/* K=5 rate-1/4 Viterbi mother-decoder. coded_in (Länge n_input × 4)
+ * enthält Werte 0/1/2 (2 = Erasure, beiträgt 0 zur Hamming-Metrik).
+ * Initial-State = 0 (Encoder startet mit shift-register=0). Output:
+ * n_input dekodierte Bits. */
+void tetra_codec_viterbi_r14(const uint8_t *coded_in, int n_input,
+                             uint8_t *decoded_out);
+
+/* High-level SCH/F decoder: 432 type-5 bits → 268 info bits.
+ * type5 → descramble → deinterleave (K=432,a=103) → depuncture P_2/3 →
+ *      → Viterbi(288) → strip 4 tail bits + CRC-16-check → info(268)
+ * Returns 0 on success (CRC OK), -1 on CRC mismatch. info_268_out
+ * is populated regardless (best-effort) so caller can inspect. */
+int tetra_codec_schf_decode(const uint8_t *type5_in,
+                            uint8_t colour_code, uint8_t slot_num,
+                            uint16_t mcc, uint16_t mnc,
+                            uint8_t *info_268_out);
+
 #endif /* TETRA_CHANNEL_CODEC_H */

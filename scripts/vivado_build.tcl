@@ -174,6 +174,7 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_pre_reply_slotgrant.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_pdu_builder.v \
  $PROJ_DIR/rtl/lmac/tetra_voice_filler_mailbox.v \
+ $PROJ_DIR/rtl/lmac/tetra_voice_nub_read_mailbox.v \
 ]
 
 # Top-Level modules

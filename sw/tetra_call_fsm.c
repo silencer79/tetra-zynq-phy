@@ -19,11 +19,13 @@
 #include "tetra_tx_transport.h"
 #include "tetra_cmce_body.h"
 #include "tetra_voice_filler.h"
+#include "tetra_voice_pipe.h"
 #include "tetra_db.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 static call_slot_t g_slots[CALL_FSM_MAX_CALLS];
 static uint16_t g_next_call_id = 1u;
@@ -239,6 +241,11 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[%d/3] "
  "call_id=%u rc=%d\n",
  ssi, s->group_gssi, i + 1, s->call_id, rc);
+ /* Gold-Spacing: 2 frames zwischen den 3 D-CONNECTs (Gold
+  *   FN02→04→06, vorher unsere DL FN04→05→06). 1 frame ≈ 56.67 ms,
+  *   2 frames ≈ 113 ms — gibt dem RTL-Scheduler eine ganze Frame
+  *   Lücke. */
+ if (i < 2) usleep(113000);
  }
  if (s->group_gssi != 0u || s->target_issi != 0u) {
  int src = stage_d_setup(hal, s);
@@ -257,24 +264,16 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  mask_write_cached(hal, 0x02u);
  s->last_activity_poll_cnt = mono_ms_lo();
  s->state = CALL_STATE_CONNECTED;
- /* Phase 7 G.8 — Voice-Slot-Filler installieren: SW-encoded SCH/F
-  *   MAC-RESOURCE NULL-PDU mit Call-Target-Adresse (GSSI für Group-
-  *   Call, ISSI für Individual). MS sieht AACH=0x32CB + valid PDU
-  *   addressed an Call-target → akzeptiert. Bei vorigem Call mit
-  *   anderer Adresse würde sonst der alte Filler hängen → MS denkt
-  *   falscher Call läuft noch. */
- uint32_t fill_target = s->group_gssi ? s->group_gssi : s->target_issi;
- if (fill_target != 0u) {
- (void)tetra_voice_filler_install(hal, fill_target);
- } else {
+ /* G.8-Filler entfernt (2026-05-16): die statische MAC-RESOURCE-NULL-
+  *   PDU produzierte auf TN=2 NDB1-Bursts mit SCH/F-CRC-FAIL und blockierte
+  *   die MS am Voice-TX. Voice-Slot bleibt jetzt leer (filler-Mailbox
+  *   cleared) bis tetra_voice_pipe_tick einen echten UL-NUB-Burst
+  *   relayt. */
  tetra_voice_filler_clear(hal);
- }
  fprintf(stderr,
  "tetra_call_fsm: VOICE_ACTIVE_MASK=0x02 (U-SETUP → call_id=%u, "
- "voice-filler %s=0x%06X)\n",
- s->call_id,
- s->group_gssi ? "gssi" : "issi",
- fill_target);
+ "filler cleared — voice-slot wartet auf UL-NUB)\n",
+ s->call_id);
  return rc;
  }
 
@@ -382,6 +381,13 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  continue;
  }
  active++;
+ /* Phase B — UL→DL Voice-Pipeline. Wenn ein Burst in der UL-NUB-
+  *   Read-Mailbox steht: dekodieren, SSI auf Call-Target patchen,
+  *   re-encodieren und in DL-Filler-Mailbox schieben. Bei CRC-Fail
+  *   (TCH/S Voice-ACELP ohne MAC-Header) → 1:1 weitergegeben. */
+ uint32_t voice_tgt = s->group_gssi ? s->group_gssi : s->target_issi;
+ if (voice_tgt != 0u)
+ (void)tetra_voice_pipe_tick(hal, voice_tgt);
  }
 
  /* Mask-Lifecycle:

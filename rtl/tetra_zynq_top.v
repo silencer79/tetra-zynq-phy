@@ -2147,6 +2147,12 @@ tetra_axi_lite_regs u_axi_regs (
 .vfill_go_consume_axi (vfill_go_consume_axi_r1),
 .vfill_rdata_axi_i (vfill_rdata_axi_r1),
 .vfill_valid_axi_i (vfill_valid_axi_r1),
+ // Phase B — Voice-NUB-Read mailbox 0x280..0x28C
+.vnub_index_axi_o (vnub_index_axi_w),
+.vnub_ack_trigger_axi_o (vnub_ack_trigger_w),
+.vnub_ack_consume_axi (vnub_ack_consume_axi_r1),
+.vnub_rdata_axi_i (vnub_rdata_axi_r1),
+.vnub_valid_axi_i (vnub_valid_axi_r1),
  // Phase Y.1.f — Group-Attach mailbox extension window 0x240..0x25C
 .grp_demand_pending_axi_i (grp_demand_pending_axi_r1),
 .grp_demand_drop_cnt_axi_i (grp_demand_drop_cnt_axi_r1),
@@ -3375,6 +3381,91 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  end else begin
  vfill_go_consume_axi_r0 <= vfill_go_pulse_sys_w;
  vfill_go_consume_axi_r1 <= vfill_go_consume_axi_r0;
+ end
+end
+
+// =============================================================================
+// Phase B — Voice-NUB-Read-Mailbox CDC + instance.
+// FPGA→SW pipe: 432 type-5 bits captured by tetra_ul_nub_capture are
+// latched into 14 × 32 bit storage with valid-Flag. SW polls valid, reads
+// W0..W13, then writes ACK to clear valid + arm next burst.
+// =============================================================================
+wire [3:0] vnub_index_axi_w;
+wire vnub_ack_trigger_w;
+
+// 2-FF resync of index AXI → sys (slow R/W, simple settle).
+(* ASYNC_REG = "TRUE" *) reg [3:0] vnub_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0] vnub_index_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ vnub_index_sys_r0 <= 4'd0;
+ vnub_index_sys_r1 <= 4'd0;
+ end else begin
+ vnub_index_sys_r0 <= vnub_index_axi_w;
+ vnub_index_sys_r1 <= vnub_index_sys_r0;
+ end
+end
+
+// 2-FF resync + edge-detect of ACK trigger to 1-cycle clk_sys pulse.
+(* ASYNC_REG = "TRUE" *) reg vnub_ack_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg vnub_ack_sys_r1;
+reg vnub_ack_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ vnub_ack_sys_r0 <= 1'b0;
+ vnub_ack_sys_r1 <= 1'b0;
+ vnub_ack_sys_r2 <= 1'b0;
+ end else begin
+ vnub_ack_sys_r0 <= vnub_ack_trigger_w;
+ vnub_ack_sys_r1 <= vnub_ack_sys_r0;
+ vnub_ack_sys_r2 <= vnub_ack_sys_r1;
+ end
+end
+wire vnub_ack_pulse_sys_w = vnub_ack_sys_r1 & ~vnub_ack_sys_r2;
+
+// Voice-NUB-Read-Mailbox instance (clk_sys).
+wire [31:0] vnub_rdata_sys_w;
+wire vnub_valid_sys_w;
+tetra_voice_nub_read_mailbox u_voice_nub_read_mailbox (
+.clk_sys (clk_sys),
+.rst_n_sys (rst_n_sys),
+.coded_bits_sys (voice_nub_coded_bits_sys_w),
+.coded_valid_sys (voice_nub_coded_valid_sys_w),
+.ack_pulse_sys (vnub_ack_pulse_sys_w),
+.index_sys (vnub_index_sys_r1),
+.rdata_sys (vnub_rdata_sys_w),
+.valid_sys (vnub_valid_sys_w)
+);
+
+// CDC: rdata + valid clk_sys → clk_axi.
+(* ASYNC_REG = "TRUE" *) reg [31:0] vnub_rdata_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] vnub_rdata_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg vnub_valid_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg vnub_valid_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) begin
+ vnub_rdata_axi_r0 <= 32'd0;
+ vnub_rdata_axi_r1 <= 32'd0;
+ vnub_valid_axi_r0 <= 1'b0;
+ vnub_valid_axi_r1 <= 1'b0;
+ end else begin
+ vnub_rdata_axi_r0 <= vnub_rdata_sys_w;
+ vnub_rdata_axi_r1 <= vnub_rdata_axi_r0;
+ vnub_valid_axi_r0 <= vnub_valid_sys_w;
+ vnub_valid_axi_r1 <= vnub_valid_axi_r0;
+ end
+end
+
+// CDC: ACK-consume pulse clk_sys → clk_axi to clear W1S trigger.
+(* ASYNC_REG = "TRUE" *) reg vnub_ack_consume_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg vnub_ack_consume_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) begin
+ vnub_ack_consume_axi_r0 <= 1'b0;
+ vnub_ack_consume_axi_r1 <= 1'b0;
+ end else begin
+ vnub_ack_consume_axi_r0 <= vnub_ack_pulse_sys_w;
+ vnub_ack_consume_axi_r1 <= vnub_ack_consume_axi_r0;
  end
 end
 

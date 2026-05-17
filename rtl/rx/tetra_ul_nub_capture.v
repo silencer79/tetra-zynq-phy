@@ -9,29 +9,28 @@
 // ring buffer, outputs 432 type-5 bits (BKN1 MSB-first || BKN2 MSB-first)
 // as a parallel register, and pulses coded_valid_sys when done.
 //
-// NUB layout (ETSI EN 300 392-2 §9.4.4.3.4, 255 sym = 14.06 ms @ 18 kHz):
-// sym 0..5 TAIL1 6 sym
-// sym 6 HA1 1 sym (phase-adj)
-// sym 7..114 BKN1 108 sym → 216 type-5 bits
-// sym 115..121 BB1 7 sym
-// sym 122..132 NTS1 11 sym ← sync anchor at sym 132
-// sym 133..140 BB2 8 sym
-// sym 141..248 BKN2 108 sym → 216 type-5 bits
-// sym 249 HA2 1 sym
-// sym 250..254 TAIL2 5 sym
+// NUB layout (ETSI EN 300 392-2, body = 462 bits = 231 sym; cf. BlueStation
+// burst_consts.rs:32 NUB_BITS = 4 + 216 + 22 + 216 + 4):
+// bits 0..3 head 2 sym (TAIL/ramp)
+// bits 4..219 BKN1 216 bits = 108 sym → 216 type-5 bits
+// bits 220..241 NTS1 22 bits = 11 sym ← sync anchor on NTS1's last dibit
+// bits 242..457 BKN2 216 bits = 108 sym → 216 type-5 bits
+// bits 458..461 tail 2 sym
 //
-// Relative to anchor (sym 132):
-// BKN1 diff-ref (HA1 = sym 6): anchor − 126 sym = −504 samples
-// BKN1[0] (sym 7): anchor − 125 sym = −500 samples
-// BKN1[107] (sym 114): anchor − 18 sym = − 72 samples
-// BKN2 diff-ref (BB2[7] = 140): anchor + 8 sym = + 32 samples
-// BKN2[0] (sym 141): anchor + 9 sym = + 36 samples
-// BKN2[107] (sym 248): anchor + 116 sym = +464 samples
+// NUB does NOT contain BB1/BB2 broadcast blocks — those belong to NDB (DL).
+//
+// Relative to anchor (= raw sample of NTS1's last modulation symbol):
+// BKN1 diff-ref (= sym before BKN1[0]): anchor − 119 sym = −476 samples
+// BKN1[0]: anchor − 118 sym = −472 samples
+// BKN1[107]: anchor − 11 sym = − 44 samples
+// BKN2 diff-ref (= anchor itself, NTS1's last sym): anchor + 0 samples
+// BKN2[0]: anchor + 1 sym = + 4 samples
+// BKN2[107]: anchor + 108 sym = +432 samples
 //
 // Ring depth = 1024 (10-bit address) → 1024 samples backlog. At sync_found
-// the BKN1 diff-ref is 504 samples behind wp; we wait POST_WAIT_SMP=480
+// the BKN1 diff-ref is 476 samples behind wp; we wait POST_WAIT_SMP=480
 // samples for BKN2[107] to be written (wp advances 480 → BKN1 diff-ref at
-// wp − 984, still inside 1024 ring with 40-slot margin).
+// wp − 956, still inside 1024 ring with 68-slot margin).
 //
 // Phase alignment: same scheme as tetra_ul_burst_capture — best_phase_sys
 // + local phase_cnt_sys give delta_w = (phase_cnt − 1 − best_phase) mod 4.
@@ -60,8 +59,8 @@ module tetra_ul_nub_capture #(
  parameter RING_ADDR_W = 10,
  parameter SPS = 4,
  parameter BKN_SYMS = 108,
- parameter BKN1_PRE_SMP = 504, // anchor − HA1 sample (BKN1 diff-ref)
- parameter BKN2_OFFSET_SMP = 32, // anchor + BB2[7] sample (BKN2 diff-ref)
+ parameter BKN1_PRE_SMP = 476, // anchor − 119 sym = BKN1 diff-ref sample
+ parameter BKN2_OFFSET_SMP = 0, // anchor itself = BKN2 diff-ref (= NTS1[10])
  parameter POST_WAIT_SMP = 480 // wait until BKN2[107] is in ring
 )(
  input wire clk_sys,

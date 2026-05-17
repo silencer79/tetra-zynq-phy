@@ -113,7 +113,8 @@ localparam [21:0] NTS1_REF = {
 };
 
 // ---- Normal Training Sequence 2 (11 symbols, §9.4.4.3.3) ----
-// p = [0,1,1,1,1,0,1,0,0,1,0,0,0,0,1,1,1,0,1,1,1,0] (osmo-tetra p_bits)
+// p = [0,1,1,1,1,0,1,0,0,1,0,0,0,0,1,1,0,1,1,1,1,0] (tetra-kit decoder.h:78,
+//   = ETSI EN 300 392-2 §9.4.4.3.2 NORMAL_TRAINING_SEQ_2)
 // Dibits: (01)(11)(10)(10)(01)(00)(00)(11)(01)(11)(10)
 localparam [21:0] NTS2_REF = {
  2'b01, 2'b11, 2'b10, 2'b10, 2'b01, 2'b00,

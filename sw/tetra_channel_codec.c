@@ -159,5 +159,173 @@ int tetra_codec_schf_encode(const uint8_t *info_268,
  for (int i = 0; i < SCHF_CODED_BITS; i++)
  out_432[i] = (type4i[i] ^ next_lfsr_bit(&lfsr)) & 1;
 
+ (void)slot_num;
  return 0;
+}
+
+/* ========================================================================
+ * Decoder primitives — Inverse zu Encoder, fuer SW Viterbi-Roundtrip.
+ * ======================================================================== */
+
+void tetra_codec_descramble(const uint8_t *type5_in, int len,
+                            uint8_t colour_code, uint8_t slot_num,
+                            uint16_t mcc, uint16_t mnc,
+                            uint8_t *type4_out)
+{
+ uint32_t lfsr = ((uint32_t)(mcc & 0x3FF) << 22)
+ | ((uint32_t)(mnc & 0x3FFF) << 8)
+ | ((uint32_t)(colour_code & 0x3F) << 2)
+ | 3u;
+ if (lfsr == 0)
+ lfsr = 0xFFFFFFFF;
+ for (int i = 0; i < len; i++)
+ type4_out[i] = (type5_in[i] ^ next_lfsr_bit(&lfsr)) & 1;
+ (void)slot_num;
+}
+
+void tetra_codec_deinterleave_perm(const uint8_t *in, int N, int a,
+                                   uint8_t *out)
+{
+ /* Forward: out[j-1] = in[k-1] mit j = 1 + (a*k) mod N.
+  *   → für jeden k ∈ [1..N]: input-position k landet bei output-position j.
+  * Inverse: in[k-1] = out[j-1] mit gleicher j-Formel
+  *   → für jeden k: lese out[j-1] und schreibe an Position k-1. */
+ for (int k = 1; k <= N; k++) {
+ int j = 1 + ((a * k) % N);
+ out[k - 1] = in[j - 1];
+ }
+}
+
+void tetra_codec_depuncture_r23(const uint8_t *in_punct, int in_len,
+                                uint8_t *out_mother)
+{
+ /* in_punct: 3 bits pro 2 info-bits = 3/2 × Mother. Periode 8 mother
+  * bits ↔ 3 punktierte bits. Werte:
+  *   in_punct[3p+0] = g1(a) → mother[8p+0]
+  *   in_punct[3p+1] = g2(a) → mother[8p+1]
+  *   in_punct[3p+2] = g1(b) → mother[8p+4]
+  *   Rest: Erasure (2). */
+ int n_pairs = in_len / 3;
+ for (int p = 0; p < n_pairs; p++) {
+ out_mother[p * 8 + 0] = in_punct[p * 3 + 0] & 1;
+ out_mother[p * 8 + 1] = in_punct[p * 3 + 1] & 1;
+ out_mother[p * 8 + 2] = 2;
+ out_mother[p * 8 + 3] = 2;
+ out_mother[p * 8 + 4] = in_punct[p * 3 + 2] & 1;
+ out_mother[p * 8 + 5] = 2;
+ out_mother[p * 8 + 6] = 2;
+ out_mother[p * 8 + 7] = 2;
+ }
+}
+
+/* K=5 rate-1/4 Viterbi. Generators G1=0x13, G2=0x1D, G3=0x17, G4=0x1B,
+ * matching tetra_codec_conv_r14. State = 4-bit shift-register (sr[3:0]
+ * after right-shift). Input branch (0/1) shifts into MSB → sr5.
+ * Output 4 mother bits = parity5(sr & Gx). */
+
+static const uint8_t VITERBI_G[4] = { 0x13, 0x1D, 0x17, 0x1B };
+
+void tetra_codec_viterbi_r14(const uint8_t *coded_in, int n_input,
+                             uint8_t *decoded_out)
+{
+ const int N_STATES = 16;
+ const int INF_M = 1 << 28;
+
+ /* Path metrics — current + next. */
+ int pm[16];
+ int pm_new[16];
+ /* Traceback tables: tb_state[i][s] = predecessor state, tb_input[i][s]
+  * = input bit that drove the transition. Each as flat array
+  * size n_input × 16 (max in our case 288 × 16 = 4608 entries each). */
+ /* Heap allocation would be safer for arbitrary n_input. For SCH/F
+  * (288 stages) we know the size at compile time; use VLA. */
+ uint8_t *tb_state = (uint8_t *)__builtin_alloca((size_t)n_input * N_STATES);
+ uint8_t *tb_input = (uint8_t *)__builtin_alloca((size_t)n_input * N_STATES);
+
+ for (int s = 0; s < N_STATES; s++)
+ pm[s] = (s == 0) ? 0 : INF_M;
+
+ for (int i = 0; i < n_input; i++) {
+ int rx[4];
+ for (int m = 0; m < 4; m++)
+ rx[m] = coded_in[i * 4 + m];
+
+ for (int s = 0; s < N_STATES; s++)
+ pm_new[s] = INF_M;
+
+ for (int old_state = 0; old_state < N_STATES; old_state++) {
+ if (pm[old_state] >= INF_M)
+ continue;
+ for (int inp = 0; inp < 2; inp++) {
+ int sr = ((old_state << 1) | inp) & 0x1F;
+ int new_state = sr & 0xF;
+ int metric = pm[old_state];
+ for (int m = 0; m < 4; m++) {
+ int e = parity5((uint8_t)(sr & VITERBI_G[m]));
+ if (rx[m] != 2)
+ metric += (e ^ rx[m]);
+ }
+ if (metric < pm_new[new_state]) {
+ pm_new[new_state] = metric;
+ tb_state[i * N_STATES + new_state] = (uint8_t)old_state;
+ tb_input[i * N_STATES + new_state] = (uint8_t)inp;
+ }
+ }
+ }
+ for (int s = 0; s < N_STATES; s++)
+ pm[s] = pm_new[s];
+ }
+
+ /* Traceback from state 0 (encoder ends in state 0 after tail bits).
+  * If best state is not 0 (CRC will fail), still trace from 0 — this
+  * matches encoder convention. */
+ int state = 0;
+ for (int i = n_input - 1; i >= 0; i--) {
+ decoded_out[i] = tb_input[i * N_STATES + state];
+ state = tb_state[i * N_STATES + state];
+ }
+}
+
+/* ========================================================================
+ * Inverse-CRC-Check: input has 268 info + 16 CRC bits = 284 bits.
+ * Run forward CRC over first 268 bits, compare appended 16.
+ * ======================================================================== */
+static int crc16_check(const uint8_t *bits_284)
+{
+ uint16_t crc = 0xFFFF;
+ for (int i = 0; i < 268; i++) {
+ int feedback = (bits_284[i] & 1) ^ ((crc >> 15) & 1);
+ crc <<= 1;
+ if (feedback)
+ crc ^= 0x1021;
+ }
+ crc ^= 0xFFFF;
+ for (int i = 0; i < 16; i++) {
+ int want = (crc >> (15 - i)) & 1;
+ if ((bits_284[268 + i] & 1) != want)
+ return 0;
+ }
+ return 1;
+}
+
+int tetra_codec_schf_decode(const uint8_t *type5_in,
+                            uint8_t colour_code, uint8_t slot_num,
+                            uint16_t mcc, uint16_t mnc,
+                            uint8_t *info_268_out)
+{
+ uint8_t type4[SCHF_CODED_BITS];
+ uint8_t type4d[SCHF_CODED_BITS];
+ uint8_t mother[SCHF_TAIL_BITS * 4];
+ uint8_t decoded[SCHF_TAIL_BITS];
+
+ tetra_codec_descramble(type5_in, SCHF_CODED_BITS, colour_code, slot_num,
+ mcc, mnc, type4);
+ tetra_codec_deinterleave_perm(type4, SCHF_CODED_BITS, 103, type4d);
+ tetra_codec_depuncture_r23(type4d, SCHF_CODED_BITS, mother);
+ tetra_codec_viterbi_r14(mother, SCHF_TAIL_BITS, decoded);
+
+ /* decoded layout: [0..267]=info, [268..283]=CRC, [284..287]=tail (zeros). */
+ memcpy(info_268_out, decoded, SCHF_INFO_BITS);
+
+ return crc16_check(decoded) ? 0 : -1;
 }

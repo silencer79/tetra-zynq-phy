@@ -36,6 +36,10 @@ tetra_sysinfo: tetra_hal.c tetra_hal.h
 tetra_ul_mon: tetra_ul_mon.c tetra_hal.h
 	$(CC) $(CFLAGS) -o $@ $<
 
+ETSI_CODEC_SRC = etsi_codec/sub_cc.c etsi_codec/sub_cd.c \
+                 etsi_codec/ccod_tet.c etsi_codec/cdec_tet.c \
+                 etsi_codec/tetra_op.c etsi_codec/arrays_globals.c
+
 tetra_attach_daemon: tetra_attach_daemon.c tetra_db.c tetra_db.h \
                      tetra_tx_transport.c tetra_tx_transport.h \
                      tetra_grpack_body.c tetra_grpack_body.h \
@@ -43,12 +47,19 @@ tetra_attach_daemon: tetra_attach_daemon.c tetra_db.c tetra_db.h \
                      tetra_cmce_parser.c tetra_cmce_parser.h \
                      tetra_call_fsm.c tetra_call_fsm.h \
                      tetra_voice_filler.c tetra_voice_filler.h \
+                     tetra_voice_pipe.c tetra_voice_pipe.h \
                      tetra_channel_codec.c tetra_channel_codec.h \
+                     tetra_tch_s_codec.c tetra_tch_s_codec.h \
+                     tetra_etsi_tch_s.c tetra_etsi_tch_s.h \
+                     tetra_bs_tch_s.c tetra_bs_tch_s.h \
+                     $(ETSI_CODEC_SRC) etsi_codec/channel.h \
                      tetra_hal.h
-	$(CC) $(CFLAGS) -o $@ tetra_attach_daemon.c tetra_db.c \
+	$(CC) $(CFLAGS) -Ietsi_codec -o $@ tetra_attach_daemon.c tetra_db.c \
 		tetra_tx_transport.c tetra_grpack_body.c tetra_cmce_body.c \
 		tetra_cmce_parser.c tetra_call_fsm.c \
-		tetra_voice_filler.c tetra_channel_codec.c
+		tetra_voice_filler.c tetra_voice_pipe.c tetra_channel_codec.c \
+		tetra_tch_s_codec.c tetra_etsi_tch_s.c tetra_bs_tch_s.c \
+		$(ETSI_CODEC_SRC)
 
 # Host-side regression for tetra_grpack_build() — built with the host gcc
 # (NOT the cross-compiler) so it runs on the build machine.  Run via

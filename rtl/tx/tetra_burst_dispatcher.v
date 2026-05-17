@@ -222,7 +222,7 @@ always @(*) begin
  sel_blk1_w = vfill_blk1_sys;
  sel_blk2_w = vfill_blk2_sys;
  sel_burst_type_w = 1'b0;  // NDB
- sel_ndb2_w = 1'b0;        // NDB1 SCH/F
+ sel_ndb2_w = 1'b0;        // NDB1 (NTS1) — TCH/S voice = gold-konform
  sel_enable_w = 1'b1;
  end else if (sched_active_sys[0] || bus_is_signal(sched_entry_reg_sys0)) begin
  sel_blk1_w = sched_blk1_tn0_sys;
@@ -243,7 +243,7 @@ always @(*) begin
  sel_blk1_w = vfill_blk1_sys;
  sel_blk2_w = vfill_blk2_sys;
  sel_burst_type_w = 1'b0;
- sel_ndb2_w = 1'b0;
+ sel_ndb2_w = 1'b0;  // NDB1 (NTS1) — TCH/S voice = gold-konform (Voice-slot Class)
  sel_enable_w = 1'b1;
  end else if (sched_active_sys[1] || bus_is_signal(sched_entry_reg_sys1)) begin
  sel_blk1_w = sched_blk1_tn1_sys;
@@ -264,7 +264,7 @@ always @(*) begin
  sel_blk1_w = vfill_blk1_sys;
  sel_blk2_w = vfill_blk2_sys;
  sel_burst_type_w = 1'b0;
- sel_ndb2_w = 1'b0;
+ sel_ndb2_w = 1'b0;  // NDB1 (NTS1) — TCH/S voice = gold-konform (Voice-slot Class)
  sel_enable_w = 1'b1;
  end else if (sched_active_sys[2] || bus_is_signal(sched_entry_reg_sys2)) begin
  sel_blk1_w = sched_blk1_tn2_sys;
@@ -285,7 +285,7 @@ always @(*) begin
  sel_blk1_w = vfill_blk1_sys;
  sel_blk2_w = vfill_blk2_sys;
  sel_burst_type_w = 1'b0;
- sel_ndb2_w = 1'b0;
+ sel_ndb2_w = 1'b0;  // NDB1 (NTS1) — TCH/S voice = gold-konform (Voice-slot Class)
  sel_enable_w = 1'b1;
  end else if (sched_active_sys[3] || bus_is_signal(sched_entry_reg_sys3)) begin
  sel_blk1_w = sched_blk1_tn3_sys;
