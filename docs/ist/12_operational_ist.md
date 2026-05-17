@@ -1,148 +1,126 @@
-# IST — Kapitel 12: Operational State (2026-05-14)
+# IST — Kapitel 12: Operational State
+Stand: 2026-05-17
 
-Was läuft AKTUELL auf dem Board, was ist live verifiziert, was ist inert, was ist gar nicht erst eingebaut.
+Was läuft AKTUELL auf dem Board, was ist live verifiziert, was ist offen.
 
 ## Deployed Bitstream
 
 | Item | Value |
 |------|-------|
-| Local `build/tetra_zynq_phy.bit` MD5 | `c281cd12b02f07be744e149864b30347` |
-| Local `build/tetra_zynq_phy.bit.bin` MD5 | `3b4c5150b07443691924edb9e67178c4` |
-| Board `/lib/firmware/tetra_zynq_phy.bit.bin` MD5 | `3b4c5150b07443691924edb9e67178c4` (match) |
-| Build-Zeit local | 2026-05-14 18:45-18:46 |
-| Build-Log | `/tmp/vivado_build_y43_v2.log` |
-| Slice-Utilization (impl) | 96.45 % (LUT 67.58 %, Reg 39.93 %) |
-| Timing | Setup WNS +0.002 ns / Hold WNS +0.018 ns (MET, knapp) |
+| Local `build/tetra_zynq_phy.bit` MD5 | `dfa5db9bcba4e7a6f6d85613506589fc` |
+| Local `build/tetra_zynq_phy.bit.bin` MD5 | `a8e001067b307a4a99dc30fff5720f9c` |
+| Build-Zeit local | 2026-05-17 17:29 |
+| HEAD-Commit | `8b8cb41 fix(rtl): ul_demand_ie_parser shift-register refactor — WNS -0.02→+0.008 ns` |
+| Slice-Utilization (impl) | 98.08 % (LUT 72.14 %, Reg 41.13 %) |
+| Timing | Setup WNS +0.008 ns / Hold WNS +0.019 ns (0 failing endpoints) |
+| Critical Warnings | 24 (ge-tracked, siehe Ch 11) |
 
-## Working-Tree State (uncommitted)
+## Working-Tree State
 
-Last commit: `def6f79 fix(aach): head_match gegen CURRENT emit-TN statt lookahead` (2026-05-13 20:07).
-
-Uncommitted Änderungen (`git status -s`):
-
-**RTL — modified:**
-- `rtl/include/tetra_pdu_class.vh`
-- `rtl/infra/tetra_axi_lite_regs.v` — REG_VOICE_ACTIVE_MASK @ 0x1EC hinzugefügt (Phase Y.4.1)
-- `rtl/lmac/tetra_dl_pdu_builder.v`
-- `rtl/lmac/tetra_mac_resource_dl_builder.v`
-- `rtl/lmac/tetra_mle_registration_fsm.v`
-- `rtl/lmac/tetra_pre_reply_slotgrant.v`
-- `rtl/rx/tetra_rx_chain.v` — UL-Demod-Outputs hinzugefügt (Phase Y.4.2-Hack)
-- `rtl/tetra_zynq_top.v` — voice_capture-Instanz + CMCE-Mux + voice_active_mask CDC (Phase Y.4.1+Y.4.2-Hack)
-- `rtl/tx/tetra_aach_encoder.v` — Y.4.1-fix FN-Rotation (0x32CB/0x22C9/0x2049)
-
-**RTL — new (untracked):**
-- `rtl/rx/tetra_ul_voice_capture.v` — Y.4.2/Y.4.3-Hack-Modul, **inert** (siehe unten)
-
-**Scripts — modified:**
-- `scripts/decode_dl.py`
-- `scripts/vivado_build.tcl` — `tetra_ul_voice_capture.v` in RX-Source-Liste
-
-**SW — modified:**
-- `sw/tetra_attach_daemon` (binary)
-- `sw/tetra_call_fsm.c` + `.h` — `voice_active_mask=0x02` set bei U-SETUP, clear bei U-RELEASE
-- `sw/tetra_cmce_body.c` + `.h`
-- `sw/tetra_hal.h` — `REG_VOICE_ACTIVE_MASK 0x1EC`
-- `sw/tetra_tx_transport.c` + `.h`
-
-**Untracked:** `docs/ist/`, `CLAUDE.md`, `tb/tb_mle_grpack_e2e.v`, `.gen/`, `ip/`, `tetra-kit` (submodule?)
+`refactor/phase-7-groupcall`, clean (außer Submodule `tetra-bluestation`
+dirty mit Cargo.toml-Edits + `bins/tch-s-test/`-Untracked, `sw/test_bs_codec.c`
++ `tetra-kit/` untracked — keine RTL/SW-Diff zum HEAD).
 
 ## Running Daemons auf Board
 
-Via SSH `ps`:
+Via SSH `pgrep -al tetra` (Beispiel-Stand 2026-05-17 17:42 nach `--init`):
 
 | PID | Process | Log |
 |-----|---------|-----|
-| 22933 | `tetra_sysinfo` | `/tmp/tetra_sysinfo.log` |
-| 22959 | `tetra_ul_mon` | `/tmp/tetra_ul_mon.log` |
-| 23065 | `tetra_attach_daemon` | `/tmp/tetra_attach_daemon.log` |
+| ~21936 | `/root/tetra_sysinfo --daemon` | `/tmp/tetra_sysinfo.log` |
+| ~21970 | `/root/tetra_ul_mon` | `/tmp/tetra_ul_mon.log` |
+| ~22107 | `/root/tetra_attach_daemon` | `/tmp/tetra_attach_daemon.log` |
 
-Alle drei via `scripts/deploy.sh --init` Step "Subscriber-DB seeded + daemons" gestartet (setsid).
+Alle drei via `scripts/deploy.sh --init` Step "daemons gestartet" (setsid +
+nohup-äquivalent durch detached-Stdio).
 
-WebUI httpd: laut deploy.sh `WebUI httpd started → http://192.168.2.85/` — nicht in `ps` verifiziert.
+`tetra_attach_daemon` ist der zentrale Worker: schreibt bei Boot
+`REG_VOICE_NUB_SYNC_THRESH = 11` (Boot-Default, ersetzt RTL-Default 8),
+treibt `tetra_call_fsm_tick` (mit Voice-Pipe-Tick pro aktivem Slot)
++ Demand-Mailbox-Service. `tetra_sysinfo` baut SYSINFO-Burst + treibt HN-Advance.
+`tetra_ul_mon` ist Read-only-Monitor für UL-PDU-Inspect.
 
-## AXI-Counter (Stand 2026-05-14 20:00)
+## AXI-Counter (Beispiel frisch nach `--init` 2026-05-17 17:42)
 
-| Reg | Wert | Bedeutung |
-|-----|------|-----------|
-| 0x190 | 0x00100008 | `{accept_cnt=0x0010, ul_req_cnt=0x0008}` — 16 ACCEPTs / 8 ul_req — Discrepancy (mehr accepts als req?) |
-| 0x194 | 0x00010000 | `{busy_sticky=0, drop_cnt=0x0001_0000}` — drop_cnt = 65536 (overflow?) |
-| 0x198 | 0x000001F2 | `{clear_cnt=0x0000, sig_override_cnt=0x01F2}` — 498 sig_override events |
-| 0x1A4 | 0x00000008 | `REG_AST_DETACH_CNT` = 8 detach events seit boot |
-| 0x1B0 | 0x00000000 | `REG_AST_TTL_EVICT_CNT` = 0 (TTL-Sweeper hat nie evicted) |
-| 0x1EC | 0x00000002 | `REG_VOICE_ACTIVE_MASK` = 0x02 → voice_active[1]=1 → TN=1 (air) = decoder-TN=2 |
+| Reg | Wert | Layout / Bedeutung |
+|-----|------|-------------------|
+| 0x190 | `0x00010001` | `{accept_cnt[15:0], ul_req_cnt[15:0]}` = 1/1 (sehr frisch) |
+| 0x194 | `0x00010000` | `{15'b0, busy_sticky, drop_cnt[15:0]}` = drop=0, busy=1 |
+| 0x198 | `0x0000000F` | `{clear_cnt[15:0], inject_cnt[15:0]}` = inject=15 (boot-filler-fills) |
+| 0x1EC | `0x00000000` | `REG_VOICE_ACTIVE_MASK` = 0 (idle, kein aktiver Call) |
+| 0x260 | RO | `REG_VOICE_NUB_RX_CNT` (Call-FSM-Heartbeat) |
+| 0x268 | `0x0000000B` | `REG_VOICE_NUB_SYNC_THRESH = 11` (Boot-Default vom Daemon gesetzt) |
 
-Note: `voice_active_mask = 0x02` ist gerade gesetzt — SW hat ihn bei letzter U-SETUP geschrieben und nie geklärt (oder MS ist noch im Call-State).
+## Live verifiziert (PTT-Air-Test 2026-05-17)
 
-## Live verifiziert (auf RTL-SDR-Capture decode_dl.py 2026-05-14 19:42)
+### Voice-Pfad (Phase C + Phase 7 G.8 + SW-TCH/S-Codec) — funktioniert
 
-Aus `wavs/local_cell_425-440mhz/DL_baseband_438343750Hz_19-42-53_14-05-2026.wav` (20 s):
-- 1415 Bursts decoded, **100 % CRC OK** (1067 SB, 348 NDB)
-- MCC=901 MNC=9998 CC=49, Carrier=1530, DL=438.250 MHz
-- AACH-Pattern auf TN=2 (decoder) während voice_active_mask=0x02:
- - FN 1-9: `0x32CB` (Y.4.1-fix voice TCH/S pattern) ✅
- - FN 10-13: `0x22C9` (FACCH-stealing pattern) ✅
- - FN 14-17: `0x2049` (idle filler) ✅
-- AACH-Encoder Y.4.1-fix FN-Rotation **funktioniert** — die korrekten 3 Pattern werden raus-emittiert.
+3-Run-PTT-Test (kurz, ~3 s je), MS1 → MS2-Group, gleicher Test 10× wiederholt
+für längeren PTT (~10-15 s):
+- **Voice-Pipeline durchläuft kontinuierlich** für Dauer des PTT
+ (~16-19 NUB-Bursts/s, voice_pipe-Heartbeat-Log alle 8 Bursts).
+- **BFI 3-7 %** im Stable-Stand (thresh=11, fast_attack AGC) — bestätigt
+ dass UL-NUB-Capture-Sample-Offsets + Bit-Reverse korrekt sind
+ (`8b0737e` fix).
+- **OpenEAR-Audio-Decoder hört Sprache sauber durch** (Stand 2026-05-17,
+ Setup via RTL-SDR, siehe [reference_audio_monitoring_setup](../../.claude/...)).
+- **Mid-Call-Cuts vom 200-ms-Watchdog beseitigt** durch `VOICE_QUIET_MS=300`
+ (commit `326439d`).
 
-## Was AKTUELL als Hack drinhängt aber inert ist
+### Call-Setup (CMCE Phase 7 G.7/G.8) — funktioniert mit Variabilität
 
-### `tetra_ul_voice_capture.v` (Y.4.2/Y.4.3-Versuch)
+10-Run-Messung U-SETUP → first voice burst:
+- 7/10 Runs: 0.5 – 1.8 s (median ~0.75 s) — normale TETRA-Setup-Latenz
+- 3/10 Runs: 1.3 / 1.8 / **3.6 s** — MS hat erstes U-SETUP nicht ge-ACKed
+ bekommen, retransmit ein- bis zweimal.
 
-Modul ist im Bitstream instanziiert (`u_ul_voice_capture` in zynq_top.v) und konsumiert Slices, aber **pulst `voice_burst_valid_sys` nie**.
+Retransmit-Rate ist offene Baustelle, gehört in den D-CONNECT/AACH-Scheduling-
+Pfad (`tetra_dl_pdu_builder`, `tetra_pre_reply_*`) — NICHT in den
+ul_demand_ie_parser-Refactor. Siehe Memory
+`project_d_connect_retransmit_rate`.
 
-Grund: das Modul nimmt seine UL-Dibits aus `rx_chain.ul_demod_dibit_out_sys`, das im aktuellen Working-Tree-Stand **auf den DL-sync-getriggerten Haupt-Demod** verdrahtet ist (`assign ul_demod_dibit_out_sys = demod_dibit_sys`). Dieser Haupt-Demod-Output ist als Source nicht UL-spezifisch — kommt aber laut Y.4.2-Hack-Kommentar trotzdem an, weil die RX-Antenne UL-Band hört. Aber das Modul triggert seine 432-bit-Capture nur auf `tdma_slot_pulse_sys && voice_active_mask_sys[tn_sys]` — der TDMA-Slot-Pulse-Reference ist DL-side. UL-MS-Burst arrival ist offset durch Propagation + MS-Timing-Advance, also greift die FSM zwar einen 216-Dibit-Fenster, aber nicht den eigentlichen UL-Burst-Payload.
-
-Resultat im decode: TN=2 wird weiter durch den static-schedule-Fallback (SB-SYSINFO) belegt, voice_burst_valid pulst nie, queue-CMCE-Mux fällt auf `nwrk_bcast` (10 s Cadence) → kein Voice-Relay.
-
-### CMCE-Port-Mux in zynq_top.v
-
-Top-Level-Mux (`cmce_port_wr_valid_w = voice_burst_valid_sys_w | nwrk_bcast_push_valid_sys_w`) ist live, aber weil voice_burst_valid nie pulst, wird er praktisch zur Pass-Through-Verbindung von nwrk_bcast zur Queue.
-
-## Was NICHT eingebaut ist
-
-Aus den ursprünglichen Phase-Y.4-Tags im Working-Tree-Code:
-- **Echte UL-NUB-RX-Pipeline** — kein TCH/S-Sync-Korrelator, kein BKN1+BKN2-Extract (STS skip), kein UL-Frame-Counter-Aligned-Capture
-- **Voice-Relay-Buffer** (1-Frame zwischen UL-RX und DL-Emit) — nicht existent
-- **D-TX-CEASED / Hangtime** (FACCH-stealing am Call-Ende) — nicht implementiert
-- **Voice-Channel-Allocated-State-Tracking** außerhalb von voice_active_mask — kein Reservierungsmechanismus für mehrere parallele Calls (UsageMarker hardcoded 11 in `mac_resource_dl_builder`)
-
-## Was bestätigt funktioniert (Stand 2026-05-14)
+### Signaling (Vorgängerverifikationen weiterhin gültig)
 
 1. **Sync-Broadcast (SB/SCH-S)** auf TN=2/3/4 — 100 % CRC OK
 2. **NDB2 NULL-PDU + SYSINFO** auf MCCH (TN=1) — 100 % CRC OK
 3. **F18-Anchor** (BNCH-DMO Pattern) auf TN=0 FN=18
-4. **MS-Attach** (ITSI-Register, MM-Body), bestätigt via `tetra_attach_daemon.log`
-5. **Group-Switch** (mm=7 Frag-1+Frag-2+Pre-Reply+Frag-3+ACK)
-6. **CMCE Group-Call-Setup** bis D-CONNECT: MS akzeptiert, geht in TX-State
-7. **Y.4.1-fix AACH-FN-Rotation** auf voice-slot (decoder-verifiziert)
+4. **MS-Attach** (ITSI-Register, MM-Body) — `tetra_attach_daemon.log:`
+ `serviced #1 — ssi=… result=0 gila_gssi=…`
+5. **Group-Switch** (mm=7 Frag-1+Frag-2 → IE-Parser-GAD-Walker → Reply)
+6. **CMCE Group-Call-Setup** D-CONNECT[3/3] + D-SETUP
+7. **AACH-FN-Rotation auf voice-slot** — `0x32CB` durchgehend FN 1-17
+ während aktivem Call (commit `e8efb31`, ersetzt frühere Y.4.1-Rotation
+ 0x32CB/0x22C9/0x2049)
 
-## Was NICHT funktioniert (Air-Test 2026-05-14 19:42)
+## Test-Setup-Hinweis
 
-1. **Audio-Relay** zwischen zwei MS in derselben Gruppe — kein DL-Voice-Burst-Content, MS sendet zwar UL-Voice (Y.4.1-fix sorgt dafür dass MS-TX-State stabil bleibt), aber andere MS hört nichts
-2. **UL-NUB-Decode** in `tetra_ul_mon` — der parst nur SCH/HU-Signaling, keine TCH/S-Voice
+**Nur 1 MS pro BS im aktiven Setup**, Audio-Monitoring läuft via RTL-SDR
++ Software-Decoder (OpenEAR + SDR# TETRA Plugin). KEIN zweites MS-Endgerät
+als Audio-Empfänger im Test-Loop. Für valide DL-Audio-Aussagen gilt
+**OpenEAR als Referenz** — das SDR# TETRA Plugin hat eigene Limits
+(Stand 2026-05-17 z.B. Sync-Drop nach 5 s sichtbar, OpenEAR liefert weiter).
+Details: Memory `reference_audio_monitoring_setup`.
+
+## Verifizierte WAV-Captures
+
+| Datei | Inhalt | Notiz |
+|-------|--------|-------|
+| `wavs/local_cell_425-440mhz/DL_baseband_438343750Hz_14-16-32_17-05-2026.wav` | 30 s DL @ 250 kHz | 759 decoded, 161 voice-frames (Vlast-Slot-NDB1 = TCH/S, CRC-FAIL by-design, ~10 s durchgehend) |
+| `wavs/local_cell_425-440mhz/UL_baseband_428156250Hz_14-16-33_17-05-2026.wav` | 30 s UL @ 250 kHz | 3 PDUs (U-ITSI-DETACH, U-DISABLE-STATUS) — wenig UL-Signaling im Capture-Fenster |
 
 ## Operatorische Konstanten
 
 | Parameter | Wert |
 |-----------|------|
-| Board IP | 192.168.2.85 |
+| Board IP | **192.168.2.90** (Stand 2026-05-17, ändert sich per DHCP nach Reboot — Memory `reference_board_ip`) |
 | Board SSH | root / openwifi |
 | AXI Base | 0x43C00000 |
 | RX LO | 428.249998 MHz (UL band — BS hört MS) |
 | TX LO | 438.249998 MHz (DL band — BS sendet) |
 | Sample-Rate | 4 607 999 sps (~4.608 MSPS) |
-| RF-Bandwidth | 200 kHz |
-| Gain-Mode | fast_attack |
+| RF-Bandwidth | 200 kHz (AD9361-Minimum, hardware-clamp) |
+| RX-Gain-Mode | `fast_attack` (manual/slow_attack 2026-05-17 verworfen — BFI 46-58 %) |
 | Cell-Params | MCC=901 MNC=9998 CC=49 LA=1 Carrier=1530 |
-| Init-Script | `scripts/deploy.sh --init` |
+| Init-Script | `scripts/deploy.sh --init` (full pipeline) oder `--no-build --init` (nur SW-redeploy) |
 | Daemon-Logs | `/tmp/tetra_{sysinfo,ul_mon,attach_daemon}.log` |
-| WebUI | http://192.168.2.85/ |
-
-## Letzter erfolgreicher Air-Test
-
-WAV: `wavs/local_cell_425-440mhz/DL_baseband_438343750Hz_19-42-53_14-05-2026.wav`
-- 20 s RTL-SDR-Capture, fs=250 kHz, center 438.34375 MHz
-- decode_dl.py: 1415/1416 Bursts (99.93 %), 1 empty
-- MER (DLL-style): 0.07 %
-- Air-AACH-Pattern entspricht Y.4.1-fix-Logik
+| WebUI | http://192.168.2.90/ |

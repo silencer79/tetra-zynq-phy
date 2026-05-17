@@ -1,6 +1,17 @@
 # IST — Kapitel 6: LMAC Signaling FSMs
-Stand: 2026-05-14
-Quelle: rtl/lmac/tetra_{mle_registration_fsm,pre_reply_blck,pre_reply_slotgrant,dl_nwrk_broadcast}.v
+Stand: 2026-05-17
+Quelle: rtl/lmac/tetra_{mle_registration_fsm,pre_reply_blck,pre_reply_slotgrant,dl_nwrk_broadcast,ul_demand_ie_parser}.v
+
+> **Hinweis 2026-05-17:** `tetra_ul_demand_ie_parser.v` ist physisch in
+> `rtl/lmac/` (formal LMAC), wird aber wegen UL-Pipeline-Kontext in
+> [Ch 4 / UL RX](04_ul_rx.md) gelistet. **Shift-Register-Refactor**
+> (commit `8b8cb41`): body_buf MSB-aligned LEFT-SHIFT, alle Reads auf
+> fixe Positionen (`body_buf[128 -: W]`), cursor wird reiner
+> bits-remaining Counter. GAD-GIU-Walker bekommt eigene `gad_buf[255:0]`
+> Snapshot. Resultat im Vivado-Build: WNS Setup −0.020 → +0.008 ns
+> (11 failing → 0 failing endpoints). Verifikation: `tb_ul_demand_ie_parser`
+> (26/26 PASS) + `tb_ul_demand_ie_parser_mm7` (44/44 PASS), on-air
+> 10 PTT-Runs durch.
 
 ---
 
@@ -386,3 +397,10 @@ durch inline-Reg-Variablen.
 - **`unused_ports` als OR-Senke:** Nur in `tetra_mle_registration_fsm.v`
  (Z.188-196, `synthesis translate_off`). Die anderen drei Module haben
  keine vergleichbare Senke.
+- **`tetra_sch_hd_encoder` Doppel-Instanziierung** (2026-05-17 Util-Audit):
+ zwei vollwertige FSM-Kopien in `tetra_pre_reply_slotgrant.v:160` und
+ `tetra_pre_reply_blck.v:128` (zusammen ~2400 LUT). Encoder ist sequenziell
+ (~486 Cycles/Encode bei 100 MHz = 5 µs); inter-slot-Distance ist
+ ~14 ms, also könnte EINE zentrale Instanz beide Reply-Pfade locker
+ serialisieren. Konsolidierung wäre ~1000 LUT save — vorgemerkt als
+ nächste Util-Optimierung neben `u_slot_content_mux` Pipelining.

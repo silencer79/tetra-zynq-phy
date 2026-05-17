@@ -1,6 +1,6 @@
 # IST — Kapitel 5: DL TX Datapath + Channel Coding
-Stand: 2026-05-14
-Quelle: rtl/tx/*.v + rtl/lmac/tetra_{crc16,reed_muller,interleaver,scrambler,rcpc_encoder,sch_*_encoder,mac_resource_*,dl_*,chan_alloc_encoder,basic_slotgrant_encoder,d_location_update_*}.v
+Stand: 2026-05-17
+Quelle: rtl/tx/*.v + rtl/lmac/tetra_{crc16,reed_muller,interleaver,scrambler,rcpc_encoder,sch_*_encoder,mac_resource_*,dl_*,chan_alloc_encoder,basic_slotgrant_encoder,d_location_update_*,voice_filler_mailbox}.v
 
 ## Inhaltsverzeichnis
 
@@ -153,7 +153,7 @@ Quelle: rtl/tx/*.v + rtl/lmac/tetra_{crc16,reed_muller,interleaver,scrambler,rcp
 **Nachbarn:** ↑ tetra_zynq_top. ↓ Keine.
 **Auffälligkeiten:** 
 - Default-Logic enthält viele hardcodierte Per-Slot-Patterns (0x0049/0x0249/0x0040/0x2249/0x0009/0x2049/0x3000) mit Kommentar-Hinweisen "bit-genau 2026-05-04 Audit".
-- Voice-Active-Mask-Pfad (`voice_active_mask_sys[tn_sys]`) rotiert je nach FN: 0x32CB (FN1-9), 0x22C9 (FN10-13), 0x2049 (FN14-17). Kommentar tagged als "Phase Y.4.1-fix ( #6100..#6168 bit-exact, 2026-05-14)".
+- Voice-Active-Mask-Pfad (`voice_active_mask_sys[tn_sys]`): **Stand 2026-05-17 (commit `e8efb31`):** **0x32CB durchgehend FN 1-17** auf aktivem Voice-Slot, unabhängig vom emittierten Burst-Typ (NDB1 voice ODER NDB2 SCH/HD signalling). 0x32CB ist der **Voice-Call-Allocation-Marker** (CapAlloc), nicht ein Burst-Encoding-Indicator. Frühere FN-Rotation (0x32CB FN1-9, 0x22C9 FN10-13, 0x2049 FN14-17) war eine Fehl-Annahme — die echte BS sendet 0x32CB konstant für die Dauer des Calls; 0x22C9/0x2049 gelten für Transition/Idle-Slots, nicht für aktiven Voice-Call. FN 18 (fn_sys=17) bleibt BSCH-Anchor wie zuvor.
 - Grant-Override-Pfad (H.6.3): nur auf F1-17 TN=0 idle (`!signalling_active_sys`), pulst `grant_consume_sys` 1 Zyklus.
 - Kommentar dokumentiert "Phase Z.13 (2026-05-04): the Z.2/Z.12 `aach_override_valid_sys` + `aach_override_info_sys` inputs were removed" — Queue-PDU-AACH läuft via tetra_aach_rm_encoder Top-Level.
 - `RM_ROW`-Werte stammen aus `sw/tetra_hal.c` RM_30_14_GEN.
@@ -278,6 +278,7 @@ Quelle: rtl/tx/*.v + rtl/lmac/tetra_{crc16,reed_muller,interleaver,scrambler,rcp
 - `tx_busy_sys` Input ist im Code unbenutzt (`_unused_dispatcher_sys = tx_busy_sys` Keepalive, "reserved future use").
 - `default:`-Branch im `case (tx_slot_num_sys)` ist unreachable (alle 4 Werte abgedeckt) aber expliziert.
 - bb_in_sys + sb_sb1_in_sys werden bei `sel_enable_w==0` zu 0 gemultiplext (Body); BB hingegen broadcasted immer (`build_bb_sys <= bb_in_sys`).
+- **Phase 7 G.8 Voice-Filler-Override (commit `80986b7`):** auf aktivem Voice-Slot (gegated `voice_active_mask_sys[tn] & vfill_valid_sys`) überschreibt der dispatcher den scheduler/static-Pfad mit dem 432-bit Burst aus `tetra_voice_filler_mailbox.v` (`vfill_blk1/2_sys`). Damit kann SW (`tetra_voice_pipe.c`) pro UL-NUB-Frame einen frischen DL-Voice-Burst nachschieben, ohne den Scheduler zu touchieren. Wenn `voice_active_mask=0` ODER `vfill_valid=0`: Dispatcher fällt auf normalen Static/Scheduler-Pfad zurück. Voice-Relay-RTL (`tetra_voice_relay.v` aus früherer Phase) ist nicht mehr im DL-Pfad — Voice-Path läuft komplett durch SW (`8b0737e`/`80986b7`/`e8efb31`).
 
 ### tetra_burst_builder.v (316 Zeilen)
 **Ports:** `clk_sys, rst_n_sys, sym_en_ext_sys, block1_data_sys[215:0], block2_data_sys[215:0], bb_data_sys[29:0], sb1_data_sys[119:0], burst_type_sys, burst_ndb2_sys, build_req_sys → tx_dibit_sys[1:0], tx_dibit_valid_sys, tx_done_sys, tx_busy_sys`.

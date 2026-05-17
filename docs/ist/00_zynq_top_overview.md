@@ -1,4 +1,5 @@
 # IST 00 — tetra_zynq_top Übersicht
+Stand: 2026-05-17
 
 Quelle: `rtl/tetra_zynq_top.v` (3949 Zeilen). Top-Level der PL-Logik, vom BD
 über `tetra_system_wrapper` (siehe `rtl/tetra_system_top.v`) instanziiert.
@@ -60,9 +61,12 @@ In Reihenfolge des Auftauchens in `tetra_zynq_top.v`:
 | 2983 | `u_demand_mailbox` | `tetra_demand_mailbox` | mm=2 UL-Demand Snapshot (Phase X.1) |
 | 3162 | `u_reply_mailbox` | `tetra_reply_mailbox` | SW-pulled Reply (Phase X.2) |
 | 3277 | `u_grp_demand_mailbox` | `tetra_grp_demand_mailbox` | mm=7 Group-Attach Demand (Phase Y.1.b) |
+| 3337 | `u_voice_filler_mailbox` | `tetra_voice_filler_mailbox` | Phase 7 G.8 — DL voice-slot SCH/F filler-Mailbox (16 × 32-bit, indirect; gated mit voice_active_mask im burst_dispatcher) |
 | 3364 | `u_tx_slot_schedule` | `tetra_slot_schedule` | Dual-Port BRAM für Schedule (Port A=AXI, Port B=clk_sys) |
-| 3586 | `u_ul_voice_capture` | `tetra_ul_voice_capture` | Phase Y.4.2/Y.4.3 — UL-Voice-Slot Capture + Forward |
+| 3429 | `u_voice_nub_read_mailbox` | `tetra_voice_nub_read_mailbox` | Phase C — UL NUB type-5 bits buffer für SW-poll (single-entry) |
 | 3642 | `u_sb1_encoder` | `tetra_sb1_encoder` | BSCH (SB1) Encoder, 120-bit coded |
+
+> **Hinweis 2026-05-17:** Die Y.4.2/Y.4.3 voice-capture-Hacks (`tetra_ul_voice_capture.v`, CMCE-port-Mux in zynq_top, Y.4.2 UL-demod-Outputs in `rx_chain`) sind in Phase A.1 Rollback **entfernt**. Aktueller Voice-Pfad ist Phase C: `tetra_ul_nub_capture` (in `rx_chain`, NICHT in zynq_top instanziiert) → `tetra_voice_nub_read_mailbox` → SW (`sw/tetra_voice_pipe.c`) → `tetra_voice_filler_mailbox` → `tetra_burst_dispatcher` voice-gate. Siehe Ch 4, Ch 9.
 | 3752 | `u_aach_rm_slot` | `tetra_aach_rm_encoder` | Combinational AACH-RM-Encoder für Queue-Head |
 | 3760 | `u_aach_encoder` | `tetra_aach_encoder` | Default-Logic AACH-Encoder (Idle/F18/Grant/Voice) |
 
@@ -174,13 +178,25 @@ head_aach_coded_sys_w[29:0] — vom u_aach_rm_slot (combinational RM(30,14))
 aach_lfsr_init_sys_w[31:0] — Shared Scrambler-Init {MCC, MNC, CC, 2'b11}
 ```
 
-### Voice-Burst Wires (Phase Y.4.2)
+### Voice-Burst Wires (Phase C + Phase 7 G.8, Stand 2026-05-17)
+
+Die Y.4.2-Wires (`ul_demod_dibit_sys_w`, `voice_burst_*`) sind in A.1
+Rollback entfernt. Aktueller Voice-Pfad:
+
 ```
-ul_demod_dibit_sys_w[1:0], ul_demod_valid_sys_w — vom u_rx_chain
-voice_burst_valid_sys_w, voice_burst_coded_sys_w[431:0]
-voice_burst_target_tn_sys_w[1:0], voice_burst_aach_sys_w[13:0]
-voice_burst_pdu_type_sys_w[1:0]
-voice_active_mask_sys_r1[3:0] — CDC vom AXI Register 0x1EC
+voice_active_mask_sys_r1[3:0]  — CDC vom AXI 0x1EC; gated burst_dispatcher voice-slot
+voice_nub_sync_thresh_sys      — CDC vom AXI 0x268; ans 2. ul_sync_detect_os4 (NUB)
+
+UL-Pfad (in rx_chain):
+  u_ul_sync_detect_os4 (NUB instance) → sync_found_sys
+  → u_ul_nub_capture (NTS1-aligned BKN1+BKN2 demod)
+  → voice_nub_read_mailbox (single-entry buffer, AXI 0x280..0x28C)
+
+DL-Pfad (in zynq_top):
+  voice_filler_mailbox (16-word indirect, AXI 0x270..0x27C)
+  → vfill_blk1/2_sys, vfill_valid_sys → burst_dispatcher
+  → burst_dispatcher overridet sched/static-Pfad falls
+    voice_active_mask[tn] & vfill_valid (Phase 7 G.8)
 ```
 
 ### MAC-Resource SchedHD-Pre-Reply Wires
@@ -368,26 +384,35 @@ aach_coded_slot_sys_w = head_match_aach_sys ? head_aach_coded_sys_w
 (queue_head_target_tn_w == tx_tn_next_sys)`, plus `voice_active_mask_sys_r1`,
 `grant_pending_sys_r1`, `grant_info_sys_r1`, `grant_consume_sys_w`.
 
-## Phase Y.4 Voice-Pfad
+## Voice-Pfad (Stand 2026-05-17)
 
-Drei Phasen-Tags Y.4.1, Y.4.2, Y.4.3 werden im aktuellen Code unterschiedlich
-genutzt:
+Y.4.1 ist `REG_VOICE_ACTIVE_MASK` + AACH-Logik (LIVE). Y.4.2/Y.4.3
+(UL-voice-capture + CMCE-Port-Forward) sind **entfernt** (A.1 Rollback).
+Aktueller Voice-Pfad ist **Phase C (UL-NUB-Capture) + Phase 7 G.8
+(DL-Voice-Filler)**, gesteuert komplett durch SW (TCH/S-Codec auf ARM,
+siehe Ch 9):
 
-- **Y.4.1 (Live):**
+- **Y.4.1 (Live, unverändert):**
  - Register `REG_VOICE_ACTIVE_MASK @ 0x1EC` (R/W 4-bit).
- - CDC → `voice_active_mask_sys_r1[3:0]` (Z. 3571–3580).
- - Konsumiert von `u_aach_encoder.voice_active_mask_sys` (TN-bit selektiert FN-Rotation: voice 0x32CB / FACCH 0x22C9 / idle 0x2049).
-- **Y.4.2 (Live, Capture-Pfad):**
- - `u_ul_voice_capture` (Z. 3586) bekommt `ul_demod_dibit_sys_w/valid_sys_w` aus `u_rx_chain`.
- - Slot-Selection via `tdma_slot_pulse_sys/tdma_tn_now_sys/tdma_fn_now_sys` und `voice_active_mask_sys_r1`.
- - Outputs: `voice_burst_valid_sys_w/coded_sys_w[431:0]/target_tn_sys_w/aach_sys_w/pdu_type_sys_w`.
-- **Y.4.3 (Live, Forward-Pfad):**
- - Voice-Burst geht in den CMCE-Port der Queue (Mux mit NWRK-BCAST, Voice gewinnt).
- - AACH-Tag in `cmce_port_wr_aach_pattern_w` ← `voice_burst_aach_sys_w`.
+ - CDC → `voice_active_mask_sys_r1[3:0]`.
+ - Konsumiert von `u_aach_encoder.voice_active_mask_sys` — sendet
+   **`0x32CB` durchgehend FN 1-17** auf aktivem Voice-Slot (siehe Ch 5).
+   Frühere Rotation 0x32CB/0x22C9/0x2049 war Drift, gefixt in `e8efb31`.
 
-Es gibt im aktuellen RTL KEINEN `Y.4.2-Hack-`/`Y.4.3-inert-`-Marker — beide
-Pfade sind verdrahtet, kein toter Code dokumentiert. Die Kommentare nennen
-`Y.4.2/Y.4.3` häufig zusammen (Z. 256–263, 2363–2376, 3582–3601).
+- **Phase C UL-NUB-Capture (Live, in `u_rx_chain` instanziiert):**
+ - `tetra_ul_sync_detect_os4` zweite Instanz mit NTS1-Pattern → `sync_found`
+ - `tetra_ul_nub_capture` → 432 type-5 Bits BKN1+BKN2 (Ch 4)
+ - `u_voice_nub_read_mailbox` (Z. 3429) buffer-stellt für SW
+
+- **Phase 7 G.8 DL-Voice-Filler (Live, top-level):**
+ - `u_voice_filler_mailbox` (Z. 3337) — SW (per `sw/tetra_voice_pipe.c`)
+   schreibt 432-bit re-encoded burst pro UL-NUB-Frame
+ - `tetra_burst_dispatcher` overridet sched/static auf voice-slot wenn
+   `voice_active_mask & vfill_valid`
+
+Es gibt keinen RTL-Voice-Relay mehr — `tetra_voice_relay.v` ist seit
+`e8efb31` aus dem DL-Pfad raus. Die `REG_VOICE_RELAY_CNT @ 0x264`-Telemetrie
+bleibt als Stub (deprecated, siehe Ch 8).
 
 ## CDC-Brücken
 

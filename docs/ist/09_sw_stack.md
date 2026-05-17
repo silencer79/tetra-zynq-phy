@@ -1,6 +1,6 @@
 # IST — Kapitel 9: SW Stack
-Stand: 2026-05-14
-Quelle: alle Dateien in sw/
+Stand: 2026-05-17
+Quelle: alle Dateien in sw/ inkl. `sw/etsi_codec/`
 
 Dieses Kapitel beschreibt nur das, was die Quellen unter `sw/` heute tatsaechlich
 implementieren. Es ist kein Design-Dokument und keine Spezifikation. Bei
@@ -158,14 +158,20 @@ hyperframe++ → refresh".
  letzte stderr-Zeile.
 - Log: `/tmp/tetra_attach_daemon.log`.
 
-**Boot-Init** (Zeile 327…372):
+**Boot-Init** (Zeile 327…390):
 - arg parse `[--db-path PATH]` (default `TETRA_DB_DEFAULT_PATH = "/root/db.tsv"`).
 - `tetra_hal_init()` (lokal definiert, Zeile 48-56).
 - `signal(SIGINT/SIGTERM, on_sigint)`.
 - `tetra_db_load(db_path)` → in-RAM Tabelle.
 - `REG_REPLY_USE_SW (0x230) = 0x1` (Mailbox-Pull aktivieren).
+- **MER-Fix:** `REG_VOICE_ACTIVE_MASK (0x1EC) = 0x00` (clear ggf. von
+ vorherigem Call hängenden Mask-Bits).
+- **2026-05-17:** `REG_VOICE_NUB_SYNC_THRESH (0x268) = 11u` (Boot-Default,
+ ersetzt RTL-Default 8). 11 ist Sweet-Spot aus Survey: BFI 4.7 % bei
+ saubererem Burst-Rate (~19/s real vs ~28/s false-positives bei thresh=10).
+ Siehe `reference_nub_sync_thresh` Memory.
 - Stderr-Log: "tetra_attach_daemon: started — USE_SW=1, polling
- REG_DEMAND_STATUS, policy=0xN".
+ REG_DEMAND_STATUS, policy=0xN, VOICE_ACTIVE_MASK=0, NUB_SYNC_THRESH=11".
 
 **Main loop** (Zeile 375…572):
 
@@ -453,54 +459,193 @@ class(3) + addr_type(2) + gssi(24)`, dann `trailing_m=0`.
 
 ---
 
-### sw/tetra_call_fsm.c (268 Zeilen)
+### sw/tetra_call_fsm.c (445 Zeilen, Stand 2026-05-17)
 
 **Zweck:**
 Per-SSI Group-Call State Machine. Dispatcht UL-CMCE-PDUs auf DL-Replies
-via `tetra_tx_submit()`. MVP-Implementierung.
+via `tetra_tx_submit()`, hält pro Slot Call-State, treibt VOICE_ACTIVE_MASK
+Lifecycle inkl. Watchdog. MVP-Implementierung, evolviert nach Phase 7 G.7+G.8.
 
 **Aufrufer:**
-- `sw/tetra_attach_daemon.c` Zeile 431: `tetra_call_fsm_handle(&hal,
- cmce_ssi, &p)` nach jedem CRC-OK CMCE-PDU.
+- `sw/tetra_attach_daemon.c`: `tetra_call_fsm_handle(&hal, cmce_ssi, &p)`
+ nach jedem CRC-OK CMCE-PDU. Zusätzlich `tetra_call_fsm_tick(&hal)` im
+ Daemon-Mainloop (~10 ms cadence) für den VOICE_ACTIVE_MASK-Watchdog.
 
 **Wichtige Funktionen:**
-- `find_slot(ssi)` / `alloc_slot(ssi)` / `free_slot(s)` — verwalten
- `g_slots[CALL_FSM_MAX_CALLS=8]` Array. CallId aus monoton-Counter
- `g_next_call_id` mod 14 bit.
-- `nsnr_step_bs(s)` — BS-side NS toggle pro emittiertem BL-ADATA-Frame
- (NR bleibt unverändert).
+- `find_slot(ssi)` / `alloc_slot(ssi)` / `free_slot(s)` — `g_slots[8]`.
+- `mask_write_cached(hal, v)` — schreibt `REG_VOICE_ACTIVE_MASK (0x1EC)`
+ nur wenn sich der Wert geändert hat (vermeidet AXI-Spam).
+- `nsnr_step_bs(s)` — BS-side NS toggle pro emittiertem BL-ADATA-Frame.
 - `stage_d_call_proceeding`, `stage_d_setup`, `stage_d_connect`,
  `stage_d_tx_granted`, `stage_d_release` — bauen je eine `tx_pdu_meta_t`
  und rufen `tetra_tx_submit(hal, TX_D_*, &m)` auf.
 - `tetra_call_fsm_handle(hal, ssi, *p)` — Dispatcher:
- - `CMCE_U_SETUP`: alloc slot wenn noch nicht da, group_gssi aus
- `called_party_ssi` setzen, hook/sd aus MS übernehmen,
- state=CONNECTING, dann **3× D-CONNECT** in Folge (Phase 7 G.7 -
- konform, KEIN D-CALL-PROCEEDING, KEIN D-SETUP), dann
- `REG_VOICE_ACTIVE_MASK (0x1EC) = 0x02` (Phase Y.4.1), state=CONNECTED.
- - `CMCE_U_TX_DEMAND`: NS toggle, `stage_d_tx_granted`, state=TALKER.
- - `CMCE_U_TX_CEASED`: state→CONNECTED, `tetra_tx_submit(TX_D_TX_CEASED)`
- an Group-GSSI broadcast.
+ - `CMCE_U_SETUP`: alloc slot wenn neu. Phase 7 G.8 unterscheidet
+   **Group-** vs **Individual-Call** anhand `called_party_type_ssi`
+   im U-SETUP — `group_gssi` ODER `target_issi` wird gesetzt
+   (mutually exclusive). Dann **3× D-CONNECT** in Folge (Phase 7 G.7),
+   anschließend **1× D-SETUP** an `group_gssi` für Group-Call (oder
+   `target_issi` für Individual). `tetra_voice_filler_clear()` +
+   `REG_VOICE_ACTIVE_MASK = 0x02`, state=CONNECTED.
+ - `CMCE_U_TX_DEMAND`: NS toggle, `stage_d_tx_granted`,
+   `REG_VOICE_ACTIVE_MASK = 0x02` (re-key falls Watchdog 0 gesetzt
+   hatte), state=TALKER.
+ - `CMCE_U_TX_CEASED`: state→CONNECTED, broadcast D-TX-CEASED an
+   Group-GSSI bzw. ISSI für Individual.
  - `CMCE_U_RELEASE`: NS toggle, `stage_d_release` mit MS-cause,
- `REG_VOICE_ACTIVE_MASK = 0x00`, free_slot.
- - Default: return -2.
+   `tetra_voice_filler_clear()`, `REG_VOICE_ACTIVE_MASK = 0x00`,
+   `free_slot`.
+- `tetra_call_fsm_tick(hal)` — pro Daemon-Mainloop-Iteration aufgerufen:
+ - Liest `REG_VOICE_NUB_RX_CNT` (0x260), trackt `nub_quiet_ms` seit
+   letztem Increment.
+ - Iteriert alle aktiven Slots, ruft pro Slot `tetra_voice_pipe_tick`
+   für den richtigen Voice-Target (gssi oder issi).
+ - Refresht `last_activity_poll_cnt` bei jedem NUB-Bump.
+ - 1 Hz Heartbeat-Log mit `slot/ssi/state/mask/nub_cnt/quiet_ms/age_ms`
+   (für PTT-Diagnose).
+ - **3 Wege zu `mask=0`:** (a) `active == 0` (kein Slot mehr), (b)
+   `nub_quiet_ms > VOICE_QUIET_MS` (Channel-off-Watchdog), (c) Slot-Stale
+   `age > CALL_STALE_MS` triggert `free_slot` + voice_filler_clear.
+ - Jeder mask→0-Transition wird mit Reason geloggt (WATCHDOG-Zeile).
 - `tetra_call_fsm_dump()` — Diagnose-Print aller Slots auf stderr.
 
-**Konstanten** (header tetra_call_fsm.h):
+**Konstanten** (header `tetra_call_fsm.h`):
 - `CALL_FSM_MAX_CALLS = 8`.
+- `CALL_FSM_VOICE_QUIET_MS = 300u` — nach 300 ms NUB-Stille → mask=0
+ (DL-Channel dicht). Toleriert ~5 verlorene Bursts in Folge. Vorgeschichte:
+ erst 500 (commit `00228e7`), dann 200 (`cccf4a9`), seit `326439d` 300 als
+ sweet-spot zwischen Müll-Reduktion und Robustheit gegen Single-Gap-Cuts.
+- `CALL_FSM_CALL_STALE_MS = 5000u` — nach 5 s kein NUB → Slot freigeben
+ (MS power-cycle / RF-Drop ohne U-RELEASE). Lang genug für Re-Key ohne
+ neuen U-SETUP-Roundtrip.
 - States: `IDLE=0, CONNECTING=1, CONNECTED=2, TALKER=3, RELEASING=4`.
 
-**Auffaelligkeiten:**
-- Drei Inline-Kommentare zu MVP-Simplifications (Zeile 8-13): keine
- CallId-Collision-Check, D-CALL-PROCEEDING geskippt, kein Timer-Release,
- 1 Talker / call.
-- `stage_d_connect` Zeile 107-124: schreibt verifizierte Werte
- (call_time_out=0 Infinite, call_ownership=0, call_priority=1).
-- `stage_d_setup` (Zeile 86-105) existiert im Code, wird aber im
- CMCE_U_SETUP-Handler NICHT mehr aufgerufen — drei D-CONNECT-Retransmits
- ersetzen den vorigen 3-Stage-Sequenz.
-- D-TX-CEASED Zeile 219-237: broadcastet an Group-GSSI, sonst retried
- MS U-TX-CEASED bis zu 10x.
+**Auffälligkeiten / aktuelle Bugs:**
+- D-CONNECT-Retransmit-Rate auf Air: 3/10 PTTs (= 30 %) erleben
+ MS-Retransmit weil erstes U-SETUP nicht rechtzeitig ge-ACKed wurde
+ (worst gemessen 3.6 s PTT-bis-Audio). Liegt vermutlich im
+ DL-PDU-Builder oder AACH-Scheduling, nicht im FSM hier. Siehe Ch 12.
+- HB-Logs sind verbose (1 Hz pro aktivem Slot) — nützlich für Live-PTT-
+ Diagnose, sollten aber bei stable PTT-Pfad evtl. via Debug-Flag
+ gedrosselt werden.
+
+---
+
+### sw/tetra_voice_filler.c + .h (158 + 37 Zeilen, Phase 7 G.8)
+
+**Zweck:**
+DL-Voice-Slot-Filler-Initialinstallation. Encodet einmalig eine MAC-RESOURCE
+NULL-PDU adressiert an die Group-GSSI als SCH/F type-5 Burst (432 Bits) und
+schreibt sie in die `REG_VOICE_FILLER_*`-Mailbox. MS sieht damit auf dem
+Voice-Slot kontinuierlich eine valid-CRC-Group-Allocation-Burst, was dem
+0x32CB-AACH-Voice-Marker entspricht und PTT-Stabilität sichert.
+
+**Funktionen:**
+- `tetra_voice_filler_install(hal, group_gssi)` — baut PDU via
+ `build_mac_resource_null_pdu`, encodet mit `tetra_codec_schf_encode`
+ (CRC+conv+interleave+scramble), packt 432 Bits in 14 Worte LSB-first,
+ schreibt 0x270 INDEX + 0x274 DATA pro Wort, dann W14[0]=1 (filler_valid),
+ plus 0x278 GO-Puls.
+- `tetra_voice_filler_clear(hal)` — schreibt W14[0]=0, deaktiviert Filler-
+ Auswahl im RTL-Dispatcher.
+
+**Aufrufer:**
+- `tetra_call_fsm.c::tetra_call_fsm_handle` ruft `_clear` auf bei
+ U-SETUP-Start (vor mask=0x02), U-RELEASE, und im Watchdog-Slot-Free-Pfad.
+- `_install` aktuell nicht im FSM aufgerufen — Filler wird **per voice-
+ pipe-tick** kontinuierlich überschrieben mit echten Re-Encoded-Voice-Frames
+ (siehe nächste Sektion). `_install` ist als Fallback-/Setup-Helper
+ erhalten.
+
+**SCH/F-Encoder-Chain:**
+- `build_mac_resource_null_pdu`: PDU-Type=0 (MAC-RESOURCE), LengthInd=62
+ (NULL-PDU), AddrType=001 (SSI), 24-bit Group-GSSI, alle Optional-Flags=0.
+- `tetra_codec_schf_encode`: CRC16 + RCPC + 24×18 block-interleave + scramble
+ mit Cell-spezifischem LFSR-Init `{MCC,MNC,CC,2'b11}`.
+
+---
+
+### sw/tetra_voice_pipe.c + .h (153 + 34 Zeilen, Phase 7 G.8 + Phase B)
+
+**Zweck:**
+UL→DL Voice-Bit-Pipeline. Pro UL-NUB-Burst (verfügbar via
+`REG_VOICE_NUB_READ_STATUS=1`) liest 432 type-5 Bits aus der Read-Mailbox
+(0x280/0x284), läuft den vollen ETSI TCH/S Decode (descramble + block-
+deinterleave + depuncture + Viterbi + CRC → 274-bit ACELP), patcht keinen
+SSI mehr (Voice-ACELP hat keinen MAC-Header), re-encodet auf 432 type-5
+Bits und schreibt in die Voice-Filler-Mailbox (0x270 INDEX, 0x274 DATA,
+0x278 GO).
+
+**Funktionen:**
+- `tetra_voice_pipe_tick(hal, target_ssi)` — eine Pipeline-Iteration.
+ Returns 0 wenn kein Burst pending, 0 sonst.
+ - `target_ssi` ist im Code aktuell ungenutzt (`(void)target_ssi`) — der
+   Decode/Encode-Roundtrip ändert die ACELP-Payload nicht, nur die
+   Bit-Genauigkeit (FEC räumt UL-Bitfehler auf). Adress-Patching wird in
+   späterer Phase relevant wenn Voice-Header eingeführt wird.
+- Selftest bei erstem Aufruf: `encode → decode silence` → `bfi=0, diff_bits=0`
+ wird einmalig auf stderr geloggt (Sanity-Check des Codec-Wrappers).
+
+**Logging (2026-05-17 instrumentation):**
+- Alle 8 Bursts (~0.5 s bei 16/s) eine Zeile:
+ `voice_pipe: t=<mono_ms>ms bursts=N bfi_fail=M (= P%)`.
+- Timestamp via `clock_gettime(CLOCK_MONOTONIC)` — zur Korrelation mit
+ ul_mon-Wall-Time bei PTT-Delay-Messungen.
+
+**Bit-Order:**
+- RTL `coded_bits_sys[431] = first BKN1 bit on air`. Mailbox kopiert
+ LSB-first pro Wort. SW `read_nub_bits` macht **bit-reverse**:
+ `type5[431 - (base + b)] = (word >> b) & 1`, so dass `type5[0]` =
+ first-on-air für den BS-Codec.
+- Symmetrisch in `write_filler_mailbox`: `gild_buf[dst] = type5[431-i]`
+ etc. Beide Pfade haben dasselbe Konvention.
+
+**Aufrufer:**
+- `tetra_call_fsm.c::tetra_call_fsm_tick` ruft pro aktivem Slot
+ `tetra_voice_pipe_tick(hal, voice_tgt)` mit `voice_tgt = group_gssi || target_issi`.
+
+**Auffälligkeiten:**
+- Pipeline ist rein burst-getriggert (kein eigener Timer). Bei Idle UL
+ macht `_tick` einfach Early-Return, keine Last.
+- BFI-Rate aktuell ~3-7 % unter normalen Bedingungen (Survey 2026-05-17,
+ thresh=11, fast_attack AGC).
+
+---
+
+### sw/tetra_bs_tch_s.c + .h (433 + 34 Zeilen) — TCH/S Channel-Codec Wrapper
+
+**Zweck:**
+Wrapper um die ETSI-tetra-kit TCH/S Channel-Codec-Sources, damit die
+BS lokal in SW dekodieren + re-encoden kann. Architektur: BS macht
+full Channel-Decode (FEC + Viterbi + CRC) → ACELP-Payload-Bits → re-encode,
+**kein passthrough**. Damit werden UL-Bitfehler über die FEC korrigiert
+bevor sie in DL gehen.
+
+**Funktionen:**
+- `tetra_bs_tch_s_decode(type5_432, scramb_init, out_acelp_274)` —
+ returns BFI flag (1 = bad frame).
+- `tetra_bs_tch_s_encode(acelp_274, scramb_init, out_type5_432)`.
+
+**Input-Format des Decoders:** ±127 SOFT bits (0→+127, 1→−127), NICHT
+hart 0/1. Im voice_pipe wird der direkt zugeführte type-5-Stream
+intern in soft konvertiert.
+
+**Backing:**
+- `sw/tetra_etsi_tch_s.{c,h}` (95 + 42) — inner wrapper über die ETSI-
+ Sources: scramble + block-interleave 24×18 + Channel_Encoding/Decoding.
+- `sw/tetra_tch_s_codec.{c,h}` (183 + 86) — outer layer (block-interleave +
+ scramble).
+- `sw/etsi_codec/` — lokal kopierte ETSI tetra-kit Channel-Codec-Sources
+ (`ccod_tet.c` encoder, `cdec_tet.c` decoder, `sub_cc.c` + `sub_cd.c`
+ sub-functions, `arrays.tab` + `const.tab` Tables, `arrays_globals.c` für
+ non-const globals damit sub_cc.c + sub_cd.c zusammen linken).
+
+**Refactoring-Hinweise:**
+- `arrays.tab` const tables sind als `static const` (file-local) deklariert
+ damit duplicate-safe linking funktioniert.
+- `sub_cd.c` hat duplicate `Combination`-Funktion entfernt (nutzt jetzt
+ `sub_cc.c`-Version).
+- Makefile linkt zusätzlichen include-Pfad `-Ietsi_codec`.
 
 ---
 

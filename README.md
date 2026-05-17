@@ -14,14 +14,14 @@ Referenz-Standard: **ETSI EN 300 392-2** (TETRA V+D Air Interface).
 
 ---
 
-## Milestone-Status (Stand 2026-04-25)
+## Milestone-Status (Stand 2026-05-17)
 
 | Meilenstein | Ziel | Status |
 |-------------|------|--------|
 | **M1** | MS sieht BS, RACH sichtbar | ✅ HW-verifiziert (MTP3550, 41/42 CRC-OK) |
-| **M2** | MS bucht sich ein | ✅ **HW-verifiziert 2026-04-25 12:18 ZULU** (MTP3550 ITSI-Attach erfolgreich, Build `26191b4`, 1:1 Demand→Accept ohne Retry-Loop) |
-| **M3** | Gruppenruf mit Voice-Relay | ⏳ Plan (RTL-basiert) |
-| **M4** | Einzelrufe + Paging | ⏳ Plan |
+| **M2** | MS bucht sich ein | ✅ HW-verifiziert 2026-04-25 (1:1 Demand→Accept, kein Retry-Loop) |
+| **M3** | Gruppenruf mit Voice-Relay | ✅ **HW-verifiziert 2026-05-17** — UL-NUB-Capture (Phase C, `8b0737e`) + SW BS-TCH/S Codec + DL Voice-Filler-Mailbox (Phase 7 G.8); BFI 3-7 % @ NUB_SYNC_THRESH=11, OpenEAR-Audio durchgängig. **SW-resident codec statt RTL voice-relay.** Offen: D-CONNECT-Retransmit-Rate ~30 % (worst 3.6 s setup) |
+| **M4** | Einzelrufe + Paging | 🟡 Individual-Call-Routing in `tetra_call_fsm` integriert (group_gssi vs target_issi), on-air noch nicht systematisch verifiziert |
 
 **M2 erreicht (2026-04-25 12:18):** Replik des D-LOCATION-UPDATE-ACCEPT MM-Body hat den Re-Demand-Loop gebrochen. Schlüssel-Fixes (Build `26191b4`):
 - 102-bit MM body: `p_ssi=0`, `p_ae=0`, `p_sc=0`, `p_esi=1` (ESI=StayAlive), Type-3 GroupIdentityLocationAccept (id=5, length=58) mit GILA (GSSI=0x2F4D61, attach_lifetime=1, class_of_usage=4)

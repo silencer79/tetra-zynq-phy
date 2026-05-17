@@ -1,4 +1,5 @@
 # IST 07 — Mailboxes, DMA-Bridge, LMAC-Wrapper
+Stand: 2026-05-17
 
 Quellen:
 - `rtl/lmac/tetra_indirect_mailbox.v` (95 Zeilen) — generisches Read-Side
@@ -6,6 +7,8 @@ Quellen:
 - `rtl/lmac/tetra_demand_mailbox.v` (175 Zeilen) — mm=2 UL-Demand Snapshot
 - `rtl/lmac/tetra_grp_demand_mailbox.v` (166 Zeilen) — mm=7 Group-Attach Demand
 - `rtl/lmac/tetra_reply_mailbox.v` (160 Zeilen) — SW-pulled Reply
+- `rtl/lmac/tetra_voice_filler_mailbox.v` (78 Zeilen, Phase 7 G.8) — DL voice-slot SCH/F filler
+- `rtl/lmac/tetra_voice_nub_read_mailbox.v` (165 Zeilen, Phase C) — UL NUB type-5 bits SW-readable
 - `rtl/infra/tetra_tx_pdu_mailbox.v` (314 Zeilen) — 4-Slot TX-PDU-Submit
 - `rtl/infra/tetra_axi_dma_bridge.v` (263 Zeilen) — RX-S2MM-Bridge
 - `rtl/lmac/tetra_lmac.v` (355 Zeilen) — Struktureller LMAC-Wrapper
@@ -168,6 +171,60 @@ Wörter über `wr_en_sys`-Pulse + `index_sys`, dann `go_pulse_sys` → wird zu
  D-ATTACH-DETACH-GRP-ID-ACK. Bei `raw_mode_flag=1` wird der dloc-Encoder umgangen,
  bei `=0` ist mm=2 ACCEPT bit-identisch zur Vorversion.
 - Phase X.4-Kommentar: SW path ist primärer Pfad (REG_REPLY_USE_SW @0x230 default=1).
+
+## tetra_voice_filler_mailbox.v (78 Zeilen, Phase 7 G.8)
+
+**Zweck:** AXI-writable 16-Word-Storage hält einen pre-encoded SCH/F type-5
+Burst (432 Bits) den `tetra_burst_dispatcher` im aktiven Group-Call-Voice-Slot
+emittiert. SW (`sw/tetra_voice_filler.c` initial install, `sw/tetra_voice_pipe.c`
+per-frame update) ist Encoder, dieses Modul ist reine Bit-Pipe.
+
+**Wort-Layout (16 × 32-bit, indirekt via `REG_VOICE_FILLER_INDEX/DATA` @ 0x270/0x274):**
+- W0..W13: type-5 bits 0..431, packed LSB-first innerhalb jedes Worts
+ (W0[0]=bit 0, W0[31]=bit 31; W13[15:0]=bits 416..431, W13[31:16] padding=0)
+- W14[0]: `filler_valid` (SW schreibt 1 nach Load, 0 zum Clear; HW-Reset auf 0)
+- W15: reserviert
+
+**Outputs (combinational an `burst_dispatcher`):**
+- `blk1_sys[215:0]` = words_flat[215:0] (= BKN1/NDB1 type-5 bits, MSB = erstes Symbol on air)
+- `blk2_sys[215:0]` = words_flat[431:216] (= BKN2)
+- `valid_sys` = W14[0]
+- `go_pulse_out_sys` = informationaler GO-Puls aus indirect_mailbox_wr
+
+**Nachbarn:** ↑ `tetra_zynq_top.v` (`u_voice_filler_mailbox`). ↓ `tetra_burst_dispatcher`
+(`vfill_blk1_sys`, `vfill_blk2_sys`, `vfill_valid_sys` Inputs).
+
+**Auffälligkeiten:** keine FSM, kein Reset des Inhalts (nur W14[0] auf Reset 0).
+SW kann den Inhalt jederzeit überschreiben — bei Voice-Stream wird er alle ~60 ms
+durch `tetra_voice_pipe_tick` nachgefüllt mit dem dekodierten + re-encodeten
+UL-NUB-Voice-Frame.
+
+## tetra_voice_nub_read_mailbox.v (165 Zeilen, Phase C)
+
+**Zweck:** Buffer für UL-NUB-Voice-Bursts auf SW-Seite. `tetra_ul_nub_capture`
+emittiert per NUB-Sync 432 type-5 Bits + `coded_valid_sys`-Puls; dieses Modul
+latcht den Burst, setzt `valid` und stellt 14 Worte via Indirect-Read
+(`REG_VOICE_NUB_READ_INDEX/DATA` @ 0x280/0x284) bereit. SW pollt
+`REG_VOICE_NUB_READ_STATUS` @ 0x288, liest, ACKt via 0x28C.
+
+**Bit-Konvention** (matches `tetra_voice_filler_mailbox`):
+- 14 × 32-bit words, packed LSB-first (W0[0]=type5[0])
+- ABER: `coded_bits_sys[431]` = first BKN1 bit on air (MSB-first im RTL).
+ Mailbox kopiert byte-LSB-first: `type5_buf[i] = coded_bits[i]`.
+- Folge: SW muss **bit-reverse** machen beim Lesen — `type5_out[431 - i] =
+ word[bit_i]`. Siehe `sw/tetra_voice_pipe.c::read_nub_bits`. Bugfix-Note:
+ frühere SW ohne bit-reverse erzeugte 98 % BFI weil BS-Codec
+ `type5[0] = first on air` erwartet. Fix in commit `8b0737e`.
+
+**Outputs:** AXI-Read-Port + interner `valid`-Flag-Register. SW-ACK clearet.
+
+**Auffälligkeiten:** Single-Buffer (kein FIFO) — wenn neuer Burst arrives bevor
+SW alten ACKt, geht der alte verloren (counter `bursts_captured_sys` zählt im
+NUB-Capture trotzdem hoch). Bei daemon-poll-Intervall 10 ms und NUB-Burst-
+Rate ~60 ms ist das in Praxis kein Problem.
+
+**Nachbarn:** ↑ `tetra_zynq_top.v` (`u_voice_nub_read_mailbox`). ↓ AXI-Side
+(SW-Daemon `sw/tetra_voice_pipe.c`).
 
 ## tetra_tx_pdu_mailbox.v (314 Zeilen)
 

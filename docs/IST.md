@@ -1,12 +1,34 @@
 # IST — tetra-zynq-phy Code-State
 
-**Stand:** 2026-05-14
+**Stand:** 2026-05-17
 **Branch:** `refactor/phase-7-groupcall`
-**Letzter Commit:** `def6f79 fix(aach): head_match gegen CURRENT emit-TN`
-**Working-Tree:** uncommitted (siehe Ch 12)
-**Deployed Bitstream MD5:** `3b4c5150b07443691924edb9e67178c4`
+**Letzter Commit:** `8b8cb41 fix(rtl): ul_demand_ie_parser shift-register refactor — WNS -0.02→+0.008 ns`
+**Working-Tree:** clean (Submodule `tetra-bluestation` dirty, sw/test_bs_codec.c + tetra-kit/ untracked — keine RTL/SW-Diff)
+**Build-Artefakt:** `build/tetra_zynq_phy.bit` MD5 `dfa5db9bcba4e7a6f6d85613506589fc` (2026-05-17 17:29)
+**Deployed Bitstream MD5 (.bit.bin):** `a8e001067b307a4a99dc30fff5720f9c`
 
 Diese Dokumentation beschreibt was der Code **TUT**, nicht was er tun **sollte**. Keine Pläne, keine Bewertungen, keine ETSI-Spec-Vergleiche. Reiner IST-Stand zum Stichtag.
+
+## Änderungen seit 2026-05-14
+
+Voice-Pfad ist live (Phase 7 G.8+), BS-Codec auf SW resident, RX-Tuning auf neuem Setpoint, ein WNS-Fail aufgeräumt.
+
+| Commit | Was | Wo dokumentiert |
+|--------|-----|-----------------|
+| `0f6d8b0`, `2ceb141` | feat(phase c): voice-channel relay pipeline (UL-NUB → DL-NDB1) + FN 1-9 gate | Ch 4 (UL voice capture), Ch 5 (vfill DL path) |
+| `7e18b7b` | fix(mer): VOICE_ACTIVE_MASK gating + watchdog (MER 0 % im Idle) | Ch 9 (call_fsm), Ch 8 (REG_VOICE_ACTIVE_MASK) |
+| `00228e7` | fix(mer): NUB-thresh=10 (default 8 → 10) + nub_rx-Heartbeat | Ch 9 (attach_daemon init), Ch 8 (REG_VOICE_NUB_SYNC_THRESH) |
+| `e8efb31` | fix(arch): voice-relay-RTL aus DL-Pfad raus, AACH 0x32CB durchgehend FN 1-17 | Ch 5 (aach_encoder), Ch 6 (RTL relay-pipe deprecated) |
+| `80986b7` | feat(phase-7-G.8): voice-slot SW-filler + D-SETUP + group/individual routing | Ch 9 (voice_filler.c, voice_pipe.c, call_fsm group_gssi), Ch 7 (filler-mailbox) |
+| `8b0737e` | fix(voice): NUB-capture sample-offsets (BKN1_PRE_SMP 504→476, BKN2_OFFSET_SMP 32→0) + bit-reverse → UL voice durch | Ch 4 (ul_nub_capture sample positions), Ch 9 (read_nub_bits bit-reverse) |
+| `cccf4a9` | fix(call-fsm): split channel-off (VOICE_QUIET_MS=200) vs reservation (CALL_STALE_MS=5000) | Ch 9 (call_fsm watchdog) |
+| `326439d` | fix(rx): NUB_SYNC_THRESH 10→11 + VOICE_QUIET_MS 200→300ms (BFI 6→3.5 %, no mid-call rejects) | Ch 9 (attach_daemon defaults), Ch 8 (REG_VOICE_NUB_SYNC_THRESH default) |
+| `8b8cb41` | fix(rtl): ul_demand_ie_parser shift-register refactor (body_buf MSB-aligned, gad_buf snapshot) → WNS -0.020 → +0.008 ns | Ch 6 (parser), Ch 11 (timing/util Vivado-Stand) |
+
+Neu dokumentationswürdig (siehe entsprechende Kapitel):
+- **SW-resident BS-TCH/S codec** — `sw/etsi_codec/`, `sw/tetra_bs_tch_s.{c,h}`, `sw/tetra_voice_pipe.c`, `sw/tetra_voice_filler.c` (Ch 9)
+- **Vivado-Bilanz aktuell** — Slice 98.08 %, WNS +0.008 ns, 24 Critical Warnings (Ch 11)
+- **D-CONNECT-Retransmit-Rate** — 3/10 (30 %) U-SETUPs erleben Retransmit, worst 3.6 s PTT-bis-Audio (Ch 12)
 
 ## Kapitel-Übersicht
 

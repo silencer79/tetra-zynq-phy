@@ -1,11 +1,11 @@
-# IST — Kapitel 4: UL RX (oversampled Sync + RA-Burst Decode + Reassembly + Voice-Capture-Hack)
-Stand: 2026-05-14
-Quelle: rtl/rx/tetra_ul_{sync_detect_os4,burst_capture,pi4dqpsk_demod,sch_hu_decoder,viterbi_r14,demand_reassembly,voice_capture}.v
+# IST — Kapitel 4: UL RX (oversampled Sync + RA-Burst Decode + Reassembly + Voice-NUB-Capture)
+Stand: 2026-05-17
+Quelle: rtl/rx/tetra_ul_{sync_detect_os4,burst_capture,pi4dqpsk_demod,sch_hu_decoder,viterbi_r14,demand_reassembly,nub_capture}.v
  + rtl/lmac/tetra_{viterbi_decoder,deinterleaver,depuncture_r23,ul_mac_access_parser,ul_demand_ie_parser,steal_detect}.v
 
 ## Inhalt
-1. `tetra_ul_sync_detect_os4.v` — 4-Phasen ETS-x-seq Detector @ 72 kHz
-2. `tetra_ul_burst_capture.v` — Ring-Buffer + Phase-Align + 86-Sample-Stream
+1. `tetra_ul_sync_detect_os4.v` — 4-Phasen ETS-x-seq Detector @ 72 kHz (zwei Instanzen: SCH/HU + NUB-NTS1)
+2. `tetra_ul_burst_capture.v` — Ring-Buffer + Phase-Align + 86-Sample-Stream (SCH/HU)
 3. `tetra_ul_pi4dqpsk_demod.v` — Differential pi/4-DQPSK Demod (Soft-Dibit)
 4. `tetra_viterbi_decoder.v` — Originale K=5 r=1/4 Soft-Viterbi (LMAC DL-Stil-Konvention)
 5. `tetra_ul_viterbi_r14.v` — ETSI-Convention K=5 r=1/4 Soft-Viterbi (UL)
@@ -14,9 +14,9 @@ Quelle: rtl/rx/tetra_ul_{sync_detect_os4,burst_capture,pi4dqpsk_demod,sch_hu_dec
 8. `tetra_ul_sch_hu_decoder.v` — SCH/HU Komplettpipeline (Descramble→Deinterleave→Depuncture→Vit→CRC16)
 9. `tetra_ul_mac_access_parser.v` — MAC-ACCESS + MAC-END-HU Header-Extraktor
 10. `tetra_ul_demand_reassembly.v` — Frag-1 + Frag-2 → 129-bit MM-Body
-11. `tetra_ul_demand_ie_parser.v` — mm=2 LOC-UPDATE + mm=7 ATTACH/DETACH-GROUP-IDENTITY Walker
+11. `tetra_ul_demand_ie_parser.v` — mm=2 LOC-UPDATE + mm=7 ATTACH/DETACH-GROUP-IDENTITY Walker (shift-register-Refactor 2026-05-17, siehe Ch 6)
 12. `tetra_steal_detect.v` — AACH→steal-flag pro Slot
-13. `tetra_ul_voice_capture.v` — Phase Y.4.2/Y.4.3 Voice-Slot-Capture (inert; siehe Auffälligkeiten)
+13. `tetra_ul_nub_capture.v` — UL TCH/S Normal-Uplink-Burst BKN1+BKN2 Capture+Demod @ NTS1-Sync (Phase C, LIVE; ersetzt entferntes Y.4.2/Y.4.3 `tetra_ul_voice_capture.v`)
 
 ---
 
@@ -252,53 +252,51 @@ LLC-Parse (TL-SDU): 4-bit `{link_type, has_fcs, bl_pdu_type[1:0]}` an [tl_sdu+0.
 
 ---
 
-### tetra_ul_voice_capture.v (135 Zeilen)
-**Ports:** `clk_sys, rst_n_sys, ul_dibit_sys[1:0], ul_dibit_valid_sys, tdma_slot_pulse_sys, tdma_tn_now_sys[1:0], tdma_fn_now_sys[4:0], voice_active_mask_sys[3:0]` → `voice_burst_valid_sys, voice_burst_coded_sys[431:0], voice_burst_target_tn_sys[1:0], voice_burst_aach_sys[13:0], voice_burst_pdu_type_sys[1:0], capture_cnt_sys[15:0]`
+### tetra_ul_nub_capture.v (330 Zeilen, Phase C — ersetzt entferntes Y.4.2/Y.4.3 voice_capture)
 
-**Funktion (laut Code):** Slot-aligned UL-Dibit-Capture. Auf jedem `tdma_slot_pulse_sys`: wenn `voice_active_mask_sys[tdma_tn_now_sys]=1` → setze `capturing_sys=1`, `dibit_idx=0`, latche TN+FN, leere `burst_buf`. Sonst → `capturing_sys=0`. Während `capturing_sys=1` UND `ul_dibit_valid_sys=1`: shift dibit in `burst_buf` MSB-first. Bei dibit 216 (= 432 Bits voll): emit `voice_burst_valid_sys`-Puls, übernimm `burst_buf` in Output, setze AACH-Wert nach FN-Mapping:
-- FN 1-9 (`lat_fn_sys <= 8`) → 0x32CB (TCH/S voice)
-- FN 10-13 (`<= 12`) → 0x22C9 (FACCH stealing)
-- FN 14-17 (`> 12`) → 0x2049 (idle filler)
+**Ports:** `clk_sys, rst_n_sys, i_in_sys[15:0], q_in_sys[15:0], valid_in_sys, sync_found_sys, best_phase_sys[1:0]` → `coded_bits_sys[431:0], coded_valid_sys, bursts_captured_sys[15:0]`
 
-`voice_burst_pdu_type_sys` immer 0 (SCH/F NDB1). Counter `capture_cnt_sys` saturiert bei 0xFFFF.
+**Funktion:** UL TCH/S NUB-Burst Capture + π/4-DQPSK Differential-Demod. Nach `sync_found_sys` von einer NUB-konfigurierten `tetra_ul_sync_detect_os4`-Instanz (NTS1-Pattern, anchor = letztes NTS1-Symbol auf burst-sym 132) capturet aus 1024-deep Ring-Buffer die BKN1 (108 sym) + BKN2 (108 sym) Bereiche und emittiert 432 type-5 bits.
 
-**State:** Keine explizite FSM. Implizite states: idle, capturing. Übergang über `capturing_sys`-Flag, gesteuert über `tdma_slot_pulse_sys` und Dibit-Counter.
+**NUB-Layout (per ETSI EN 300 392-2 + bluestation `burst_consts.rs:32` NUB_BITS=4+216+22+216+4):**
+- bits 0..3 head (2 sym TAIL/ramp)
+- bits 4..219 BKN1 (216 bits = 108 sym, encoded type-5)
+- bits 220..241 NTS1 (22 bits = 11 sym ← sync anchor)
+- bits 242..457 BKN2 (216 bits = 108 sym, encoded type-5)
+- bits 458..461 tail (2 sym)
 
-**Pipeline-Latenz:** 216 Dibits = 216 × (clk_sys/dibit_rate) ≈ 216 × 5556 ≈ 1.2M Zyklen (= ~12 ms bei 18 kHz Dibit-Rate).
+**Wichtig:** NUB enthält KEINE BB1/BB2 broadcast blocks — die gehören NUR zum DL-NDB. Frühere Annahme dass NUB BB1/BB2 hat führte zu falschen Sample-Offsets (siehe Bugfix unten).
 
-**Nachbarn:** ↑ `tetra_zynq_top` (`u_ul_voice_capture`, instanziiert direkt im Top-Level, nicht in rx_chain); ↓ keine.
+**Sample-Offsets (relativ zum Anchor = raw sample von NTS1[10]):**
+- BKN1 diff-ref: anchor − 119 sym = `BKN1_PRE_SMP = 476 Samples` (vor anchor)
+- BKN1[0]: anchor − 118 sym, BKN1[107]: anchor − 11 sym
+- BKN2 diff-ref: anchor selbst = `BKN2_OFFSET_SMP = 0`
+- BKN2[0]: anchor + 1 sym = +4 Samples, BKN2[107]: anchor + 108 sym = +432 Samples
+- POST_WAIT_SMP = 480 Samples (bis BKN2[107] im Ring ist)
 
-**Inputs (aktuell verdrahtet in `tetra_zynq_top.v` ab Zeile 3586):**
-- `ul_dibit_sys` ← `ul_demod_dibit_sys_w` ← `tetra_rx_chain.ul_demod_dibit_out_sys` ← (im rx_chain) `demod_dibit_sys` (= Output von `u_demod` = DL-pi4dqpsk_demod)
-- `ul_dibit_valid_sys` ← `ul_demod_valid_sys_w` ← `tetra_rx_chain.ul_demod_valid_out_sys` ← `demod_valid_sys`
-- `tdma_slot_pulse_sys` ← `tx_tdma_state_slot_pulse_sys` (TX-TDMA, nicht RX-frame-counter)
-- `tdma_tn_now_sys` ← `tx_tdma_state_tn_sys`
-- `tdma_fn_now_sys` ← `tx_tdma_state_fn_sys`
-- `voice_active_mask_sys` ← `voice_active_mask_sys_r1` (CDC-resync von AXI-Register `voice_active_mask_axi_w[3:0]`)
+**Bugfix-Note (commit `8b0737e`, 2026-05-17):** Vorherige Parameter-Werte `BKN1_PRE_SMP=504` + `BKN2_OFFSET_SMP=32` waren von DL-NDB-Layout-Annahme (255 sym inkl. BB1+BB2) abgeleitet — falsch für NUB (231 sym Body, keine BBs). Folge: BKN1 wurde 7 sym zu früh, BKN2 8 sym zu spät gelesen → 16 korrupte Edge-Bits → 98 % BFI. Mit korrigiertem Offset jetzt 4-10 % BFI on-air.
 
-**Bedingungen, unter denen `voice_burst_valid_sys_w` pulsen würde:**
-1. `voice_active_mask_sys[tdma_tn_now_sys] == 1` zum Zeitpunkt `tdma_slot_pulse_sys`
-2. Innerhalb des dann begonnenen Capture-Fensters müssen 216 `ul_dibit_valid_sys`-Pulse auftreten BEVOR ein neuer `tdma_slot_pulse_sys` kommt mit `voice_slot_gate_w=0`
-3. Wenn 216 Dibits gesammelt → Puls
+**FSM (9 states):** `S_IDLE → S_WAIT_POST → S_READ_BKN1_PRE → S_READ_BKN1_REF → S_READ_BKN1_RUN → S_READ_BKN2_PRE → S_READ_BKN2_REF → S_READ_BKN2_RUN → S_DONE`. BRAM-Read-Latenz 1 Cycle pro Sample, dadurch separate PRE/REF/RUN-Stages je BKN.
 
-**Was passiert im aktuellen Wiring tatsächlich:**
-- Quelle des Dibit-Streams ist NICHT der UL-spezifische `u_ul_demod` (der ist SCH/HU-sync-gegated und feuert nur auf x-seq-Bursts), sondern der **DL-Hauptdemod** `u_demod` aus `tetra_rx_chain`. Sein Output `demod_dibit_sys / demod_valid_sys` wird in rx_chain direkt an `ul_demod_dibit_out_sys / ul_demod_valid_out_sys` durchgereicht (Phase-Y.4.2-Kommentar erklärt: RX-LO sei auf UL-Band, daher sei DL-demod faktisch das MS-UL-Signal).
-- `u_demod` arbeitet auf `tr_i_sys/tr_q_sys`, dem Gardner-getakteten 18 kHz On-Time-Stream — das heißt: `dibit_valid` puls jedes Mal wenn der Timing-Recovery NCO überläuft, also kontinuierlich bei 18 kHz solange Signal anliegt (es gibt KEINEN sync-Gate vor dem demod).
-- Die Annahme im Kommentar "demod_dibit_sys IS the MS UL signal" hängt also komplett davon ab, ob die RX-LO tatsächlich auf der UL-Frequenz liegt UND ob das Timing-Recovery auf einem MS-UL-Burst überhaupt konvergiert.
-- `tdma_slot_pulse_sys / tn_now_sys / fn_now_sys` kommen von der **TX-TDMA-State-Machine**, nicht vom RX-`frame_counter`. Slot-Pulse-Timing ist daher TX-side.
+**Demod:** identisch zu `tetra_pi4dqpsk_demod` — `z = current × conj(prev)` mit Soft-Bit-Output `{sign(Im(z)), sign(Re(z))}`. 4 DSP48 für Komponentenprodukte.
+
+**Output-Format:**
+- `coded_bits_sys[431:216]` = BKN1, MSB-first (= erstes Dibit on-air)
+- `coded_bits_sys[215:0]` = BKN2, MSB-first
+- `coded_valid_sys` = 1-Cycle-Puls bei Completion
+
+**Resource-Schätzung:** ~250 LUT, ~500 FF, 2 BRAM (1 pro I/Q), 4 DSP48.
+
+**Nachbarn:** ↑ `tetra_rx_chain` (`u_ul_nub_capture`, ab `rx_chain.v:391`); ↓ `tetra_voice_nub_read_mailbox` (FIFO-Buffer SW↔HW, siehe Ch 7).
+
+**Wie es genutzt wird:**
+1. AD9361 → CIC → RRC → 4-sps IQ-Stream
+2. zwei parallele `tetra_ul_sync_detect_os4`-Instanzen: eine für SCH/HU (x-seq), eine für NUB (NTS1)
+3. NUB-Sync feuert → `tetra_ul_nub_capture` capturet 432 Bits
+4. Bits in `tetra_voice_nub_read_mailbox` gepuffert
+5. SW (`sw/tetra_voice_pipe.c`) pollt Mailbox, dekodiert via TCH/S codec, re-encodet, schreibt DL-Filler-Mailbox (siehe Ch 9)
 
 **Auffälligkeiten:**
-- Modul ist instanziiert (Zeilen 3586-3601 in `tetra_zynq_top.v`) und seine Outputs sind via `cmce_port_wr_valid_w = voice_burst_valid_sys_w | nwrk_bcast_push_valid_sys_w` in den CMCE-Port-Write-Pfad verdrahtet — wenn der Puls je auftritt, fließen die Daten in die DL-signal-queue als Voice-Burst.
-- Header-Kommentar mehrfach "Phase Y.4.2/Y.4.3" — frisch hinzugefügter Code.
-- `voice_burst_pdu_type_sys` immer `2'd0` (SCH/F NDB1), egal welcher AACH-Wert, lt. Kommentar bewusst — AACH steuert MS-Interpretation.
-- Die ursprünglich erwartete UL-RX-Pipeline (`u_ul_demod` SCH/HU-aligned) wird vom voice_capture NICHT genutzt; stattdessen direkter DL-demod-Dibitstrom. Damit ist die korrekte Anordnung "kontinuierlicher post-DQPSK Dibit-Strom" nur dann, wenn:
- - RX-LO tatsächlich auf UL-Frequenz konfiguriert ist (nicht aus dem Code prüfbar, hängt von AXI-Setup)
- - Timing-Recovery auf den MS-UL-Burst konvergiert (Gardner ist nicht UL-Burst-tauglich lt. Kommentar in `tetra_ul_sync_detect_os4.v`: "isolated UL bursts are only 127 symbols long (~7 ms), the Gardner TED in the main RX chain does not converge before the burst ends")
-- Aus dem Code-Verlauf direkt sichtbar: der Stream den `voice_capture` bekommt ist im DL-Stand-by exakt der DL-pi4dqpsk_demod-Strom mit DL-Symboltakt (Gardner-NCO-getrieben). Auf UL-Slot-Pulse-Edge ist der TX-TDMA-Counter aktiv, aber der Demod-Strom ist phänomenologisch nicht garantiert MS-UL.
-- `voice_burst_valid_sys_w` würde funktional pulsen wenn (a) AXI `voice_active_mask` non-zero gesetzt UND (b) im TX-Slot-TN-Fenster (TX-getriggert) 216 zusammenhängende dibit_valid-Pulse anfallen. Beim aktuellen Wiring kommen die dibit_valid-Pulse aber aus dem DL-pi4dqpsk_demod, der eine 18-Zyklus-Latenz pro Symbol braucht — bei 100 MHz / 18 kHz = 5556 Zyklen pro Symbol, ist genug Zeit. Der Demod gibt seine dibit_valid weiter solange die Timing-Recovery NCO überläuft. Ob der Stream während des MS-UL-Bursts überhaupt sinnvolle Bits produziert ist aus dem RTL-Verlauf nicht entscheidbar — der DL-demod hat KEINE Gate-Bedingung mit DL-`sync_locked` oder Burst-Fenster.
-
-**Korrektur zu Annahme im Auftrag-Text:** der Auftrag stellte fest dass rx_chain "demod_dibit_sys aus DL-Sync-gegated demod weiterleitet". Aus dem Code (`u_demod` wird mit `tr_i_sys/tr_q_sys/tr_valid_sys` direkt vom timing_recovery gefüttert, nicht von sync_detect gegated) ist diese Aussage NICHT bestätigbar — der DL-pi4dqpsk_demod feuert kontinuierlich, sobald Gardner irgendetwas hat. Es existiert kein Gating-Pfad zwischen `sync_locked_w` und `u_demod.sample_valid` im rx_chain. `voice_burst_valid_sys` ist daher NICHT durch eine fehlende DL-Sync-Bedingung blockiert.
-
-Die wahrscheinlichsten realen Blocker für `voice_burst_valid_sys_w`-Puls sind:
-- `voice_active_mask_sys_r1` ist Reset-Default 4'd0 (siehe `tetra_zynq_top.v:3574-3579`) — solange SW über AXI keine Bits setzt, gate `voice_slot_gate_w = mask[tn_now]` permanent 0 → `capturing_sys` wird nie gesetzt.
-- Wenn SW Maske setzt, hängt es davon ab ob in 216 zusammenhängenden DL-pi4dqpsk_demod-Dibits ein konsistenter MS-UL-Frame liegt — Bit-Inhalt unklar; Pulse aber technisch möglich.
+- Gate-Schwelle für NUB-Sync ist via `REG_VOICE_NUB_SYNC_THRESH` (0x268) zur Laufzeit setzbar. RTL-Default 8 (false-positive-anfällig im Idle), SW-Daemon setzt 11 (2026-05-17 Survey, siehe Ch 8 + Ch 9).
+- Counter `bursts_captured_sys` saturiert bei 0xFFFF; gespiegelt nach AXI `REG_VOICE_NUB_RX_CNT` (0x260) als Call-FSM-Heartbeat.
+- Sample-Offsets sind als `parameter` deklariert — Module-Param-Override möglich, im aktuellen Top hardcoded auf gefixte Werte (476/0/480).

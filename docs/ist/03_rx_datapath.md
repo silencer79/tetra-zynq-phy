@@ -1,5 +1,5 @@
 # IST — Kapitel 3: RX Datapath (core)
-Stand: 2026-05-14
+Stand: 2026-05-17
 Quelle: rtl/rx/tetra_{rx_frontend,timing_recovery,pi4dqpsk_demod,sync_detect,burst_demux,frame_counter,rx_burst_fifo,rx_chain}.v
 
 ## Inhalt
@@ -175,33 +175,31 @@ Auf `sync_found` werden Block1 (das vor diesem Sync vollständig aufgesammelte) 
 - Continuation (Phase 7 F.1): `ul_pdu_is_continuation_sys, ul_continuation_valid_sys, ul_continuation_bits_sys[84:0], ul_continuation_ssi_sys[23:0], ul_continuation_count_sys[15:0]`
 - Diag (Phase H.6.1): `schhu_attempted_sys[15:0], schhu_ok_sys[15:0]`
 - ILA-Debug: `dbg_fe_valid_sys, dbg_tr_valid_sys, dbg_demod_valid_sys`
-- Phase Y.4.2: `ul_demod_dibit_out_sys[1:0], ul_demod_valid_out_sys`
+- **Phase C UL-NUB-Capture (Live):** `voice_nub_coded_bits_sys[431:0], voice_nub_coded_valid_sys, voice_nub_bursts_captured_sys[15:0]` plus `voice_nub_sync_thresh_sys[4:0]` config input. (Die Y.4.2-`ul_demod_dibit_out_sys/valid_sys`-Outputs sind seit A.1 Rollback entfernt.)
 
 **Funktion:** Top-Container der RX-Kette. Instanziiert in Reihenfolge:
 1. `u_rx_frontend` (CIC+RRC+CDC) → `fe_i_sys, fe_q_sys, fe_valid_sys` (72 kHz)
 2. `u_timing_recovery` (Gardner+NCO) → `tr_i_sys, tr_q_sys, tr_valid_sys` (18 kHz)
 3. `u_demod` (pi4dqpsk_demod) → `demod_dibit_sys, demod_valid_sys, demod_phase_err_sys`
 4. `u_sync_detect` (sliding correlator) → `sync_found_w, sync_locked_w, slot_position_w, slot_number_w, corr_peak_w`
-5. `u_ul_sync_detect` (`tetra_ul_sync_detect_os4`) — getapt aus 72 kHz fe_*-Stream
+5. `u_ul_sync_detect` (`tetra_ul_sync_detect_os4`, SCH/HU x-seq instance) — getapt aus 72 kHz fe_*-Stream
 6. `u_ul_burst_capture` + `u_ul_demod` + `u_ul_sch_hu` + `u_ul_mac_parser` (UL-RA-Burst-Pipeline)
-7. `u_burst_demux` → block1/block2/bb/slot_valid
-8. `u_frame_counter` → TN/FN/MF/HF
+7. **Phase C:** zweite `u_ul_sync_detect_nub` (`tetra_ul_sync_detect_os4` mit NTS1-Pattern, separate `voice_nub_sync_thresh_sys` Schwelle) + `u_ul_nub_capture` (`tetra_ul_nub_capture`, BKN1+BKN2 demod) — getapt aus demselben fe_*-Stream
+8. `u_burst_demux` → block1/block2/bb/slot_valid
+9. `u_frame_counter` → TN/FN/MF/HF
 
 **State:** Reiner Container — kein eigener FSM-Code, nur Wiring + Status-Assignments + Debug-Assignments.
 
-**Pipeline-Latenz:** Summe der Submodule (siehe oben). Phase-Y.4.2-Assignments am Ende: `ul_demod_dibit_out_sys = demod_dibit_sys` und `ul_demod_valid_out_sys = demod_valid_sys` — also der **kontinuierliche DL-pi4dqpsk_demod-Strom** wird als "UL"-Strom exportiert. Kommentar im Code dazu:
-```
-// Phase Y.4.2 — UL demod dibit stream (hard) for voice forwarding.
-// Source = continuous main pi4dqpsk_demod (NOT u_ul_demod which is
-// SCH/HU-sync-gated and doesn't fire on TCH/S voice bursts). RX-LO is
-// tuned to UL-band (428.25 MHz), so demod_dibit_sys IS the MS UL signal.
-// Continuous 18 kHz dibit stream — voice_capture FSM slot-windows it.
-```
+**Pipeline-Latenz:** Summe der Submodule (siehe oben). Die alte Y.4.2-Hack-
+Verdrahtung (`ul_demod_dibit_out_sys = demod_dibit_sys`) ist mit A.1 Rollback
+entfernt — Voice-NUB-Bursts laufen jetzt durch den dedizierten Phase-C-Pfad
+(`u_ul_sync_detect_nub` → `u_ul_nub_capture`) mit NTS1-getriggerter
+sample-aligned Demod. Siehe Ch 4 `tetra_ul_nub_capture.v`.
 
-**Nachbarn:** ↑ `tetra_zynq_top` (Top-Level); ↓ alle obigen Submodule.
+**Nachbarn:** ↑ `tetra_zynq_top` (Top-Level); ↓ alle obigen Submodule plus
+`u_voice_nub_read_mailbox` (im Top, konsumiert die Phase-C-Outputs).
 
 **Auffälligkeiten:**
 - `timing_locked_sys` und `timing_error_sys` von `u_timing_recovery` an OPEN angeschlossen (siehe oben).
-- Der UL-Pfad lebt parallel zum DL-Pfad mit demselben fe_*-Stream als Quelle (72 kHz @ 4 sps).
-- `ul_demod_dibit_out_sys` ist semantisch falsch benannt: Quelle ist `demod_dibit_sys` (DL-pi4dqpsk_demod, sync-gegated wegen sync_locked & burst-window!), nicht `u_ul_demod`. Kommentar erklärt die Annahme "RX-LO ist auf UL-Band, also ist DL-demod = MS UL". Auswirkungen siehe Kapitel 4 `tetra_ul_voice_capture.v`.
+- Der UL-Pfad lebt parallel zum DL-Pfad mit demselben fe_*-Stream als Quelle (72 kHz @ 4 sps). Zwei `ul_sync_detect_os4`-Instanzen (eine für SCH/HU x-seq, eine für NUB NTS1) plus zwei separate Burst-Capture-Pfade.
 - `tetra_rx_burst_fifo` ist hier NICHT instanziiert.

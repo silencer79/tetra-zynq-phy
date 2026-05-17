@@ -1,8 +1,37 @@
 # PLAN — Voice-Channel Phase C
 
-**Stand:** 2026-05-14
-**Vor Phase C committen.**
+**Stand:** 2026-05-14 (Plan), umgesetzt zwischen 2026-05-14 und 2026-05-17.
 **Quellen:** docs/IST.md, docs/ist/04_ul_rx.md, docs/ist/05_tx_datapath.md, Phase B Forensik aus `scripts/forensic_ul_nub.py` auf `wavs/reference/UL_Gruppenruf_*.wav`.
+
+> **STATUS 2026-05-17 — implementiert + live verifiziert.**
+> Architektur ist allerdings ANDERS als ursprünglich geplant: Statt
+> "bit-transparenter Pass-Through UL→DL" macht die BS jetzt einen vollen
+> **TCH/S Channel-Decode + Re-Encode in SW** (`sw/etsi_codec/` ETSI ACELP/RCPC
+> Sources, Wrapper in `sw/tetra_bs_tch_s.{c,h}` + `sw/tetra_voice_pipe.c`).
+> Vorteil: UL-Bitfehler werden via FEC bereinigt bevor sie in den DL gehen.
+> Nachteil: ARM-CPU-Last (akzeptabel, ~16 frames/s).
+>
+> Komponenten der finalen Implementierung:
+> - **UL:** `rtl/rx/tetra_ul_nub_capture.v` (in `rx_chain` + zweite
+>   `ul_sync_detect_os4` mit NTS1-Pattern). Sample-Offsets gefixt in `8b0737e`.
+> - **PS↔PL:** `tetra_voice_nub_read_mailbox` (UL) + `tetra_voice_filler_mailbox`
+>   (DL).
+> - **SW:** `sw/tetra_voice_pipe.c::tetra_voice_pipe_tick` — UL→ACELP→DL
+>   roundtrip pro Burst. BFI 3-7 % cumulative.
+> - **DL:** `tetra_burst_dispatcher` voice-Gate (`mask & vfill_valid`)
+>   überschreibt Scheduler/Static im voice-slot.
+> - **Call-FSM:** `sw/tetra_call_fsm.c` mit voice_pipe_tick im tick-Loop +
+>   Watchdog (VOICE_QUIET_MS=300, CALL_STALE_MS=5000).
+>
+> Hardware-verifiziert: OpenEAR Audio durchgängig, 10-PTT-Test 2026-05-17.
+> Offene Baustelle: D-CONNECT-Retransmit-Rate ~30 % beim Call-Setup
+> (worst 3.6 s) — gehört in den AACH/D-CONNECT-Scheduling-Pfad, nicht in
+> den Voice-Pfad selbst.
+>
+> Die untenstehende ursprüngliche Plan-Doku bleibt als historische
+> Nachvollziehbarkeit erhalten — Decisions D1-D3 sind im Wesentlichen
+> umgesetzt, D4 "bit-transparent" ist durch "SW decode+encode" ersetzt
+> worden (Verbesserung).
 
 ## Ziel
 

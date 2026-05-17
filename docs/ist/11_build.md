@@ -1,7 +1,76 @@
 # IST — Kapitel 11: Build-System
-Stand: 2026-05-14
+Stand: 2026-05-17
 
 Beschreibt den Vivado-TCL-Flow, die XDC-Constraints, die Run-Wrapper, die Deploy-Pipeline, die ILA-Debug-Tools und die CDC-Reports. Reine Bestandsaufnahme.
+
+## Aktueller Build-Stand (commit `8b8cb41`)
+
+Letzter erfolgreicher Build: **2026-05-17 17:29**, `build/tetra_zynq_phy.bit`
+(MD5 `dfa5db9b…`), `.bit.bin` (MD5 `a8e00106…`).
+
+| Metrik | Wert | Status |
+|--------|------|--------|
+| WNS Setup (clk_fpga_0 @ 100 MHz) | **+0.008 ns** (0 failing endpoints) | ✓ (pre-refactor war −0.020 ns / 11 failing) |
+| WHS Hold | +0.019 ns | ✓ |
+| rx_clk Setup @ 250 MHz | +0.29 ns | ✓ |
+| clk_fpga_1 | +3.73 ns | ✓ |
+| **Slice** | **13044 / 13300 = 98.08 %** | 🟡 eng — Headroom <2 % |
+| LUT as Logic | 38377 / 53200 = 72.14 % | ✓ |
+| Slice Registers | 43764 / 106400 = 41.13 % | ✓ |
+| BRAM36 | 2 | ✓ |
+| BRAM18 | 7 | ✓ |
+| DSP Blocks | 38 (davon 14 in `axi_ad9361`, 4 in `tx_chain`, 4 in `ul_nub_capture`, 2 in `rx_frontend`) | ✓ |
+| Critical Warnings | **24** | 🟡 alle ge-tracked, siehe Drift unten |
+| Errors | 0 | ✓ |
+
+**Top-Util-Hotspots in `tetra_zynq_top`** (hierarchical util report
+2026-05-17 aus `post_route.dcp`):
+
+| Modul | LUT | FF | Notiz |
+|-------|----:|----:|-------|
+| `u_rx_chain` | 8356 | 9921 | RX-Pipeline (frontend, sync, demod, nub_capture) — 20 DSP, 4 BRAM18 |
+| `u_ul_sch_hu` | 4847 | 5782 | UL SCH/HU Decoder |
+| `u_dl_pdu_builder` | 4588 | 4360 | DL PDU assembly |
+| `u_slot_content_mux` | 3907 | 74 | comb-lastig (Mux-Wüste) — Pipelining-Kandidat |
+| `u_axi_regs` | 2798 | 3061 | Register-File |
+| `u_mac_res` | 2314 | 1522 | MAC-RESOURCE-Encoder |
+| `u_sch_f` | 2268 | 1932 | SCH/F-Encoder |
+| `u_ul_demand_ie_parser` | 2076 | 488 | nach shift-register-Refactor (war 2076 vorher, ~gleich; Timing-Fail aufgeräumt) |
+| `u_viterbi` (UL r14) | 1633 | 2515 | |
+| `u_sch_hd_encoder` (×2) | 1297 + 1089 | | doppelte Instanz in pre_reply_blck/slotgrant, Konsolidierungs-Kandidat |
+
+**Vormerk:** `u_slot_content_mux` Pipelining + `u_sch_hd_encoder`
+Doppel-Instanz-Konsolidierung würden ~1800 LUT zurückgeben und der
+Slice-Belegung Luft verschaffen.
+
+### 24 Critical Warnings (Vivado-Log)
+
+| Anzahl | Typ | Origin |
+|-------:|-----|--------|
+| 1 | `[BD 41-967]` AXI interface `m_axis` not associated to any clock | Block-Design (vermutlich axi_dma TX-Pfad-Reste — Funktion intakt) |
+| 1 | `[Vivado 12-4739]` `set_multicycle_path` matched nichts | `libresdr_tetra.xdc:239` — alter Path nach Refactor, Constraint nichtwirksam |
+| ~9 | `[Common 17-55]` `set_property expects at least one object` | `adi_cdc_async_reg.xdc:31-91` — ADI-CDC-ASYNC_REG-Markierungen finden ihre cell-pattern nicht mehr → CDC-Report enthält dadurch viele "unknown/unsafe"-Pfade (siehe CDC-Sektion unten) |
+| ~13 | div. | Bank-Pin-Mappings, IP-Klärungen — keine Funktionale Auswirkung |
+
+Aufräumen wäre eine eigene XDC-Wartungs-Session — kein akuter Bug,
+aber CDC-Sicherheits-Constraints sind teilweise tot.
+
+### CDC-Report (post-route)
+
+| From Clock | To Clock | Endpoints | Safe | Unsafe | Unknown |
+|------------|----------|----------:|-----:|-------:|--------:|
+| rx_clk | clk_fpga_0 | 110 | 36 | 0 | 74 |
+| clk_fpga_0 | rx_clk | 146 | 36 | **79** | 31 |
+| clk_fpga_0 | clk_fpga_1 | 1 | 1 | 0 | 0 |
+
+Die 79 unsafe + 105 unknown sind hauptsächlich Folge der toten
+`adi_cdc_async_reg.xdc`-Constraints (siehe oben) — die Pfade sind in
+Wahrheit alle 2-FF-synchronisiert (per `ASYNC_REG=TRUE` im RTL gesetzt),
+aber Vivado kann das ohne die XDC-Patterns nicht klassifizieren. Kein
+akuter Bug, aber latente Wartungs-Schuld.
+
+---
+
 
 ## Top-Level Übersicht
 

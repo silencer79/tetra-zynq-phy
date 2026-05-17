@@ -1,4 +1,5 @@
 # IST 08 — AXI4-Lite Register Map
+Stand: 2026-05-17
 
 Quelle: `rtl/infra/tetra_axi_lite_regs.v` (2445 Zeilen). Modul: `tetra_axi_lite_regs`,
 Slave-Base wird im BD adressiert (Headerkommentar in `tetra_zynq_top.v` nennt
@@ -171,6 +172,24 @@ read-side `if (rd_addr_axi[10:9] == 2'b01)`. Eigenes Case-Statement über `[8:2]
 | 0x24C | REG_GRP_DEMAND_ACK | 1 | W1S | 0 | [0] ACK — HW-Clr durch `grp_demand_consume_axi` |
 | 0x250..0x25C | (entfernt Phase Y.2) | - | - | - | Gruppen-Reply komplett gestrichen — SW nutzt mm=2 Reply-Pull-Mailbox mit raw-mode |
 
+**Phase C / Phase 7 G.8 — Voice-Channel Telemetrie + Filler-Mailbox + NUB-Read-Mailbox (Bank-1 0x260..0x28C):**
+
+| Addr | Name | Width | R/W | Default | Beschreibung / Side-effect |
+|--------|----------------------------|-------|------|---------|----------------------------|
+| 0x260 | REG_VOICE_NUB_RX_CNT | 32 | RO | - | `[15:0] bursts_captured_sys` von `tetra_ul_nub_capture` (Call-FSM PTT-Aktivitäts-Heartbeat) |
+| 0x264 | REG_VOICE_RELAY_CNT | 32 | RO | - | `[15:0] relay_cnt_sys` von `tetra_voice_relay` (DEPRECATED-Pfad, RTL-relay aus DL raus seit `e8efb31`) |
+| 0x268 | REG_VOICE_NUB_SYNC_THRESH | 32 | R/W | 8 (RTL); 11 (SW-Daemon) | `[4:0]` NTS1-Korrelator-Schwelle für NUB-Sync. **2026-05-17 Survey:** `=11` ist sweet-spot (BFI 4.7 %, no false-positives im Idle); `=10` hat höhere wackelige Locks (6 %); `=12` killt Lock komplett. SW-Daemon (`tetra_attach_daemon.c`) setzt Boot-Default auf 11. |
+| 0x270 | REG_VOICE_FILLER_INDEX | 4 | R/W | 4'd0 | Word-Index für DL-Voice-Filler-Mailbox (0..15) |
+| 0x274 | REG_VOICE_FILLER_DATA | 32 | R/W | - | Indirect-Write/Read via INDEX. W0..W13 = 432 type-5 bits LSB-first, W14[0] = filler_valid, W15 reserved |
+| 0x278 | REG_VOICE_FILLER_GO | 1 | W1S | 0 | [0]=Commit-Puls (informativ, HW-Clr) |
+| 0x27C | REG_VOICE_FILLER_STATUS | 1 | RO | - | [0]=`filler_valid` mirror (= W14[0]) |
+| 0x280 | REG_VOICE_NUB_READ_INDEX | 4 | R/W | 4'd0 | Word-Index für UL-NUB-Read-Mailbox |
+| 0x284 | REG_VOICE_NUB_READ_DATA | 32 | RO | - | Indirect via INDEX — 432 type-5 bits aus `tetra_ul_nub_capture` |
+| 0x288 | REG_VOICE_NUB_READ_STATUS | 1 | RO | - | [0] valid (neuer Burst pending) |
+| 0x28C | REG_VOICE_NUB_READ_ACK | 1 | W1S | 0 | [0] ACK — clear valid + arm next |
+
+Bit-Layout `REG_VOICE_FILLER_*`-Mailbox: SW packt type-5 bits LSB-first im 14-Wort-Bereich (bit n = words_flat[n]). `blk1_sys = bits 0..215` (BKN1/NDB1), `blk2_sys = bits 216..431` (BKN2). RTL `tetra_voice_filler_mailbox.v` reicht das kombinatorisch an `tetra_burst_dispatcher` durch (Gating: `voice_active_mask & filler_valid`).
+
 ### Bank-2 — Schedule-BRAM (0x400..0x63F)
 
 144 × 32-bit Worte (`9'h100 ≤ rd_word_idx < 9'h190`). Jedes Wort enthält
@@ -302,8 +321,11 @@ gelesen.
 ### REG_VOICE_ACTIVE_MASK (0x1EC) — Phase Y.4.1
 32-bit R/W (nur [3:0] funktional). Per-Byte-Strobe. Output `voice_active_mask_axi`
 geht 2-FF in clk_sys (`voice_active_mask_sys_r1`, Z. 3571–3580), wird vom
-`tetra_aach_encoder` (Voice-Slot-AACH-Override) und vom
-`tetra_ul_voice_capture` (UL-Slot-Bestimmung) konsumiert.
+`tetra_aach_encoder` (AACH-Voice-Pattern 0x32CB durchgehend FN 1-17) und vom
+`tetra_burst_dispatcher` (Voice-Filler-Override-Gate via
+`voice_active_mask & vfill_valid`) konsumiert. SW-Konsumenten siehe
+`sw/tetra_call_fsm.c::mask_write_cached` (Ch 9). Frühere Y.4.2/Y.4.3-Consumer
+(`tetra_ul_voice_capture`) sind in A.1 Rollback entfernt.
 
 ### REG_REPLY_USE_SW (0x230)
 1-bit R/W, Reset `1'b1` (Phase X.4 "SW path primary"). Header und Top-Kommentar
@@ -346,9 +368,10 @@ markiert das.
  - Phase Y.2 — GroupAck-Build nach SW, Reply-Mailbox raw-mode Bypass
  - Phase Y.3 — Burst-Dispatcher / Slot-Content-Mux Refactor
  - Phase Y.4.1 — Voice-Active-Mask AACH-Override
- - Phase Y.4.2/Y.4.3 — UL-Voice-Capture
+ - ~~Phase Y.4.2/Y.4.3 — UL-Voice-Capture~~ (entfernt A.1 Rollback)
  - Phase 7 F.x — UL-Demand Reassembly + IE-Parser + Mailbox
  - Phase 7 G.x — D-CONNECT / CMCE PDU-Klassen
+ - Phase C / Phase 7 G.8 — UL-NUB-Capture + DL-Voice-Filler Mailbox (siehe Bank-1 0x260..0x28C)
 - **REG_DBG_SYNC_CNT (0x58)** ist NICHT plain 32-bit. Top Z. 3931:
  `dbg_sync_packed_sys = {corr_peak_sys[7:0], dbg_sync_cnt_sys[23:0]}`. Header
  Z. 26 erwähnt das nicht; nur Live-Code zeigt die Packung.
