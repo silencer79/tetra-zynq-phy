@@ -18,6 +18,14 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
+
+static uint32_t mono_ms_lo_vp(void)
+{
+ struct timespec ts;
+ clock_gettime(CLOCK_MONOTONIC, &ts);
+ return (uint32_t)((uint64_t)ts.tv_sec * 1000u + (uint64_t)ts.tv_nsec / 1000000u);
+}
 
 #define SCHF_CODED_BITS 432
 
@@ -124,9 +132,9 @@ int tetra_voice_pipe_tick(tetra_hal_t *hal, uint32_t target_ssi)
  static int s_bfi = 0;
  s_n++;
  if (bfi) s_bfi++;
- if ((s_n & 0x1F) == 0) {
- fprintf(stderr, "voice_pipe: bursts=%d bfi_fail=%d (= %d%%)\n",
- s_n, s_bfi, (s_bfi*100)/(s_n?s_n:1));
+ if ((s_n & 0x07) == 0) {
+ fprintf(stderr, "voice_pipe: t=%ums bursts=%d bfi_fail=%d (= %d%%)\n",
+ mono_ms_lo_vp(), s_n, s_bfi, (s_bfi*100)/(s_n?s_n:1));
  }
 
  /* 3. ETSI TCH/S re-encode → 432 clean type-5 bits for DL. */

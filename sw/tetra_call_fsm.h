@@ -25,14 +25,17 @@
  *   keine False-Positives im Idle (gemessen 2026-05-16: 0 bumps/s
  *   vs. 48 bumps/s bei default thresh=8). Echte UL-TCH/S-Bursts
  *   kommen ~16-18 /s während aktiver PTT (inter-burst ~60 ms).
- *   200 ms quiet ⇒ Channel sofort dicht (mask=0) nach PTT-Release,
- *   damit TS2 keinen Müll mehr aus dem stale Filler-Buffer sendet.
- *   = 3+ bursts Toleranz für gelegentliche Sync-Aussetzer.
+ *   300 ms quiet ⇒ Channel dicht (mask=0). Toleriert ~5 verlorene
+ *   Bursts in Folge — 2026-05-17 mit thresh=11 zeigten sich Mid-Call-
+ *   Cuts bei nub_quiet=203 ms (knapp über 3-Burst-Grenze), Audio in
+ *   OpenEAR aber bereits sauber. 300 ms entfernt die Mid-Call-Cuts
+ *   ohne nennenswerten Post-Release-Latenz-Zuwachs (kein 2. MS Müll-
+ *   empfindlich im Setup).
  * - CALL_STALE_MS: kein NUB-Burst seit N s ⇒ Slot freigeben (MS
  *   power-cycle / RF-Drop ohne U-RELEASE). Lang genug, dass
  *   PTT-Pause + Re-Key ohne neuen U-SETUP-Roundtrip möglich ist —
  *   Reservation bleibt, nur der Kanal geht aus. */
-#define CALL_FSM_VOICE_QUIET_MS 200u
+#define CALL_FSM_VOICE_QUIET_MS 300u
 #define CALL_FSM_CALL_STALE_MS 5000u
 
 typedef enum {

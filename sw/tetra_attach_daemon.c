@@ -375,14 +375,15 @@ int main(int argc, char **argv)
 
  /* MER-Fix: UL-NUB-Sync-Schwelle hochsetzen (Default 8/11) so dass
   * Idle-Bursts keine NTS1-False-Positives mehr triggern (FP-Rate ≈
-  * 48/s bei 8/11, 0/s bei 10/11 — gemessen 2026-05-16). Erst dadurch
-  * wird REG_VOICE_NUB_RX_CNT ein zuverlässiger PTT-Aktivitäts-
-  * Indikator für den Call-FSM-Watchdog. */
- tetra_reg_write(&hal, REG_VOICE_NUB_SYNC_THRESH, 10u);
+  * 48/s bei 8/11, 0/s bei 10/11 — gemessen 2026-05-16).
+  * 2026-05-17 Survey: thresh=11 senkt BFI auf 4.7 % vs 6.1 % bei 10
+  * (~22 % rel. Verbesserung, Burst-Rate näher an ETSI 16-18/s);
+  * thresh=12 dagegen tot — NUB-Detector lockt nicht mehr. */
+ tetra_reg_write(&hal, REG_VOICE_NUB_SYNC_THRESH, 11u);
 
  fprintf(stderr,
  "tetra_attach_daemon: started — USE_SW=1, polling REG_DEMAND_STATUS, "
- "policy=0x%08X, VOICE_ACTIVE_MASK=0, NUB_SYNC_THRESH=10\n",
+ "policy=0x%08X, VOICE_ACTIVE_MASK=0, NUB_SYNC_THRESH=11\n",
  tetra_reg_read(&hal, REG_DB_POLICY));
 
  uint32_t serviced = 0;
