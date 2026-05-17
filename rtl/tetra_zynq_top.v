@@ -2760,6 +2760,39 @@ wire [1:0] pre_reply_blck_pdu_type_sys_w;
 wire [1:0] pre_reply_blck_target_tn_sys_w;
 // pre_reply_blck_{push,drop}_cnt_sys_w forward-declared earlier (CDC block).
 
+// =============================================================================
+// Shared SCH/HD encoder (2026-05-17 Util-Refactor)
+// Wird sowohl von u_pre_reply_blck (ch1, BL-ACK) als auch von
+// u_pre_reply_slotgrant (ch0, Priorität) genutzt. Arbiter intern.
+// Spart ~600 LUT vs frühere Doppel-Instanz.
+// =============================================================================
+wire sg_enc_req_w;
+wire [123:0] sg_enc_info_w;
+wire [31:0] sg_enc_scramb_w;
+wire sg_enc_done_w;
+wire [215:0] sg_enc_coded_w;
+
+wire blck_enc_req_w;
+wire [123:0] blck_enc_info_w;
+wire [31:0] blck_enc_scramb_w;
+wire blck_enc_done_w;
+wire [215:0] blck_enc_coded_w;
+
+tetra_sch_hd_shared u_sch_hd_shared (
+.clk_sys (clk_sys),
+.rst_n_sys (rst_n_sys),
+.ch0_req (sg_enc_req_w),
+.ch0_info_bits (sg_enc_info_w),
+.ch0_scramble_init(sg_enc_scramb_w),
+.ch0_done (sg_enc_done_w),
+.ch0_coded (sg_enc_coded_w),
+.ch1_req (blck_enc_req_w),
+.ch1_info_bits (blck_enc_info_w),
+.ch1_scramble_init(blck_enc_scramb_w),
+.ch1_done (blck_enc_done_w),
+.ch1_coded (blck_enc_coded_w)
+);
+
 tetra_pre_reply_blck u_pre_reply_blck (
 .clk_sys (clk_sys),
 .rst_n_sys (rst_n_sys),
@@ -2775,6 +2808,12 @@ tetra_pre_reply_blck u_pre_reply_blck (
 .cfg_mcch_tn (cfg_mcch_tn_sys_r1),
  // Cell DL scrambler seed — same pack as MLE-FSM and AACH (ref-konform).
 .cfg_scramble_init (mle_dl_scramb_init_sys),
+ // Shared SCH/HD encoder (ch1)
+.ext_enc_req (blck_enc_req_w),
+.ext_info_bits (blck_enc_info_w),
+.ext_scramble_init (blck_enc_scramb_w),
+.ext_enc_done (blck_enc_done_w),
+.ext_enc_coded (blck_enc_coded_w),
  // DL-Signal-Queue producer (SDS slot)
 .wr_blck_valid_sys (pre_reply_blck_valid_sys_w),
 .wr_blck_coded_sys (pre_reply_blck_coded_sys_w),
@@ -2841,6 +2880,12 @@ tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
 .mm_pdu_type (frag1_mm_type_w),
 .cfg_mcch_tn (cfg_mcch_tn_sys_r1),
 .cfg_scramble_init (mle_dl_scramb_init_sys),
+ // Shared SCH/HD encoder (ch0, Priorität)
+.ext_enc_req (sg_enc_req_w),
+.ext_info_bits (sg_enc_info_w),
+.ext_scramble_init (sg_enc_scramb_w),
+.ext_enc_done (sg_enc_done_w),
+.ext_enc_coded (sg_enc_coded_w),
  // Queue-side outputs: 432-bit MSB-aligned SCH/HD coded
  // (`{coded_schhd, 216'd0}`), pdu_type fixed at PDUC_SLOTFMT_SCH_HD.
 .wr_slotgrant_valid_sys (slotgrant_valid_sys_w),

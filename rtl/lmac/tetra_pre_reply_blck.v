@@ -56,6 +56,14 @@ module tetra_pre_reply_blck (
  input wire [1:0] cfg_mcch_tn,
  input wire [31:0] cfg_scramble_init,
 
+ // Shared SCH/HD encoder interface (2026-05-17 Util-Refactor).
+ // Siehe Header von tetra_sch_hd_shared.v für Semantik.
+ output wire ext_enc_req,
+ output wire [123:0] ext_info_bits,
+ output wire [31:0] ext_scramble_init,
+ input wire ext_enc_done,
+ input wire [215:0] ext_enc_coded,
+
  // DL-Signal-Queue producer (SDS slot — was tied off)
  output reg wr_blck_valid_sys,
  output wire [431:0] wr_blck_coded_sys,
@@ -116,27 +124,14 @@ module tetra_pre_reply_blck (
 .valid (builder_valid_w)
  );
 
- // SCH/HD encoder — 124 → 216 type-5 coded bits. scramble_init is the
- // cell DL seed `{MCC,MNC,CC,2'b11}` (identical pack as MLE-FSM uses
- // for ACCEPT and as AACH-encoder uses for the slot scrambler). MS
- // requires this seed to match its own descrambler, otherwise the
- // BL-ACK payload looks like noise on-air.
- reg encode_start;
- wire [215:0] coded_w;
- wire coded_valid_w;
-
- tetra_sch_hd_encoder u_sch_hd (
-.clk (clk_sys),
-.rst_n (rst_n_sys),
-.encode_start (encode_start),
-.info_bits (builder_pdu_w),
-.scramble_init (cfg_scramble_init),
-.coded_bits (coded_w),
-.coded_valid (coded_valid_w)
- );
+ // SCH/HD encoder via shared instance (2026-05-17 refactor). scramble_init
+ // ist der cell DL seed `{MCC,MNC,CC,2'b11}` (identical pack als MLE-FSM
+ // für ACCEPT und AACH-encoder slot scrambler). MS braucht passenden seed,
+ // sonst sieht BL-ACK Payload nach Rauschen aus.
 
  // Latched coded payload for queue push
  reg [215:0] lat_coded_blk1;
+ reg enc_req_r;
 
  // -------------------------------------------------------------------------
  // FSM control + payload registers
@@ -147,7 +142,7 @@ module tetra_pre_reply_blck (
  lat_ssi <= 24'd0;
  lat_target_tn <= 2'd0;
  builder_start <= 1'b0;
- encode_start <= 1'b0;
+ enc_req_r <= 1'b0;
  wr_blck_valid_sys <= 1'b0;
  lat_coded_blk1 <= 216'd0;
  push_cnt_sys <= 16'd0;
@@ -155,7 +150,6 @@ module tetra_pre_reply_blck (
  end else begin
  // Default strobes
  builder_start <= 1'b0;
- encode_start <= 1'b0;
  wr_blck_valid_sys <= 1'b0;
 
  case (state)
@@ -176,15 +170,16 @@ module tetra_pre_reply_blck (
  if (trigger_pulse_w && drop_cnt_sys != 16'hFFFF)
  drop_cnt_sys <= drop_cnt_sys + 16'd1;
  if (builder_valid_w) begin
- encode_start <= 1'b1;
+ enc_req_r <= 1'b1;
  state <= S_ENC;
  end
  end
  S_ENC: begin
  if (trigger_pulse_w && drop_cnt_sys != 16'hFFFF)
  drop_cnt_sys <= drop_cnt_sys + 16'd1;
- if (coded_valid_w) begin
- lat_coded_blk1 <= coded_w;
+ if (ext_enc_done) begin
+ lat_coded_blk1 <= ext_enc_coded;
+ enc_req_r <= 1'b0;
  state <= S_PUSH;
  end
  end
@@ -198,6 +193,11 @@ module tetra_pre_reply_blck (
  endcase
  end
  end
+
+ // Shared-encoder Request-Outputs.
+ assign ext_enc_req = enc_req_r;
+ assign ext_info_bits = builder_pdu_w;
+ assign ext_scramble_init = cfg_scramble_init;
 
  // -------------------------------------------------------------------------
  // Combinational outputs to DL-Signal-Queue

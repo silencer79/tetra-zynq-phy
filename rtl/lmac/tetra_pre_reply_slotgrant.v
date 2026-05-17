@@ -60,6 +60,19 @@ module tetra_pre_reply_slotgrant (
  input wire [1:0] cfg_mcch_tn,
  input wire [31:0] cfg_scramble_init,
 
+ // Shared SCH/HD encoder interface (2026-05-17 Util-Refactor).
+ //   ext_enc_req     hochzieren wenn info_bits + scramble_init ready
+ //                   und encoder soll starten; halten bis ext_enc_done.
+ //   ext_info_bits   124-bit PDU für encoder
+ //   ext_scramble_init 32-bit DL scrambler seed
+ //   ext_enc_done    1-cycle Puls vom Arbiter wenn encoder fertig
+ //   ext_enc_coded   216-bit coded payload (valid alongside ext_enc_done)
+ output wire ext_enc_req,
+ output wire [123:0] ext_info_bits,
+ output wire [31:0] ext_scramble_init,
+ input wire ext_enc_done,
+ input wire [215:0] ext_enc_coded,
+
  // DL-Signal-Queue producer (MLE slot — muxed at top.v with MLE-FSM
  // Final-ACCEPT and GroupAck). Phase Z.9: 432-bit bus carries the
  // 216-bit SCH/HD payload MSB-aligned; pdu_type fixed at SCH_HD.
@@ -153,27 +166,14 @@ module tetra_pre_reply_slotgrant (
 .valid (builder_valid_w)
  );
 
- reg encode_start;
- wire [215:0] coded_w;
- wire coded_valid_w;
-
- tetra_sch_hd_encoder u_sch_hd (
-.clk (clk_sys),
-.rst_n (rst_n_sys),
-.encode_start (encode_start),
-.info_bits (builder_pdu_w),
-.scramble_init (lat_scramble_init),
-.coded_bits (coded_w),
-.coded_valid (coded_valid_w)
- );
-
  // -------------------------------------------------------------------------
- // FSM — single SCH/HD path.
+ // FSM — single SCH/HD path via shared encoder (2026-05-17 refactor).
  //
  // S_IDLE — wait for frag1_edge_w with mm ∈ {2,7}. Latch trigger
  // inputs and kick the local MAC-Resource builder.
- // S_BUILD — wait for builder_valid_w; then kick the SCH/HD encoder.
- // S_ENC — wait for coded_valid_w; latch 216-bit coded.
+ // S_BUILD — wait for builder_valid_w; then assert ext_enc_req.
+ // S_ENC — keep ext_enc_req=1; wait for ext_enc_done from arbiter;
+ // latch 216-bit ext_enc_coded.
  // S_PUSH — pulse wr_slotgrant_valid_sys for 1 cycle.
  // -------------------------------------------------------------------------
  localparam [1:0] S_IDLE = 2'd0;
@@ -182,6 +182,7 @@ module tetra_pre_reply_slotgrant (
  localparam [1:0] S_PUSH = 2'd3;
 
  reg [1:0] state;
+ reg enc_req_r;
 
  always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys) begin
@@ -191,14 +192,13 @@ module tetra_pre_reply_slotgrant (
  lat_scramble_init <= 32'd0;
  lat_coded_schhd <= 216'd0;
  builder_start <= 1'b0;
- encode_start <= 1'b0;
+ enc_req_r <= 1'b0;
  wr_slotgrant_valid_sys <= 1'b0;
  push_cnt_sys <= 16'd0;
  drop_cnt_sys <= 16'd0;
  end else begin
  // Default 1-cycle strobes
  builder_start <= 1'b0;
- encode_start <= 1'b0;
  wr_slotgrant_valid_sys <= 1'b0;
 
  case (state)
@@ -225,7 +225,7 @@ module tetra_pre_reply_slotgrant (
  if (frag1_edge_w && drop_cnt_sys != 16'hFFFF)
  drop_cnt_sys <= drop_cnt_sys + 16'd1;
  if (builder_valid_w) begin
- encode_start <= 1'b1;
+ enc_req_r <= 1'b1;
  state <= S_ENC;
  end
  end
@@ -233,8 +233,9 @@ module tetra_pre_reply_slotgrant (
  S_ENC: begin
  if (frag1_edge_w && drop_cnt_sys != 16'hFFFF)
  drop_cnt_sys <= drop_cnt_sys + 16'd1;
- if (coded_valid_w) begin
- lat_coded_schhd <= coded_w;
+ if (ext_enc_done) begin
+ lat_coded_schhd <= ext_enc_coded;
+ enc_req_r <= 1'b0;
  state <= S_PUSH;
  end
  end
@@ -250,6 +251,12 @@ module tetra_pre_reply_slotgrant (
  endcase
  end
  end
+
+ // Shared-encoder Request-Outputs (combinational; info_bits passes through
+ // from the builder while it stays asserted, scramble_init is latched).
+ assign ext_enc_req = enc_req_r;
+ assign ext_info_bits = builder_pdu_w;
+ assign ext_scramble_init = lat_scramble_init;
 
  // -------------------------------------------------------------------------
  // Combinational outputs to DL-Signal-Queue

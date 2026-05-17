@@ -50,6 +50,29 @@ module tb_pre_reply_blck;
  wire [15:0] push_cnt_sys;
  wire [15:0] drop_cnt_sys;
 
+ // Shared SCH/HD encoder interface — TB hängt den DUT auf ch1 des
+ // u_sch_hd_shared (ch0 = SlotGrant, ungenutzt in diesem TB).
+ wire dut_enc_req;
+ wire [123:0] dut_enc_info;
+ wire [31:0] dut_enc_scramb;
+ wire dut_enc_done;
+ wire [215:0] dut_enc_coded;
+
+ tetra_sch_hd_shared u_sch_hd_shared (
+.clk_sys (clk),
+.rst_n_sys (rst_n),
+.ch0_req (1'b0),
+.ch0_info_bits (124'd0),
+.ch0_scramble_init(32'd0),
+.ch0_done (/* open */),
+.ch0_coded (/* open */),
+.ch1_req (dut_enc_req),
+.ch1_info_bits (dut_enc_info),
+.ch1_scramble_init(dut_enc_scramb),
+.ch1_done (dut_enc_done),
+.ch1_coded (dut_enc_coded)
+ );
+
  tetra_pre_reply_blck dut (
 .clk_sys (clk),
 .rst_n_sys (rst_n),
@@ -57,6 +80,11 @@ module tb_pre_reply_blck;
 .ul_ssi (ul_ssi),
 .cfg_mcch_tn (cfg_mcch_tn),
 .cfg_scramble_init (cfg_scramble_init),
+.ext_enc_req (dut_enc_req),
+.ext_info_bits (dut_enc_info),
+.ext_scramble_init (dut_enc_scramb),
+.ext_enc_done (dut_enc_done),
+.ext_enc_coded (dut_enc_coded),
 .wr_blck_valid_sys (wr_blck_valid_sys),
 .wr_blck_coded_sys (wr_blck_coded_sys),
 .wr_blck_pdu_type_sys (wr_blck_pdu_type_sys),
