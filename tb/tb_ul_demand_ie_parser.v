@@ -62,6 +62,7 @@ module tb_ul_demand_ie_parser;
 .start_sys (start),
 .body_sys (body),
 .ssi_sys (pdu_ssi),
+.mm_pdu_type_sys (4'd2), // mm=2 LOCATION-UPDATE-DEMAND fixed for this TB
 .location_update_type_sys (loc_upd_type_w),
 .request_to_append_la_sys (req_to_append_la_w),
 .cipher_control_sys (cipher_control_w),

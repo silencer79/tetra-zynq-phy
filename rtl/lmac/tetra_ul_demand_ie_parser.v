@@ -171,14 +171,15 @@ module tetra_ul_demand_ie_parser (
 );
 
  // -------------------------------------------------------------------------
- // Stream cursor + working buffer. We snapshot `body_sys` into
- // `body_buf` on `start_sys` and decrement `cursor` as we consume bits.
- // cursor counts the number of bits remaining; the next bit to consume
- // sits at body_buf[cursor-1]. cursor=129 → about to take body_buf[128].
- // cursor=0 → stream exhausted.
+ // Stream cursor + working buffer (2026-05-17 refactor for slack).
+ // `body_buf` is now an MSB-aligned LEFT-SHIFT register: the next bit
+ // to consume is ALWAYS at body_buf[128]. Reads always use FIXED-
+ // position slices (`body_buf[128 -: W]`) — no variable-cursor muxes.
+ // `cursor` is a pure remaining-bit counter for boundary checks.
+ // Consume N bits: `body_buf <= body_buf << N; cursor <= cursor - N;`.
  // -------------------------------------------------------------------------
  reg [128:0] body_buf;
- reg [7:0] cursor; // 0..129
+ reg [7:0] cursor; // 0..129, bits-remaining counter
 
  // -------------------------------------------------------------------------
  // FSM states. A single state machine traverses the body with a tight
@@ -214,19 +215,14 @@ module tetra_ul_demand_ie_parser (
 
  // -------------------------------------------------------------------------
  // Phase Y.1.a-fix — pipelined GIU walker registers.
- //
- // Splits the 3-record one-cycle walker (~29 logic levels) into a tiny
- // FSM that processes ONE record across two cycles (HDR + GSSI). All
- // bit-slice index arithmetic is reduced to a single subtractor per
- // cycle (`body_buf[gad_base - gad_off]`), eliminating the deep mux
- // cascade that came from chaining 3 record-blocks combinationally.
- //
- // gad_base is the bit index of the first GIU payload bit (= cursor-1
- // captured at S_GAD_GIU_INIT entry); gad_off counts bits consumed
- // *within* the payload starting at num_elem(6).
+ // 2026-05-17 refactor: gad_base/gad_off replaced by `gad_buf` LEFT-
+ // shift register snapshot of the payload (256 bit; MSB-aligned: next
+ // bit at gad_buf[255]) + `gad_remain` (bits not yet consumed in
+ // gad_buf). All reads use fixed-position slices off gad_buf, all
+ // consumes shift gad_buf left.
  // -------------------------------------------------------------------------
- reg [7:0] gad_base; // body_buf MSB index for payload bit 0
- reg [10:0] gad_off; // running offset within payload, in bits
+ reg [255:0] gad_buf; // GIU payload snapshot (MSB = next bit)
+ reg [10:0] gad_remain; // bits remaining in gad_buf (boundary checks)
  reg [5:0] gad_num_elem; // total GIU record count
  reg [1:0] gad_rec_idx; // next record to write (0..3)
  reg gad_adi; // current record attach/detach flag
@@ -255,9 +251,9 @@ module tetra_ul_demand_ie_parser (
  reg [255:0] gild_buf;
 
  // -------------------------------------------------------------------------
- // Combinational helper — peek the next bit at the outer cursor.
+ // Combinational helper — peek the next bit (MSB of shift register).
  // -------------------------------------------------------------------------
- wire peek1 = body_buf[cursor - 8'd1];
+ wire peek1 = body_buf[128];
 
  // -------------------------------------------------------------------------
  // Sequential FSM
@@ -296,8 +292,8 @@ module tetra_ul_demand_ie_parser (
  gid_class_array_sys <= 9'd0;
  gid_address_type_array_sys <= 6'd0;
  gid_gssi_array_sys <= 72'd0;
- gad_base <= 8'd0;
- gad_off <= 11'd0;
+ gad_buf <= 256'd0;
+ gad_remain <= 11'd0;
  gad_num_elem <= 6'd0;
  gad_rec_idx <= 2'd0;
  gad_adi <= 1'b0;
@@ -348,19 +344,21 @@ module tetra_ul_demand_ie_parser (
  // -----------------------------------------------------------------
  S_HEADER_T1: begin
  if (cursor >= 8'd5) begin
- location_update_type_sys <= body_buf[cursor - 8'd1 -: 3];
- request_to_append_la_sys <= body_buf[cursor - 8'd4];
- cipher_control_sys <= body_buf[cursor - 8'd5];
- if (body_buf[cursor - 8'd5] == 1'b1) begin
+ location_update_type_sys <= body_buf[128 -: 3];
+ request_to_append_la_sys <= body_buf[125];
+ cipher_control_sys <= body_buf[124];
+ if (body_buf[124] == 1'b1) begin
  if (cursor >= 8'd15) begin
  // Skip the 10-bit ciphering_parameters block.
  cursor <= cursor - 8'd15;
+ body_buf <= body_buf << 15;
  state <= S_OPT_OBIT;
  end else begin
  state <= S_DONE_FAIL;
  end
  end else begin
  cursor <= cursor - 8'd5;
+ body_buf <= body_buf << 5;
  state <= S_OPT_OBIT;
  end
  end else begin
@@ -377,9 +375,11 @@ module tetra_ul_demand_ie_parser (
  state <= S_DONE;
  end else if (peek1 == 1'b0) begin
  cursor <= cursor - 8'd1;
+ body_buf <= body_buf << 1;
  state <= S_DONE;
  end else begin
  cursor <= cursor - 8'd1;
+ body_buf <= body_buf << 1;
  state <= S_T2_CLASS_P;
  end
  end
@@ -392,11 +392,13 @@ module tetra_ul_demand_ie_parser (
  state <= S_DONE_FAIL;
  end else if (peek1 == 1'b0) begin
  cursor <= cursor - 8'd1;
+ body_buf <= body_buf << 1;
  state <= S_T2_ESM_P;
  end else if (cursor >= 8'd25) begin
- class_of_ms_sys <= body_buf[cursor - 8'd2 -: 24];
+ class_of_ms_sys <= body_buf[127 -: 24];
  class_of_ms_valid_sys <= 1'b1;
  cursor <= cursor - 8'd25;
+ body_buf <= body_buf << 25;
  state <= S_T2_ESM_P;
  end else begin
  state <= S_DONE_FAIL;
@@ -409,11 +411,13 @@ module tetra_ul_demand_ie_parser (
  state <= S_DONE_FAIL;
  end else if (peek1 == 1'b0) begin
  cursor <= cursor - 8'd1;
+ body_buf <= body_buf << 1;
  state <= S_T2_LA_P;
  end else if (cursor >= 8'd4) begin
- energy_saving_mode_sys <= body_buf[cursor - 8'd2 -: 3];
+ energy_saving_mode_sys <= body_buf[127 -: 3];
  energy_saving_mode_valid_sys <= 1'b1;
  cursor <= cursor - 8'd4;
+ body_buf <= body_buf << 4;
  state <= S_T2_LA_P;
  end else begin
  state <= S_DONE_FAIL;
@@ -429,11 +433,13 @@ module tetra_ul_demand_ie_parser (
  state <= S_DONE_FAIL;
  end else if (peek1 == 1'b0) begin
  cursor <= cursor - 8'd1;
+ body_buf <= body_buf << 1;
  state <= S_T2_SSI_P;
  end else if (cursor >= 8'd16) begin
- la_information_sys <= body_buf[cursor - 8'd2 -: 14];
+ la_information_sys <= body_buf[127 -: 14];
  la_information_valid_sys <= 1'b1;
  cursor <= cursor - 8'd16;
+ body_buf <= body_buf << 16;
  state <= S_T2_SSI_P;
  end else begin
  state <= S_DONE_FAIL;
@@ -446,11 +452,13 @@ module tetra_ul_demand_ie_parser (
  state <= S_DONE_FAIL;
  end else if (peek1 == 1'b0) begin
  cursor <= cursor - 8'd1;
+ body_buf <= body_buf << 1;
  state <= S_T2_AE_P;
  end else if (cursor >= 8'd25) begin
- ssi_field_sys <= body_buf[cursor - 8'd2 -: 24];
+ ssi_field_sys <= body_buf[127 -: 24];
  ssi_field_valid_sys <= 1'b1;
  cursor <= cursor - 8'd25;
+ body_buf <= body_buf << 25;
  state <= S_T2_AE_P;
  end else begin
  state <= S_DONE_FAIL;
@@ -463,11 +471,13 @@ module tetra_ul_demand_ie_parser (
  state <= S_DONE_FAIL;
  end else if (peek1 == 1'b0) begin
  cursor <= cursor - 8'd1;
+ body_buf <= body_buf << 1;
  state <= S_T3_M;
  end else if (cursor >= 8'd25) begin
- address_ext_sys <= body_buf[cursor - 8'd2 -: 24];
+ address_ext_sys <= body_buf[127 -: 24];
  address_ext_valid_sys <= 1'b1;
  cursor <= cursor - 8'd25;
+ body_buf <= body_buf << 25;
  state <= S_T3_M;
  end else begin
  state <= S_DONE_FAIL;
@@ -482,11 +492,13 @@ module tetra_ul_demand_ie_parser (
  state <= S_DONE;
  end else if (peek1 == 1'b0) begin
  cursor <= cursor - 8'd1;
+ body_buf <= body_buf << 1;
  state <= S_DONE;
  end else if (cursor >= 8'd16) begin
- cur_elem_id <= body_buf[cursor - 8'd2 -: 4];
- cur_elem_len <= body_buf[cursor - 8'd6 -: 11];
+ cur_elem_id <= body_buf[127 -: 4];
+ cur_elem_len <= body_buf[123 -: 11];
  cursor <= cursor - 8'd16;
+ body_buf <= body_buf << 16;
  state <= S_T3_HEADER;
  end else begin
  state <= S_DONE_FAIL;
@@ -506,20 +518,20 @@ module tetra_ul_demand_ie_parser (
  // Stream too short to hold the claimed payload.
  state <= S_DONE_FAIL;
  end else if (cur_elem_id == 4'd3 && cur_elem_len > 11'd0) begin
- // Snapshot the payload into gild_buf, MSB-aligned.
- // Right-shift body_buf by (cursor - cur_elem_len) bits
- // to drop the bits AFTER the payload. The payload's
- // MSB then lands at gild_buf[cur_elem_len-1] and the
- // header bits sit above (we mask them off conceptually
- // by indexing only the low cur_elem_len bits when
- // reading).
+ // Snapshot the payload into gild_buf, LSB-aligned: top
+ // payload bit lands at gild_buf[cur_elem_len-1]. body_buf
+ // is left-aligned shift register (top bit = body_buf[128]),
+ // so right-shift body_buf by (129 - cur_elem_len) to put
+ // the payload's MSB at gild_buf[cur_elem_len-1].
  gild_buf <= ({{(256-129){1'b0}}, body_buf} >>
- (cursor - cur_elem_len));
+ (9'd129 - cur_elem_len));
  cursor <= cursor - cur_elem_len[7:0];
+ body_buf <= body_buf << cur_elem_len[7:0];
  state <= S_T3_PAYLOAD_GILD;
  end else begin
  // Skip non-GILD payload wholesale.
  cursor <= cursor - cur_elem_len[7:0];
+ body_buf <= body_buf << cur_elem_len[7:0];
  state <= S_T3_M;
  end
  end
@@ -643,9 +655,10 @@ module tetra_ul_demand_ie_parser (
  // Reassembly already stripped the on-air pdu_type, so the
  // top of body_buf is GIR + atd_mode directly.
  if (cursor >= 8'd3) begin
- gid_group_identity_report_sys <= body_buf[cursor - 8'd1];
- gid_attach_detach_mode_sys <= body_buf[cursor - 8'd2];
+ gid_group_identity_report_sys <= body_buf[128];
+ gid_attach_detach_mode_sys <= body_buf[127];
  cursor <= cursor - 8'd2;
+ body_buf <= body_buf << 2;
  state <= S_GAD_OBIT;
  end else begin
  state <= S_DONE_FAIL;
@@ -659,9 +672,11 @@ module tetra_ul_demand_ie_parser (
  state <= S_DONE;
  end else if (peek1 == 1'b0) begin
  cursor <= cursor - 8'd1;
+ body_buf <= body_buf << 1;
  state <= S_DONE;
  end else begin
  cursor <= cursor - 8'd1;
+ body_buf <= body_buf << 1;
  state <= S_GAD_M_REP;
  end
  end
@@ -684,10 +699,11 @@ module tetra_ul_demand_ie_parser (
  end else if (peek1 == 1'b0) begin
  // m-bit explicitly 0 — consume the bit, GRR not present.
  cursor <= cursor - 8'd1;
+ body_buf <= body_buf << 1;
  state <= S_GAD_M_GIU;
  end else if (cursor >= 8'd5) begin
  // m-bit == 1: peek elem_id WITHOUT consuming the m-bit.
- peek_id = body_buf[cursor - 8'd2 -: 4];
+ peek_id = body_buf[127 -: 4];
  if (peek_id != 4'd4) begin
  // elem_id != GroupReportResponse — the m-bit is for
  // the upcoming GIU element; leave cursor untouched.
@@ -695,10 +711,11 @@ module tetra_ul_demand_ie_parser (
  end else if (cursor >= 8'd16) begin
  // GRR present: consume m-bit + elem_id(4) + len(11)
  // + length bits of opaque payload.
- skip_len = body_buf[cursor - 8'd6 -: 11];
+ skip_len = body_buf[123 -: 11];
  if ({1'b0, cursor} >=
  ({2'b00, skip_len[7:0]} + 17)) begin
  cursor <= cursor - 8'd16 - skip_len[7:0];
+ body_buf <= body_buf << (16 + skip_len[7:0]);
  state <= S_GAD_M_GIU;
  end else begin
  state <= S_DONE_FAIL;
@@ -724,18 +741,20 @@ module tetra_ul_demand_ie_parser (
  // GIU not present; mm=7 with no records is unusual but
  // accept it (spec allows; gid_count stays 0).
  cursor <= cursor - 8'd1;
+ body_buf <= body_buf << 1;
  state <= S_DONE;
  end else if (cursor >= 8'd16) begin
- sub_id = body_buf[cursor - 8'd2 -: 4];
- sub_len = body_buf[cursor - 8'd6 -: 11];
+ sub_id = body_buf[127 -: 4];
+ sub_len = body_buf[123 -: 11];
  if (sub_id == 4'd8 && {1'b0, cursor} >=
  ({2'b00, sub_len[7:0]} + 17)) begin
- // Set up payload walker — payload starts cursor-16
- // (after eating elem_id+length), payload size =
- // sub_len bits. Pipelined walker takes 2 cycles
- // per record (HDR + GSSI) plus one INIT cycle.
+ // Set up payload walker — payload starts at body_buf[128]
+ // after consuming elem_id+length (16 bits). Pipelined
+ // walker takes 2 cycles per record (HDR + GSSI) plus one
+ // INIT cycle.
  cur_elem_len <= sub_len;
  cursor <= cursor - 8'd16;
+ body_buf <= body_buf << 16;
  state <= S_GAD_GIU_INIT;
  end else begin
  state <= S_DONE_FAIL;
@@ -779,11 +798,14 @@ module tetra_ul_demand_ie_parser (
  if (cur_elem_len < 11'd6) begin
  state <= S_DONE_FAIL;
  end else begin
- gad_base <= cursor - 8'd1; // payload bit 0 index
- gad_num_elem <= body_buf[cursor - 8'd1 -: 6];
- gad_off <= 11'd6; // num_elem consumed
+ gad_num_elem <= body_buf[128 -: 6];
  gad_rec_idx <= 2'd0;
- if (body_buf[cursor - 8'd1 -: 6] == 6'd0) begin
+ // Snapshot payload into gad_buf (left-aligned: payload bit 0
+ // at gad_buf[255]) then shift by 6 to skip the num_elem header.
+ // After this cycle: gad_buf[255] = first GIU record's adi bit.
+ gad_buf <= ({body_buf, 127'b0}) << 6;
+ gad_remain <= cur_elem_len - 11'd6;
+ if (body_buf[128 -: 6] == 6'd0) begin
  // num_elem == 0 — empty list, accept gracefully.
  gid_count_sys <= 2'd0;
  state <= S_DONE;
@@ -799,30 +821,29 @@ module tetra_ul_demand_ie_parser (
  // within this cycle use +1/+3 offsets relative to it.
  // -----------------------------------------------------------------
  S_GAD_GIU_REC_HDR: begin: gad_rec_hdr_blk
- reg [7:0] pos0; // first remaining bit (= gad_base - gad_off)
  reg adi_w;
  reg [1:0] at_w;
  reg [2:0] cou_w;
  reg ok_w;
- pos0 = gad_base - gad_off[7:0];
- adi_w = body_buf[pos0];
+ // gad_buf is left-aligned: next bit at gad_buf[255].
+ adi_w = gad_buf[255];
  cou_w = 3'd0;
  at_w = 2'd0;
  ok_w = 1'b1;
  if (adi_w == 1'b0) begin
  // attach: cou(3) + at(2) follow adi
- if ((gad_off + 11'd6) > cur_elem_len) begin
+ if (gad_remain < 11'd6) begin
  ok_w = 1'b0;
  end else begin
- cou_w = body_buf[pos0 - 8'd1 -: 3];
- at_w = body_buf[pos0 - 8'd4 -: 2];
+ cou_w = gad_buf[254 -: 3]; // 3 bits, offset +1 below MSB
+ at_w = gad_buf[251 -: 2]; // 2 bits, offset +4 below MSB
  end
  end else begin
  // detach: skip(2) + at(2) follow adi
- if ((gad_off + 11'd5) > cur_elem_len) begin
+ if (gad_remain < 11'd5) begin
  ok_w = 1'b0;
  end else begin
- at_w = body_buf[pos0 - 8'd3 -: 2];
+ at_w = gad_buf[252 -: 2]; // 2 bits, offset +3 below MSB
  end
  end
  if (!ok_w) begin
@@ -834,10 +855,14 @@ module tetra_ul_demand_ie_parser (
  gad_adi <= adi_w;
  gad_cou <= cou_w;
  gad_at <= at_w;
- if (adi_w == 1'b0)
- gad_off <= gad_off + 11'd6; // 1 adi + 3 cou + 2 at
- else
- gad_off <= gad_off + 11'd5; // 1 adi + 2 skip + 2 at
+ // Consume header bits: shift gad_buf left, decrement remain.
+ if (adi_w == 1'b0) begin
+ gad_buf <= gad_buf << 6; // 1 adi + 3 cou + 2 at
+ gad_remain <= gad_remain - 11'd6;
+ end else begin
+ gad_buf <= gad_buf << 5; // 1 adi + 2 skip + 2 at
+ gad_remain <= gad_remain - 11'd5;
+ end
  gad_skip_ae <= (at_w == 2'b01);
  state <= S_GAD_GIU_REC_GSSI;
  end
@@ -852,25 +877,23 @@ module tetra_ul_demand_ie_parser (
  // mux of 24-bit slices — short logic.
  // -----------------------------------------------------------------
  S_GAD_GIU_REC_GSSI: begin: gad_rec_gssi_blk
- reg [7:0] pos0;
  reg [23:0] g24_w;
  reg ok_w;
- reg [10:0] off_after;
- pos0 = gad_base - gad_off[7:0];
+ reg [10:0] consume_w;
  g24_w = 24'd0;
  ok_w = 1'b1;
- off_after = gad_off;
+ consume_w = 11'd0;
  if (gad_at == 2'b00 || gad_at == 2'b01 || gad_at == 2'b10) begin
- if ((gad_off + 11'd24) > cur_elem_len) begin
+ if (gad_remain < 11'd24) begin
  ok_w = 1'b0;
  end else begin
- g24_w = body_buf[pos0 -: 24];
- off_after = gad_off + 11'd24;
+ g24_w = gad_buf[255 -: 24];
+ consume_w = 11'd24;
  if (gad_skip_ae) begin
- if ((off_after + 11'd24) > cur_elem_len)
+ if (gad_remain < 11'd48)
  ok_w = 1'b0;
  else
- off_after = off_after + 11'd24;
+ consume_w = 11'd48;
  end
  end
  end
@@ -900,7 +923,9 @@ module tetra_ul_demand_ie_parser (
  gid_gssi_array_sys[71:48] <= g24_w;
  end
  endcase
- gad_off <= off_after;
+ // Consume gssi (+ optional address_extension).
+ gad_buf <= gad_buf << consume_w;
+ gad_remain <= gad_remain - consume_w;
  gad_rec_idx <= gad_rec_idx + 2'd1;
  // Done when this slot was the last requested record OR
  // we've filled all 3 output slots (cap at 3).
