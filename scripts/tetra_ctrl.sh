@@ -17,7 +17,7 @@
 #./tetra_ctrl.sh write <offset> <value> — Write single register
 #
 # Prerequisites:
-# - Board accessible via SSH: root@192.168.2.94
+# - Board accessible via SSH: root@192.168.2.90
 # - busybox devmem available
 # - FPGA bitstream loaded
 # - AD9361 initialized (ad9361_init.sh)
@@ -26,7 +26,7 @@
 set -e
 
 # Board connection parameters
-BOARD_IP="192.168.2.94"
+BOARD_IP="192.168.2.90"
 BOARD_USER="root"
 BOARD_PASS="openwifi"
 

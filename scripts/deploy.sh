@@ -24,7 +24,7 @@
 # - Vivado 2022.2 (auto-detected or in PATH)
 # - arm-linux-gnueabihf-gcc (cross compiler)
 # - sshpass, scp, ssh
-# - Board accessible: root@192.168.2.94
+# - Board accessible: root@192.168.2.90
 # =============================================================================
 
 set -euo pipefail
@@ -37,7 +37,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="${PROJECT_ROOT}/build"
 
-BOARD_IP="192.168.2.94"
+BOARD_IP="192.168.2.90"
 BOARD_USER="root"
 BOARD_PASS="openwifi"
 
@@ -307,7 +307,7 @@ if $DO_INIT; then
 
  # VCXO trim — ohne diesen DAC-Wert driftet der Board-Takt; Wert 153
  # wurde als sweet-spot kalibriert (siehe scripts/vcxo_cal.sh).
- bash "${SCRIPT_DIR}/vcxo_cal.sh" --host 192.168.2.94 --dac 153
+ bash "${SCRIPT_DIR}/vcxo_cal.sh" --host 192.168.2.90 --dac 153
 
  # rf_loopback re-issued damit AGC + TX_ATT=-10 dB sauber gesetzt sind
  # (full_init initialisiert die Kette ohne TX_ATT-Override).

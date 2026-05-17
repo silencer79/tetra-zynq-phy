@@ -362,6 +362,23 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  }
  uint32_t nub_quiet_ms = s_nub_seen ? (now - s_nub_last_bump_ms): 0;
 
+ /* Heartbeat alle 1s: aktueller Watchdog-State (nur wenn ein Slot aktiv) */
+ static uint32_t s_last_hb_ms = 0;
+ if ((now - s_last_hb_ms) >= 1000u) {
+ s_last_hb_ms = now;
+ for (unsigned j = 0; j < CALL_FSM_MAX_CALLS; j++) {
+ if (g_slots[j].ssi == 0u) continue;
+ fprintf(stderr,
+ "HB: slot=%u ssi=0x%06X state=%d mask=0x%02X "
+ "nub_cnt=%u nub_quiet_ms=%u age_ms=%u\n",
+ j, g_slots[j].ssi, (int)g_slots[j].state,
+ (unsigned)g_mask_cached,
+ (unsigned)s_last_nub_cnt, nub_quiet_ms,
+ now - g_slots[j].last_activity_poll_cnt);
+ break;
+ }
+ }
+
  for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
  call_slot_t *s = &g_slots[i];
  if (s->ssi == 0u) continue;
@@ -396,8 +413,21 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
   *   (AACH wird wieder idle, MER bleibt 0 %). Re-Key über neuen
   *   U-SETUP / U-TX-DEMAND setzt mask=0x02 wieder. */
  if (active == 0) {
+ if (g_mask_cached != 0u) {
+ fprintf(stderr,
+ "WATCHDOG: mask→0 reason=active==0 nub_cnt=%u "
+ "nub_quiet_ms=%u nub_seen=%d\n",
+ (unsigned)s_last_nub_cnt, nub_quiet_ms, s_nub_seen);
+ }
  mask_write_cached(hal, 0x00u);
  } else if (s_nub_seen && nub_quiet_ms > CALL_FSM_VOICE_QUIET_MS) {
+ if (g_mask_cached != 0u) {
+ fprintf(stderr,
+ "WATCHDOG: mask→0 reason=nub_quiet>%ums active=%u "
+ "nub_cnt=%u nub_quiet_ms=%u\n",
+ (unsigned)CALL_FSM_VOICE_QUIET_MS, active,
+ (unsigned)s_last_nub_cnt, nub_quiet_ms);
+ }
  mask_write_cached(hal, 0x00u);
  }
 }

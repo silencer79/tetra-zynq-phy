@@ -24,11 +24,15 @@
  *   → mask=0. Mit REG_VOICE_NUB_SYNC_THRESH=10 hat der UL-NUB
  *   keine False-Positives im Idle (gemessen 2026-05-16: 0 bumps/s
  *   vs. 48 bumps/s bei default thresh=8). Echte UL-TCH/S-Bursts
- *   kommen ~36 /s während aktiver PTT — 500 ms quiet ⇒ MS hat
- *   garantiert aufgehört zu senden.
+ *   kommen ~16-18 /s während aktiver PTT (inter-burst ~60 ms).
+ *   200 ms quiet ⇒ Channel sofort dicht (mask=0) nach PTT-Release,
+ *   damit TS2 keinen Müll mehr aus dem stale Filler-Buffer sendet.
+ *   = 3+ bursts Toleranz für gelegentliche Sync-Aussetzer.
  * - CALL_STALE_MS: kein NUB-Burst seit N s ⇒ Slot freigeben (MS
- *   power-cycle / RF-Drop ohne U-RELEASE). */
-#define CALL_FSM_VOICE_QUIET_MS 500u
+ *   power-cycle / RF-Drop ohne U-RELEASE). Lang genug, dass
+ *   PTT-Pause + Re-Key ohne neuen U-SETUP-Roundtrip möglich ist —
+ *   Reservation bleibt, nur der Kanal geht aus. */
+#define CALL_FSM_VOICE_QUIET_MS 200u
 #define CALL_FSM_CALL_STALE_MS 5000u
 
 typedef enum {
