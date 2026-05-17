@@ -58,6 +58,14 @@ typedef struct {
  uint8_t hook_method; /* echoed from U-SETUP (Phase 7 G.7+) */
  uint8_t simplex_duplex; /* echoed from U-SETUP */
  uint32_t last_activity_poll_cnt; /* for stale-call eviction */
+ /* Non-blocking U-SETUP-Antwortsequenz (2026-05-17 Quick-Fix-Revert):
+  *   0 = nothing pending
+  *   1 = D-CONNECT[1] already staged, wait then stage D-CONNECT[2]
+  *   2 = D-CONNECT[2] done, wait then stage D-CONNECT[3] + D-SETUP
+  * tetra_call_fsm_tick triggert die Folgestufen wenn setup_next_ms ≤ now.
+  * Statt usleep(113) blockierend im Mainloop. */
+ uint8_t setup_stage;
+ uint32_t setup_next_ms;
 } call_slot_t;
 
 /* Dispatch one parsed UL CMCE PDU into the FSM. Stages the appropriate

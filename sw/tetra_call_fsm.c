@@ -230,32 +230,20 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
 
  /* Gold-konforme Group-Call-Setup-Sequenz (2026-05-16, verifiziert
   * via reference dl_events.jsonl #5887/95/03 + #6943):
-  *   1. D-CONNECT × 3 an Caller-MS-ISSI (= individual call-leg-ACK)
+  *   1. D-CONNECT × 3 an Caller-MS-ISSI (= individual call-leg-ACK),
+  *      113 ms apart (Gold-Spacing, FN02→04→06 = 2 frames)
   *   2. D-SETUP × 1 an Group-GSSI (= broadcast für Group-Member)
-  * Vorherige Annahme "nur D-CONNECT, kein D-SETUP" war Drift — die
-  * Group-Member sahen keinen Broadcast und ignorierten den Voice-Slot. */
- int rc = 0;
- for (int i = 0; i < 3; i++) {
- rc = stage_d_connect(hal, s);
+  * 2026-05-17 non-blocking refactor: D-CONNECT[1] sofort, [2]+[3]+D-SETUP
+  * via setup_stage in tetra_call_fsm_tick (statt blockierendem
+  * usleep(113ms), das daemon-Mainloop für 226 ms blockierte und
+  * MS-Retransmits verzögerte). */
+ int rc = stage_d_connect(hal, s);
  fprintf(stderr,
- "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[%d/3] "
+ "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[1/3] "
  "call_id=%u rc=%d\n",
- ssi, s->group_gssi, i + 1, s->call_id, rc);
- /* Gold-Spacing: 2 frames zwischen den 3 D-CONNECTs (Gold
-  *   FN02→04→06, vorher unsere DL FN04→05→06). 1 frame ≈ 56.67 ms,
-  *   2 frames ≈ 113 ms — gibt dem RTL-Scheduler eine ganze Frame
-  *   Lücke. */
- if (i < 2) usleep(113000);
- }
- if (s->group_gssi != 0u || s->target_issi != 0u) {
- int src = stage_d_setup(hal, s);
- fprintf(stderr,
- "tetra_call_fsm: D-SETUP → %s=0x%06X "
- "call_id=%u rc=%d\n",
- s->group_gssi ? "gssi": "issi",
- s->group_gssi ? s->group_gssi : s->target_issi,
- s->call_id, src);
- }
+ ssi, s->group_gssi, s->call_id, rc);
+ s->setup_stage = 1u; /* tick triggert D-CONNECT[2] dann [3]+D-SETUP */
+ s->setup_next_ms = mono_ms_lo() + 113u;
  /* MER-Fix (2026-05-16 rev2): mask MUSS ab U-SETUP scharf sein —
   * unsere D-CONNECT-Antwort trägt transmission_grant=Granted, die
   * MS überspringt damit U-TX-DEMAND und sendet sofort UL-Voice.
@@ -382,6 +370,40 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
  call_slot_t *s = &g_slots[i];
  if (s->ssi == 0u) continue;
+
+ /* Non-blocking U-SETUP-Antwort-Sequenzer. D-CONNECT[1] wurde
+  *   im CMCE_U_SETUP-Handler bereits gestaged. Diese Stages sind
+  *   die Folge-Submits 113 ms apart, ohne den Daemon-Mainloop
+  *   zu blockieren. */
+ if (s->setup_stage > 0u &&
+ (int32_t)(now - s->setup_next_ms) >= 0) {
+ if (s->setup_stage == 1u) {
+ int rc = stage_d_connect(hal, s);
+ fprintf(stderr,
+ "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[2/3] "
+ "call_id=%u rc=%d\n",
+ s->ssi, s->group_gssi, s->call_id, rc);
+ s->setup_stage = 2u;
+ s->setup_next_ms = now + 113u;
+ } else if (s->setup_stage == 2u) {
+ int rc = stage_d_connect(hal, s);
+ fprintf(stderr,
+ "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[3/3] "
+ "call_id=%u rc=%d\n",
+ s->ssi, s->group_gssi, s->call_id, rc);
+ if (s->group_gssi != 0u || s->target_issi != 0u) {
+ int src = stage_d_setup(hal, s);
+ fprintf(stderr,
+ "tetra_call_fsm: D-SETUP → %s=0x%06X "
+ "call_id=%u rc=%d\n",
+ s->group_gssi ? "gssi": "issi",
+ s->group_gssi ? s->group_gssi : s->target_issi,
+ s->call_id, src);
+ }
+ s->setup_stage = 0u;
+ }
+ }
+
  /* NUB-Burst gesehen → Slot-last_activity refresh (verhindert
   * Stale-Free während aktiver PTT). */
  if (nub_quiet_ms == 0) s->last_activity_poll_cnt = now;
