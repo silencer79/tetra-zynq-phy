@@ -38,16 +38,24 @@
 //
 // Differential demod (matches tetra_pi4dqpsk_demod / ul_sync_detect_os4):
 // z = current × conj(prev)
-// dibit[1] = sign(Im(z)) = sign(Q_cur·I_prev − I_cur·Q_prev)
-// dibit[0] = sign(Re(z)) = sign(I_cur·I_prev + Q_cur·Q_prev)
+// I_z = I_cur·I_prev + Q_cur·Q_prev → I-axis soft-value
+// Q_z = Q_cur·I_prev − I_cur·Q_prev → Q-axis soft-value
+//
+// Soft-output (Phase E2 — 2026-05-18):
+// Pre-Test (sw/test_soft_viterbi.c) bestätigt ~+1 dB Viterbi-Gewinn am
+// marginalen SNR (= unser Arbeitspunkt). Per dibit emittieren wir zwei
+// SOFT_W-bit signed soft-values via saturating arithmetic right-shift
+// um SOFT_SHIFT, clip auf ±MAX_ABS. Sign-bit allein = legacy hard.
 //
 // Output format:
-// coded_bits_sys[431:216] = BKN1, MSB = first transmitted dibit
-// coded_bits_sys[215:0] = BKN2, MSB = first transmitted dibit
-// coded_valid_sys = 1-cycle pulse on completion
+// coded_softs_sys[ 432*SOFT_W-1 : 216*SOFT_W ] = BKN1 softs
+// coded_softs_sys[ 216*SOFT_W-1 : 0 ] = BKN2 softs
+// soft for coded-bit i ∈ [0,432): coded_softs_sys[i*SOFT_W +: SOFT_W]
+// Higher-index = first transmitted; lower-index = last transmitted.
+// coded_valid_sys = 1-cycle pulse on completion.
 //
 // Resource estimate (Zynq-7020):
-// LUT ≈ 250 FF ≈ 500 BRAM = 2 (one per I/Q) DSP = 4 (diff product)
+// LUT ≈ 250 FF ≈ 500 + 432*(SOFT_W-1) BRAM = 2 DSP = 4 (diff product)
 //
 // =============================================================================
 
@@ -61,7 +69,13 @@ module tetra_ul_nub_capture #(
  parameter BKN_SYMS = 108,
  parameter BKN1_PRE_SMP = 476, // anchor − 119 sym = BKN1 diff-ref sample
  parameter BKN2_OFFSET_SMP = 0, // anchor itself = BKN2 diff-ref (= NTS1[10])
- parameter POST_WAIT_SMP = 480 // wait until BKN2[107] is in ring
+ parameter POST_WAIT_SMP = 480, // wait until BKN2[107] is in ring
+ // Soft-decision output (Phase E2):
+ // SOFT_W = 4 → ±7 (sweet spot per pre-test).
+ // SOFT_SHIFT chosen so typical |prod| lands in ±3..±4 range; tunable via
+ // top-level parameter override if signal level changes (AGC re-target).
+ parameter SOFT_W = 4,
+ parameter SOFT_SHIFT = 24
 )(
  input wire clk_sys,
  input wire rst_n_sys,
@@ -72,12 +86,17 @@ module tetra_ul_nub_capture #(
  // Sync pulse from NUB-configured sync detector
  input wire sync_found_sys,
  input wire [1:0] best_phase_sys,
- // Output — 432 type-5 bits + valid pulse
- output reg [431:0] coded_bits_sys,
+ // Output — 432 SOFT_W-bit signed soft-values + valid pulse
+ output reg [432*SOFT_W-1:0] coded_softs_sys,
  output reg coded_valid_sys,
  // Debug / AXI visibility
  output reg [15:0] bursts_captured_sys
 );
+
+localparam signed [SOFT_W-1:0] SOFT_MAX_POS = (1 << (SOFT_W-1)) - 1; // +7
+localparam signed [SOFT_W-1:0] SOFT_MAX_NEG = -SOFT_MAX_POS;          // -7 (symmetric)
+localparam integer BKN_BIT_W = 216 * SOFT_W;                          // bits per half-burst
+localparam integer DIBIT_W = 2 * SOFT_W;                              // bits per dibit
 
 // -------------------------------------------------------------------------
 // Ring buffer (BRAM-inferred) — continuous IQ write at 72 kHz
@@ -160,15 +179,61 @@ end
 // Q_z = Q_c·I_p − I_c·Q_p
 // 4 signed multiplications (DSP48-inferred)
 // -------------------------------------------------------------------------
-wire signed [2*IQ_WIDTH-1:0] mul_ii_w = rd_i_sys * prev_i_sys;
-wire signed [2*IQ_WIDTH-1:0] mul_qq_w = rd_q_sys * prev_q_sys;
-wire signed [2*IQ_WIDTH-1:0] mul_qi_w = rd_q_sys * prev_i_sys;
-wire signed [2*IQ_WIDTH-1:0] mul_iq_w = rd_i_sys * prev_q_sys;
+// PIPELINE STAGE 1 (Phase E2): register the 4 multiplications. Inferred
+// as DSP48 MREG (multiplier output register) by Vivado → moves the mult
+// delay off the critical path and into the DSP cell itself.
+(* use_dsp = "yes" *) reg signed [2*IQ_WIDTH-1:0] mul_ii_r, mul_qq_r,
+                                                  mul_qi_r, mul_iq_r;
+always @(posedge clk_sys) begin
+ mul_ii_r <= rd_i_sys * prev_i_sys;
+ mul_qq_r <= rd_q_sys * prev_q_sys;
+ mul_qi_r <= rd_q_sys * prev_i_sys;
+ mul_iq_r <= rd_i_sys * prev_q_sys;
+end
 
-wire signed [2*IQ_WIDTH:0] i_prod_w = mul_ii_w + mul_qq_w;
-wire signed [2*IQ_WIDTH:0] q_prod_w = mul_qi_w - mul_iq_w;
+// PIPELINE STAGE 2: register the sum/difference (= diff product).
+// Path now: BRAM → DSP-mult → MREG (stage 1) → adder → i_prod_r
+// (stage 2) → sat → coded_softs FF (stage 3).
+wire signed [2*IQ_WIDTH:0] i_prod_w = mul_ii_r + mul_qq_r;
+wire signed [2*IQ_WIDTH:0] q_prod_w = mul_qi_r - mul_iq_r;
+reg signed [2*IQ_WIDTH:0] i_prod_r, q_prod_r;
+always @(posedge clk_sys) begin
+ i_prod_r <= i_prod_w;
+ q_prod_r <= q_prod_w;
+end
 
-wire [1:0] dibit_w = {q_prod_w[2*IQ_WIDTH], i_prod_w[2*IQ_WIDTH]};
+// Saturating arithmetic right-shift to SOFT_W signed.
+//
+// CONVENTION (per legacy hard-path + SW Viterbi):
+//   positive Re(z)/Im(z) → physical bit '0' → SW Viterbi expects -|N|
+//   negative Re(z)/Im(z) → physical bit '1' → SW Viterbi expects +|N|
+// Therefore we NEGATE the product before slicing — keeps sign-bit
+// semantics congruent with the existing hard-mode dibit logic
+// (bit_w = MSB(prod)) and the SW soft convention (1↦+N, 0↦−N).
+wire signed [2*IQ_WIDTH:0] i_shifted_w = (-i_prod_r) >>> SOFT_SHIFT;
+wire signed [2*IQ_WIDTH:0] q_shifted_w = (-q_prod_r) >>> SOFT_SHIFT;
+
+// Saturation via bitwise overflow detection (= no CARRY4 chain).
+// In-range iff upper bits [2*IQ_WIDTH : SOFT_W-1] are all same (sign-ext).
+// Saturated value: sign of original → ±MAX (asymmetric for 4-bit: [-8,+7]).
+wire i_all_zero_w = ~|i_shifted_w[2*IQ_WIDTH : SOFT_W-1];
+wire i_all_one_w  =  &i_shifted_w[2*IQ_WIDTH : SOFT_W-1];
+wire q_all_zero_w = ~|q_shifted_w[2*IQ_WIDTH : SOFT_W-1];
+wire q_all_one_w  =  &q_shifted_w[2*IQ_WIDTH : SOFT_W-1];
+
+wire signed [SOFT_W-1:0] soft_i_w =
+ (i_all_zero_w | i_all_one_w) ? i_shifted_w[SOFT_W-1:0]
+                              : (i_shifted_w[2*IQ_WIDTH]
+                                  ? {1'b1, {(SOFT_W-1){1'b0}}}  /* -8 */
+                                  : {1'b0, {(SOFT_W-1){1'b1}}});/* +7 */
+wire signed [SOFT_W-1:0] soft_q_w =
+ (q_all_zero_w | q_all_one_w) ? q_shifted_w[SOFT_W-1:0]
+                              : (q_shifted_w[2*IQ_WIDTH]
+                                  ? {1'b1, {(SOFT_W-1){1'b0}}}
+                                  : {1'b0, {(SOFT_W-1){1'b1}}});
+
+// Dibit-packed soft = {Q-soft, I-soft}, matches old {q_sign, i_sign} ordering.
+wire [DIBIT_W-1:0] dibit_softs_w = {soft_q_w, soft_i_w};
 
 // -------------------------------------------------------------------------
 // FSM logic
@@ -185,7 +250,7 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  prev_q_sys <= {IQ_WIDTH{1'b0}};
  rd_en_sys <= 1'b0;
  rd_addr_sys <= {RING_ADDR_W{1'b0}};
- coded_bits_sys <= 432'd0;
+ coded_softs_sys <= {(432*SOFT_W){1'b0}};
  coded_valid_sys <= 1'b0;
  bursts_captured_sys <= 16'd0;
  end else begin
@@ -252,27 +317,43 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
 
  // ----------------------------------------------------------------
  // S_READ_BKN1_RUN: rd_iq = BKN1[sym_idx]. Demod (= rd_iq × conj(prev_iq))
- // shift dibit into coded_bits[431:216]. Latch prev for next.
+ // shift dibit into coded_softs[431*SW : 216*SW]. Latch prev for next.
  // Issue read for BKN1[sym_idx+2] (we already have +1 in flight).
+ //
+ // Phase E2 pipelining: 2-cycle delay (mul_*_r + i_prod_r) between
+ // rd_iq arrival and dibit_softs_w validity. So sym_idx runs 0..109
+ // (= BKN_SYMS+1): cycles 0..1 warm up the pipeline (no commit),
+ // cycles 2..109 commit the 108 dibits. Reads for BKN1[2..107] issue
+ // in sym_idx 0..105; sym_idx 106..109 drain the pipeline.
  // ----------------------------------------------------------------
  S_READ_BKN1_RUN: begin
- coded_bits_sys[431:216] <=
- {coded_bits_sys[429:216], dibit_w};
+ // Commit pipelined dibit once pipeline is warm (sym_idx >= 2).
+ if (sym_idx_sys >= 7'd2) begin
+ coded_softs_sys[432*SOFT_W-1 -: BKN_BIT_W] <=
+ {coded_softs_sys[(432*SOFT_W-1-DIBIT_W) -: (BKN_BIT_W-DIBIT_W)],
+  dibit_softs_w};
+ end
+ // Latch prev only while reads are still arriving (sym_idx < BKN_SYMS).
+ if (sym_idx_sys < BKN_SYMS[6:0]) begin
  prev_i_sys <= rd_i_sys;
  prev_q_sys <= rd_q_sys;
- if (sym_idx_sys == BKN_SYMS[6:0] - 7'd1) begin
- // Just decoded BKN1[107]. Switch to BKN2.
- // Issue read for BKN2 diff-ref (BB2[7])
+ end
+
+ if (sym_idx_sys == BKN_SYMS[6:0] + 7'd1) begin
+ // All 108 BKN1 dibits committed. Switch to BKN2.
  rd_en_sys <= 1'b1;
  rd_addr_sys <= bkn2_base_sys;
  sym_idx_sys <= 7'd0;
  state_sys <= S_READ_BKN2_PRE;
  end else begin
- // Issue read for BKN1[sym_idx+2]
+ // Issue read for BKN1[sym_idx+2] while sym_idx+2 < BKN_SYMS.
+ // Last useful read (BKN1[107]) is issued at sym_idx = 105.
+ if (sym_idx_sys < BKN_SYMS[6:0] - 7'd2) begin
  rd_en_sys <= 1'b1;
  rd_addr_sys <= bkn1_base_sys
  + ({{(RING_ADDR_W-7){1'b0}}, sym_idx_sys + 7'd3})
  * SPS[RING_ADDR_W-1:0];
+ end
  sym_idx_sys <= sym_idx_sys + 7'd1;
  end
  end
@@ -297,18 +378,27 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  state_sys <= S_READ_BKN2_RUN;
  end
 
+ // Phase E2 — same 2-cycle pipeline semantics as BKN1.
  S_READ_BKN2_RUN: begin
- coded_bits_sys[215:0] <=
- {coded_bits_sys[213:0], dibit_w};
+ if (sym_idx_sys >= 7'd2) begin
+ coded_softs_sys[BKN_BIT_W-1 -: BKN_BIT_W] <=
+ {coded_softs_sys[(BKN_BIT_W-1-DIBIT_W) -: (BKN_BIT_W-DIBIT_W)],
+  dibit_softs_w};
+ end
+ if (sym_idx_sys < BKN_SYMS[6:0]) begin
  prev_i_sys <= rd_i_sys;
  prev_q_sys <= rd_q_sys;
- if (sym_idx_sys == BKN_SYMS[6:0] - 7'd1) begin
+ end
+
+ if (sym_idx_sys == BKN_SYMS[6:0] + 7'd1) begin
  state_sys <= S_DONE;
  end else begin
+ if (sym_idx_sys < BKN_SYMS[6:0] - 7'd2) begin
  rd_en_sys <= 1'b1;
  rd_addr_sys <= bkn2_base_sys
  + ({{(RING_ADDR_W-7){1'b0}}, sym_idx_sys + 7'd3})
  * SPS[RING_ADDR_W-1:0];
+ end
  sym_idx_sys <= sym_idx_sys + 7'd1;
  end
  end

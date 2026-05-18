@@ -29,24 +29,44 @@ static uint32_t mono_ms_lo_vp(void)
 
 #define SCHF_CODED_BITS 432
 
-/* Read 432 type-5 bits out of REG_VOICE_NUB_READ_DATA via INDEX 0..13.
+/* Phase E2 (2026-05-18): mailbox now holds 432 × 4-bit signed soft-values
+ * = 54 × 32-bit words. Each word holds 8 nibbles (LSB-first), corresponding
+ * to coded_softs index Wn*8..Wn*8+7.
  *
- * RTL coded_bits_sys convention (tetra_ul_nub_capture.v):
- *   coded_bits[431] = first BKN1 bit on air, coded_bits[0] = last BKN2 bit.
- * BS-Codec convention (tetra_bs_tch_s_decode):
- *   type5[0] = first transmitted bit, type5[431] = last transmitted bit.
- *
- * So mailbox bit i (= coded_bits[i]) maps to type5[431 - i]. */
-static void read_nub_bits(tetra_hal_t *hal, uint8_t *type5_out_432)
+ * Layout mapping (= identical to old hard-bit indexing):
+ *   coded_softs[i] is the soft-value for coded-bit position i,
+ *   coded_softs[431] = first BKN1 bit on air,
+ *   coded_softs[0]   = last BKN2 bit.
+ * type5[k] = coded_softs[431 - k] mapped to signed soft (sign-extended). */
+#define SCHF_NUB_WORDS 54
+#define SOFT_W_BITS    4
+
+static void read_nub_softs(tetra_hal_t *hal, int8_t *softs_432_out)
 {
- for (int w = 0; w < 14; w++) {
+ for (int w = 0; w < SCHF_NUB_WORDS; w++) {
  tetra_reg_write(hal, REG_VOICE_NUB_READ_INDEX, (uint32_t)w);
  uint32_t word = tetra_reg_read(hal, REG_VOICE_NUB_READ_DATA);
- int base = w * 32;
- int n = (w == 13) ? 16 : 32; /* W13 holds bits 416..431 */
- for (int b = 0; b < n; b++)
- type5_out_432[431 - (base + b)] = (uint8_t)((word >> b) & 1u);
+ int base = w * 8; /* 8 nibbles per 32-bit word */
+ for (int n = 0; n < 8; n++) {
+ uint32_t nib = (word >> (n * SOFT_W_BITS)) & 0xFu;
+ /* Sign-extend 4-bit → int8 */
+ int8_t s = (int8_t)((nib & 0x8) ? (int8_t)(nib | 0xF0) : (int8_t)nib);
+ int coded_idx = base + n;
+ if (coded_idx < SCHF_CODED_BITS)
+ softs_432_out[431 - coded_idx] = s;
  }
+ }
+}
+
+/* Helper: extract hard-bits from soft (for diff-diagnostic compatibility
+ * with the existing per-burst FEC-Correction logging that compares the
+ * decoded-and-re-encoded bits against the on-air bits). */
+static void softs_to_hard(const int8_t *softs_432, uint8_t *hard_432_out)
+{
+ /* Per nub_capture-Konvention: positive soft = bit '1', negative = bit '0'.
+  * Zero is an edge case — bit '0' (consistent with sign-bit MSB=0 → '0'). */
+ for (int i = 0; i < SCHF_CODED_BITS; i++)
+ hard_432_out[i] = (softs_432[i] > 0) ? 1u : 0u;
 }
 
 /* Pack 432 type-5 bits into 14 words for the DL filler-mailbox using the
@@ -107,27 +127,53 @@ int tetra_voice_pipe_tick(tetra_hal_t *hal, uint32_t target_ssi)
  | ((uint32_t)(cc & 0x3F) << 2)
  | 3u;
 
- /* 1. Read UL on-air 432 type-5 bits */
- uint8_t type5_in[SCHF_CODED_BITS];
- read_nub_bits(hal, type5_in);
+ /* 1. Read UL on-air 432 × 4-bit signed soft-values (Phase E2). */
+ int8_t softs_in[SCHF_CODED_BITS];
+ read_nub_softs(hal, softs_in);
 
- /* SELF-TEST 2026-05-17 (BlueStation port): encode silence, decode, check BFI. */
+ /* SELF-TEST 2026-05-17 (BlueStation port): encode silence, decode, check BFI.
+  * Tests both hard and soft paths produce identical-good results on clean input. */
  static int s_selftest_done = 0;
  if (!s_selftest_done) {
  s_selftest_done = 1;
  uint8_t silence[274] = {0};
  uint8_t test_bits[432];
  tetra_bs_tch_s_encode(silence, scramb_init, test_bits);
- uint8_t recovered[274];
- int test_bfi = tetra_bs_tch_s_decode(test_bits, scramb_init, recovered);
- int diff = 0;
- for (int i = 0; i < 274; i++) if (recovered[i] != silence[i]) diff++;
- fprintf(stderr, "voice_pipe: BS-SELFTEST encode→decode silence → bfi=%d diff_bits=%d\n",
- test_bfi, diff);
+ uint8_t recovered_h[274];
+ int bfi_h = tetra_bs_tch_s_decode(test_bits, scramb_init, recovered_h);
+ int diff_h = 0;
+ for (int i = 0; i < 274; i++) if (recovered_h[i] != silence[i]) diff_h++;
+ /* Soft path: emulate "perfect channel" with full-magnitude softs.
+  * Convention: bit 1 → soft +7, bit 0 → soft -7. */
+ int8_t test_softs[432];
+ for (int i = 0; i < 432; i++) test_softs[i] = test_bits[i] ? (int8_t)7 : (int8_t)-7;
+ uint8_t recovered_s[274];
+ int bfi_s = tetra_bs_tch_s_decode_softi8(test_softs, scramb_init, recovered_s);
+ int diff_s = 0;
+ for (int i = 0; i < 274; i++) if (recovered_s[i] != silence[i]) diff_s++;
+ fprintf(stderr,
+ "voice_pipe: SELFTEST hard{bfi=%d diff=%d} soft{bfi=%d diff=%d}\n",
+ bfi_h, diff_h, bfi_s, diff_s);
  }
 
+ /* Derive hard-bit view for downstream diagnose + re-encode-equivalent. */
+ uint8_t type5_in[SCHF_CODED_BITS];
+ softs_to_hard(softs_in, type5_in);
+
+ /* DIAGNOSE 2026-05-18 — A/B-Test: zur Validierung des RTL→SW-Pfades
+  * temporär auch Hard-Decode-Variante laufen lassen. Wenn HARD BFI
+  * deutlich besser ist als SOFT, ist die Soft-Konvention oder die
+  * RTL-Soft-Output-Quantisierung verkehrt. */
+ uint8_t acelp_h[274];
+ int bfi_h = tetra_bs_tch_s_decode(type5_in, scramb_init, acelp_h);
+ (void)acelp_h;
+
  uint8_t acelp[274];
- int bfi = tetra_bs_tch_s_decode(type5_in, scramb_init, acelp);
+ int bfi = tetra_bs_tch_s_decode_softi8(softs_in, scramb_init, acelp);
+
+ /* Combine BFI count for A/B logging (s_bfi_h tracks hard, s_bfi soft). */
+ static int s_bfi_h = 0;
+ if (bfi_h) s_bfi_h++;
  static int s_n = 0;
  static int s_bfi = 0;
  s_n++;
@@ -163,9 +209,11 @@ int tetra_voice_pipe_tick(tetra_hal_t *hal, uint32_t target_ssi)
  if ((s_n & 0x07) == 0) {
  int avg_diff = (s_n - s_bfi) > 0 ? s_total_diff / (s_n - s_bfi) : 0;
  fprintf(stderr,
- "voice_pipe: t=%ums bursts=%d bfi_fail=%d (= %d%%) "
+ "voice_pipe: t=%ums bursts=%d soft{bfi=%d %d%%} hard{bfi=%d %d%%} "
  "diff_avg=%d max=%d\n",
- mono_ms_lo_vp(), s_n, s_bfi, (s_bfi*100)/(s_n?s_n:1),
+ mono_ms_lo_vp(), s_n,
+ s_bfi, (s_bfi*100)/(s_n?s_n:1),
+ s_bfi_h, (s_bfi_h*100)/(s_n?s_n:1),
  avg_diff, s_max_diff_burst);
  }
 

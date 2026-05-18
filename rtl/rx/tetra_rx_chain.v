@@ -94,15 +94,16 @@ module tetra_rx_chain #(
  output wire [1:0] ul_best_phase_sys,
 
  // -------------------------------------------------------------------------
- // Phase C — UL TCH/S NUB sync + capture (parallel to RA-path above).
+ // Phase C/E2 — UL TCH/S NUB sync + capture (parallel to RA-path above).
  // Uses tetra_ul_sync_detect_os4 instance #2 configured with NTS1 pattern
  // + 11-symbol length, feeding tetra_ul_nub_capture which streams BKN1
- // and BKN2 (432 type-5 coded bits) into voice_nub_coded_bits_sys when
- // a voice burst is fully captured. Threshold is SW-configurable via
- // REG_VOICE_NUB_SYNC_THRESH (default 8/11).
+ // and BKN2 (432 × 4-bit signed soft-values = 1728 bits) into
+ // voice_nub_coded_softs_sys when a voice burst is fully captured.
+ // Phase E2 (2026-05-18): hard-bits → 4-bit signed soft.
+ // Threshold SW-configurable via REG_VOICE_NUB_SYNC_THRESH.
  // -------------------------------------------------------------------------
  input wire [4:0] voice_nub_sync_thresh_sys,
- output wire [431:0] voice_nub_coded_bits_sys,
+ output wire [1727:0] voice_nub_coded_softs_sys,
  output wire voice_nub_coded_valid_sys,
  output wire [15:0] voice_nub_rx_cnt_sys,
 
@@ -398,7 +399,7 @@ tetra_ul_nub_capture #(
 .valid_in_sys (fe_valid_sys),
 .sync_found_sys (nub_sync_found_sys),
 .best_phase_sys (nub_best_phase_sys),
-.coded_bits_sys (voice_nub_coded_bits_sys),
+.coded_softs_sys (voice_nub_coded_softs_sys),
 .coded_valid_sys (voice_nub_coded_valid_sys),
 .bursts_captured_sys (voice_nub_rx_cnt_sys)
 );

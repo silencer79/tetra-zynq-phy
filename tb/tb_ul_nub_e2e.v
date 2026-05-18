@@ -209,7 +209,11 @@ tetra_ul_sync_detect_os4 #(
 .best_phase_sys (nub_best_phase_w)
 );
 
-wire [431:0] coded_bits_w;
+// Phase E2 (2026-05-18): coded_softs_sys = 432 × 4-bit signed = 1728 bits.
+// Note: rest of this TB exercised tetra_voice_relay (RTL-side relay) which
+// has been removed in production; kept here only for signal-level checks.
+wire [1727:0] coded_softs_w;
+wire [431:0] coded_bits_w; // sign-extract for legacy downstream blocks
 wire coded_valid_w;
 wire [15:0] bursts_captured_w;
 
@@ -223,10 +227,16 @@ tetra_ul_nub_capture #(
 .valid_in_sys (valid_in_sys),
 .sync_found_sys (nub_sync_found_w),
 .best_phase_sys (nub_best_phase_w),
-.coded_bits_sys (coded_bits_w),
+.coded_softs_sys (coded_softs_w),
 .coded_valid_sys (coded_valid_w),
 .bursts_captured_sys (bursts_captured_w)
 );
+
+// Sign-bit extract: legacy hard-bit derived from MSB of each 4-bit soft.
+genvar gi;
+generate for (gi = 0; gi < 432; gi = gi + 1) begin: g_sign_extract
+    assign coded_bits_w[gi] = ~coded_softs_w[gi*4 + 3]; // MSB=0 → positive → '1'
+end endgenerate
 
 // Voice-relay
 reg dl_slot_pulse_sys = 0;

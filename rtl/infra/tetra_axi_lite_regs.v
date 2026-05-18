@@ -463,14 +463,16 @@ module tetra_axi_lite_regs (
 
  // ------------------------------------------------------------------
  // Phase B — Voice-NUB-Read-Mailbox (0x280..0x28C, Bank-1).
- // FPGA→SW pipe for UL-NUB captured 432 type-5 bits. SW Viterbi-decodes,
- // patches MAC-RESOURCE SSI, re-encodes, then writes to filler mailbox.
- // REG_VOICE_NUB_READ_INDEX  @ 0x280 R/W [3:0] word selector
+ // FPGA→SW pipe for UL-NUB captured 432 signed 4-bit soft-values
+ // (= 1728 bits = 54 × 32). SW soft-Viterbi-decodes, patches MAC-RESOURCE
+ // SSI, re-encodes, then writes to filler mailbox. Phase E2 (2026-05-18):
+ // INDEX widened from 4-bit (0..13 hard) to 6-bit (0..53 soft).
+ // REG_VOICE_NUB_READ_INDEX  @ 0x280 R/W [5:0] word selector
  // REG_VOICE_NUB_READ_DATA   @ 0x284 RO  [31:0] indirect via INDEX
  // REG_VOICE_NUB_READ_STATUS @ 0x288 RO  [0] valid (new burst pending)
  // REG_VOICE_NUB_READ_ACK    @ 0x28C W1S [0] clear valid + arm next
  // ------------------------------------------------------------------
- output wire [3:0] vnub_index_axi_o,
+ output wire [5:0] vnub_index_axi_o,
  output wire vnub_ack_trigger_axi_o,
  input wire vnub_ack_consume_axi,
  input wire [31:0] vnub_rdata_axi_i,
@@ -1059,8 +1061,9 @@ reg reply_use_sw_r; // R/W use_sw_body toggle
 reg [3:0] vfill_index_axi; // 4-bit indirect-window word selector
 reg vfill_go_trigger_r; // W1S GO trigger, HW-clr on go_consume
 
-// Phase B voice-NUB-read-mailbox AXI-side state
-reg [3:0] vnub_index_axi; // 4-bit indirect-window word selector
+// Phase E2 voice-NUB-read-mailbox AXI-side state — widened to 6-bit
+// for soft-output (54 words instead of 14).
+reg [5:0] vnub_index_axi; // 6-bit indirect-window word selector
 reg vnub_ack_trigger_r; // W1S ACK trigger, HW-clr on ack_consume
 
 // Phase Y.1.f Group-Attach Demand mailbox AXI-side state (Phase Y.2: reply
@@ -1274,7 +1277,7 @@ always @(*) begin
  REG_VOICE_FILLER_GO: rdata_mux_axi = {31'd0, vfill_go_trigger_r};
  REG_VOICE_FILLER_STATUS: rdata_mux_axi = {31'd0, vfill_valid_axi_i};
  // Phase B — Voice-NUB-Read mailbox
- REG_VOICE_NUB_READ_INDEX: rdata_mux_axi = {28'd0, vnub_index_axi};
+ REG_VOICE_NUB_READ_INDEX: rdata_mux_axi = {26'd0, vnub_index_axi};
  REG_VOICE_NUB_READ_DATA: rdata_mux_axi = vnub_rdata_axi_i;
  REG_VOICE_NUB_READ_STATUS: rdata_mux_axi = {31'd0, vnub_valid_axi_i};
  REG_VOICE_NUB_READ_ACK: rdata_mux_axi = {31'd0, vnub_ack_trigger_r};
@@ -2510,10 +2513,10 @@ assign vnub_ack_trigger_axi_o = vnub_ack_trigger_r;
 
 always @(posedge clk_axi or negedge rst_n_axi) begin
  if (!rst_n_axi)
- vnub_index_axi <= 4'd0;
+ vnub_index_axi <= 6'd0;
  else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_VOICE_NUB_READ_INDEX)
  & wr_strb_axi[0])
- vnub_index_axi <= wr_data_axi[3:0];
+ vnub_index_axi <= wr_data_axi[5:0];
 end
 
 always @(posedge clk_axi or negedge rst_n_axi) begin

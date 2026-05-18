@@ -255,10 +255,10 @@ wire [31:0] db_policy_axi_w;
 wire [31:0] voice_active_mask_axi_w;
 wire [31:0] voice_nub_sync_thresh_axi_w;
 
-// Phase C — UL-NUB capture outputs (rx_chain). bits/valid currently
-// unused at top-level (voice-relay-RTL removed 2026-05-16; future SW
-// pipeline will read via dedicated AXI bit-dump mailbox).
-wire [431:0] voice_nub_coded_bits_sys_w;
+// Phase E2 — UL-NUB capture outputs (rx_chain). Output is now 4-bit
+// signed soft-values per coded bit (432 nibbles = 1728 bits), consumed
+// by voice_nub_read_mailbox for SW soft-Viterbi.
+wire [1727:0] voice_nub_coded_softs_sys_w;
 wire voice_nub_coded_valid_sys_w;
 wire [15:0] voice_nub_rx_cnt_sys_w;
 // Phase 7 G.8 — relay_cnt deprecated; tied to 0 since voice_relay was
@@ -628,7 +628,7 @@ tetra_rx_chain #(
 .dbg_demod_valid_sys (dbg_demod_valid_sys),
  // Phase C — UL TCH/S NUB sync + capture
 .voice_nub_sync_thresh_sys (voice_nub_sync_thresh_sys_r1[4:0]),
-.voice_nub_coded_bits_sys (voice_nub_coded_bits_sys_w),
+.voice_nub_coded_softs_sys (voice_nub_coded_softs_sys_w),
 .voice_nub_coded_valid_sys (voice_nub_coded_valid_sys_w),
 .voice_nub_rx_cnt_sys (voice_nub_rx_cnt_sys_w)
 );
@@ -3430,21 +3430,21 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
 end
 
 // =============================================================================
-// Phase B — Voice-NUB-Read-Mailbox CDC + instance.
-// FPGA→SW pipe: 432 type-5 bits captured by tetra_ul_nub_capture are
-// latched into 14 × 32 bit storage with valid-Flag. SW polls valid, reads
-// W0..W13, then writes ACK to clear valid + arm next burst.
+// Phase E2 — Voice-NUB-Read-Mailbox CDC + instance.
+// FPGA→SW pipe: 432 signed 4-bit soft-values (= 1728 bits = 54 × 32) per
+// NUB burst, latched with valid-Flag. SW polls valid, reads W0..W53,
+// then writes ACK to clear valid + arm next burst.
 // =============================================================================
-wire [3:0] vnub_index_axi_w;
+wire [5:0] vnub_index_axi_w;
 wire vnub_ack_trigger_w;
 
 // 2-FF resync of index AXI → sys (slow R/W, simple settle).
-(* ASYNC_REG = "TRUE" *) reg [3:0] vnub_index_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg [3:0] vnub_index_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [5:0] vnub_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [5:0] vnub_index_sys_r1;
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys) begin
- vnub_index_sys_r0 <= 4'd0;
- vnub_index_sys_r1 <= 4'd0;
+ vnub_index_sys_r0 <= 6'd0;
+ vnub_index_sys_r1 <= 6'd0;
  end else begin
  vnub_index_sys_r0 <= vnub_index_axi_w;
  vnub_index_sys_r1 <= vnub_index_sys_r0;
@@ -3474,7 +3474,7 @@ wire vnub_valid_sys_w;
 tetra_voice_nub_read_mailbox u_voice_nub_read_mailbox (
 .clk_sys (clk_sys),
 .rst_n_sys (rst_n_sys),
-.coded_bits_sys (voice_nub_coded_bits_sys_w),
+.coded_softs_sys (voice_nub_coded_softs_sys_w),
 .coded_valid_sys (voice_nub_coded_valid_sys_w),
 .ack_pulse_sys (vnub_ack_pulse_sys_w),
 .index_sys (vnub_index_sys_r1),

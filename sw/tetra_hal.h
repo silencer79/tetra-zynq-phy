@@ -334,13 +334,14 @@
 #define REG_VOICE_FILLER_GO 0x278 /* W1S [0] commit pulse */
 #define REG_VOICE_FILLER_STATUS 0x27C /* RO [0] filler_valid mirror */
 
-/* Phase B — Voice-NUB-Read-Mailbox (Bank-1 0x280..0x28C).
- * FPGA→SW pipe: tetra_ul_nub_capture latches 432 type-5 bits per UL
- * burst, sets W14[0]=valid. SW polls REG_VOICE_NUB_READ_STATUS, reads
- * W0..W13 via INDEX/DATA, then pulses REG_VOICE_NUB_READ_ACK to clear
- * valid + arm next burst. Bit packing LSB-first, identical to the
- * filler-mailbox convention. */
-#define REG_VOICE_NUB_READ_INDEX 0x280 /* R/W [3:0] word selector */
+/* Phase E2 — Voice-NUB-Read-Mailbox (Bank-1 0x280..0x28C).
+ * FPGA→SW pipe: tetra_ul_nub_capture latches 432 signed 4-bit soft-values
+ * per UL burst (= 54 × 32-bit words). SW polls REG_VOICE_NUB_READ_STATUS,
+ * reads W0..W53 via INDEX/DATA, then pulses REG_VOICE_NUB_READ_ACK to
+ * clear valid + arm next burst. Each word holds 8 nibbles LSB-first;
+ * nibble n (signed 4-bit) = soft for coded-bit Wn*8+n.
+ * Convention: positive soft = bit '1', negative = bit '0' (per soft Viterbi). */
+#define REG_VOICE_NUB_READ_INDEX 0x280 /* R/W [5:0] word selector */
 #define REG_VOICE_NUB_READ_DATA 0x284 /* RO [31:0] indirect via INDEX */
 #define REG_VOICE_NUB_READ_STATUS 0x288 /* RO [0] valid (burst pending) */
 #define REG_VOICE_NUB_READ_ACK 0x28C /* W1S [0] clear + arm next */
