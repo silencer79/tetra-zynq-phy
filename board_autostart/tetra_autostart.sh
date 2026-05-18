@@ -19,6 +19,7 @@
 #  10. REG_DB_POLICY setzen + devmem symlink
 #  11. Daemons starten (sysinfo + ul_mon + attach_daemon)
 #  12. TX → operationaler Pegel TX_ATT_OP_DB
+#  13. WebUI httpd (busybox httpd auf Port 80, Doc-Root /www)
 # =============================================================================
 
 set -e
@@ -212,9 +213,26 @@ pgrep -al tetra
 # -----------------------------------------------------------------------------
 # 12: TX → operationaler Pegel
 # -----------------------------------------------------------------------------
-echo "--- 12/12 TX → operational ($TX_ATT_OP_DB dB) ---"
+echo "--- 12/13 TX → operational ($TX_ATT_OP_DB dB) ---"
 echo "$TX_ATT_OP_DB" > "$SYSFS/out_voltage0_hardwaregain"
 echo "$TX_ATT_OP_DB" > "$SYSFS/out_voltage1_hardwaregain"
+
+# -----------------------------------------------------------------------------
+# 13: WebUI httpd (busybox httpd auf Port 80, Doc-Root /www)
+#     Vor 2026-05-17 lief der Start implizit am Ende von scripts/deploy.sh;
+#     beim Autostart-Refactor wurde der httpd vergessen. Hier nachgeholt.
+# -----------------------------------------------------------------------------
+echo "--- 13/13 WebUI httpd auf Port 80 ---"
+# pkill-Pattern bewusst eng: "httpd -p 80" matched NICHT diesen Skript-Pfad
+# (sonst würde pkill -f sich selbst umbringen).
+pkill -f "httpd -p 80" 2>/dev/null || true
+setsid busybox httpd -p 80 -h /www < /dev/null > /dev/null 2>&1 &
+sleep 0.3
+if pgrep -f "httpd -p 80" > /dev/null; then
+    echo "httpd running: $(pgrep -f "httpd -p 80")"
+else
+    echo "WARNING: httpd start failed"
+fi
 
 echo ""
 echo "=== AUTOSTART COMPLETE ==="
