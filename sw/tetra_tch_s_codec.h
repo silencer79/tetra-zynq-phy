@@ -70,6 +70,13 @@ void tetra_tch_s_deinterleave_speech(const uint8_t in_432[432],
  * init = (MCC << 22) | (MNC << 8) | (CC << 2) | 3, or 0xFFFFFFFF if zero. */
 void tetra_tch_s_scramble(uint8_t bits[432], uint32_t lfsr_init);
 
+/* Soft-bit variants: same operations but on signed int8 soft-values.
+ * scramble_soft: PRBS=1 → negate confidence; PRBS=0 → unchanged.
+ * deinterleave_soft: identical reorder, signed-safe. */
+void tetra_tch_s_scramble_soft(int8_t bits[432], uint32_t lfsr_init);
+void tetra_tch_s_deinterleave_speech_soft(const int8_t in_432[432],
+                                          int8_t out_432[432]);
+
 /* Full TCH/S burst encoder: 274 ACELP bits → 432 scrambled type-5 bits.
  * Returns 0 on success, negative on error. */
 int tetra_tch_s_encode(const uint8_t acelp_274[274],

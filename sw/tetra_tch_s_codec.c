@@ -17,6 +17,7 @@
  */
 
 #include "tetra_tch_s_codec.h"
+#include <stdint.h>
 #include <string.h>
 
 /* ========================================================================
@@ -73,6 +74,32 @@ void tetra_tch_s_scramble(uint8_t bits[432], uint32_t lfsr_init)
  uint32_t lfsr = lfsr_init ? lfsr_init: 0xFFFFFFFFu;
  for (int i = 0; i < TCH_S_BURST_BITS; i++)
  bits[i] ^= next_lfsr_bit(&lfsr);
+}
+
+/* Soft-bit scramble: XOR on hard-bits becomes sign-flip on soft-bits
+ * (PRBS=1 → negate confidence, PRBS=0 → leave unchanged). Output range
+ * preserved: int8 → int8 with same magnitude. */
+void tetra_tch_s_scramble_soft(int8_t bits[432], uint32_t lfsr_init)
+{
+ uint32_t lfsr = lfsr_init ? lfsr_init: 0xFFFFFFFFu;
+ for (int i = 0; i < TCH_S_BURST_BITS; i++) {
+ if (next_lfsr_bit(&lfsr)) {
+ /* Negate; INT8_MIN (-128) maps to INT8_MAX (127) to avoid overflow. */
+ bits[i] = (bits[i] == INT8_MIN) ? INT8_MAX : -bits[i];
+ }
+ }
+}
+
+/* Soft-bit deinterleave: identical reorder logic as deinterleave_speech
+ * but with int8_t soft-values. */
+void tetra_tch_s_deinterleave_speech_soft(const int8_t in_432[432], int8_t out_432[432])
+{
+ for (int col = 0; col < TCH_S_INTL_COLUMNS; col++) {
+ for (int line = 0; line < TCH_S_INTL_LINES; line++) {
+ out_432[line * TCH_S_INTL_COLUMNS + col] =
+ in_432[col * TCH_S_INTL_LINES + line];
+ }
+ }
 }
 
 /* ========================================================================

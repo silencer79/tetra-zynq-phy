@@ -199,6 +199,22 @@ static void rcpc_depunct(const puncturer_t *pu, const uint8_t *input, int input_
  }
 }
 
+/* Soft variant: input is signed int8 soft-values, output mother-bits same
+ * units with 0 = erasure at punctured positions. */
+static void rcpc_depunct_soft(const puncturer_t *pu, const int8_t *input,
+ int input_len, int8_t *output, int output_len)
+{
+ for (int i = 0; i < output_len; i++) output[i] = 0;
+ for (uint32_t j = 1; (int)j <= input_len; j++) {
+ uint32_t i = j;
+ uint32_t blk = (i - 1) / pu->t;
+ uint32_t idx = i - pu->t * blk;
+ uint32_t k = pu->period * blk + pu->p[idx];
+ if ((int)k - 1 < output_len)
+ output[k - 1] = input[j - 1];
+ }
+}
+
 /* ========================================================================
  * Rate-1/3 Viterbi decoder for TETRA speech (K=5, 16 states)
  * Generators: G1=11111, G2=11011, G3=10101
@@ -370,6 +386,66 @@ int tetra_bs_tch_s_decode(const uint8_t type5_432[432],
  /* 11. channel → codec reorder */
  channel_to_codec(type1_arr, acelp_274);
 
+ return crc_ok ? 0 : -1;
+}
+
+/* Soft-decision decode path. Mirrors tetra_bs_tch_s_decode but preserves
+ * the magnitude of each coded bit all the way to the Viterbi metric.
+ * Expected input range: int8 in roughly [-7,+7] (= 4-bit MSB-slice from
+ * RTL) but tolerates any signed range; the Viterbi uses |soft| as weight. */
+int tetra_bs_tch_s_decode_softi8(const int8_t softs_432[432],
+ uint32_t scramb_init,
+ uint8_t acelp_274[274])
+{
+ /* 1. Descramble (sign-flip on PRBS=1) */
+ int8_t soft4[432];
+ memcpy(soft4, softs_432, 432);
+ tetra_tch_s_scramble_soft(soft4, scramb_init);
+
+ /* 2. Matrix de-interleave 24×18 */
+ int8_t soft3[432];
+ tetra_tch_s_deinterleave_speech_soft(soft4, soft3);
+
+ /* 3. Class 0: unprotected — hard via sign(). */
+ uint8_t type1_arr[274];
+ for (int i = 0; i < CLASS0_BITS; i++)
+ type1_arr[i] = (soft3[i] > 0) ? 1u : 0u;
+
+ /* 4./5. De-puncture Class 1 + Class 2 directly into signed mother buffers
+  * (erasure = 0 per Viterbi convention). */
+ int8_t mother_class1[CLASS1_BITS * 3];
+ rcpc_depunct_soft(&PUNCT_RATE112_168, &soft3[CLASS0_BITS], CLASS1_TYPE3,
+ mother_class1, CLASS1_BITS * 3);
+
+ int8_t mother_class2[CLASS2_TYPE2 * 3];
+ rcpc_depunct_soft(&PUNCT_RATE72_162, &soft3[CLASS0_BITS + CLASS1_TYPE3],
+ CLASS2_TYPE3, mother_class2, CLASS2_TYPE2 * 3);
+
+ /* 6./7. Concatenate to single soft buffer for continuous Viterbi.
+  * (soft_bit_t is int8_t — direct memcpy.) */
+ soft_bit_t soft[(CLASS1_BITS + CLASS2_TYPE2) * 3];
+ memcpy(soft, mother_class1, CLASS1_BITS * 3);
+ memcpy(soft + CLASS1_BITS * 3, mother_class2, CLASS2_TYPE2 * 3);
+
+ /* 8. Viterbi decode */
+ uint8_t decoded[CLASS1_BITS + CLASS2_TYPE2];
+ viterbi_decode(soft, CLASS1_BITS + CLASS2_TYPE2, decoded);
+
+ /* 9./10./11. CRC + reorder identical to hard path. */
+ memcpy(&type1_arr[CLASS0_BITS], decoded, CLASS1_BITS);
+ const uint8_t *class2_decoded = &decoded[CLASS1_BITS];
+ const uint8_t *class2_data = class2_decoded;
+ const uint8_t *received_crc = &class2_decoded[CLASS2_BITS];
+
+ uint8_t expected_crc[8];
+ speech_crc(class2_data, expected_crc);
+ int crc_ok = 1;
+ for (int i = 0; i < 8; i++) {
+ if (expected_crc[i] != received_crc[i]) { crc_ok = 0; break; }
+ }
+ memcpy(&type1_arr[CLASS0_BITS + CLASS1_BITS], class2_data, CLASS2_BITS);
+
+ channel_to_codec(type1_arr, acelp_274);
  return crc_ok ? 0 : -1;
 }
 

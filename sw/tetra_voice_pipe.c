@@ -132,14 +132,94 @@ int tetra_voice_pipe_tick(tetra_hal_t *hal, uint32_t target_ssi)
  static int s_bfi = 0;
  s_n++;
  if (bfi) s_bfi++;
- if ((s_n & 0x07) == 0) {
- fprintf(stderr, "voice_pipe: t=%ums bursts=%d bfi_fail=%d (= %d%%)\n",
- mono_ms_lo_vp(), s_n, s_bfi, (s_bfi*100)/(s_n?s_n:1));
- }
 
  /* 3. ETSI TCH/S re-encode → 432 clean type-5 bits for DL. */
  uint8_t type5_out[SCHF_CODED_BITS];
  tetra_bs_tch_s_encode(acelp, scramb_init, type5_out);
+
+ /* DIAGNOSE 2026-05-17 — per-burst FEC-Correction-Count.
+  *   type5_out (re-encoded clean Bits) vs type5_in (raw on-air, mit
+  *   evtl. Bit-Errors): diff_bits = von Viterbi/RCPC korrigierte Bits.
+  *   diff_bits sagt uns:
+  *   - "Roh-BER" (Air-quality) — unabhängig von BFI-binary
+  *   - WO im Burst (BKN1 vs BKN2 vs Edges) Fehler clustern
+  *   Position-Histogram über Bursts hinweg verrät Sample-Offset-Drift,
+  *   Phase-Drift, Edge-Bit-Probleme, etc. */
+ static uint32_t s_pos_flips[SCHF_CODED_BITS] = {0};
+ static int s_total_diff = 0;
+ static int s_max_diff_burst = 0;
+ int diff_bits = 0;
+ if (!bfi) { /* only meaningful when decoder succeeded */
+ for (int i = 0; i < SCHF_CODED_BITS; i++) {
+ if ((type5_in[i] & 1) != (type5_out[i] & 1)) {
+ diff_bits++;
+ s_pos_flips[i]++;
+ }
+ }
+ s_total_diff += diff_bits;
+ if (diff_bits > s_max_diff_burst) s_max_diff_burst = diff_bits;
+ }
+
+ if ((s_n & 0x07) == 0) {
+ int avg_diff = (s_n - s_bfi) > 0 ? s_total_diff / (s_n - s_bfi) : 0;
+ fprintf(stderr,
+ "voice_pipe: t=%ums bursts=%d bfi_fail=%d (= %d%%) "
+ "diff_avg=%d max=%d\n",
+ mono_ms_lo_vp(), s_n, s_bfi, (s_bfi*100)/(s_n?s_n:1),
+ avg_diff, s_max_diff_burst);
+ }
+
+ /* Alle 64 Bursts: erweiterte Diagnose:
+  *   - TOP20 Bit-Positionen mit den meisten Flips (statt nur TOP5)
+  *   - 16-Bucket-Histogram (je 27 bits) → räumliche Verteilung
+  *   - Anzahl Positionen die JE geflipped (= Spread vs Konzentration)
+  *   - Per-BKN-Anteil (BKN2=pos 0-215, BKN1=pos 216-431) */
+ if ((s_n & 0x3F) == 0) {
+ /* TOP20 */
+ int top_idx[20] = {0};
+ uint32_t top_cnt[20] = {0};
+ for (int i = 0; i < SCHF_CODED_BITS; i++) {
+ uint32_t c = s_pos_flips[i];
+ for (int k = 0; k < 20; k++) {
+ if (c > top_cnt[k]) {
+ for (int j = 19; j > k; j--) {
+ top_cnt[j] = top_cnt[j-1];
+ top_idx[j] = top_idx[j-1];
+ }
+ top_cnt[k] = c;
+ top_idx[k] = i;
+ break;
+ }
+ }
+ }
+ fprintf(stderr, "voice_pipe: TOP20-flip");
+ for (int k = 0; k < 20; k++) {
+ fprintf(stderr, " %d[%u]", top_idx[k], top_cnt[k]);
+ }
+ fprintf(stderr, "\n");
+
+ /* 16-Bucket-Histogram je 27 bits */
+ uint32_t bucket[16] = {0};
+ int unique = 0;
+ uint32_t bkn1_flips = 0, bkn2_flips = 0;
+ for (int i = 0; i < SCHF_CODED_BITS; i++) {
+ uint32_t c = s_pos_flips[i];
+ bucket[i / 27] += c;
+ if (c > 0) unique++;
+ if (i < 216) bkn2_flips += c; else bkn1_flips += c;
+ }
+ fprintf(stderr, "voice_pipe: BUCKETS(27bit each)");
+ for (int b = 0; b < 16; b++) {
+ fprintf(stderr, " %u", bucket[b]);
+ }
+ fprintf(stderr, "\n");
+ fprintf(stderr,
+ "voice_pipe: SPREAD unique=%d/%d BKN2=%u BKN1=%u (BKN2_pct=%d%%)\n",
+ unique, SCHF_CODED_BITS, bkn2_flips, bkn1_flips,
+ (bkn2_flips + bkn1_flips) > 0
+ ? (int)((bkn2_flips * 100) / (bkn2_flips + bkn1_flips))
+ : 0);
+ }
 
  /* 4. Pack and write to filler mailbox. */
  uint32_t words[14];

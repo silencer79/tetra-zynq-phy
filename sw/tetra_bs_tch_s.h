@@ -31,4 +31,12 @@ int tetra_bs_tch_s_encode(const uint8_t acelp_274[274],
  uint32_t scramb_init,
  uint8_t type5_out_432[432]);
 
+/* Soft-decision variant: input is 432 signed int8 soft-values per coded bit.
+ * Convention: positive = '1', negative = '0', magnitude = confidence.
+ * Recommended range: [-7, +7] (= 4-bit signed) to match RTL MSB-slice plan.
+ * Larger magnitudes also work — Viterbi metric uses |soft| as weight. */
+int tetra_bs_tch_s_decode_softi8(const int8_t softs_432[432],
+ uint32_t scramb_init,
+ uint8_t acelp_274[274]);
+
 #endif /* TETRA_BS_TCH_S_H */
