@@ -159,7 +159,6 @@ iverilog -g2012 -o sim_out/mac_res rtl/lmac/tetra_mac_resource_dl_builder.v tb/t
 
 iverilog -g2012 -o sim_out/mle \
  rtl/lmac/tetra_mle_registration_fsm.v \
- rtl/lmac/tetra_active_session_table.v \
  rtl/lmac/tetra_mac_resource_dl_builder.v \
  rtl/lmac/tetra_d_location_update_encoder.v \
  rtl/lmac/tetra_sch_f_encoder.v \

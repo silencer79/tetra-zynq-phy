@@ -182,12 +182,16 @@ tetra_zynq_top.v
 │ ├── tetra_crc16.v
 │ ├── tetra_steal_detect.v
 │ ├── tetra_ul_mac_access_parser.v (MAC-ACCESS Header → AXI-Mailbox)
-│ ├── tetra_mle_registration_fsm.v (UL-RA → AST-Query → ACCEPT → DL-Queue)
+│ ├── tetra_ul_demand_reassembly.v (UL#0 + UL#1 Frags → 129-bit MM-Body)
+│ ├── tetra_ul_demand_ie_parser.v (mm=2/mm=7 IE-Walker → demand_mailbox)
+│ ├── tetra_demand_mailbox.v + tetra_grp_demand_mailbox.v (Snapshots → SW)
+│ ├── tetra_mle_registration_fsm.v (UL-Demand → SCH/F-Accept-Pipeline)
 │ ├── tetra_d_location_update_encoder.v (MM-PDU-Builder)
-│ ├── tetra_mac_resource_dl_builder.v (MAC-RESOURCE-Wrapper)
-│ ├── tetra_active_session_table.v (ISSI → Slot-Alloc BRAM)
+│ ├── tetra_dl_pdu_builder.v (Phase X.6 — shared SCH/F+MAC-RESOURCE+slotgrant)
 │ ├── tetra_dl_signal_queue.v (depth-4 Drop-Newest FIFO)
 │ └── tetra_dl_signal_scheduler.v (MLE > CMCE > SDS, 1 frame ahead)
+│ (Session-State + Subscriber-DB liegen SW-side im tetra_attach_daemon
+│  über /root/db.tsv — der frühere RTL-AST wurde 2026-05 abgekündigt.)
 │
 ├── tetra_axi_dma_bridge.v (PL → PS S2MM)
 ├── tetra_axi_lite_regs.v (Reg-Bank + Shadow-BRAM-Window)
@@ -405,7 +409,7 @@ Eintrag-Format (16 bit):
 | `tetra_aach_encoder` | ~50 | ~40 | 0 | 0 | ok | F1-17 / F18-Varianten |
 | `tetra_mac_resource_dl_builder` | ~400 | ~500 | 0 | 0 | 6/6 | 9 Bugs durchgearbeitet |
 | `tetra_d_location_update_encoder` | ~50 | ~80 | 0 | 0 | 16/16 | MM-PDU-Bits (Minimal-Accept) |
-| `tetra_active_session_table` | ~200 | ~300 | 0 | 1 | 4/4 | 64-bit-Records, 64 Slots |
+| ~~`tetra_active_session_table`~~ | — | — | — | — | — | **Entfernt 2026-05-03** (FPGA-thin-signaling-Refactor) — Session-State liegt jetzt in SW |
 | `tetra_dl_signal_queue` | ~150 | ~400 | 0 | 0 | ok | Depth-4 drop-newest |
 | `tetra_dl_signal_scheduler` | ~300 | ~500 | 0 | 0 | ok | MLE>CMCE>SDS, 1 frame ahead |
 | `tetra_mle_registration_fsm` | ~500 | ~700 | 0 | 0 | 4/4 | FSM + AST-Handshake + SCH/F-Encoder |
@@ -605,49 +609,42 @@ für Auto-Enrollment unbekannter ISSIs/GSSIs.
  Entity.query(GSSI, type=GSSI) → profile_id
  Profile.lookup(profile_id) → permit_voice/data → accept_or_reject
 
- **WICHTIG (Bit-Forensik 2026-04-26):** der MS-seitige
- `group_identity_location_demand`-IE liegt **nicht** im ersten Burst,
- sondern im **2. Burst (MAC-U-BLCK Continuation)** des Demand-
- Reassemblies. UL#0 trägt MAC-ACCESS frag=1 mit nur 44 Bit MM-Body-
- Anfang; UL#1 trägt PDU-Type=1 (MAC-U-BLCK) mit 88 Bit Continuation.
- BS reassembliert UL#0[48..91] + UL#1[4..91] zu einem 132-bit MM
- body, der erst dann die GSSI-IE enthält. Aktuelle Implementation
- (Phase D-rev) macht kein Reassembly — die MS-GSSI-Wunschliste wird
- ignoriert, BS diktiert die GSSI über das `group_identity_downlink`-
- IE im D-LOC-UPDATE-ACCEPT (EntityTable Default-GSSI-Lookup).
- Memory: `project_ms_gssi_wish_in_demand.md`. Reassembly +
- IE-Parser ist Sprint-Voraussetzung für M3 wenn echte
- MS-Group-Verhandlung gewünscht ist (M2-Operator-zentriertes Modell
- ohne Reassembly funktioniert weiter, nur die MS-Wunsch-GSSI ist
- ignoriert).
-4. AST.query(ISSI):
- hit → reuse slot, update last_seen, group_list
- miss → AST.alloc → AST.write {ISSI, last_seen=now, state=REG, groups[]}
-5. Build D-LOC-UPDATE-ACCEPT mit GILA aus AST-group_list (nicht hardcoded)
-6. Send AL-SETUP (SCH/HD) + Accept (SCH/F) two-phase (wie M2)
+ **Reassembly + IE-Parsing (Stand 2026-05-19):** UL#0 (MAC-ACCESS,
+ frag=1) + UL#1 (MAC-U-BLCK Continuation) werden im RTL durch
+ `rtl/rx/tetra_ul_demand_reassembly.v` zu einem 129-bit MM-Body
+ zusammengebaut. `rtl/lmac/tetra_ul_demand_ie_parser.v` parst diesen
+ Body (mm=2 LocUpdate-Demand oder mm=7 ATTACH-DETACH-GROUP-IDENTITY)
+ und exposed die GIU-Records (`iep_gild_gssi/class/at`,
+ `iep_gid_count/gssi_array/...`). Die parsed Felder landen via
+ `tetra_demand_mailbox` / `tetra_grp_demand_mailbox` in SW. Damit
+ ist die MS-GSSI-Wunschliste sichtbar — ob die BS sie respektiert
+ oder via `group_identity_downlink` überschreibt, entscheidet
+ `sw/tetra_attach_daemon` per DB-Policy.
+4. SW-Daemon `tetra_attach_daemon` macht den Lookup gegen `/root/db.tsv`
+ (Subscriber-Permits, Group-Memberships). **Es gibt keine RTL-AST** —
+ der ursprünglich geplante `tetra_active_session_table.v` wurde durch
+ SW-State im Daemon ersetzt (Phase X.5 architektur-Entscheidung
+ FPGA-thin-signaling).
+5. Build D-LOC-UPDATE-ACCEPT in SW (`tetra_tx_transport`) und stage via
+ `tetra_dl_signal_queue` → on-air zwei-phasig (AL-SETUP SCH/HD +
+ Accept SCH/F).
 ```
 
 **Detach (UL `U-ITSI-DETACH`, mm_type=1):**
 
 ```
-AST.query(ISSI):
- hit → AST.write(slot, valid=0) + counter mle_detach_cnt++
- miss → ignore (MS detached without ever attached)
-Kein DL-ACK (ETSI: ITSI-DETACH ist one-way).
-Entity Table NICHT angefasst — Subscriber bleibt berechtigt.
+SW-Daemon (tetra_attach_daemon) erkennt mm_pdu_type==1 via demand_mailbox-Snapshot.
+ → mle_detach_cnt++ (Diagnose-Counter)
+ → kein DL-ACK (ETSI: ITSI-DETACH ist one-way)
+ → /root/db.tsv NICHT angefasst — Subscriber bleibt berechtigt
+ → Session-State wird über tetra_call_fsm gepflegt (state=IDLE)
 ```
 
-**TTL-Sweep (jede Multiframe = 1.02 s, neue FSM `tetra_ast_ttl_sweeper.v`):**
-
-```
-Free-running 24-bit Multiframe-Counter `now`.
-For each AST slot where valid=1:
- if (now - last_seen) > REG_AST_TTL_MULTIFRAMES (default 84706 ≈ 24h):
- AST.write(slot, valid=0)
-```
-
-`last_seen` wird bei JEDER UL-Aktivität dieser ISSI aktualisiert (Demand,
-BL-ACK, MAC-U-BLCK, U-RELEASE, U-DETACH selbst), nicht nur beim Attach.
+**Hinweis:** Die ursprünglich geplanten RTL-Module `tetra_active_session_table.v`
+und `tetra_ast_ttl_sweeper.v` wurden NICHT implementiert (FPGA-thin-signaling-
+Refactor 2026-05-03). Session-Lifecycle ist heute SW-state-only in
+`sw/tetra_call_fsm.c` / `sw/tetra_attach_daemon.c`. TTL-Mechanik existiert
+faktisch über die nicht-persistente Natur des Daemon-States (Reboot = clean).
 
 ### 9.4 Empirie zur TTL-Wahl (2026-04-25 Beobachtung)
 
@@ -711,11 +708,23 @@ Phase E.1–E.3 deckt den Operator-Flow ab (DB editieren, Live-Counter
 sehen, OPEN/RESTRICTED toggeln). E.4 + E.5 ergänzen das um SSH-Edit-
 Autosync (TSV → BRAM) und ISSI-Auto-Enrollment (UL-mon → TSV → BRAM).
 
-### 9.8 Phase 7 — Group-Call-Architektur (M3-Vorbereitung)
+### 9.8 Phase 7 — Group-Call-Architektur (M3 — UMGESETZT, abweichend zum Plan)
 
-Phase 7 baut auf der Phase-6-Subscriber-DB auf und fügt:
-1. **UL-Demand-Reassembly** (Phase F) — MS-GSSI-Wunsch wird sichtbar.
-2. **CMCE-Sub-FSM + Voice-Relay** (Phase G) — Group-Call mit bit-transparentem UL→DL.
+**Realität 2026-05-19 — was tatsächlich gebaut wurde:**
+1. **UL-Demand-Reassembly** (Phase F) ✅ — `rtl/rx/tetra_ul_demand_reassembly.v`
+   feedet `rtl/lmac/tetra_ul_demand_ie_parser.v`, der mm=2 + mm=7 walked.
+   Parsed Felder via `tetra_demand_mailbox` + `tetra_grp_demand_mailbox` an
+   SW. **MS-GSSI-Wunsch ist sichtbar.**
+2. **Call-Control + Voice-Relay** ✅ — komplett SW-resident in
+   `sw/tetra_call_fsm.c` + `sw/tetra_voice_pipe.c`. SW-CMCE-Stack
+   (CMCE-Parser + tx_transport + Builder für D-SETUP/D-CONNECT/D-TX-GRANTED/
+   D-TX-CEASED/D-RELEASE). KEIN RTL-CMCE-Sub-FSM, KEIN AST.
+
+**Die folgenden Subsections 9.8.1+ sind ursprüngliche Planungs-Texte und
+entsprechen NICHT der heutigen Implementation.** Sie sind historisch erhalten
+für Rückverfolgbarkeit der Architektur-Entscheidung. Aktueller Stand siehe
+[`docs/ist/06_lmac_fsms.md`](ist/06_lmac_fsms.md) und
+[`docs/ist/09_sw_stack.md`](ist/09_sw_stack.md).
 
 Quellen verbindlich: Memory `reference_demand_reassembly_bitexact.md`,
 `reference_cmce_group_call_pdus.md`. Der vollständige bit-genaue
