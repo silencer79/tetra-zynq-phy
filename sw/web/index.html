@@ -71,6 +71,7 @@ td.num { text-align: right; }
 
 <div class="tabs">
   <div class="tab active" id="tab-cfg"      onclick="showTab('cfg')">Cell Config</div>
+  <div class="tab"        id="tab-live"     onclick="showTab('live')">Live Status</div>
   <div class="tab"        id="tab-subs"     onclick="showTab('subs')">Subscribers</div>
 </div>
 
@@ -200,6 +201,85 @@ td.num { text-align: right; }
 
 </div><!-- /view-cfg -->
 
+<!-- ========================= LIVE STATUS TAB ========================= -->
+<div class="view" id="view-live">
+
+<h2>Live Status <span style="font-weight:normal;font-size:0.85em;color:#888">Auto-Refresh alle 2 s</span></h2>
+
+<div class="grid" style="grid-template-columns: repeat(4, 1fr); gap: 0.6em">
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">tetra_sysinfo</div>
+    <div id="m-si" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">attach_daemon</div>
+    <div id="m-ad" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">Uptime</div>
+    <div id="m-up" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">NUB-RX Bursts (RTL)</div>
+    <div id="m-nub" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+</div>
+
+<h3 style="margin-top: 1em">RSSI (AD9361)</h3>
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.6em">
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">RX Channel 0</div>
+    <div id="m-rssi0" style="font-size: 1.4em; font-weight: bold">— dB</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">RX Channel 1</div>
+    <div id="m-rssi1" style="font-size: 1.4em; font-weight: bold">— dB</div>
+  </div>
+</div>
+
+<h3 style="margin-top: 1em">Voice-Pipe Statistik <span style="font-weight:normal;font-size:0.8em;color:#888">letztes voice_pipe-Log-Sample (= aktiver UL-Stream / letzter Burst)</span></h3>
+<div class="grid" style="grid-template-columns: repeat(4, 1fr); gap: 0.6em">
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">Bursts decodiert</div>
+    <div id="m-vp-n" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a3a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #aaa">BFI (Soft)</div>
+    <div id="m-vp-soft" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #3a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #aaa">BFI (Hard)</div>
+    <div id="m-vp-hard" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">Raw BER diff_avg</div>
+    <div id="m-vp-diff" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+</div>
+<div style="margin-top: 0.4em; color: #888; font-size: 0.85em">
+  Raw BER ≈ diff_avg / 432 × 100 % &mdash; <span id="m-vp-ber-pct">—</span> %
+  · Worst-Burst-Diff: <span id="m-vp-max">—</span> bits
+</div>
+
+<h3 style="margin-top: 1em">Signal-Qualität <span style="font-weight:normal;font-size:0.8em;color:#888">aus Soft-Magnituden (E2-Pfad) abgeleitet — kein echter MER, Proxy</span></h3>
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.6em">
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">Mean |Soft| <span style="color:#666">(0..7)</span></div>
+    <div id="m-vp-mag" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">MER/SNR-Proxy <span style="color:#666">(grob)</span></div>
+    <div id="m-vp-mer" style="font-size: 1.4em; font-weight: bold">— dB</div>
+  </div>
+</div>
+<div style="margin-top: 0.4em; color: #888; font-size: 0.8em">
+  &gt;20 dB sehr stark · 10-20 dB ok · &lt;6 dB grenzwertig.
+  Berechnung: <code>20·log10( mean(|s|) / (8 − mean(|s|)) )</code> über alle 432 Burst-Coded-Bits.
+  Soft-Wert ∈ [−8,+7] (4-bit signed aus E2-Pfad); clipping bei ±7/−8 = max-Signal.
+</div>
+
+</div><!-- /view-live -->
+
 <!-- ========================= SUBSCRIBERS TAB ========================= -->
 <div class="view" id="view-subs">
 
@@ -300,21 +380,73 @@ function showStatus(txt) { var el = qs('#status'); el.style.display = 'block'; e
 
 /* -------- Tab switching -------- */
 var pollSessId = 0;
+var pollMetricsId = 0;
 function showTab(name) {
-  var ids = ['cfg', 'subs'];
+  var ids = ['cfg', 'live', 'subs'];
   for (var i = 0; i < ids.length; i++) {
     var v = document.getElementById('view-' + ids[i]);
     var t = document.getElementById('tab-' + ids[i]);
     if (ids[i] === name) { v.classList.add('active'); t.classList.add('active'); }
     else                 { v.classList.remove('active'); t.classList.remove('active'); }
   }
-  // Stop session-poll; restart only when 'subs' is active.
-  // entities.cgi is on-demand only (Reload button + post-Add/Del).
-  if (pollSessId) { clearInterval(pollSessId); pollSessId = 0; }
+  /* Stop all polling; restart only the active tab's poller. */
+  if (pollSessId)    { clearInterval(pollSessId);    pollSessId = 0; }
+  if (pollMetricsId) { clearInterval(pollMetricsId); pollMetricsId = 0; }
   if (name === 'subs') {
     refreshSessions(); refreshEntities();
     pollSessId = setInterval(refreshSessions, 2000);
   }
+  if (name === 'live') {
+    refreshMetrics();
+    pollMetricsId = setInterval(refreshMetrics, 2000);
+  }
+}
+
+/* -------- Live Status polling -------- */
+function fmtUptime(s) {
+  var d = Math.floor(s / 86400); s -= d*86400;
+  var h = Math.floor(s / 3600);  s -= h*3600;
+  var m = Math.floor(s / 60);    s -= m*60;
+  if (d > 0) return d + 'd ' + h + 'h';
+  if (h > 0) return h + 'h ' + m + 'm';
+  return m + 'm ' + s + 's';
+}
+function bfiBadge(pct) {
+  if (pct < 5)  return pct + ' %';
+  if (pct < 15) return pct + ' %';
+  return pct + ' %';
+}
+function refreshMetrics() {
+  fetch('/cgi-bin/metrics.cgi')
+    .then(function(r) { return r.json(); })
+    .then(function(m) {
+      qs('#m-si').textContent  = m.tetra_sysinfo_running   ? '● RUN' : '○ STOP';
+      qs('#m-si').style.color  = m.tetra_sysinfo_running   ? '#4caf50' : '#f44336';
+      qs('#m-ad').textContent  = m.attach_daemon_running   ? '● RUN' : '○ STOP';
+      qs('#m-ad').style.color  = m.attach_daemon_running   ? '#4caf50' : '#f44336';
+      qs('#m-up').textContent  = fmtUptime(m.uptime_s);
+      qs('#m-nub').textContent = m.nub_rx_cnt.toLocaleString();
+
+      qs('#m-rssi0').textContent = (m.rssi_rx0_db === null) ? '— dB' : m.rssi_rx0_db.toFixed(2) + ' dB';
+      qs('#m-rssi1').textContent = (m.rssi_rx1_db === null) ? '— dB' : m.rssi_rx1_db.toFixed(2) + ' dB';
+
+      var v = m.voice_pipe;
+      qs('#m-vp-n').textContent    = v.bursts.toLocaleString();
+      qs('#m-vp-soft').textContent = bfiBadge(v.soft_pct) + ' (' + v.soft_bfi + '/' + v.bursts + ')';
+      qs('#m-vp-hard').textContent = bfiBadge(v.hard_pct) + ' (' + v.hard_bfi + '/' + v.bursts + ')';
+      qs('#m-vp-diff').textContent = v.diff_avg + ' bits/burst';
+      qs('#m-vp-ber-pct').textContent = (v.diff_avg / 432 * 100).toFixed(2);
+      qs('#m-vp-max').textContent = v.max_diff;
+      var mag = (v.soft_mag_x100 || 0) / 100;
+      qs('#m-vp-mag').textContent = mag.toFixed(2);
+      qs('#m-vp-mer').textContent = (v.mer_db !== undefined ? v.mer_db.toFixed(1) : '—') + ' dB';
+      /* Color-coding: green ≥ 20 dB, amber 10-20 dB, red < 6 dB */
+      var merBox = qs('#m-vp-mer');
+      if      (v.mer_db >= 20) merBox.style.color = '#4caf50';
+      else if (v.mer_db >= 10) merBox.style.color = '#ff9800';
+      else                     merBox.style.color = '#f44336';
+    })
+    .catch(function(e) { console.warn('metrics.cgi failed:', e); });
 }
 
 /* -------- Cell Config (existing flow) -------- */

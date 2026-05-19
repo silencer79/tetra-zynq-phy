@@ -206,15 +206,35 @@ int tetra_voice_pipe_tick(tetra_hal_t *hal, uint32_t target_ssi)
  if (diff_bits > s_max_diff_burst) s_max_diff_burst = diff_bits;
  }
 
+ /* Phase E2-Add (2026-05-19) — Signal-Quality-Proxy aus Soft-Magnituden.
+  *   |soft| ∈ [0..7] pro Coded-Bit (4-bit signed Slice in nub_capture).
+  *   Hohe |soft| = klares Symbol, niedrige = nahe Decision-Boundary.
+  *   Mean-|soft| / (7 − mean-|soft|) liefert eine MER-Schätzung in linear-
+  *   Skala; dB davon ergibt einen verwendbaren SNR/MER-Proxy.
+  *   Werte > 14 dB = sehr klar, 8-14 dB = ok, < 6 dB = grenzwertig. */
+ static uint32_t s_total_mag_sum = 0;
+ static uint32_t s_total_mag_n = 0;
+ uint32_t mag_sum_burst = 0;
+ for (int i = 0; i < SCHF_CODED_BITS; i++) {
+ int v = (int)softs_in[i];
+ mag_sum_burst += (uint32_t)(v < 0 ? -v : v);
+ }
+ s_total_mag_sum += mag_sum_burst;
+ s_total_mag_n   += (uint32_t)SCHF_CODED_BITS;
+
  if ((s_n & 0x07) == 0) {
  int avg_diff = (s_n - s_bfi) > 0 ? s_total_diff / (s_n - s_bfi) : 0;
+ /* Avg-magnitude scaled ×100 to keep integer arithmetic precision. */
+ uint32_t mag_avg_x100 = s_total_mag_n
+   ? (s_total_mag_sum * 100u) / s_total_mag_n : 0;
  fprintf(stderr,
  "voice_pipe: t=%ums bursts=%d soft{bfi=%d %d%%} hard{bfi=%d %d%%} "
- "diff_avg=%d max=%d\n",
+ "diff_avg=%d max=%d soft_mag=%u.%02u\n",
  mono_ms_lo_vp(), s_n,
  s_bfi, (s_bfi*100)/(s_n?s_n:1),
  s_bfi_h, (s_bfi_h*100)/(s_n?s_n:1),
- avg_diff, s_max_diff_burst);
+ avg_diff, s_max_diff_burst,
+ mag_avg_x100 / 100u, mag_avg_x100 % 100u);
  }
 
  /* Alle 64 Bursts: erweiterte Diagnose:
