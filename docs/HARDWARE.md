@@ -17,7 +17,7 @@ Ersetzt: `hw_setup.md`, `hw_board_state.md`, `adi_ip_integration.md`,
 | FPGA | Zynq-7020 (XC7Z020-CLG484), 85k Logic Cells, 220 DSP48E1, 4.9 Mb BRAM |
 | RF-Chip | AD9363 (1Tx/1Rx, AD9361-kompatibel) |
 | Power | 12 V DC, 2 A min — passiver Kühlkörper empfohlen |
-| Netz | Gigabit Ethernet, IP `192.168.2.183` (OpenWiFi-Kernel) |
+| Netz | Gigabit Ethernet, IP `192.168.2.90` (OpenWiFi-Kernel) |
 | Hostname | `analog` |
 | Kernel | `5.10.0-98248-g1bbe32fa5182-dirty` (OpenWiFi) |
 | Host-Tools | Ubuntu 20.04+, Vivado 2022.2, Python3, sshpass |

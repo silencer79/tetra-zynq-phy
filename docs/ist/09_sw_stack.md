@@ -928,13 +928,17 @@ suggeriert, dass `sw/web/index.html` und `sw/web/cgi-bin/*.cgi` nach
  `ms_txpwr=6`, `rxlevel_min=0`, `access_param=10`,
  `radio_dl_timeout=5`, `opt_field=1011456`, `priority_cell=0`,
  `migration=0`, `ncb=3`, `csl=0`).
-3. Speichert config nach `/tmp/tetra_cell.conf`.
+3. Speichert config nach **`/root/tetra_cell.conf`** (single source of truth,
+   auch von `tetra_autostart.sh` beim Boot konsumiert). Existing Conf wird
+   `source`d um HW-Defaults (SAMPLERATE, RF_BW, VCXO, ...) zu bewahren.
 4. `killall tetra_sysinfo`, `sleep 0.3`.
 5. Setzt AD9361 IIO sysfs:
  - `echo $freq > /sys/bus/iio/devices/iio:device1/out_altvoltage1_TX_LO_frequency`
- - RX-Freq berechnet aus `duplex_spacing` (case 0→-10MHz, 1→-7.6MHz,
- 3→-10MHz, 4→+10MHz, 7→same; default -10MHz), oder direkt aus
- `ul_freq`-form-field wenn angegeben.
+ - **RX-Freq berechnet aus editierbarer Duplex-Tabelle** (Form-Felder
+   `dx0..dx7` in Hz, persistiert als `DUPLEX_OFFSET_HZ_0..7` in Conf):
+   `rx_freq = freq + dx[duplex_spacing]`. Defaults = MS-Codeplug-Mapping
+   (siehe Memory `feedback_duplex_table_in_config`). Override via
+   `ul_freq`-form-field möglich.
  - `out_altvoltage0_RX_LO_frequency = $rx_freq`.
  - `out_voltage0_hardwaregain = "$tx_atten"` (mit `printf "%f"`).
 6. `nohup /root/tetra_sysinfo --freq … --daemon > /tmp/tetra_sysinfo.log

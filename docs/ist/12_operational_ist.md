@@ -1,5 +1,5 @@
 # IST — Kapitel 12: Operational State
-Stand: 2026-05-17
+Stand: 2026-05-19
 
 Was läuft AKTUELL auf dem Board, was ist live verifiziert, was ist offen.
 
@@ -7,13 +7,11 @@ Was läuft AKTUELL auf dem Board, was ist live verifiziert, was ist offen.
 
 | Item | Value |
 |------|-------|
-| Local `build/tetra_zynq_phy.bit` MD5 | `dfa5db9bcba4e7a6f6d85613506589fc` |
-| Local `build/tetra_zynq_phy.bit.bin` MD5 | `a8e001067b307a4a99dc30fff5720f9c` |
-| Build-Zeit local | 2026-05-17 17:29 |
-| HEAD-Commit | `8b8cb41 fix(rtl): ul_demand_ie_parser shift-register refactor — WNS -0.02→+0.008 ns` |
-| Slice-Utilization (impl) | 98.08 % (LUT 72.14 %, Reg 41.13 %) |
-| Timing | Setup WNS +0.008 ns / Hold WNS +0.019 ns (0 failing endpoints) |
-| Critical Warnings | 24 (ge-tracked, siehe Ch 11) |
+| Local `build/tetra_zynq_phy.bit.bin` MD5 | `44af4da62168a89f2bc4e87ab22bd833` |
+| Build-Zeit local | 2026-05-18 ~20:20 (Phase E2 rebuild) |
+| HEAD-Commit | `2594a91 docs: correct outdated Reassembly + AST references` (Bitstream-relevanter Letzter: `cae5108 feat(rx): Phase E2 — soft-decisions @ NUB-Capture`) |
+| Slice-Utilization (impl) | **98.10 %** (LUT 71.04 %, Reg 43.61 %) |
+| Timing | Setup WNS **+0.114 ns** / Hold WNS +0.024 ns (0 failing endpoints) |
 
 ## Working-Tree State
 

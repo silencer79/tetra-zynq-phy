@@ -236,7 +236,7 @@ M4: Einzelrufe + Paging ⏳ Phase 4
 | Substep | Status |
 |---------|--------|
 | M2.1 SCH/HU Channel-Decoding | ✅ `tetra_ul_sch_hu_decoder.v` + `tetra_ul_viterbi_r14.v` (ETSI-konform), HW-verifiziert |
-| M2.2 MAC Layer (MAC-RESOURCE Builder + AST) | ✅ `tetra_mac_resource_dl_builder.v` + `tetra_active_session_table.v` |
+| M2.2 MAC Layer (MAC-RESOURCE Builder + AST) | ✅ `tetra_mac_resource_dl_builder.v` (live), ~~`tetra_active_session_table.v`~~ — **AST 2026-05-03 wieder entfernt**, Session-State liegt jetzt SW-side (siehe §3.2 + §9 Subscriber-Path) |
 | M2.3 MLE Registration FSM + D-LOC-UPDATE-Encoder | ✅ Two-Phase-Attach (SCH/HD AL-SETUP + SCH/F BL-ADATA), 102-bit MM body bit-exakt zur -Ref, ra_flag=0 im Accept |
 | M2.4 Per-Slot TX-Content-Mux | ✅ `tetra_slot_content_mux.v` + `tetra_dl_signal_queue.v` + `tetra_dl_signal_scheduler.v` (Refactor 2026-04-23) + `sched_active_sys` Bus für AACH-Override (2026-04-25) |
 | M2.5 SYSINFO Frame-Counter im RTL | ⚠️ Teilweise — `tx_frame_cnt_sys` läuft frei, aber Frame-Nummer wird aus SW geschrieben (siehe §5) |
@@ -443,6 +443,13 @@ Eintrag-Format (16 bit):
 ---
 
 ## 7. Bekannte Issues + Fixes (Historie)
+
+> **Hinweis:** Die unten gelisteten Einträge sind chronologisch — der
+> heutige Code reflektiert die akkumulierten Fixes, aber einzelne RTL-
+> Module aus historischen Fixes wurden inzwischen wieder entfernt
+> (insbesondere `tetra_active_session_table.v` + zugehörige Regs in der
+> 2026-05-03 FPGA-thin-signaling-Migration). Stand der aktuellen
+> Modulbaum: §3.2.
 
 | Datum | Issue | Modul | Fix |
 |-------|-------|-------|-----|

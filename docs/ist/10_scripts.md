@@ -41,11 +41,11 @@ Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufn
 3. `3/4: Cross-Compile sw/` — `make -C sw all` baut `tetra_sysinfo` + `tetra_ul_mon`.
 4. `4/4: Upload to ${BOARD_IP}` — killt laufende Daemons (`tetra_sysinfo`, `tetra_ul_mon`, `tetra_attach_daemon`), `pkill -f '[t]etra_db_mgr|[t]etra_dbsync|[t]etra_autoenroll'` für Phase-X.7-Cleanup, scp bitstream + binaries, md5-verifiziert, lädt WebUI hoch und startet `busybox httpd -p 80 -h /www`.
 
-**Notable Constants:** `BOARD_IP=192.168.2.85`, `BOARD_USER=root`, `BOARD_PASS=openwifi`, `BITSTREAM_NAME=tetra_zynq_phy`, `REMOTE_FW_DIR=/lib/firmware`, `REMOTE_BIN_DIR=/root`.
+**Notable Constants:** `BOARD_IP=192.168.2.90`, `BOARD_USER=root`, `BOARD_PASS=openwifi`, `BITSTREAM_NAME=tetra_zynq_phy`, `REMOTE_FW_DIR=/lib/firmware`, `REMOTE_BIN_DIR=/root`.
 
 **Bei `--init`:**
 - `tetra_ctrl.sh full_init 428250000 438250000` (RX=428.25 MHz, TX=438.25 MHz).
-- `vcxo_cal.sh --host 192.168.2.85 --dac 153`.
+- `vcxo_cal.sh --host 192.168.2.90 --dac 153`.
 - `tetra_ctrl.sh rf_loopback 428250000 438250000 13 -10` (SYNC_THRESH=13, TX_ATT=-10 dB).
 - Seedet `/root/db.tsv` aus `db.tsv.default` falls fehlend.
 - Symlinkt `/usr/bin/busybox` → `/usr/bin/devmem` (Phase X.7 Workaround für fresh openwifi).
@@ -58,12 +58,12 @@ Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufn
 **Inputs:** Keine CLI-Args. Erwartet `build/tetra_zynq_phy.bit` und Vivado-Settings sourced.
 **Outputs:** `build/tetra_zynq_phy.bit.bin` (~4 MB).
 **Stages:** BIF-Datei generieren → `bootgen -w on -process_bitstream bin`.
-**Notable Constants:** Hartkodiert `BITSTREAM=tetra_zynq_phy`, Empfänger-IP `192.168.2.85` in Hinweistext.
+**Notable Constants:** Hartkodiert `BITSTREAM=tetra_zynq_phy`, Empfänger-IP `192.168.2.90` in Hinweistext.
 **Auffälligkeiten:** Doppelter Codepfad mit `deploy.sh` Step 2.
 
 ### scripts/hw_deploy.sh
 **Aufgabe:** Vollautomatischer JTAG-Flash + AD9361-Init + ILA-Capture-Workflow (5-Schritt-Sequenz).
-**Inputs:** CLI-Args `--host`, `--freq`, `--samplerate`, `--gain`, `--agc`, `--timeout`, `--no-flash`, `--no-ad9361`, `--no-ila`, `--vivado`, `--help`/`-h`. Defaults: Host=192.168.2.85, Freq=430000000, SR=4608000, Gain=40 dB, Timeout=30000 ms.
+**Inputs:** CLI-Args `--host`, `--freq`, `--samplerate`, `--gain`, `--agc`, `--timeout`, `--no-flash`, `--no-ad9361`, `--no-ila`, `--vivado`, `--help`/`-h`. Defaults: Host=192.168.2.90, Freq=430000000, SR=4608000, Gain=40 dB, Timeout=30000 ms.
 **Outputs:** `build/program_fpga.log`, `build/ila_capture.log`, `build/ila_lvds_data.csv`, `build/ila_sys_data.csv`, Python-Analyse-Output.
 **Stages:**
 1. Voraussetzungen (Vivado, sshpass, python3).
@@ -75,12 +75,12 @@ Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufn
 7. ILA-Capture via `ila_capture.tcl`.
 8. Analyse via `analyze_ila.py`.
 
-**Notable Constants:** `SSH_HOST="192.168.2.85"`, `BIT_FILE=build/tetra_zynq_phy.bit`, `LTX_FILE=build/tetra_zynq_phy.ltx`.
+**Notable Constants:** `SSH_HOST="192.168.2.90"`, `BIT_FILE=build/tetra_zynq_phy.bit`, `LTX_FILE=build/tetra_zynq_phy.ltx`.
 **Auffälligkeiten:** Vivado-Auto-Detect probiert mehrere Pfade (`/tools/Xilinx/`, `/opt/Xilinx/`, `~/tools/`). Farbiges Terminal-Output (`OK`/`FAIL`/`WARN`/`INFO`/`STEP`).
 
 ### scripts/ad9361_init.sh
 **Aufgabe:** Lädt `ad9361_drv.ko`-Modul, bindet SPI an AD9361, konfiguriert RX-Freq/SR/Gain/BW + FDD-Mode via `iio_attr` über SSH.
-**Inputs:** CLI-Args `--host`, `--freq`, `--tx-freq`, `--samplerate`, `--gain`, `--agc`. Defaults: 192.168.2.85, RX=429950000, SR=4608000, Gain=40, GAIN_MODE=fast_attack.
+**Inputs:** CLI-Args `--host`, `--freq`, `--tx-freq`, `--samplerate`, `--gain`, `--agc`. Defaults: 192.168.2.90, RX=429950000, SR=4608000, Gain=40, GAIN_MODE=fast_attack.
 **Outputs:** stdout-Logging der iio_attr-Aufrufe.
 **Notable Constants:** `BW_HZ=200000` (AD9361-Min, optimal für 25 kHz TETRA). TX-Freq Default = RX+10 MHz.
 **Schritte:**
@@ -111,13 +111,13 @@ Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufn
 - `monitor` — Endless-Poll von STATUS+Counter (FE/DEMOD/SYNC_RAW@0x50/0x54/0x58) bis SYNC_LOCKED.
 - `read <offset>` / `write <offset> <value>` — Einzelregister.
 
-**Notable Constants:** `BASE_ADDR=0x43C00000`, `ADC_BASE=0x79020000`, `DAC_BASE=0x79024000`, `BOARD_IP=192.168.2.85`.
+**Notable Constants:** `BASE_ADDR=0x43C00000`, `ADC_BASE=0x79020000`, `DAC_BASE=0x79024000`, `BOARD_IP=192.168.2.90`.
 **Register-Offsets:** `CTRL=0x00`, `STATUS=0x04`, `VERSION=0x08`, `SYNC_THRESH=0x0C`, `COLOUR_CODE=0x10`, `FRAME_NUM=0x14`, `SLOT_NUM=0x18`, `IRQ_STATUS=0x28`.
 **Auffälligkeiten:** Sehr ausführliche Inline-Doku zu ADI DAC/ADC-Init-Sequenz. `full_init` Step 1+3 verwendet `/sys/class/fpga_manager/fpga0/firmware`.
 
 ### scripts/vcxo_cal.sh
 **Aufgabe:** Schreibt DAC5311 (8-Bit-DAC für 40-MHz-VCXO-Tuning) per PS-GPIO-EMIO-Bitbang.
-**Inputs:** CLI-Args `--host` (192.168.2.85), `--dac N` (0..255), `--xo HZ`, `--read`, `--init`, `--deinit`, `--help`.
+**Inputs:** CLI-Args `--host` (192.168.2.90), `--dac N` (0..255), `--xo HZ`, `--read`, `--init`, `--deinit`, `--help`.
 **Outputs:** stdout-Status, DAC-Wert schreiben, optional `iio_attr -d ad9361-phy xo_correction`.
 **Notable Constants:** `GPIO_CS=1011`, `GPIO_CLK=1012`, `GPIO_DIN=1013` (EMIO[51:53]). DAC5311-Frame: `[15:14]=PD=00`, `[13:6]=Data`, `[5:0]=DC`.
 **Stages:** `gpio_export` → 16-bit MSB-first bitbang (CS low → toggle CLK je Bit → CS high).
@@ -127,7 +127,7 @@ Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufn
 **Aufgabe:** Phase-H.6.3-Helper. Schreibt `REG_AACH_GRANT_HINT @ 0x43C001F4` (Bit 31 = pending, Bits [13:0] = info). HW löscht Bit 31 nach Auswurf auf TN=0-Idle-Slot.
 **Inputs:** Eine optionale CLI-Arg: 14-Bit Info-Wort. Default 0x4001.
 **Outputs:** Devmem-Schreiben, Readback, `UL_CONT_CNT @ 0x1B8` before/after-Vergleich.
-**Notable Constants:** Board=`root@192.168.2.85`, REG_AACH_GRANT_HINT=`0x43C001F4`, REG_UL_CONT_CNT=`0x43C001B8`.
+**Notable Constants:** Board=`root@192.168.2.90`, REG_AACH_GRANT_HINT=`0x43C001F4`, REG_UL_CONT_CNT=`0x43C001B8`.
 **Auffälligkeiten:** Per-burst-Test-Recipe in Kommentar.
 
 ### scripts/gen_all_vectors.sh

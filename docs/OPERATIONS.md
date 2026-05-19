@@ -30,8 +30,8 @@ Ersetzt: `deployment_guide.md`, `deploy_workflow.md`, `test_results.md`,
 ./scripts/tetra_ctrl.sh read 0x190 # MLE-Counter (accept | ul_req)
 
 # Tail der Board-Logs
-sshpass -p openwifi ssh root@192.168.2.183 'tail -20 /tmp/tetra_sysinfo.log'
-sshpass -p openwifi ssh root@192.168.2.183 'tail -20 /tmp/tetra_ul_mon.log'
+sshpass -p openwifi ssh root@192.168.2.90 'tail -20 /tmp/tetra_sysinfo.log'
+sshpass -p openwifi ssh root@192.168.2.90 'tail -20 /tmp/tetra_ul_mon.log'
 ```
 
 ---
@@ -73,10 +73,10 @@ Vivado Build → bootgen (.bit →.bit.bin) → Cross-Compile SW → SCP Upload 
 
 | Parameter | Wert |
 |-----------|------|
-| IP | `192.168.2.183` |
+| IP | `192.168.2.90` |
 | User | `root` |
 | Passwort | `openwifi` |
-| SSH | `sshpass -p openwifi ssh root@192.168.2.183` |
+| SSH | `sshpass -p openwifi ssh root@192.168.2.90` |
 | AXI-Base | `0x43C00000` (TETRA-PL), `0x79020000` (ADC), `0x79024000` (DAC) |
 
 ### Wichtige Pfade auf dem Board
@@ -261,7 +261,7 @@ Für auto-offset-Failure (korrelation < 0.9): manuell Offset setzen —
 
 ### 7.5 WebUI — Subscriber-DB + Profiles + Live-Counter (Phase 6 E + D-rev)
 
-`http://192.168.2.183/` → busybox httpd liefert `index.html` + CGI.
+`http://192.168.2.90/` → busybox httpd liefert `index.html` + CGI.
 Tabs: **Cell Config** (Frequenz/CC/SYSINFO via `apply.cgi`),
 **Subscribers** (EntityTable + Sessions) und **Profiles** (ProfileTable
 6-Slot-Editor).
@@ -402,8 +402,8 @@ Bisherige Builds mit WNS bis −0.3 ns hatten on-air keinen Impact. Für Product
 | 2026-04-25 12:18 | `26191b4` | MM-Body bit-exakte Ref-Replik (102 bit, GILA GSSI=0x2F4D61) + ra_flag=0 im Accept | ✅ **MTP3550 ITSI-Attach erfolgreich** — 1:1 Demand→Accept, kein Retry-Loop |
 | 2026-04-25 16:28 | `9cc6607` | Phase 6 A — Subscriber-Shadow Permit-Check + REJECT-Encoder + REG_DB_POLICY @ 0x1AC | ✅ **on-air verifiziert** — `0x190=0x0001_0001` (1:1 Demand→Accept), `0x1AC=0x1` accept_unknown=1, kein Drop, kein Re-Demand-Loop |
 | 2026-04-25 17:11 | (gleicher Build) | Phase A Strict-Mode-Test: `0x1AC=0` + leere DB → REJECT-Loop (18 Demands ungeacked); danach `tetra_db_mgr add 0 2633617 …` + sync → MS attached + BL-ACK | ✅ Beide Pfade (REJECT + ACCEPT-via-Shadow-Hit) on-air bestätigt |
-| 2026-04-25 ~18:30 | `cae0ebc` | Phase 6 B — AST 64→128 bit, U-ITSI-DETACH räumt AST-Slot, mf_global_cnt 24-bit, REG_AST_DETACH_CNT @ 0x1A4 | ✅ on-air verifiziert (1:1 Demand→Accept), 0x1A4 bleibt 0 weil UL-RX-NUB-Gap (siehe ARCHITECTURE.md §7.2) |
-| 2026-04-25 ~20:00 | `e51cc6c` | Phase 6 C — TTL-Sweep FSM intern in AST, dual-port BRAM, REG_AST_TTL_MULTIFRAMES @ 0x1A8 (default 84706 ≈ 24h), REG_AST_TTL_EVICT_CNT @ 0x1B0 | 🟡 deploy pending |
+| 2026-04-25 ~18:30 | `cae0ebc` | Phase 6 B — AST 64→128 bit, U-ITSI-DETACH räumt AST-Slot, mf_global_cnt 24-bit, REG_AST_DETACH_CNT @ 0x1A4 | ✅ on-air verifiziert (1:1 Demand→Accept) — ⚠️ **AST seit 2026-05-03 wieder entfernt** (FPGA-thin-signaling), Session-State liegt jetzt SW-side |
+| 2026-04-25 ~20:00 | `e51cc6c` | Phase 6 C — TTL-Sweep FSM intern in AST, dual-port BRAM, REG_AST_TTL_MULTIFRAMES @ 0x1A8 (default 84706 ≈ 24h), REG_AST_TTL_EVICT_CNT @ 0x1B0 | ⚠️ **AST-Modul + zugehörige Regs heute nicht mehr im Build** (siehe ARCHITECTURE §3.2) |
 
 **Status: M2 + Phase A + B + C implementiert.** TTL-Sweep kompensiert die UL-RX-NUB-Lücke zeitbasiert — alte Sessions verfallen nach 24 h auch wenn der DETACH-PDU verloren geht.
 
@@ -428,10 +428,10 @@ muss am Board folgendes angelegt sein:
 
 ```bash
 # Subscriber-DB-Verzeichnis
-sshpass -p openwifi ssh root@192.168.2.183 'mkdir -p /var/lib/tetra'
+sshpass -p openwifi ssh root@192.168.2.90 'mkdir -p /var/lib/tetra'
 
 # Initiale entities.tsv anlegen (Format: slot ISSI/GSSI type profile_id valid)
-sshpass -p openwifi ssh root@192.168.2.183 \
+sshpass -p openwifi ssh root@192.168.2.90 \
  'echo -e "0\t2633617\t0\t0\t1" > /var/lib/tetra/entities.tsv'
 # (Slot 0, ISSI 0x282F91, type=ISSI, profile=0=minimal-permit, valid)
 

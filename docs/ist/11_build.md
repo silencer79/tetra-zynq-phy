@@ -1,26 +1,23 @@
 # IST — Kapitel 11: Build-System
-Stand: 2026-05-17
+Stand: 2026-05-19
 
 Beschreibt den Vivado-TCL-Flow, die XDC-Constraints, die Run-Wrapper, die Deploy-Pipeline, die ILA-Debug-Tools und die CDC-Reports. Reine Bestandsaufnahme.
 
-## Aktueller Build-Stand (commit `8b8cb41`)
+## Aktueller Build-Stand (commit `cae5108` Phase E2)
 
-Letzter erfolgreicher Build: **2026-05-17 17:29**, `build/tetra_zynq_phy.bit`
-(MD5 `dfa5db9b…`), `.bit.bin` (MD5 `a8e00106…`).
+Letzter erfolgreicher Build: **2026-05-18 ~20:20**, `build/tetra_zynq_phy.bit.bin`
+(MD5 `44af4da6…`).
 
 | Metrik | Wert | Status |
 |--------|------|--------|
-| WNS Setup (clk_fpga_0 @ 100 MHz) | **+0.008 ns** (0 failing endpoints) | ✓ (pre-refactor war −0.020 ns / 11 failing) |
-| WHS Hold | +0.019 ns | ✓ |
-| rx_clk Setup @ 250 MHz | +0.29 ns | ✓ |
-| clk_fpga_1 | +3.73 ns | ✓ |
-| **Slice** | **13044 / 13300 = 98.08 %** | 🟡 eng — Headroom <2 % |
-| LUT as Logic | 38377 / 53200 = 72.14 % | ✓ |
-| Slice Registers | 43764 / 106400 = 41.13 % | ✓ |
+| WNS Setup (clk_fpga_0 @ 100 MHz) | **+0.114 ns** (0 failing endpoints) | ✓ (knapper Headroom, +0.008 vor E2 → +0.114 nach 2-stage Pipeline) |
+| WHS Hold | +0.024 ns | ✓ |
+| **Slice** | **13047 / 13300 = 98.10 %** | 🟡 sehr eng — Headroom 1.9 %, +1.13 pp gegenüber pre-E2 (96.97 %) |
+| LUT as Logic | 37791 / 53200 = 71.04 % | ✓ |
+| Slice Registers | 46401 / 106400 = 43.61 % | ✓ (+2940 FFs für E2 Pipeline: 4× DSP MREG + i_prod_r/q_prod_r + 4× breiterer coded_softs Storage) |
 | BRAM36 | 2 | ✓ |
 | BRAM18 | 7 | ✓ |
 | DSP Blocks | 38 (davon 14 in `axi_ad9361`, 4 in `tx_chain`, 4 in `ul_nub_capture`, 2 in `rx_frontend`) | ✓ |
-| Critical Warnings | **24** | 🟡 alle ge-tracked, siehe Drift unten |
 | Errors | 0 | ✓ |
 
 **Top-Util-Hotspots in `tetra_zynq_top`** (hierarchical util report
@@ -245,7 +242,7 @@ Vollständiges Detail siehe `docs/ist/10_scripts.md` Abschnitt `deploy.sh`. Kurz
 - Startet `tetra_sysinfo --daemon`, `tetra_ul_mon`, `tetra_attach_daemon` per `setsid`.
 
 **Board-Konstanten:**
-- IP=`192.168.2.85`, user=`root`, pass=`openwifi` (alle Skripte einheitlich).
+- IP=`192.168.2.90`, user=`root`, pass=`openwifi` (alle Skripte einheitlich).
 
 ## Constraints
 
