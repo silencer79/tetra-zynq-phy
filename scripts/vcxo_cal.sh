@@ -46,7 +46,7 @@
 
 set -euo pipefail
 
-SSH_HOST="192.168.2.85"
+SSH_HOST="192.168.2.90"
 SSH_USER="root"
 SSH_PASS="openwifi"
 DAC_VAL=""
