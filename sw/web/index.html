@@ -115,16 +115,16 @@ td.num { text-align: right; }
 
 <h2>SYSINFO (BNCH)</h2>
 <div class="grid">
-  <label>Duplex Spacing <span>3 bits</span>
-    <select name="duplex_spacing">
-      <option value="0">0 = reserved</option>
-      <option value="1" selected>1 = -7.6 MHz</option>
-      <option value="2">2 = reserved</option>
-      <option value="3">3 = -10 MHz</option>
-      <option value="4">4 = +10 MHz</option>
-      <option value="5">5 = reserved</option>
-      <option value="6">6 = reserved</option>
-      <option value="7">7 = simplex</option>
+  <label>Duplex Spacing ID <span>0-7 — Mapping editierbar in der Tabelle unten</span>
+    <select name="duplex_spacing" id="duplex_spacing_sel">
+      <option value="0" selected>0</option>
+      <option value="1">1</option>
+      <option value="2">2 (DMO)</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
     </select>
   </label>
   <label>MS TXPwr Max Cell <span>3 bits (0-7)</span>
@@ -141,6 +141,34 @@ td.num { text-align: right; }
   </label>
   <label>Optional Field Value <span>20 bits</span>
     <input name="opt_field" type="number" value="1011456" min="0" max="1048575">
+  </label>
+</div>
+
+<h2>Duplex-Spacing-Tabelle <span style="font-weight:normal;font-size:0.85em;color:#888">Offset pro Duplex-ID in MHz (negativ = UL unter DL). Editierbar pro MS-Codeplug.</span></h2>
+<div class="grid" style="grid-template-columns: repeat(8, 1fr); gap: 0.4em">
+  <label style="font-size:0.9em">ID 0 (MHz)
+    <input name="dx0_mhz" id="dx0_mhz" type="number" step="0.1" value="-10">
+  </label>
+  <label style="font-size:0.9em">ID 1 (MHz)
+    <input name="dx1_mhz" id="dx1_mhz" type="number" step="0.1" value="-45">
+  </label>
+  <label style="font-size:0.9em">ID 2 (MHz)
+    <input name="dx2_mhz" id="dx2_mhz" type="number" step="0.1" value="0">
+  </label>
+  <label style="font-size:0.9em">ID 3 (MHz)
+    <input name="dx3_mhz" id="dx3_mhz" type="number" step="0.1" value="-10">
+  </label>
+  <label style="font-size:0.9em">ID 4 (MHz)
+    <input name="dx4_mhz" id="dx4_mhz" type="number" step="0.1" value="-10">
+  </label>
+  <label style="font-size:0.9em">ID 5 (MHz)
+    <input name="dx5_mhz" id="dx5_mhz" type="number" step="0.1" value="-10">
+  </label>
+  <label style="font-size:0.9em">ID 6 (MHz)
+    <input name="dx6_mhz" id="dx6_mhz" type="number" step="0.1" value="-10">
+  </label>
+  <label style="font-size:0.9em">ID 7 (MHz)
+    <input name="dx7_mhz" id="dx7_mhz" type="number" step="0.1" value="-7.6">
   </label>
 </div>
 
@@ -293,11 +321,51 @@ function showTab(name) {
 function apply() {
   var sp = qs('#sp'); sp.classList.add('active');
   var fd = new FormData(qs('#cfg'));
+  /* Convert duplex-table MHz inputs to Hz for the backend (dx0..dx7). */
+  for (var i = 0; i < 8; i++) {
+    var mhzEl = qs('#dx' + i + '_mhz');
+    if (mhzEl && mhzEl.value !== '') {
+      var hz = Math.round(parseFloat(mhzEl.value) * 1e6);
+      fd.set('dx' + i, hz);
+    }
+    fd.delete('dx' + i + '_mhz');  /* don't send the *_mhz alias */
+  }
   var params = new URLSearchParams(fd).toString();
   fetch('/cgi-bin/apply.cgi?' + params)
     .then(function(r) { return r.text(); })
     .then(function(t) { showStatus(t); sp.classList.remove('active'); getState(); })
     .catch(function(e) { showStatus('Error: ' + e); sp.classList.remove('active'); });
+}
+
+/* -------- Pre-fill form on page load from /root/tetra_cell.conf -------- */
+function loadConfig() {
+  fetch('/cgi-bin/config.cgi')
+    .then(function(r) { return r.json(); })
+    .then(function(c) {
+      /* Scalar fields */
+      var scalars = ['freq','mcc','mnc','la','cc','tx_atten','system_code',
+                     'duplex_spacing','ms_txpwr','rxlevel_min','access_param',
+                     'radio_dl_timeout','opt_field','priority_cell','migration',
+                     'ncb','csl'];
+      scalars.forEach(function(k) {
+        var el = document.querySelector('[name="' + k + '"]');
+        if (el && c[k] !== undefined) el.value = c[k];
+      });
+      /* Duplex table: Hz → MHz for display */
+      if (Array.isArray(c.duplex_offsets)) {
+        c.duplex_offsets.forEach(function(hz, i) {
+          var el = qs('#dx' + i + '_mhz');
+          if (el) el.value = (hz / 1e6).toFixed(4).replace(/\.?0+$/,'');
+        });
+      }
+    })
+    .catch(function(e) { console.warn('config.cgi load failed:', e); });
+}
+/* Trigger on DOM ready */
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadConfig);
+} else {
+  loadConfig();
 }
 
 function getStatus() {
