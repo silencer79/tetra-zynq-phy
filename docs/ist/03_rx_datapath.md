@@ -175,7 +175,7 @@ Auf `sync_found` werden Block1 (das vor diesem Sync vollständig aufgesammelte) 
 - Continuation (Phase 7 F.1): `ul_pdu_is_continuation_sys, ul_continuation_valid_sys, ul_continuation_bits_sys[84:0], ul_continuation_ssi_sys[23:0], ul_continuation_count_sys[15:0]`
 - Diag (Phase H.6.1): `schhu_attempted_sys[15:0], schhu_ok_sys[15:0]`
 - ILA-Debug: `dbg_fe_valid_sys, dbg_tr_valid_sys, dbg_demod_valid_sys`
-- **Phase C UL-NUB-Capture (Live):** `voice_nub_coded_bits_sys[431:0], voice_nub_coded_valid_sys, voice_nub_bursts_captured_sys[15:0]` plus `voice_nub_sync_thresh_sys[4:0]` config input. (Die Y.4.2-`ul_demod_dibit_out_sys/valid_sys`-Outputs sind seit A.1 Rollback entfernt.)
+- **Phase E2 UL-NUB-Capture (Live, ab 2026-05-18 commit `cae5108`):** `voice_nub_coded_softs_sys[1727:0], voice_nub_coded_valid_sys, voice_nub_bursts_captured_sys[15:0]` plus `voice_nub_sync_thresh_sys[4:0]` config input. Soft-Output ist 432 nibble (= 4-bit signed soft pro Coded-Bit, Range [-8,+7]) statt früherem 1-bit hard. 2-stage Pipeline (DSP MREG + `i_prod_r`/`q_prod_r`) für WNS-Headroom; saturierende Slice via bitwise overflow detection (keine CARRY4-Kette). Sign-Inversion `(-i_prod_w) >>> SHIFT` für Konventions-Kongruenz zu legacy hard-path + SW-Viterbi (positive soft = bit '1'). Air-Test 4-Run-Median: BFI Soft ~3 % vs Hard ~6 % (2.1× Reduktion); im 320-Burst Sustained: Soft 1 % vs Hard 7 % (7× Reduktion). (Die Y.4.2-`ul_demod_dibit_out_sys/valid_sys`-Outputs sind seit A.1 Rollback entfernt.)
 
 **Funktion:** Top-Container der RX-Kette. Instanziiert in Reihenfolge:
 1. `u_rx_frontend` (CIC+RRC+CDC) → `fe_i_sys, fe_q_sys, fe_valid_sys` (72 kHz)

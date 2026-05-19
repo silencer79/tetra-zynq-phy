@@ -1,15 +1,22 @@
-# PLAN — Voice-Channel Phase C
+# PLAN — Voice-Channel Phase C + E2
 
-**Stand:** 2026-05-14 (Plan), umgesetzt zwischen 2026-05-14 und 2026-05-17.
+**Stand:** 2026-05-14 (Plan), umgesetzt zwischen 2026-05-14 und 2026-05-19.
 **Quellen:** docs/IST.md, docs/ist/04_ul_rx.md, docs/ist/05_tx_datapath.md, Phase B Forensik aus `scripts/forensic_ul_nub.py` auf `wavs/reference/UL_Gruppenruf_*.wav`.
 
-> **STATUS 2026-05-17 — implementiert + live verifiziert.**
-> Architektur ist allerdings ANDERS als ursprünglich geplant: Statt
-> "bit-transparenter Pass-Through UL→DL" macht die BS jetzt einen vollen
-> **TCH/S Channel-Decode + Re-Encode in SW** (`sw/etsi_codec/` ETSI ACELP/RCPC
-> Sources, Wrapper in `sw/tetra_bs_tch_s.{c,h}` + `sw/tetra_voice_pipe.c`).
-> Vorteil: UL-Bitfehler werden via FEC bereinigt bevor sie in den DL gehen.
-> Nachteil: ARM-CPU-Last (akzeptabel, ~16 frames/s).
+> **STATUS 2026-05-19 — Phase C + Phase E2 live + verifiziert.**
+>
+> Phase C: voller TCH/S Channel-Decode + Re-Encode in SW (statt
+> ursprünglich geplantem bit-transparenten Pass-Through). Source:
+> `sw/etsi_codec/` + Wrapper `sw/tetra_bs_tch_s.{c,h}` +
+> `sw/tetra_voice_pipe.c`. Vorteil: UL-Bitfehler werden via FEC bereinigt
+> bevor sie in den DL gehen. Nachteil: ARM-CPU-Last (akzeptabel, ~16 frames/s).
+>
+> **Phase E2 (commit `cae5108` vom 2026-05-18):** Soft-Decisions @ NUB-Capture.
+> `tetra_ul_nub_capture.v` exportiert jetzt 432 × 4-bit signed Softs statt
+> 1-bit hard. SW-Pfad nutzt soft-aware Viterbi (`tetra_bs_tch_s_decode_softi8`).
+> BFI im 4-Run-Air-Test: Soft ~3 % vs Hard ~6 % (Median). Im 320-Burst
+> Sustained-Sample: Soft 1 % vs Hard 7 % (7× Reduktion). Vivado-Kosten:
+> +1.13 pp Slice (96.97 % → 98.10 %), WNS +0.114 ns (positiv).
 >
 > Komponenten der finalen Implementierung:
 > - **UL:** `rtl/rx/tetra_ul_nub_capture.v` (in `rx_chain` + zweite

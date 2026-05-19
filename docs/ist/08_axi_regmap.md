@@ -183,8 +183,8 @@ read-side `if (rd_addr_axi[10:9] == 2'b01)`. Eigenes Case-Statement über `[8:2]
 | 0x274 | REG_VOICE_FILLER_DATA | 32 | R/W | - | Indirect-Write/Read via INDEX. W0..W13 = 432 type-5 bits LSB-first, W14[0] = filler_valid, W15 reserved |
 | 0x278 | REG_VOICE_FILLER_GO | 1 | W1S | 0 | [0]=Commit-Puls (informativ, HW-Clr) |
 | 0x27C | REG_VOICE_FILLER_STATUS | 1 | RO | - | [0]=`filler_valid` mirror (= W14[0]) |
-| 0x280 | REG_VOICE_NUB_READ_INDEX | 4 | R/W | 4'd0 | Word-Index für UL-NUB-Read-Mailbox |
-| 0x284 | REG_VOICE_NUB_READ_DATA | 32 | RO | - | Indirect via INDEX — 432 type-5 bits aus `tetra_ul_nub_capture` |
+| 0x280 | REG_VOICE_NUB_READ_INDEX | 6 | R/W | 6'd0 | Word-Index für UL-NUB-Read-Mailbox (0..53, war 4-bit vor Phase E2) |
+| 0x284 | REG_VOICE_NUB_READ_DATA | 32 | RO | - | Indirect via INDEX — **432 × 4-bit signed soft-values** = 54 Words (Phase E2 commit `cae5108`) aus `tetra_ul_nub_capture` |
 | 0x288 | REG_VOICE_NUB_READ_STATUS | 1 | RO | - | [0] valid (neuer Burst pending) |
 | 0x28C | REG_VOICE_NUB_READ_ACK | 1 | W1S | 0 | [0] ACK — clear valid + arm next |
 

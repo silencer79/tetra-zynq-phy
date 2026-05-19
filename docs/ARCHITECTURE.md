@@ -1,8 +1,8 @@
 # ARCHITECTURE — RTL/SW-Stack, Meilensteine, Modul-Status, Ressourcen
 
 **Projekt:** tetra-zynq-phy (LibreSDR, Zynq-7020 + AD9361)
-**Architektur-Entscheidung:** 2026-04-22 — FPGA-heavy Stack
-**Zuletzt aktualisiert:** 2026-04-25 (M2 erreicht — MTP3550 attached)
+**Architektur-Entscheidung:** 2026-04-22 — FPGA-heavy Stack (überholt, siehe §2.5)
+**Zuletzt aktualisiert:** 2026-05-19 (Phase E2 Soft-Decisions + WebUI Live-Dashboard)
 
 Ersetzt: `plan_tetra_bs_stack.md`, `plan_tetra_tdma_rtl_ownership.md`,
 `module_status.md`, `resource_estimate.md`.
@@ -247,17 +247,23 @@ zeigt 1 Demand-Fragment vom MTP3550, dann Stille. AXI-Counter
 + Accept on-air). Vorher (Build `b994e5d`): 8+ Demand-Retries pro 90 s,
 Re-Demand-Loop. Siehe `PROTOCOL.md §9` für komplette Wegfindung.
 
-### 4.3 M3 — Gruppenruf ⏳ (Plan)
+### 4.3 M3 — Gruppenruf ✅ (Phase 7 G.8+)
 
-| Substep | Module | Scope |
-|---------|--------|-------|
-| M3.1 CMCE Group-Call Setup | `tetra_cmce_group_fsm.v`, `tetra_active_group_table.v`, `tetra_group_shadow.v`, `tetra_cmce_pdu_encoder.v` | D-SETUP → D-CONNECT → U-TX-DEMAND → D-TX-GRANTED → D-TX-CEASED |
-| M3.2 TCH Voice Channel | TCH/S 274 type-1 Bits, Stealing HA/HB | Existiert als Skeleton |
-| M3.3 ACELP Codec | nicht benötigt für Voice-Relay (bit-transparent Pass-Through UL-TCH → DL-TCH) | Platzierung offen — erst für BS-als-Talker relevant |
-| M3.4 Voice Relay | Bit-transparent UL→DL, FIFO 1 Frame = 56.67 ms | Komplett in RTL geplant |
-| M3.5 AACH-Update während Call | Alloc-Tabellen-basiert | Baut auf M2.4 auf |
+Voice-Pfad live seit 2026-05-17 commit `80986b7`. Pipeline:
+**UL-NUB-Capture (RTL) → SW-Voice-Pipe (descramble + Viterbi + re-encode + SSI-Patch) → DL-Voice-Filler-Mailbox (RTL).** BS-Codec ist
+SW-resident (`sw/etsi_codec/`, `sw/tetra_bs_tch_s.{c,h}`).
 
-**Aufwand M3:** ~5-7 Wochen.
+| Substep | Status |
+|---------|--------|
+| M3.1 CMCE Group-Call Setup | ✅ `sw/tetra_call_fsm.c` — D-SETUP/D-CONNECT/D-TX-GRANTED/D-TX-CEASED via tx_transport |
+| M3.2 TCH Voice Channel | ✅ Stealing HA/HB via `voice_filler_mailbox` |
+| M3.3 ACELP Codec (BS-side) | ✅ ETSI-Port via `tetra_bs_tch_s.c` (Decoder+Encoder, port aus BlueStation) |
+| M3.4 Voice Relay (bit-transparent UL→DL) | ✅ SW-resident (`tetra_voice_pipe.c`), 1-Burst-Latency |
+| M3.5 AACH-Update während Call | ✅ `tetra_aach_encoder.v` + `voice_active_mask` mit Watchdog |
+
+**Phase E2 (2026-05-18, commit `cae5108`):** Soft-Decisions im NUB-Capture →
+BFI Median ~6 % → ~3 % im Air-Test (7× besser im 320-Burst Sustained-Test).
+Siehe `IST.md` + Memory `project_phy_improvement_options`.
 
 ### 4.4 M4 — Einzelrufe + Paging ⏳ (Plan)
 

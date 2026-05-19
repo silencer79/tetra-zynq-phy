@@ -1,17 +1,18 @@
 # IST — tetra-zynq-phy Code-State
 
-**Stand:** 2026-05-17
+**Stand:** 2026-05-19
 **Branch:** `refactor/phase-7-groupcall`
-**Letzter Commit:** `8b8cb41 fix(rtl): ul_demand_ie_parser shift-register refactor — WNS -0.02→+0.008 ns`
-**Working-Tree:** clean (Submodule `tetra-bluestation` dirty, sw/test_bs_codec.c + tetra-kit/ untracked — keine RTL/SW-Diff)
-**Build-Artefakt:** `build/tetra_zynq_phy.bit` MD5 `dfa5db9bcba4e7a6f6d85613506589fc` (2026-05-17 17:29)
-**Deployed Bitstream MD5 (.bit.bin):** `a8e001067b307a4a99dc30fff5720f9c`
+**Letzter Commit:** `d0f266d feat(webui): Phase B — live status dashboard with RSSI/BFI/MER`
+**Working-Tree:** clean (Submodule `tetra-bluestation` dirty, `scripts/vcxo_cal.sh` IP-Fix uncommitted, `sw/test_bs_codec.c` + `tetra-kit/` untracked — keine kritischen RTL/SW-Diffs)
+**Build-Artefakt:** `build/tetra_zynq_phy.bit.bin` (Phase-E2-Build vom 2026-05-18, MD5 `44af4da62168a89f2bc4e87ab22bd833`)
+**Vivado-Stand nach E2:** Slice **98.10 %**, LUT 71.61 %, FF 43.61 %, **WNS +0.114 ns** (positiv, knapp)
 
 Diese Dokumentation beschreibt was der Code **TUT**, nicht was er tun **sollte**. Keine Pläne, keine Bewertungen, keine ETSI-Spec-Vergleiche. Reiner IST-Stand zum Stichtag.
 
 ## Änderungen seit 2026-05-14
 
-Voice-Pfad ist live (Phase 7 G.8+), BS-Codec auf SW resident, RX-Tuning auf neuem Setpoint, ein WNS-Fail aufgeräumt.
+Voice-Pfad live (Phase 7 G.8+), Soft-Decisions @ NUB-Capture (E2), SW-resident
+BS-Codec, persistent WebUI gekoppelt mit Conf-File, Live-Status-Dashboard.
 
 | Commit | Was | Wo dokumentiert |
 |--------|-----|-----------------|
@@ -24,11 +25,20 @@ Voice-Pfad ist live (Phase 7 G.8+), BS-Codec auf SW resident, RX-Tuning auf neue
 | `cccf4a9` | fix(call-fsm): split channel-off (VOICE_QUIET_MS=200) vs reservation (CALL_STALE_MS=5000) | Ch 9 (call_fsm watchdog) |
 | `326439d` | fix(rx): NUB_SYNC_THRESH 10→11 + VOICE_QUIET_MS 200→300ms (BFI 6→3.5 %, no mid-call rejects) | Ch 9 (attach_daemon defaults), Ch 8 (REG_VOICE_NUB_SYNC_THRESH default) |
 | `8b8cb41` | fix(rtl): ul_demand_ie_parser shift-register refactor (body_buf MSB-aligned, gad_buf snapshot) → WNS -0.020 → +0.008 ns | Ch 6 (parser), Ch 11 (timing/util Vivado-Stand) |
+| `d179d56` | feat(rx): soft-decision SW decode path + BFI diagnostic instrumentation | Ch 9 (`tetra_bs_tch_s_decode_softi8`, scramble_soft, deinterleave_soft) |
+| `cae5108` | **feat(rx): Phase E2 — soft-decisions @ NUB-Capture** (BFI ~6%→~3% live, 7× besser stable) | Ch 4 (nub_capture sat-slice + 2-cycle pipeline), Ch 7 (mailbox 54 words), Ch 8 (REG_VOICE_NUB_READ_INDEX 6-bit) |
+| `a6572e3` | fix(autostart): WebUI httpd Start (Block 13) | Ch 10 (board_autostart) |
+| `47def0e` | feat(rtl): `tetra_ul_demand_body_mailbox` (Phase 1A — Slice-Cleanup prep) | Ch 7 (Mailboxen, noch nicht in zynq_top instantiiert) |
+| `80c30ac` | feat(webui): persistent config + editable duplex-spacing table | Ch 10 (operations, WebUI) |
+| `d0f266d` | feat(webui): Live status dashboard RSSI/BFI/MER | Ch 10 (operations, WebUI) |
 
 Neu dokumentationswürdig (siehe entsprechende Kapitel):
+- **Phase E2 Soft-Decisions** — 4-bit signed soft pro Coded-Bit aus `tetra_ul_nub_capture.v`, 54-Word-Mailbox, SW `decode_softi8()`. BFI im Median ~6 % → ~3 % im Air-Test, im Sweetspot 7× besser (Ch 4 + Ch 9)
+- **WebUI Persistent Config** — `/root/tetra_cell.conf` ist single source of truth, vom Autostart UND apply.cgi gelesen/geschrieben. Editierbare Duplex-Spacing-Tabelle (Ch 10)
+- **Live Status Dashboard** — Auto-Refresh-Tab im WebUI mit RSSI/BFI/MER-Proxy aus voice_pipe-Log + AD9361 sysfs + FPGA-AXI-Counter (Ch 10)
 - **SW-resident BS-TCH/S codec** — `sw/etsi_codec/`, `sw/tetra_bs_tch_s.{c,h}`, `sw/tetra_voice_pipe.c`, `sw/tetra_voice_filler.c` (Ch 9)
-- **Vivado-Bilanz aktuell** — Slice 98.08 %, WNS +0.008 ns, 24 Critical Warnings (Ch 11)
-- **D-CONNECT-Retransmit-Rate** — 3/10 (30 %) U-SETUPs erleben Retransmit, worst 3.6 s PTT-bis-Audio (Ch 12)
+- **Vivado-Bilanz aktuell** — Slice 98.10 % (+1.13 pp durch E2 Pipeline-FFs), WNS +0.114 ns (Ch 11)
+- **D-CONNECT-Retransmit-Rate** — 3/10 (30 %) U-SETUPs erleben Retransmit, worst 3.6 s PTT-bis-Audio (Ch 12). 4-Run-PTT-Test 2026-05-19: U-SETUP-Retries NICHT mehr beobachtet (1 PTT = 1 U-SETUP)
 
 ## Kapitel-Übersicht
 

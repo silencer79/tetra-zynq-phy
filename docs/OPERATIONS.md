@@ -1,7 +1,7 @@
 # OPERATIONS — Deploy, Test, Troubleshooting
 
 **Projekt:** tetra-zynq-phy (LibreSDR, Zynq-7020 + AD9361)
-**Zuletzt aktualisiert:** 2026-04-25 (M2 erreicht)
+**Zuletzt aktualisiert:** 2026-05-19 (Phase E2 + WebUI Live-Dashboard)
 
 Ersetzt: `deployment_guide.md`, `deploy_workflow.md`, `test_results.md`,
 `sim_results.txt`, `test_results_raw.txt`.
@@ -340,6 +340,31 @@ MS-Aktivität nicht zählen: erst `0x5C` (UL-OS4-Sync-Cnt) prüfen —
 bleibt der niedrig, ist's der Threshold.
 
 ---
+
+## 7.5 WebUI — Cell-Config + Live-Status (Stand 2026-05-19)
+
+Browser auf `http://192.168.2.90/` öffnen. Drei Tabs:
+
+### 7.5.1 Cell Config
+- Vollform für SYSINFO + Cell-Params + Frequenzen + TX-Atten.
+- Pre-fill via `/cgi-bin/config.cgi` aus `/root/tetra_cell.conf` beim Page-Load.
+- Submit (`Apply`) → schreibt Conf, killt+restartet `tetra_sysinfo --daemon` mit neuen CLI-Args.
+- **Editierbare Duplex-Spacing-Tabelle** (8 IDs × MHz-Offset). Vom WebUI-User pro MS-Codeplug anpassbar. Default = User-MS-Tabelle (0,3,4,5,6=-10 MHz; 1=-45 MHz; 2=DMO; 7=-7.6 MHz). Siehe Memory `feedback_duplex_table_in_config`.
+
+### 7.5.2 Live Status (Auto-Refresh alle 2 s)
+Quelle: `/cgi-bin/metrics.cgi` (JSON). Anzeige:
+- Process-Status (tetra_sysinfo + attach_daemon, rot/grün)
+- Uptime
+- NUB-RX-Counter (FPGA-AXI `REG_VOICE_NUB_RX_CNT @ 0x260` via `busybox devmem`)
+- RSSI RX0/RX1 (AD9361 sysfs `in_voltage[01]_rssi`)
+- Voice-Pipe-Statistik: Bursts, BFI Soft/Hard, raw BER, diff_avg, max_diff
+- **MER/SNR-Proxy**: aus Mean-|Soft| über 432 Coded-Bits, Formel `20·log10( m / (8 − m) )`. Farbcodiert grün ≥ 20 dB / orange 10-20 / rot < 10.
+
+### 7.5.3 Subscribers
+DB-Management (Sessions / Entities / Policy) — unverändert seit Phase 6.
+
+### Conf-Datei `/root/tetra_cell.conf`
+Single source of truth — autostart-Script UND apply.cgi nutzen dieselbe. Format `KEY=value`, bash-source-kompatibel. Komplette Spec in Memory `reference_webui`.
 
 ## 8. Troubleshooting
 

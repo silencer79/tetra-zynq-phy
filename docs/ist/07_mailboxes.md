@@ -199,22 +199,27 @@ SW kann den Inhalt jederzeit überschreiben — bei Voice-Stream wird er alle ~6
 durch `tetra_voice_pipe_tick` nachgefüllt mit dem dekodierten + re-encodeten
 UL-NUB-Voice-Frame.
 
-## tetra_voice_nub_read_mailbox.v (165 Zeilen, Phase C)
+## tetra_voice_nub_read_mailbox.v (165 Zeilen, Phase E2 ab 2026-05-18)
 
 **Zweck:** Buffer für UL-NUB-Voice-Bursts auf SW-Seite. `tetra_ul_nub_capture`
-emittiert per NUB-Sync 432 type-5 Bits + `coded_valid_sys`-Puls; dieses Modul
-latcht den Burst, setzt `valid` und stellt 14 Worte via Indirect-Read
-(`REG_VOICE_NUB_READ_INDEX/DATA` @ 0x280/0x284) bereit. SW pollt
-`REG_VOICE_NUB_READ_STATUS` @ 0x288, liest, ACKt via 0x28C.
+emittiert per NUB-Sync **432 × 4-bit signed Soft-Werte** (= 1728 bit total, ab
+Phase E2 commit `cae5108`) + `coded_valid_sys`-Puls; dieses Modul latcht den
+Burst, setzt `valid` und stellt **54 × 32-bit Words** via Indirect-Read
+(`REG_VOICE_NUB_READ_INDEX/DATA` @ 0x280/0x284) bereit. INDEX-Register ist
+6-bit (war 4-bit vor E2). SW pollt `REG_VOICE_NUB_READ_STATUS` @ 0x288, liest
+54 Words, ACKt via 0x28C.
 
-**Bit-Konvention** (matches `tetra_voice_filler_mailbox`):
-- 14 × 32-bit words, packed LSB-first (W0[0]=type5[0])
-- ABER: `coded_bits_sys[431]` = first BKN1 bit on air (MSB-first im RTL).
- Mailbox kopiert byte-LSB-first: `type5_buf[i] = coded_bits[i]`.
-- Folge: SW muss **bit-reverse** machen beim Lesen — `type5_out[431 - i] =
- word[bit_i]`. Siehe `sw/tetra_voice_pipe.c::read_nub_bits`. Bugfix-Note:
- frühere SW ohne bit-reverse erzeugte 98 % BFI weil BS-Codec
- `type5[0] = first on air` erwartet. Fix in commit `8b0737e`.
+**Word-Layout (Phase E2):**
+- 54 × 32-bit packs 432 nibbles = `coded_softs_sys`
+- Word `Wn` bits `[i*4 +: 4]` = soft-value für coded-bit `Wn*8 + i` (i=0..7)
+- Index-Konvention: coded_softs[431] = first BKN1 bit on air (MSB-first im RTL)
+- SW liest mit bit-reverse: `softs_out[431 - coded_idx] = nib_signed`
+- Siehe `sw/tetra_voice_pipe.c::read_nub_softs`
+
+**Soft-Konvention:** positive soft = bit '1', negative = bit '0'. Wert ist
+arithmetic-right-shift des differential-product `−(I_cur·I_prev + Q_cur·Q_prev)`
+(I-Achse, analog für Q). Sign-Inversion ist beabsichtigt für Konventions-
+Kongruenz zum SW-Viterbi.
 
 **Outputs:** AXI-Read-Port + interner `valid`-Flag-Register. SW-ACK clearet.
 
@@ -225,6 +230,19 @@ Rate ~60 ms ist das in Praxis kein Problem.
 
 **Nachbarn:** ↑ `tetra_zynq_top.v` (`u_voice_nub_read_mailbox`). ↓ AXI-Side
 (SW-Daemon `sw/tetra_voice_pipe.c`).
+
+## tetra_ul_demand_body_mailbox.v (126 Zeilen, Phase 1A Vorbereitung, NOT IN ZYNQ_TOP)
+
+**Status:** Modul existiert (commit `47def0e`), ist aber **noch nicht** im
+`tetra_zynq_top.v` instantiiert. Vorbereitung für künftigen SW-Move von
+`tetra_ul_demand_ie_parser` (~3500 LUT).
+
+**Zweck (geplant):** Snapshot raw 129-bit MM-Body + SSI + mm_pdu_type aus
+`tetra_ul_demand_reassembly` → 16 × 32-bit Indirect-Mailbox für SW-Walker.
+Layout: W0 magic+mm_type+body[128], W1 ssi, W2-W5 body[127:0], W7 drop_cnt.
+
+**Verbleibend:** zynq_top-Integration + AXI-Reg-Mapping + SW-Parser-Port.
+Siehe Memory `project_fpga_slice_bottleneck` für Roadmap.
 
 ## tetra_tx_pdu_mailbox.v (314 Zeilen)
 
