@@ -2130,6 +2130,13 @@ tetra_axi_lite_regs u_axi_regs (
 .demand_index_axi_o (demand_index_axi_w),
 .demand_ack_trigger_axi (demand_ack_trigger_axi_w),
 .demand_consume_axi (demand_consume_axi_r1),
+ // Phase 1A — UL-Demand-Body Raw Mailbox extension window 0x250..0x25C
+.uldbod_pending_axi_i (uldbod_pending_axi_r1),
+.uldbod_drop_cnt_axi_i (uldbod_drop_cnt_axi_r1),
+.uldbod_data_word_axi_i (uldbod_data_word_axi_w),
+.uldbod_index_axi_o (uldbod_index_axi_w),
+.uldbod_ack_trigger_axi (uldbod_ack_trigger_axi_w),
+.uldbod_consume_axi (uldbod_consume_axi_r1),
  // Phase X.2 — Reply-Pull Mailbox extension window 0x220..0x230
 .reply_index_axi_o (reply_index_axi_w),
 .reply_wdata_axi_o (reply_wdata_axi_w),
@@ -3125,6 +3132,104 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  end else begin
  demand_consume_axi_r0 <= demand_ack_pulse_sys_w;
  demand_consume_axi_r1 <= demand_consume_axi_r0;
+ end
+end
+
+// =============================================================================
+// Phase 1A — UL-Demand-Body Raw-Mailbox: Modul-Instance + CDC
+//
+// Latcht das RAW 129-bit MM-Body + SSI + mm_pdu_type aus
+// tetra_ul_demand_reassembly auf jedem `reass_valid_sys`-Puls. SW liest
+// den rohen Body via REG_UL_DEMAND_BODY_INDEX/DATA und walkt die IE
+// selbst (Ziel: tetra_ul_demand_ie_parser RTL entfernen, ~3500 LUT spare).
+//
+// Parallel zur bestehenden tetra_demand_mailbox (parsed snapshot) — beide
+// werden vom gleichen reass_valid_sys-Puls getriggert. Erst wenn SW-Walker
+// produktiv ist, kann der RTL-Parser entfernt werden.
+// =============================================================================
+wire [3:0] uldbod_index_axi_w;
+wire uldbod_ack_trigger_axi_w;
+wire [31:0] uldbod_data_word_axi_w;
+wire uldbod_pending_sys_w;
+wire [15:0] uldbod_drop_cnt_sys_w;
+wire [31:0] uldbod_data_word_sys_w;
+
+(* ASYNC_REG = "TRUE" *) reg [3:0] uldbod_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0] uldbod_index_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ uldbod_index_sys_r0 <= 4'd0;
+ uldbod_index_sys_r1 <= 4'd0;
+ end else begin
+ uldbod_index_sys_r0 <= uldbod_index_axi_w;
+ uldbod_index_sys_r1 <= uldbod_index_sys_r0;
+ end
+end
+
+(* ASYNC_REG = "TRUE" *) reg uldbod_ack_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg uldbod_ack_sys_r1;
+reg uldbod_ack_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ uldbod_ack_sys_r0 <= 1'b0;
+ uldbod_ack_sys_r1 <= 1'b0;
+ uldbod_ack_sys_r2 <= 1'b0;
+ end else begin
+ uldbod_ack_sys_r0 <= uldbod_ack_trigger_axi_w;
+ uldbod_ack_sys_r1 <= uldbod_ack_sys_r0;
+ uldbod_ack_sys_r2 <= uldbod_ack_sys_r1;
+ end
+end
+wire uldbod_ack_pulse_sys_w = uldbod_ack_sys_r1 & ~uldbod_ack_sys_r2;
+
+tetra_ul_demand_body_mailbox u_ul_demand_body_mailbox (
+.clk_sys                (clk_sys),
+.rst_n_sys              (rst_n_sys),
+.push_valid_sys         (reass_valid_sys),
+.body_sys               (reass_body_sys),
+.ssi_sys                (reass_ssi_sys),
+.mm_pdu_type_sys        (reass_mm_type_sys),
+.ack_consumed_pulse_sys (uldbod_ack_pulse_sys_w),
+.index_sys              (uldbod_index_sys_r1),
+.data_word_sys          (uldbod_data_word_sys_w),
+.pending_sys            (uldbod_pending_sys_w),
+.drop_cnt_sys           (uldbod_drop_cnt_sys_w)
+);
+
+(* ASYNC_REG = "TRUE" *) reg uldbod_pending_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg uldbod_pending_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] uldbod_drop_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] uldbod_drop_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [31:0] uldbod_data_word_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] uldbod_data_word_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) begin
+ uldbod_pending_axi_r0 <= 1'b0;
+ uldbod_pending_axi_r1 <= 1'b0;
+ uldbod_drop_cnt_axi_r0 <= 16'd0;
+ uldbod_drop_cnt_axi_r1 <= 16'd0;
+ uldbod_data_word_axi_r0 <= 32'd0;
+ uldbod_data_word_axi_r1 <= 32'd0;
+ end else begin
+ uldbod_pending_axi_r0 <= uldbod_pending_sys_w;
+ uldbod_pending_axi_r1 <= uldbod_pending_axi_r0;
+ uldbod_drop_cnt_axi_r0 <= uldbod_drop_cnt_sys_w;
+ uldbod_drop_cnt_axi_r1 <= uldbod_drop_cnt_axi_r0;
+ uldbod_data_word_axi_r0 <= uldbod_data_word_sys_w;
+ uldbod_data_word_axi_r1 <= uldbod_data_word_axi_r0;
+ end
+end
+assign uldbod_data_word_axi_w = uldbod_data_word_axi_r1;
+
+(* ASYNC_REG = "TRUE" *) reg uldbod_consume_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg uldbod_consume_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) begin
+ uldbod_consume_axi_r0 <= 1'b0;
+ uldbod_consume_axi_r1 <= 1'b0;
+ end else begin
+ uldbod_consume_axi_r0 <= uldbod_ack_pulse_sys_w;
+ uldbod_consume_axi_r1 <= uldbod_consume_axi_r0;
  end
 end
 

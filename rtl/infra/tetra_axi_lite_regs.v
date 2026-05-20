@@ -427,6 +427,23 @@ module tetra_axi_lite_regs (
  input wire demand_consume_axi,
 
  // ------------------------------------------------------------------
+ // Phase 1A — UL-Demand-Body Raw-Mailbox (0x250..0x25C, Bank-1).
+ // Snapshot der RAW 129-bit MM-Body + SSI + mm_pdu_type aus
+ // tetra_ul_demand_reassembly. SW liest hier den rohen Body und walkt
+ // die IE selbst (Ziel: tetra_ul_demand_ie_parser RTL entfernen).
+ // REG_UL_DEMAND_BODY_STATUS @ 0x250 RO {drop_cnt[15:0], 15'd0, pending}
+ // REG_UL_DEMAND_BODY_INDEX  @ 0x254 R/W [3:0] word selector 0..15
+ // REG_UL_DEMAND_BODY_DATA   @ 0x258 RO [31:0] indirect via INDEX
+ // REG_UL_DEMAND_BODY_ACK    @ 0x25C W1S HW-clr after consume
+ // ------------------------------------------------------------------
+ input wire uldbod_pending_axi_i,
+ input wire [15:0] uldbod_drop_cnt_axi_i,
+ input wire [31:0] uldbod_data_word_axi_i,
+ output wire [3:0] uldbod_index_axi_o,
+ output wire uldbod_ack_trigger_axi,
+ input wire uldbod_consume_axi,
+
+ // ------------------------------------------------------------------
  // Phase X.2 — Reply-Pull Mailbox (extension window 0x220..0x230).
  // REG_REPLY_INDEX @ 0x220 R/W [3:0] word selector 0..15
  // REG_REPLY_DATA @ 0x224 R/W [31:0] indirect-write via INDEX,
@@ -859,6 +876,11 @@ localparam [6:0] REG_GRP_DEMAND_STATUS = 7'h10; // 0x240
 localparam [6:0] REG_GRP_DEMAND_INDEX = 7'h11; // 0x244
 localparam [6:0] REG_GRP_DEMAND_DATA = 7'h12; // 0x248
 localparam [6:0] REG_GRP_DEMAND_ACK = 7'h13; // 0x24C
+// Phase 1A — UL-Demand-Body Raw-Mailbox (0x250..0x25C)
+localparam [6:0] REG_UL_DEMAND_BODY_STATUS = 7'h14; // 0x250
+localparam [6:0] REG_UL_DEMAND_BODY_INDEX  = 7'h15; // 0x254
+localparam [6:0] REG_UL_DEMAND_BODY_DATA   = 7'h16; // 0x258
+localparam [6:0] REG_UL_DEMAND_BODY_ACK    = 7'h17; // 0x25C
 // Phase C — Voice-Channel-Telemetrie (Bank-1)
 localparam [6:0] REG_VOICE_NUB_RX_CNT = 7'h18; // 0x260 RO [15:0] bursts_captured
 localparam [6:0] REG_VOICE_RELAY_CNT = 7'h19; // 0x264 RO [15:0] relay_cnt
@@ -1051,6 +1073,10 @@ wire demand_pending_axi; // 2-FF resynced from clk_sys in top
 wire [15:0] demand_drop_cnt_axi; // 2-FF resynced from clk_sys in top
 wire [31:0] demand_data_word_axi; // combinational mux from clk_sys side
 reg demand_ack_trigger_r; // W1S ACK reg
+
+// Phase 1A UL-Demand-Body Raw-Mailbox AXI-side state.
+reg [3:0] uldbod_index_axi;
+reg uldbod_ack_trigger_r;
 
 // Phase X.2 reply-pull-mailbox AXI-side state — declared below; forward refs OK.
 reg [3:0] reply_index_axi; // 4-bit indirect-window word selector
@@ -1267,6 +1293,13 @@ always @(*) begin
  REG_GRP_DEMAND_INDEX: rdata_mux_axi = {28'd0, grp_demand_index_axi};
  REG_GRP_DEMAND_DATA: rdata_mux_axi = grp_demand_data_word_axi_i;
  REG_GRP_DEMAND_ACK: rdata_mux_axi = {31'd0, grp_demand_ack_trigger_r};
+ // Phase 1A UL-Demand-Body Raw-Mailbox
+ REG_UL_DEMAND_BODY_STATUS: rdata_mux_axi = {uldbod_drop_cnt_axi_i,
+                                              15'd0,
+                                              uldbod_pending_axi_i};
+ REG_UL_DEMAND_BODY_INDEX:  rdata_mux_axi = {28'd0, uldbod_index_axi};
+ REG_UL_DEMAND_BODY_DATA:   rdata_mux_axi = uldbod_data_word_axi_i;
+ REG_UL_DEMAND_BODY_ACK:    rdata_mux_axi = {31'd0, uldbod_ack_trigger_r};
  // Phase C voice-channel telemetry
  REG_VOICE_NUB_RX_CNT: rdata_mux_axi = {16'd0, voice_nub_rx_cnt_axi};
  REG_VOICE_RELAY_CNT: rdata_mux_axi = {16'd0, voice_relay_cnt_axi};
@@ -2431,6 +2464,33 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
  if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_DEMAND_ACK)
  & wr_strb_axi[0] & wr_data_axi[0])
  demand_ack_trigger_r <= 1'b1;
+ end
+end
+
+// ---------------------------------------------------------------------------
+// Phase 1A — UL-Demand-Body Raw-Mailbox AXI-side state (clk_axi)
+// ---------------------------------------------------------------------------
+// REG_UL_DEMAND_BODY_INDEX @ 0x254 R/W — 4-bit indirect-window word selector
+// REG_UL_DEMAND_BODY_ACK   @ 0x25C W1S — HW-clears on uldbod_consume_axi pulse
+assign uldbod_index_axi_o    = uldbod_index_axi;
+assign uldbod_ack_trigger_axi = uldbod_ack_trigger_r;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ uldbod_index_axi <= 4'd0;
+ else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_UL_DEMAND_BODY_INDEX) & wr_strb_axi[0])
+ uldbod_index_axi <= wr_data_axi[3:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ uldbod_ack_trigger_r <= 1'b0;
+ else begin
+ if (uldbod_consume_axi)
+ uldbod_ack_trigger_r <= 1'b0;
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_UL_DEMAND_BODY_ACK)
+ & wr_strb_axi[0] & wr_data_axi[0])
+ uldbod_ack_trigger_r <= 1'b1;
  end
 end
 

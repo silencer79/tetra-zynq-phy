@@ -299,6 +299,30 @@
  * Decision `memory/project_arch_fpga_thin_signaling.md`; SW reuses the
  * mm=2 Reply-Pull-Mailbox (REG_REPLY_*) for raw MM-bit staging. */
 
+/* Phase 1A — UL-Demand-Body Raw-Mailbox (Slice-Cleanup Vorbereitung).
+ * Snapshot des 129-bit MM-Bodys + SSI + mm_pdu_type aus tetra_ul_demand_
+ * reassembly, gepushed bei jeder erfolgreichen Reassembly. SW liest hier
+ * den ROHEN Body und parst selbst (Ziel: tetra_ul_demand_ie_parser RTL
+ * entfernen, ~3500 LUT spare).
+ *
+ * Word layout (16 × 32-bit, gleich zum tetra_ul_demand_body_mailbox.v):
+ *   W0   [31:24] magic 0xA5
+ *        [ 7: 4] mm_pdu_type[3:0]
+ *        [    0] body[128]   (= 129. MSB-Bit)
+ *   W1   [23: 0] ssi[23:0]
+ *   W2          body[127:96]
+ *   W3          body[95:64]
+ *   W4          body[63:32]
+ *   W5          body[31:0]
+ *   W6          reserved
+ *   W7   [15: 0] drop_cnt[15:0]
+ *   W8..15      reserved
+ */
+#define REG_UL_DEMAND_BODY_STATUS 0x250 /* RO [31:16]=drop_cnt, [0]=pending */
+#define REG_UL_DEMAND_BODY_INDEX  0x254 /* R/W [3:0] word selector 0..15 */
+#define REG_UL_DEMAND_BODY_DATA   0x258 /* RO [31:0] indirect via INDEX */
+#define REG_UL_DEMAND_BODY_ACK    0x25C /* W1S [0] HW-clr after consume */
+
 /* REG_DB_POLICY @ 0x1AC — auto-enroll policy bits (Phase 6 A + Phase X.3)
  * [0] accept_unknown_issi — 1 (default): ISSI-miss → auto-enroll
  * [1] accept_unknown_gssi — 1 (default): GSSI-miss → auto-enroll
