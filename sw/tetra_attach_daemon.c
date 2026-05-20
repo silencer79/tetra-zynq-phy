@@ -91,26 +91,17 @@ static void on_sigint(int sig)
  keep_running = 0;
 }
 
-/* Indirect-read helpers for the Demand mailbox windows. Reply staging is
- * delegated to tetra_tx_transport (Phase Z.1). */
-static uint32_t demand_read(tetra_hal_t *hal, uint32_t idx)
-{
- tetra_reg_write(hal, REG_DEMAND_INDEX, idx);
- return tetra_reg_read(hal, REG_DEMAND_DATA);
-}
-
-static uint32_t grp_demand_read(tetra_hal_t *hal, uint32_t idx)
-{
- tetra_reg_write(hal, REG_GRP_DEMAND_INDEX, idx);
- return tetra_reg_read(hal, REG_GRP_DEMAND_DATA);
-}
-
 /* Phase 1A — raw-body Mailbox (parallel zum RTL-Parser). */
 static uint32_t uldbod_read(tetra_hal_t *hal, uint32_t idx)
 {
  tetra_reg_write(hal, REG_UL_DEMAND_BODY_INDEX, idx);
  return tetra_reg_read(hal, REG_UL_DEMAND_BODY_DATA);
 }
+
+/* Phase 1E-A — service-counter shared between react_mm2_locupd() (called
+ * from service_uldbod()) and the legacy main-loop demand branch (drain-
+ * only after Phase 1E-A). */
+static uint32_t serviced_g = 0;
 
 /* Tiny LLC stop-and-wait NR/NS hash (open-addressing on 24-bit SSI).
  * 64 slots is sufficient — typical cell sees < 10 simultaneously-attaching
@@ -157,6 +148,12 @@ static void grp_nsnr_step(uint32_t ssi, unsigned *out_ns, unsigned *out_nr)
  *out_ns = 1u;
  *out_nr = 0u;
 }
+
+/* Forward declarations for Walker-driven reaction (Phase 1E-A). */
+static void react_mm2_locupd(tetra_hal_t *hal,
+                              const tetra_mm_demand_parsed_t *p);
+static void react_mm7_grpid(tetra_hal_t *hal,
+                             const tetra_mm_demand_parsed_t *p);
 
 /* Phase 1C — service one raw-body demand snapshot. Liest die 8 Words aus
  * REG_UL_DEMAND_BODY_*, unpackt zu 17-byte MSB-first Body, walked via
@@ -214,32 +211,36 @@ static void service_uldbod(tetra_hal_t *hal)
  mm_type, pdu_ssi, rc, p.parse_ok);
  }
 
+ /* Phase 1E-A — react aus Walker-Output. Replaced RTL-mailbox-getriebene
+  * Reaktion in service_demand / service_grp_demand. Beide RTL-Mailboxen
+  * werden im main-loop nur noch ge-drained (ACK ohne Aktion), bis Phase
+  * 1E-B den RTL-Parser + die Mailboxen physisch entfernt. */
+ if (rc == 0 && p.parse_ok) {
+ if (mm_type == 2u) {
+ react_mm2_locupd(hal, &p);
+ } else if (mm_type == 7u) {
+ react_mm7_grpid(hal, &p);
+ }
+ }
+
  /* ACK clears pending + arms next */
  tetra_reg_write(hal, REG_UL_DEMAND_BODY_ACK, 0x1u);
 }
 
-/* Phase Y.1.e — service one Group-Attach (mm=7) demand: read MS-SSI +
- * gid_count + GSSI list, look each GSSI up in DB (auto-enroll if policy
- * allows), build the D-ATTACH-DETACH-GRP-ID-ACK reply, stage it into the
- * Group-Reply mailbox, pulse GO, and ACK the demand snapshot. */
-static void service_grp_demand(tetra_hal_t *hal)
+/* Phase 1E-A — react to a Group-Attach (mm=7) demand parsed by the SW
+ * walker. Build the D-ATTACH-DETACH-GRP-ID-ACK reply, stage it into the
+ * Group-Reply mailbox. The raw-body mailbox snapshot is ACKed by the
+ * caller (service_uldbod). */
+static void react_mm7_grpid(tetra_hal_t *hal,
+                            const tetra_mm_demand_parsed_t *p)
 {
- uint32_t w0 = grp_demand_read(hal, 0);
- uint32_t w1 = grp_demand_read(hal, 1);
- uint32_t w2 = grp_demand_read(hal, 2);
- uint32_t w3 = grp_demand_read(hal, 3);
- uint32_t w4 = grp_demand_read(hal, 4);
- uint32_t w5 = grp_demand_read(hal, 5);
- uint32_t cnt = (w0 >> 19) & 0x3u;
- uint32_t atd = (w0 >> 18) & 0x1u;
- uint32_t rep = (w0 >> 17) & 0x1u;
- uint32_t ssi = w1 & 0x00FFFFFFu;
- uint32_t gssi[3] = { w2 & 0x00FFFFFFu,
- w3 & 0x00FFFFFFu,
- w4 & 0x00FFFFFFu };
- uint32_t at_arr = (w5 >> 12) & 0x3Fu; /* 3 × 2-bit */
- uint32_t adi_arr = (w5 >> 9) & 0x07u; /* 3 × 1-bit */
- uint32_t cls_arr = w5 & 0x1FFu; /* 3 × 3-bit */
+ uint32_t cnt = p->gid_count;
+ uint32_t atd = p->gid_attach_detach_mode;
+ uint32_t rep = p->gid_group_identity_report;
+ uint32_t ssi = p->pdu_ssi;
+ uint32_t gssi[3] = { p->gid_records[0].gssi,
+                      p->gid_records[1].gssi,
+                      p->gid_records[2].gssi };
 
  uint32_t policy = tetra_reg_read(hal, REG_DB_POLICY);
  int allow_gssi = (policy & DB_POLICY_ACCEPT_UNKNOWN_GSSI) != 0;
@@ -261,7 +262,7 @@ static void service_grp_demand(tetra_hal_t *hal)
  * Attach <gssi>. Der Detach-Record aus dem Demand wird stillschweigend
  * übergangen." Filter DETACH-Records hier raus, sonst landet ein
  * 95-bit-2-Record-Body on-air statt 64-bit-1-Record. */
- if (((adi_arr >> i) & 0x01u) != 0u) continue;
+ if (p->gid_records[i].attach_detach != 0u) continue;
  int hit = tetra_db_lookup(gssi[i], 1, NULL);
  if (!hit && allow_gssi) {
  int slot = tetra_db_alloc(gssi[i], 1, 0);
@@ -273,9 +274,9 @@ static void service_grp_demand(tetra_hal_t *hal)
  }
  }
  if (hit) {
- unsigned cls_in = (cls_arr >> (i * 3u)) & 0x07u;
- unsigned adi_in = (adi_arr >> i) & 0x01u;
- unsigned at_in = (at_arr >> (i * 2u)) & 0x03u;
+ unsigned cls_in = p->gid_records[i].class_of_usage;
+ unsigned adi_in = p->gid_records[i].attach_detach;
+ unsigned at_in  = p->gid_records[i].address_type;
  reply_gssi[reply_count] = gssi[i];
  reply_at [reply_count] = at_in;
  reply_lt [reply_count] = 1u; /* default lifetime */
@@ -303,18 +304,16 @@ static void service_grp_demand(tetra_hal_t *hal)
  * the spec-conformant behaviour — simply never produces a reply
  * because -MS never sends the request. */
  if (cnt == 0u && rep == 1u && atd == 0u) {
- tetra_reg_write(hal, REG_GRP_DEMAND_ACK, 0x1u);
  fprintf(stderr,
  "tetra_attach_daemon: GRP status-query (ssi=0x%06X) → "
  "skip (spec-conformant)\n", ssi);
  return;
  }
 
- /* Wenn keine GSSI passt: kein ACK senden — Demand stillschweigend
- * verwerfen. Encoder ist Fixed-1-Record-only (spec-konform), variable
- * Längen sind nicht zulässig. */
+ /* Wenn keine GSSI passt: stillschweigend verwerfen. Encoder ist
+  * Fixed-1-Record-only (spec-konform), variable Längen sind nicht
+  * zulässig. */
  if (reply_count == 0u) {
- tetra_reg_write(hal, REG_GRP_DEMAND_ACK, 0x1u);
  fprintf(stderr,
  "tetra_attach_daemon: GRP no-match ssi=0x%06X cnt=%u atd=%u "
  "rep=%u → skip (no GSSI-hit)\n", ssi, cnt, atd, rep);
@@ -338,9 +337,6 @@ static void service_grp_demand(tetra_hal_t *hal)
  meta.cls[i] = (uint8_t)reply_cls[i];
  }
  tetra_tx_submit(hal, TX_GRP_ATTACH_ACK, &meta);
-
- /* Release the demand snapshot. */
- tetra_reg_write(hal, REG_GRP_DEMAND_ACK, 0x1u);
 
  fprintf(stderr,
  "tetra_attach_daemon: GRP serviced ssi=0x%06X cnt=%u atd=%u "
@@ -385,6 +381,103 @@ static void stage_accept_body(tetra_hal_t *hal,
  * 1 (reject-temp) -> 3'd2 "no resources available"
  * 2 (reject-perm) -> 3'd1 "illegal MS"
  */
+}
+
+/* Phase 1E-A — react to a U-LOCATION-UPDATE-DEMAND (mm=2) parsed by the
+ * SW walker. Performs DB lookup / auto-enroll, builds the LU-ACCEPT /
+ * LU-REJECT body via stage_accept_body(). The raw-body mailbox snapshot
+ * is ACKed by the caller (service_uldbod). */
+static void react_mm2_locupd(tetra_hal_t *hal,
+                              const tetra_mm_demand_parsed_t *p)
+{
+ uint32_t ssi = p->pdu_ssi;
+ uint32_t la  = tetra_reg_read(hal, REG_CELL_LA) & 0x3FFFu;
+ uint32_t lut = p->location_update_type;
+ uint32_t cnt = p->gild_valid ? 1u : 0u;
+ uint32_t gssi[3] = { p->gild_gssi, 0u, 0u };
+
+ uint32_t policy = tetra_reg_read(hal, REG_DB_POLICY);
+ int allow_issi = (policy & DB_POLICY_ACCEPT_UNKNOWN_ISSI) != 0;
+ int allow_gssi = (policy & DB_POLICY_ACCEPT_UNKNOWN_GSSI) != 0;
+
+ tetra_db_entry_t entry;
+ int issi_hit = tetra_db_lookup(ssi, 0, &entry);
+ int issi_enrolled = 0;
+ uint32_t result = M2_DEFAULT_RESULT_OK;
+ uint8_t profile_id = 0;
+
+ if (issi_hit) {
+ profile_id = entry.profile_id;
+ } else if (allow_issi) {
+ int slot = tetra_db_alloc(ssi, 0, 0);
+ if (slot >= 0) {
+ profile_id = 0;
+ issi_enrolled = 1;
+ fprintf(stderr,
+ "tetra_attach_daemon: AUTOENROLL issi=0x%06X "
+ "slot=%d profile=0\n", ssi, slot);
+ } else {
+ result = M2_DEFAULT_RESULT_TEMP;
+ fprintf(stderr,
+ "tetra_attach_daemon: AUTOENROLL FAILED ssi=0x%06X "
+ "(DB full?) — reject-temp\n", ssi);
+ }
+ } else {
+ result = M2_DEFAULT_RESULT_TEMP;
+ fprintf(stderr,
+ "tetra_attach_daemon: ISSI 0x%06X miss + accept_unknown_issi=0 "
+ "— reject-temp\n", ssi);
+ }
+
+ const tetra_db_profile_t *pp = tetra_db_profile(profile_id);
+ uint32_t gila_class    = pp ? pp->gila_class    : 4u;
+ uint32_t gila_lifetime = pp ? pp->gila_lifetime : 1u;
+ uint32_t gila_present  = M2_DEFAULT_GILA_PRESENT;
+
+ uint32_t effective_gila_gssi = M2_FALLBACK_GILA_GSSI;
+ uint32_t actual_count = (cnt > 3u) ? 3u : cnt;
+ int gssi_resolved = 0;
+
+ for (uint32_t i = 0; i < actual_count && !gssi_resolved; i++) {
+ if (gssi[i] == 0u) continue;
+ if (tetra_db_lookup(gssi[i], 1, NULL)) {
+ effective_gila_gssi = gssi[i];
+ gssi_resolved = 1;
+ } else if (allow_gssi) {
+ int slot = tetra_db_alloc(gssi[i], 1, 0);
+ if (slot >= 0) {
+ effective_gila_gssi = gssi[i];
+ gssi_resolved = 1;
+ fprintf(stderr,
+ "tetra_attach_daemon: AUTOENROLL gssi=0x%06X "
+ "slot=%d profile=0\n", gssi[i], slot);
+ }
+ }
+ }
+
+ if (result != M2_DEFAULT_RESULT_OK) {
+ gila_present = 0;
+ effective_gila_gssi = 0;
+ gila_class = 0;
+ gila_lifetime = 0;
+ }
+
+ stage_accept_body(hal, ssi, la, result, lut,
+                   effective_gila_gssi,
+                   gila_class, gila_lifetime, gila_present);
+
+ serviced_g++;
+ fprintf(stderr,
+ "tetra_attach_daemon: serviced #%u — ssi=0x%06X la=0x%04X "
+ "lut=%u cnt=%u policy=0x%X result=%u gila_gssi=0x%06X "
+ "(profile=%u, %s%s%s)\n",
+ serviced_g, ssi, la, lut, cnt, policy, result,
+ effective_gila_gssi, profile_id,
+ issi_hit ? "issi=hit":
+ (issi_enrolled ? "issi=auto": "issi=reject"),
+ (gssi_resolved && cnt > 0u) ? ", gssi=hit":
+ ((cnt > 0u) ? ", gssi=fallback": ", gssi=none"),
+ "");
 }
 
 static void usage(const char *a0)
@@ -454,7 +547,6 @@ int main(int argc, char **argv)
  "policy=0x%08X, VOICE_ACTIVE_MASK=0, NUB_SYNC_THRESH=11\n",
  tetra_reg_read(&hal, REG_DB_POLICY));
 
- uint32_t serviced = 0;
  uint32_t since_reload_ms = 0;
  uint16_t last_ul_count = 0xFFFFu; /* sentinel: first PDU always triggers */
 
@@ -475,11 +567,12 @@ int main(int argc, char **argv)
  service_uldbod(&hal);
  }
 
- /* Phase Y.1.e — service Group-Attach (mm=7) demand mailbox first.
- * It's a separate AXI window, independent of mm=2 ITSI Attach. */
+ /* Phase 1E-A — RTL-parsed group-demand mailbox: drain only. Reaktion
+  * auf mm=7 läuft jetzt aus dem SW-Walker-Pfad. Wird in Phase 1E-B
+  * physisch entfernt. */
  uint32_t grp_status = tetra_reg_read(&hal, REG_GRP_DEMAND_STATUS);
  if (grp_status & 0x1u) {
- service_grp_demand(&hal);
+ tetra_reg_write(&hal, REG_GRP_DEMAND_ACK, 0x1u);
  }
 
  /* Phase 7 G.2 — CMCE-Dispatch. We share REG_UL_PDU_STATUS with
@@ -543,123 +636,16 @@ int main(int argc, char **argv)
  }
  }
 
+ /* Phase 1E-A — RTL-parsed demand mailbox: drain only. Reaktion auf
+  * mm=2 / mm=7 läuft jetzt vollständig im SW-Walker-Pfad (service_uldbod
+  * → react_mm2_locupd / react_mm7_grpid). Wir ACKen die alten Mailboxen
+  * weiter damit drop_cnt nicht überrollt. Wird in Phase 1E-B physisch
+  * entfernt. */
  uint32_t status = tetra_reg_read(&hal, REG_DEMAND_STATUS);
- uint32_t pending = status & 0x1u;
-
- if (pending) {
- uint32_t w0 = demand_read(&hal, 0);
- uint32_t w1 = demand_read(&hal, 1);
- uint32_t w2 = demand_read(&hal, 2);
- uint32_t w3 = demand_read(&hal, 3);
- uint32_t w4 = demand_read(&hal, 4);
- uint32_t w5 = demand_read(&hal, 5);
- uint32_t ssi = w1 & 0x00FFFFFFu;
- (void)w2; /* MS-LA in W2 is informational; we answer with REG_CELL_LA */
- uint32_t la = tetra_reg_read(&hal, REG_CELL_LA) & 0x3FFFu;
- uint32_t lut = (w0 >> 15) & 0x7u;
- uint32_t cnt = (w0 >> 18) & 0x7u;
- uint32_t gssi[3] = { w3 & 0x00FFFFFFu,
- w4 & 0x00FFFFFFu,
- w5 & 0x00FFFFFFu };
-
- uint32_t policy = tetra_reg_read(&hal, REG_DB_POLICY);
- int allow_issi = (policy & DB_POLICY_ACCEPT_UNKNOWN_ISSI) != 0;
- int allow_gssi = (policy & DB_POLICY_ACCEPT_UNKNOWN_GSSI) != 0;
-
- /* ---- ISSI lookup ----------------------------------------- */
- tetra_db_entry_t entry;
- int issi_hit = tetra_db_lookup(ssi, 0, &entry);
- int issi_enrolled = 0;
- uint32_t result = M2_DEFAULT_RESULT_OK;
- uint8_t profile_id = 0;
-
- if (issi_hit) {
- profile_id = entry.profile_id;
- } else if (allow_issi) {
- int slot = tetra_db_alloc(ssi, 0, 0);
- if (slot >= 0) {
- profile_id = 0;
- issi_enrolled = 1;
- fprintf(stderr,
- "tetra_attach_daemon: AUTOENROLL issi=0x%06X "
- "slot=%d profile=0\n", ssi, slot);
- } else {
- /* DB full or save error — fall back to reject-temp. */
- result = M2_DEFAULT_RESULT_TEMP;
- fprintf(stderr,
- "tetra_attach_daemon: AUTOENROLL FAILED ssi=0x%06X "
- "(DB full?) — reject-temp\n", ssi);
- }
- } else {
- result = M2_DEFAULT_RESULT_TEMP;
- fprintf(stderr,
- "tetra_attach_daemon: ISSI 0x%06X miss + accept_unknown_issi=0 "
- "— reject-temp\n", ssi);
- }
-
- const tetra_db_profile_t *p = tetra_db_profile(profile_id);
- uint32_t gila_class = p ? p->gila_class: 4u;
- uint32_t gila_lifetime = p ? p->gila_lifetime: 1u;
- uint32_t gila_present = M2_DEFAULT_GILA_PRESENT;
-
- /* ---- GSSI-wish loop -------------------------------------- *
- * Walk demand_count GSSI slots, pick the FIRST hit (or the
- * first auto-enrolled one if accept_unknown_gssi=1). If the
- * MS sent count=0 OR none of its wishes can be honoured, fall
- * back to M2 default GSSI (0x2F4D61) — preserves M2 bit-id. */
- uint32_t effective_gila_gssi = M2_FALLBACK_GILA_GSSI;
- uint32_t actual_count = (cnt > 3u) ? 3u: cnt;
- int gssi_resolved = 0;
-
- for (uint32_t i = 0; i < actual_count && !gssi_resolved; i++) {
- if (gssi[i] == 0u) continue;
- if (tetra_db_lookup(gssi[i], 1, NULL)) {
- effective_gila_gssi = gssi[i];
- gssi_resolved = 1;
- } else if (allow_gssi) {
- int slot = tetra_db_alloc(gssi[i], 1, 0);
- if (slot >= 0) {
- effective_gila_gssi = gssi[i];
- gssi_resolved = 1;
- fprintf(stderr,
- "tetra_attach_daemon: AUTOENROLL gssi=0x%06X "
- "slot=%d profile=0\n", gssi[i], slot);
- }
- /* save failure → keep looping; final fallback below. */
- }
- }
-
- /* If reject-temp, suppress GILA. */
- if (result != M2_DEFAULT_RESULT_OK) {
- gila_present = 0;
- effective_gila_gssi = 0;
- gila_class = 0;
- gila_lifetime = 0;
- }
-
- /* Bug-001 fix — pass MS-demand location_update_type (lut, already
-  * extracted from Demand-Mailbox W0[17:15]) so the D-LOC-UPD-ACCEPT
-  * mirrors the MS request per ETSI §16.10.35a. Pre-fix this was
-  * hardcoded to 0=RoamingLocationUpdating in RTL. */
- stage_accept_body(&hal, ssi, la, result, lut,
- effective_gila_gssi,
- gila_class, gila_lifetime, gila_present);
-
- /* Release the demand snapshot. */
+ if (status & 0x1u) {
  tetra_reg_write(&hal, REG_DEMAND_ACK, 0x1u);
+ }
 
- serviced++;
- fprintf(stderr,
- "tetra_attach_daemon: serviced #%u — ssi=0x%06X la=0x%04X "
- "lut=%u cnt=%u policy=0x%X result=%u gila_gssi=0x%06X "
- "(profile=%u, %s%s%s)\n",
- serviced, ssi, la, lut, cnt, policy, result,
- effective_gila_gssi, profile_id,
- issi_hit ? "issi=hit":
- (issi_enrolled ? "issi=auto": "issi=reject"),
- gssi_resolved ? ", gssi=ok": "",
- (cnt && !gssi_resolved) ? ", gssi=fallback": "");
- } else {
  struct timespec ts;
  ts.tv_sec = 0;
  ts.tv_nsec = (long)POLL_INTERVAL_MS * 1000000L;
@@ -675,12 +661,11 @@ int main(int argc, char **argv)
  }
  }
  }
- }
 
  tetra_reg_write(&hal, REG_REPLY_USE_SW, 0x0u);
  fprintf(stderr,
  "tetra_attach_daemon: exiting — USE_SW=0 (MLE-FSM fallback) "
- "(serviced=%u)\n", serviced);
+ "(serviced=%u)\n", serviced_g);
  tetra_hal_close(&hal);
  return 0;
 }
