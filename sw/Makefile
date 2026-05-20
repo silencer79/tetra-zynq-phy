@@ -47,6 +47,9 @@ tetra_attach_daemon: tetra_attach_daemon.c tetra_db.c tetra_db.h \
                      tetra_cmce_parser.c tetra_cmce_parser.h \
                      tetra_call_fsm.c tetra_call_fsm.h \
                      tetra_mm_demand_parser.c tetra_mm_demand_parser.h \
+                     tetra_mac_resource_dl_builder.c tetra_mac_resource_dl_builder.h \
+                     tetra_sch_f_encoder.c tetra_sch_f_encoder.h \
+                     tetra_dl_pdu.c tetra_dl_pdu.h \
                      tetra_voice_filler.c tetra_voice_filler.h \
                      tetra_voice_pipe.c tetra_voice_pipe.h \
                      tetra_channel_codec.c tetra_channel_codec.h \
@@ -58,6 +61,8 @@ tetra_attach_daemon: tetra_attach_daemon.c tetra_db.c tetra_db.h \
 	$(CC) $(CFLAGS) -Ietsi_codec -o $@ tetra_attach_daemon.c tetra_db.c \
 		tetra_tx_transport.c tetra_grpack_body.c tetra_cmce_body.c \
 		tetra_cmce_parser.c tetra_call_fsm.c tetra_mm_demand_parser.c \
+		tetra_mac_resource_dl_builder.c tetra_sch_f_encoder.c \
+		tetra_dl_pdu.c \
 		tetra_voice_filler.c tetra_voice_pipe.c tetra_channel_codec.c \
 		tetra_tch_s_codec.c tetra_etsi_tch_s.c tetra_bs_tch_s.c \
 		$(ETSI_CODEC_SRC)

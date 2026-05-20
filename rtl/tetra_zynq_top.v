@@ -455,41 +455,19 @@ wire [2:0] profile_rd_idx_axi_sys_w;
 wire [31:0] profile_rd_data_axi_sys_w = 32'd0; // tied to 0 (no live ProfileTable)
 wire profile_wr_en_w;
 
-// MLE-registration FSM → DL-signalling-queue request port. The MLE emits
-// the full 432-bit SCH/F codeword as a queue-request; the scheduler
-// pops one per frame and drives the per-TN signalling block bundle that
-// tetra_slot_content_mux consumes for every class=SIGNALLING slot.
-// See tetra_dl_signal_queue.v / tetra_dl_signal_scheduler.v.
-wire mle_req_valid_w;
-wire [431:0] mle_req_coded_bits_w;
-wire [1:0] mle_req_pdu_type_w;
-wire [1:0] mle_req_target_tn_w;
-wire mle_req_second_pdu_present_w; // Option B telemetry (commit 6)
-wire mle_req_second_pdu_nr_w;
-wire mle_busy_w;
-wire mle_accept_pulse_w;
-wire mle_drop_pulse_w;
-// M2+M3 observability (2026-04-24) — available for ILA/AXI later
-wire mle_ack_pulse_w;
-wire mle_retransmit_pulse_w;
-wire mle_lost_pulse_w;
-wire mle_detach_pulse_w; // Phase 6 B
-
-// Phase X.6 — MLE-FSM build-request to shared tetra_dl_pdu_builder.
-wire mle_accept_build_req_w;
-wire [23:0] mle_accept_build_ssi_w;
-wire [2:0] mle_accept_build_addr_type_w;
-wire [3:0] mle_accept_build_llc_pdu_type_w;
-wire mle_accept_build_random_access_flag_w;
-wire [127:0] mle_accept_build_mm_pdu_bits_w;
-wire [7:0] mle_accept_build_mm_pdu_len_bits_w;
-wire [31:0] mle_accept_build_scramble_init_w;
-// Phase Y.2 — LLC ns/nr from MLE-FSM raw-mode latches (mm=11 GROUP-ACK).
-// mm=2 path drives 0/0 (bit-identical pre-Y.2).
-wire mle_accept_build_ns_w;
-wire mle_accept_build_nr_w;
-wire [2:0] mle_accept_build_mle_pd_w;
-wire [13:0] mle_accept_build_aach_pattern_w; // Phase 7 G.7
+// Phase Move-3+4 (2026-05-21) — MLE-Registration-FSM + DL-PDU-Builder +
+// Reply-Pull-Mailbox-Pfad entfernt. SW (tetra_attach_daemon, tetra_call_fsm)
+// baut die kompletten 432-bit type-5 SCH/F-Bursts in C und schiebt sie
+// direkt über die neue tetra_dl_raw_pdu_mailbox in die DL-Signal-Queue.
+// Producer-Slot wires kommen jetzt direkt aus der raw-pdu-mailbox.
+wire           dl_raw_pdu_valid_sys_w;
+wire [431:0]   dl_raw_pdu_coded_sys_w;
+wire [1:0]     dl_raw_pdu_type_sys_w;
+wire [1:0]     dl_raw_pdu_target_tn_sys_w;
+wire [13:0]    dl_raw_pdu_aach_sys_w;
+wire           dl_raw_pdu_second_present_sys_w;
+wire           dl_raw_pdu_second_nr_sys_w;
+wire [15:0]    dl_raw_pdu_push_cnt_sys_w;
 
 // Queue ↔ scheduler wiring
 wire queue_head_valid_w;
@@ -2048,15 +2026,12 @@ tetra_axi_lite_regs u_axi_regs (
 .uldbod_index_axi_o (uldbod_index_axi_w),
 .uldbod_ack_trigger_axi (uldbod_ack_trigger_axi_w),
 .uldbod_consume_axi (uldbod_consume_axi_r1),
- // Phase X.2 — Reply-Pull Mailbox extension window 0x220..0x230
-.reply_index_axi_o (reply_index_axi_w),
-.reply_wdata_axi_o (reply_wdata_axi_w),
-.reply_we_axi_o (reply_we_axi_w),
-.reply_go_trigger_axi_o (reply_go_trigger_w),
-.reply_go_consume_axi (reply_go_consume_axi_r1),
-.reply_rdata_axi_i (reply_rdata_axi_r1),
-.reply_busy_axi_i (reply_busy_axi_r1),
-.reply_use_sw_axi_o (reply_use_sw_axi_w),
+ // Phase Move-3+4 — DL Raw-PDU Push Mailbox extension window 0x220..0x230
+.dl_raw_pdu_payload_axi   (dl_raw_pdu_payload_axi_w),
+.dl_raw_pdu_meta_axi      (dl_raw_pdu_meta_axi_w),
+.dl_raw_pdu_trigger_axi   (dl_raw_pdu_trigger_axi_w),
+.dl_raw_pdu_consume_axi   (dl_raw_pdu_consume_axi_r1),
+.dl_raw_pdu_push_cnt_axi  (dl_raw_pdu_push_cnt_axi_r1),
  // Phase 7 G.8 — Voice-Filler Mailbox extension window 0x270..0x27C
 .vfill_index_axi_o (vfill_index_axi_w),
 .vfill_wdata_axi_o (vfill_wdata_axi_w),
@@ -2186,10 +2161,8 @@ wire ul_itsi_detach_sys =
 // der `lat_demand_*` mit IEP-Output befüllt sobald Frag-2 reassembliert
 // und IE-geparst ist. Falls Frag-2 nicht rechtzeitig ankommt, fällt
 // ACCEPT auf Profile-Default-GSSI zurück (= profile0_m2_guard).
+// Phase Move-3+4 — nur noch mle_ul_req_valid_w für ul_req_cnt-Telemetrie.
 wire mle_ul_req_valid_w = frag1_pulse_w;
-wire [23:0] mle_ul_ssi_w = ul_issi_sys;
-wire [2:0] mle_ul_loc_upd_type_w = ul_loc_upd_type_sys;
-wire mle_ul_use_l2sig_w = 1'b0;
 
 // DL scrambler seed pack — identical to tetra_aach_encoder.v line 127.
 wire [31:0] mle_dl_scramb_init_sys = {cell_cfg_mcc_sys_r1,
@@ -2197,117 +2170,30 @@ wire [31:0] mle_dl_scramb_init_sys = {cell_cfg_mcc_sys_r1,
  colour_code_sys_r1,
  2'b11};
 
-tetra_mle_registration_fsm u_mle_registration_fsm (
-.clk (clk_sys),
-.rst_n (rst_n_sys),
- // UL request
-.ul_req_valid (mle_ul_req_valid_w),
-.ul_addr_type (ul_addr_type_sys),
-.ul_ssi (mle_ul_ssi_w),
- // TODO Bug #3: wire ul_location_area_sys from the MAC-ACCESS parser
- // once the LA field is extracted from U-REGISTER/U-LOCATION-UPDATE.
- // Until then we feed 14'd0 so the MLE FSM treats every request as a
- // bare registration attempt (no LA-match fast-path).
-.ul_la (14'd0),
- // Location update type from MS's U-LOC-UPDATE-DEMAND (ETSI §16.10.37).
- // Parser extracts bits [27:30) of the 92-bit MAC-ACCESS payload; MLE
- // FSM echoes this into the Location-update-accept-type field of the
- // D-LOC-UPDATE-ACCEPT so the MS recognises the reply (Bug #8).
-.ul_loc_upd_type (mle_ul_loc_upd_type_w),
-.ul_use_l2sig (mle_ul_use_l2sig_w),
- // Option B (commit 6) — MS N(S) from UL parser for auto-BL-ACK.
-.ul_llc_is_bl_data(ul_llc_is_bl_data_w),
-.ul_llc_ns_valid (ul_llc_ns_valid_w),
-.ul_llc_ns (ul_llc_ns_w),
- // UL LLC BL-ACK — M1+M4 post-accept flow. Parser pulses bl_ack_valid
- // when a MAC-ACCESS frame carries a BL-ACK (bl_pdu_type=11 at LLC
- // offset). MLE FSM matches against lat_ssi + outstanding_ns to close
- // the acknowledged BL-DATA transaction. bl_ack_issi carries the full
- // 24-bit ISSI from the BL-ACK frame for the per-session match.
-.bl_ack_valid (ul_bl_ack_valid_sys),
-.bl_ack_nr (ul_bl_ack_nr_sys),
-.bl_ack_issi (ul_issi_sys),
- // Timeslot tick for the T251 retransmit timer (M3 — 16 slots to
- // timeout, N252=3 retries). tx_slot_pulse_sys pulses once per slot.
-.slot_pulse (tx_tdma_state_slot_pulse_sys),
- // Cell config — REG_CELL_LA (0x1A0), 2-FF resynced from clk_axi.
- // MUST match the LA value BNCH SYSINFO broadcasts (SW writes
- // tetra_hal.c info.la into this register at boot).
-.cfg_la (cell_la_sys_r1),
-.cfg_scramble_init(mle_dl_scramb_init_sys),
-.cfg_mcch_tn (cfg_mcch_tn_sys_r1),
- // D-LOC-UPDATE-ACCEPT MM-Body Energy-Saving-Info — defaults to
- // StayAlive (14'h0000 → mode=000, FN/MN=0). Phase X.7 cleanup:
- // cfg_address_extension / cfg_subscriber_class are gone (only the
- // legacy 124-bit pdu_bits encoder path consumed them).
-.cfg_energy_saving_info(14'h0000),
- // Phase X.4 — EntityTable / ProfileTable / Active-Session Table ports
- // removed. All Multi-Lookup logic moved to ARM SW (sw/tetra_db.[ch] +
- // sw/tetra_attach_daemon.c); the FSM is now a thin SW-pulse trigger.
- //
- // Phase B — Detach is now a no-op telemetry stub (counter only). SW
- // owns AST clear in Phase X.5.
-.ul_detach_valid (ul_itsi_detach_sys),
-.ul_detach_ssi (ul_issi_sys),
- // DL queue-request port — emits full 432-bit SCH/F codeword, scheduler pops
-.req_valid (mle_req_valid_w),
-.req_coded_bits (mle_req_coded_bits_w),
-.req_pdu_type (mle_req_pdu_type_w),
-.req_target_tn (mle_req_target_tn_w),
-.req_second_pdu_present (mle_req_second_pdu_present_w),
-.req_second_pdu_nr (mle_req_second_pdu_nr_w),
-.busy (mle_busy_w),
-.accept_pulse (mle_accept_pulse_w),
-.drop_pulse (mle_drop_pulse_w),
-.ack_pulse (mle_ack_pulse_w),
-.retransmit_pulse (mle_retransmit_pulse_w),
-.lost_pulse (mle_lost_pulse_w),
-.detach_pulse (mle_detach_pulse_w),
- // Phase X.2 — Reply-Pull Mailbox pass-through to u_dloc fields.
- // Phase X.4: SW path is primary; the encoder consumes the staged
- // ACCEPT body fields directly. mb_go_pulse is the FSM trigger.
- // Phase X.7 cleanup: use_sw_body input gone — the FPGA mux that
- // toggled between SW-mailbox and (long-dead) FSM-internal latches
- // has been removed. REG_REPLY_USE_SW @ 0x230 stays as a R/W status
- // bit for backward-compat with the SW daemon, but no longer wires
- // into MLE-FSM.
-.mb_ssi (mb_ssi_sys_w),
-.mb_la (mb_la_sys_w),
-.mb_addr_type (mb_addr_type_sys_w),
-.mb_result (mb_result_sys_w),
- // Bug-001 fix — Reply-Pull-Mailbox W3[4:2] carries MS demand
- // location_update_type echoed by SW. Encoder consumes via mb_loc_acc_type.
-.mb_loc_acc_type (mb_loc_acc_type_sys_w),
-.mb_gila_gssi (mb_gila_gssi_sys_w),
-.mb_gila_class (mb_gila_class_sys_w),
-.mb_gila_lifetime (mb_gila_lifetime_sys_w),
-.mb_gila_present (mb_gila_present_sys_w),
-.mb_encryption (mb_encryption_sys_w),
-.mb_auth_result (mb_auth_result_sys_w),
-.mb_go_pulse (mb_go_pulse_sys_w),
- // Phase Y.2 — raw-mode bypass (Variante A) for mm=11 D-ATTACH-DETACH-
- // GRP-ID-ACK. raw_mode_flag=0 => mm=2 ACCEPT path bit-identical.
-.mb_raw_mode_flag (mb_raw_mode_flag_sys_w),
-.mb_raw_mm_bits (mb_raw_mm_bits_sys_w),
-.mb_raw_mm_len (mb_raw_mm_len_sys_w),
-.mb_raw_ns (mb_raw_ns_sys_w),
-.mb_raw_nr (mb_raw_nr_sys_w),
-.mb_raw_mle_pd (mb_raw_mle_pd_sys_w),
- // Phase X.6 — Build-request to shared tetra_dl_pdu_builder via arbiter.
-.accept_build_req (mle_accept_build_req_w),
-.accept_build_ssi (mle_accept_build_ssi_w),
-.accept_build_addr_type (mle_accept_build_addr_type_w),
-.accept_build_llc_pdu_type (mle_accept_build_llc_pdu_type_w),
-.accept_build_random_access_flag (mle_accept_build_random_access_flag_w),
-.accept_build_mm_pdu_bits (mle_accept_build_mm_pdu_bits_w),
-.accept_build_mm_pdu_len_bits (mle_accept_build_mm_pdu_len_bits_w),
-.accept_build_scramble_init (mle_accept_build_scramble_init_w),
-.accept_build_ns (mle_accept_build_ns_w),
-.accept_build_nr (mle_accept_build_nr_w),
-.accept_build_mle_pd (mle_accept_build_mle_pd_w),
-.accept_build_aach_pattern (mle_accept_build_aach_pattern_w),
-.accept_build_done (dl_pdu_done_to_mle_w),
-.accept_build_coded (dl_pdu_coded_w)
+// Phase Move-3+4 (2026-05-21) — tetra_mle_registration_fsm entfernt.
+// SW (tetra_attach_daemon) reagiert auf UL-Demand direkt aus dem
+// tetra_ul_demand_body_mailbox-Walker (Phase 1E), baut komplette
+// 432-bit SCH/F-Bursts und pusht sie über tetra_dl_raw_pdu_mailbox.
+// UL-Detach läuft jetzt ebenfalls via tetra_call_fsm-Telemetrie in SW.
+
+tetra_dl_raw_pdu_mailbox u_dl_raw_pdu_mailbox (
+    .clk_sys                     (clk_sys),
+    .rst_n_sys                   (rst_n_sys),
+    .payload_sys                 (dl_raw_pdu_payload_sys_w),
+    .meta_pdu_type_sys           (dl_raw_pdu_meta_sys_w[1:0]),
+    .meta_target_tn_sys          (dl_raw_pdu_meta_sys_w[3:2]),
+    .meta_aach_pattern_sys       (dl_raw_pdu_meta_sys_w[17:4]),
+    .meta_second_pdu_present_sys (dl_raw_pdu_meta_sys_w[18]),
+    .meta_second_pdu_nr_sys      (dl_raw_pdu_meta_sys_w[19]),
+    .trigger_sys                 (dl_raw_pdu_trigger_sys_w),
+    .wr_valid_sys                (dl_raw_pdu_valid_sys_w),
+    .wr_coded_sys                (dl_raw_pdu_coded_sys_w),
+    .wr_pdu_type_sys             (dl_raw_pdu_type_sys_w),
+    .wr_target_tn_sys            (dl_raw_pdu_target_tn_sys_w),
+    .wr_aach_pattern_sys         (dl_raw_pdu_aach_sys_w),
+    .wr_second_pdu_present_sys   (dl_raw_pdu_second_present_sys_w),
+    .wr_second_pdu_nr_sys        (dl_raw_pdu_second_nr_sys_w),
+    .push_cnt_sys                (dl_raw_pdu_push_cnt_sys_w)
 );
 
 // =============================================================================
@@ -2446,18 +2332,21 @@ wire [15:0] mle_clear_cnt_sys = queue_drop_cnt_w;
 // detach_pulse output from MLE-FSM still toggles mle_detach_pulse_w for
 // optional ILA observability, but no longer feeds an AXI-mirrored counter.
 
+// Phase Move-3+4 — Counter aus dem entfernten MLE-FSM kommen jetzt aus
+// dem Raw-PDU-Mailbox-push (= jeder erfolgreiche SW-Push zählt als
+// "accept"). drop/busy gibts nicht mehr; SW kennt eigene Drop-Bedingungen.
 always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys) begin
- mle_ul_req_cnt_sys <= 16'd0;
- mle_accept_cnt_sys <= 16'd0;
- mle_drop_cnt_sys <= 16'd0;
- mle_busy_sticky_sys <= 1'b0;
- end else begin
- if (mle_ul_req_valid_w) mle_ul_req_cnt_sys <= mle_ul_req_cnt_sys + 16'd1;
- if (mle_accept_pulse_w) mle_accept_cnt_sys <= mle_accept_cnt_sys + 16'd1;
- if (mle_drop_pulse_w) mle_drop_cnt_sys <= mle_drop_cnt_sys + 16'd1;
- if (mle_busy_w) mle_busy_sticky_sys <= 1'b1;
- end
+    if (!rst_n_sys) begin
+        mle_ul_req_cnt_sys  <= 16'd0;
+        mle_accept_cnt_sys  <= 16'd0;
+        mle_drop_cnt_sys    <= 16'd0;
+        mle_busy_sticky_sys <= 1'b0;
+    end else begin
+        if (mle_ul_req_valid_w)
+            mle_ul_req_cnt_sys <= mle_ul_req_cnt_sys + 16'd1;
+        if (dl_raw_pdu_valid_sys_w && mle_accept_cnt_sys != 16'hFFFF)
+            mle_accept_cnt_sys <= mle_accept_cnt_sys + 16'd1;
+    end
 end
 
 (* ASYNC_REG = "TRUE" *) reg [15:0] mle_ul_req_cnt_axi_r0;
@@ -2771,18 +2660,8 @@ wire [1:0] slotgrant_target_tn_sys_w;
 // slotgrant_{push,drop}_cnt_sys_w forward-declared earlier (CDC block).
 
 // Phase Z.9 — SlotGrant is single SCH/HD path (internal MAC-Resource builder
-// + sch_hd_encoder inside tetra_pre_reply_slotgrant). No build-request bus
-// to the shared u_dl_pdu_builder anymore.
-//
-// Phase Y.2 — GroupAck-Build raus aus RTL (Lock-Konformität): the only
-// remaining producer on the shared builder is MLE-FSM Final-ACCEPT. The
-// arbiter degenerates to a direct MLE → builder pass-through.
-
-// Shared builder wires (single producer = MLE; no arbiter mux required).
-wire dl_pdu_done_w;
-wire [431:0] dl_pdu_coded_w;
-wire dl_pdu_busy_w;
-wire dl_pdu_done_to_mle_w;
+// + sch_hd_encoder inside tetra_pre_reply_slotgrant). Independent of the
+// removed u_dl_pdu_builder.
 
 tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
 .clk_sys (clk_sys),
@@ -2813,76 +2692,40 @@ tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
 );
 
 // =============================================================================
-// Phase Y.2 — Shared DL-PDU build pipeline (single MLE producer)
+// Phase Move-3+4 (2026-05-21) — tetra_dl_pdu_builder + tetra_mle_registration_fsm
+// entfernt (~5076 LUT). SW baut die kompletten 432-bit type-5 SCH/F-Bursts
+// in C via tetra_build_dl_pdu_432() und pusht sie über tetra_dl_raw_pdu_mailbox
+// direkt in den MLE-Producer-Slot der DL-Signal-Queue.
 //
-// History:
-// - Pre-X.6: each producer FSM had its own SCH/F encoder (97.65% slice).
-// - X.6: {MLE Final-ACCEPT, SlotGrant} share u_dl_pdu_builder via 2-way
-// arbiter (later 3-way with GroupAck added in Y.1.d).
-// - Z.3..Z.9: SlotGrant moved to its own SCH/HD pipeline; arbiter on the
-// shared builder was 2-way (MLE + GroupAck).
-// - Y.2 (this rev): GroupAck-Build moved to SW per Lock-Decision
-// (memory `project_arch_fpga_thin_signaling.md`). The shared
-// builder now has a single producer (MLE Final-ACCEPT). No
-// arbiter mux, no owner-tracking — req_valid is gated on
-// ~dl_pdu_busy_w so the MLE-FSM can hold the request stable.
-//
-// SlotGrant Pre-Reply (mm=2 + mm=7) lives on its own internal SCH/HD
-// pipeline inside tetra_pre_reply_slotgrant.v — no contention here.
+// SlotGrant Pre-Reply (mm=2 + mm=7) bleibt unverändert auf seinem eigenen
+// SCH/HD-Pipeline-Pfad — geht hier nur über den gemeinsamen Producer-Slot.
 // =============================================================================
-wire dl_pdu_grant_mle_w = mle_accept_build_req_w & ~dl_pdu_busy_w;
 
-assign dl_pdu_done_to_mle_w = dl_pdu_done_w;
-
-tetra_dl_pdu_builder u_dl_pdu_builder (
-.clk (clk_sys),
-.rst_n (rst_n_sys),
-.req_valid (dl_pdu_grant_mle_w),
-.req_ssi (mle_accept_build_ssi_w),
-.req_addr_type (mle_accept_build_addr_type_w),
-.req_llc_pdu_type (mle_accept_build_llc_pdu_type_w),
-.req_random_access_flag (mle_accept_build_random_access_flag_w),
-.req_mm_pdu_bits (mle_accept_build_mm_pdu_bits_w),
-.req_mm_pdu_len_bits (mle_accept_build_mm_pdu_len_bits_w),
-.req_scramble_init (mle_accept_build_scramble_init_w),
- // Phase Y.2 — ns/nr from MLE-FSM raw-mode latches (mm=11) or 0 (mm=2).
-.req_ns (mle_accept_build_ns_w),
-.req_nr (mle_accept_build_nr_w),
-.req_mle_pd (mle_accept_build_mle_pd_w),
-.done (dl_pdu_done_w),
-.coded_bits (dl_pdu_coded_w),
-.busy (dl_pdu_busy_w)
-);
-
-// MLE-Producer-Slot mux: MLE-FSM Final-ACCEPT (req_valid) takes priority
-// over SlotGrant Pre-Reply. Phase Y.2 removed the GroupAck producer leg —
-// SW now stages mm=7 replies through the same MLE Reply-Pull-Mailbox path.
-// MLE and SlotGrant fire on different events (Frag-2 reass vs Frag-1) so
-// the OR is sufficient.
-wire mle_slot_wr_valid_w = mle_req_valid_w | slotgrant_valid_sys_w;
+// MLE-Producer-Slot mux: Raw-PDU-Push (SW) hat Priorität vor SlotGrant
+// Pre-Reply. Beide feuern auf unterschiedlichen Events (Frag-2 reass vs
+// Frag-1), die OR-Bedingung ist ausreichend.
+wire mle_slot_wr_valid_w = dl_raw_pdu_valid_sys_w | slotgrant_valid_sys_w;
 wire [431:0] mle_slot_wr_coded_w =
- mle_req_valid_w ? mle_req_coded_bits_w
-: slotgrant_coded_sys_w;
+    dl_raw_pdu_valid_sys_w ? dl_raw_pdu_coded_sys_w
+                           : slotgrant_coded_sys_w;
 wire [1:0] mle_slot_wr_pdu_type_w =
- mle_req_valid_w ? mle_req_pdu_type_w
-: slotgrant_pdu_type_sys_w;
+    dl_raw_pdu_valid_sys_w ? dl_raw_pdu_type_sys_w
+                           : slotgrant_pdu_type_sys_w;
 wire [1:0] mle_slot_wr_target_tn_w =
- mle_req_valid_w ? mle_req_target_tn_w
-: slotgrant_target_tn_sys_w;
-// Only MLE-FSM uses the second_pdu_* telemetry (Option B BL-ACK piggyback).
-// SlotGrant doesn't have concat-second-PDUs.
-wire mle_slot_wr_second_pdu_present_w = mle_req_valid_w ? mle_req_second_pdu_present_w: 1'b0;
-wire mle_slot_wr_second_pdu_nr_w = mle_req_valid_w ? mle_req_second_pdu_nr_w: 1'b0;
+    dl_raw_pdu_valid_sys_w ? dl_raw_pdu_target_tn_sys_w
+                           : slotgrant_target_tn_sys_w;
+// SlotGrant hat kein concat-second-PDU; nur Raw-PDU-Push kann Option B BL-ACK.
+wire mle_slot_wr_second_pdu_present_w =
+    dl_raw_pdu_valid_sys_w ? dl_raw_pdu_second_present_sys_w : 1'b0;
+wire mle_slot_wr_second_pdu_nr_w =
+    dl_raw_pdu_valid_sys_w ? dl_raw_pdu_second_nr_sys_w : 1'b0;
 
-// Phase 7 G.7 — Per-PDU-class AACH tag (was hardcoded 0x0009 pre-Phase-7G).
-// MLE-FSM exposes `accept_build_aach_pattern` driven by lat_raw_mle_pd:
-// CMCE D-CONNECT (raw_mle_pd=2) → 0x0249 idle ( #5887, BL-UDATA)
-// ATTACH/grpack/SlotGrant → 0x0009 signalling-active
-// SlotGrant Pre-Reply tags 0x0009 directly (single source per tetra_pdu_
-// class.vh PDUC_PRE_REPLY_SLOTGRANT_AACH == PDUC_FINAL_LU_ACCEPT_AACH).
+// Phase Move-3+4 — AACH pattern kommt jetzt aus dem raw-pdu-mailbox-meta
+// (SW pickt 0x0009 für ATTACH/grpack, 0x0249 für CMCE BL-UDATA). SlotGrant
+// Pre-Reply tagged weiterhin direkt mit PDUC_PRE_REPLY_SLOTGRANT_AACH.
 wire [13:0] mle_slot_wr_aach_pattern_w =
- mle_req_valid_w ? mle_accept_build_aach_pattern_w
-: `PDUC_PRE_REPLY_SLOTGRANT_AACH;
+    dl_raw_pdu_valid_sys_w ? dl_raw_pdu_aach_sys_w
+                           : `PDUC_PRE_REPLY_SLOTGRANT_AACH;
 
 // =============================================================================
 // Phase Z.13 (2026-05-04) — producer-side AACH pre-coding REMOVED.
@@ -3030,181 +2873,87 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
 end
 
 // =============================================================================
-// Phase X.2 — Reply-Pull Mailbox: Modul-Instance + CDC
-//
-// Phase X.7 cleanup: the use_sw_body CDC pipe (reply_use_sw_sys_r0/r1)
-// has been removed — the MLE-FSM no longer consumes that bit. The AXI
-// register REG_REPLY_USE_SW @ 0x230 is still decoded (lives on
-// reply_use_sw_axi_w) so the SW daemon's existing read/write path stays
-// compatible, but the bit is now status-only and does not gate any RTL.
+// Phase Move-3+4 (2026-05-21) — DL Raw-PDU Push Mailbox CDC.
 //
 // AXI side (clk_axi):
-// reply_index_axi_w — 4-bit indirect-window word selector
-// reply_wdata_axi_w — 32-bit AXI write-data passed through
-// reply_we_axi_w — 1-cycle write-enable pulse on REG_REPLY_DATA write
-// reply_go_trigger_w — W1S GO bit, cleared by reply_go_consume_axi pulse
-// reply_use_sw_axi_w — R/W status bit, no functional effect since X.7
-// reply_busy_axi_r1 — 2-FF resync of busy mirror (clk_sys)
-// reply_rdata_axi_r1 — 2-FF resync of indirect read-back word (clk_sys)
+//   dl_raw_pdu_payload_axi_w   — 432-bit komplette type-5 SCH/F PDU
+//   dl_raw_pdu_meta_axi_w      — Metadata Word (pdu_type, target_tn,
+//                                aach_pattern, second_pdu_*)
+//   dl_raw_pdu_trigger_axi_w   — W1S GO bit, HW-clr on consume pulse
+//   dl_raw_pdu_consume_axi_r1  — 2-FF resync of consume pulse from clk_sys
+//   dl_raw_pdu_push_cnt_axi_r1 — 2-FF resync of push counter from clk_sys
 //
-// clk_sys side: tetra_reply_mailbox holds the 16-word shadow, exposes the
-// per-field outputs (mb_*) feeding the MLE-FSM directly, and forwards
-// the 1-cycle GO pulse for FSM trigger / Phase X.4.
+// clk_sys side: tetra_dl_raw_pdu_mailbox triggert auf der GO-Edge, pulst
+// wr_valid_sys mit dem 432-bit payload + meta in den MLE-Producer-Slot der
+// DL-Signal-Queue.
 // =============================================================================
-wire [3:0] reply_index_axi_w;
-wire [31:0] reply_wdata_axi_w;
-wire reply_we_axi_w;
-wire reply_go_trigger_w;
-wire reply_use_sw_axi_w;
-// X.7: reply_use_sw_axi_w is now lint-only — keep the consumer in a
-// sim-only block so synthesis prunes it cleanly.
-// synthesis translate_off
-wire _unused_reply_use_sw = reply_use_sw_axi_w;
-// synthesis translate_on
+wire [431:0] dl_raw_pdu_payload_axi_w;
+wire [31:0]  dl_raw_pdu_meta_axi_w;
+wire         dl_raw_pdu_trigger_axi_w;
 
-// 2-FF resync of slow-changing R/W signals: index, wdata.
-(* ASYNC_REG = "TRUE" *) reg [3:0] reply_index_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg [3:0] reply_index_sys_r1;
-(* ASYNC_REG = "TRUE" *) reg [31:0] reply_wdata_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg [31:0] reply_wdata_sys_r1;
+// 2-FF resync von payload + meta clk_axi → clk_sys.
+// Payload + meta sind slow-changing (geschrieben vor dem GO), single-bit-bus
+// 2-FF reicht — der GO-Edge ist die effektive Settling-Barrier.
+(* ASYNC_REG = "TRUE" *) reg [431:0] dl_raw_pdu_payload_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [431:0] dl_raw_pdu_payload_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [31:0]  dl_raw_pdu_meta_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0]  dl_raw_pdu_meta_sys_r1;
 always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys) begin
- reply_index_sys_r0 <= 4'd0;
- reply_index_sys_r1 <= 4'd0;
- reply_wdata_sys_r0 <= 32'd0;
- reply_wdata_sys_r1 <= 32'd0;
- end else begin
- reply_index_sys_r0 <= reply_index_axi_w;
- reply_index_sys_r1 <= reply_index_sys_r0;
- reply_wdata_sys_r0 <= reply_wdata_axi_w;
- reply_wdata_sys_r1 <= reply_wdata_sys_r0;
- end
+    if (!rst_n_sys) begin
+        dl_raw_pdu_payload_sys_r0 <= 432'd0;
+        dl_raw_pdu_payload_sys_r1 <= 432'd0;
+        dl_raw_pdu_meta_sys_r0    <= 32'd0;
+        dl_raw_pdu_meta_sys_r1    <= 32'd0;
+    end else begin
+        dl_raw_pdu_payload_sys_r0 <= dl_raw_pdu_payload_axi_w;
+        dl_raw_pdu_payload_sys_r1 <= dl_raw_pdu_payload_sys_r0;
+        dl_raw_pdu_meta_sys_r0    <= dl_raw_pdu_meta_axi_w;
+        dl_raw_pdu_meta_sys_r1    <= dl_raw_pdu_meta_sys_r0;
+    end
 end
+wire [431:0] dl_raw_pdu_payload_sys_w = dl_raw_pdu_payload_sys_r1;
+wire [31:0]  dl_raw_pdu_meta_sys_w    = dl_raw_pdu_meta_sys_r1;
 
-// 2-FF resync + edge-detect of the AXI write pulse: emits a 1-cycle
-// pulse on clk_sys when AXI writes a new value to REG_REPLY_DATA.
-// This timing is conservative (multi-cycle re-sync) — SW issues writes
-// at a few-Hz cadence, so the index already settled by the time the
-// edge fires.
-(* ASYNC_REG = "TRUE" *) reg reply_we_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg reply_we_sys_r1;
-reg reply_we_sys_r2;
+// 2-FF resync des GO triggers clk_axi → clk_sys (Mailbox-FSM macht
+// intern Edge-Detect).
+(* ASYNC_REG = "TRUE" *) reg dl_raw_pdu_trigger_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg dl_raw_pdu_trigger_sys_r1;
 always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys) begin
- reply_we_sys_r0 <= 1'b0;
- reply_we_sys_r1 <= 1'b0;
- reply_we_sys_r2 <= 1'b0;
- end else begin
- reply_we_sys_r0 <= reply_we_axi_w;
- reply_we_sys_r1 <= reply_we_sys_r0;
- reply_we_sys_r2 <= reply_we_sys_r1;
- end
+    if (!rst_n_sys) begin
+        dl_raw_pdu_trigger_sys_r0 <= 1'b0;
+        dl_raw_pdu_trigger_sys_r1 <= 1'b0;
+    end else begin
+        dl_raw_pdu_trigger_sys_r0 <= dl_raw_pdu_trigger_axi_w;
+        dl_raw_pdu_trigger_sys_r1 <= dl_raw_pdu_trigger_sys_r0;
+    end
 end
-wire reply_we_pulse_sys_w = reply_we_sys_r1 & ~reply_we_sys_r2;
+wire dl_raw_pdu_trigger_sys_w = dl_raw_pdu_trigger_sys_r1;
 
-// 2-FF resync + edge-detect of the GO trigger to a 1-cycle pulse.
-(* ASYNC_REG = "TRUE" *) reg reply_go_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg reply_go_sys_r1;
-reg reply_go_sys_r2;
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys) begin
- reply_go_sys_r0 <= 1'b0;
- reply_go_sys_r1 <= 1'b0;
- reply_go_sys_r2 <= 1'b0;
- end else begin
- reply_go_sys_r0 <= reply_go_trigger_w;
- reply_go_sys_r1 <= reply_go_sys_r0;
- reply_go_sys_r2 <= reply_go_sys_r1;
- end
-end
-wire reply_go_pulse_sys_w = reply_go_sys_r1 & ~reply_go_sys_r2;
-
-// Reply-Mailbox instance (clk_sys) — 16-word indirect register file with
-// per-field outputs.
-wire [31:0] reply_rdata_sys_w;
-wire [23:0] mb_ssi_sys_w;
-wire [13:0] mb_la_sys_w;
-wire [2:0] mb_addr_type_sys_w;
-wire [1:0] mb_result_sys_w;
-// Bug-001 fix — MS-demand location_update_type, echoed from Reply-Pull-Mailbox
-// W3[4:2] into D-LOC-UPDATE-ACCEPT loc_acc_type field (ETSI §16.10.35a).
-wire [2:0] mb_loc_acc_type_sys_w;
-wire [23:0] mb_gila_gssi_sys_w;
-wire [2:0] mb_gila_class_sys_w;
-wire [1:0] mb_gila_lifetime_sys_w;
-wire mb_gila_present_sys_w;
-wire [1:0] mb_encryption_sys_w;
-wire [1:0] mb_auth_result_sys_w;
-wire mb_go_pulse_sys_w;
-// Phase Y.2 — raw-mode (Variante A) MM-body bypass for mm=11 GROUP-ACK.
-wire mb_raw_mode_flag_sys_w;
-wire [127:0] mb_raw_mm_bits_sys_w;
-wire [7:0] mb_raw_mm_len_sys_w;
-wire mb_raw_ns_sys_w;
-wire mb_raw_nr_sys_w;
-wire [2:0] mb_raw_mle_pd_sys_w; /* Phase 7 G.4 — MLE-PD selector */
-
-tetra_reply_mailbox u_reply_mailbox (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
-.index_sys (reply_index_sys_r1),
-.wdata_sys (reply_wdata_sys_r1),
-.wr_en_sys (reply_we_pulse_sys_w),
-.go_pulse_sys (reply_go_pulse_sys_w),
-.rdata_sys (reply_rdata_sys_w),
-.mb_ssi_sys (mb_ssi_sys_w),
-.mb_la_sys (mb_la_sys_w),
-.mb_addr_type_sys (mb_addr_type_sys_w),
-.mb_result_sys (mb_result_sys_w),
-.mb_loc_acc_type_sys (mb_loc_acc_type_sys_w),
-.mb_gila_gssi_sys (mb_gila_gssi_sys_w),
-.mb_gila_class_sys (mb_gila_class_sys_w),
-.mb_gila_lifetime_sys (mb_gila_lifetime_sys_w),
-.mb_gila_present_sys (mb_gila_present_sys_w),
-.mb_encryption_sys (mb_encryption_sys_w),
-.mb_auth_result_sys (mb_auth_result_sys_w),
-.mb_go_pulse_sys (mb_go_pulse_sys_w),
- // Phase Y.2 — raw-mode bypass field outputs
-.mb_raw_mode_flag_sys (mb_raw_mode_flag_sys_w),
-.mb_raw_mm_bits_sys (mb_raw_mm_bits_sys_w),
-.mb_raw_mm_len_sys (mb_raw_mm_len_sys_w),
-.mb_raw_ns_sys (mb_raw_ns_sys_w),
-.mb_raw_nr_sys (mb_raw_nr_sys_w),
-.mb_raw_mle_pd_sys (mb_raw_mle_pd_sys_w)
-);
-
-// CDC: rdata + busy clk_sys → clk_axi (busy is the OR of FSM busy-state).
-// In Phase X.2 the FSM busy mirror is taken directly from mle_busy_w (already
-// in clk_sys). rdata is a slow read-back path so 2-FF settles fine.
-(* ASYNC_REG = "TRUE" *) reg [31:0] reply_rdata_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [31:0] reply_rdata_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg reply_busy_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg reply_busy_axi_r1;
+// CDC: consume pulse clk_sys → clk_axi (= wr_valid_sys eines Cycles als
+// HW-clear für den W1S GO-bit).
+(* ASYNC_REG = "TRUE" *) reg dl_raw_pdu_consume_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg dl_raw_pdu_consume_axi_r1;
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
- if (!rst_n_axi) begin
- reply_rdata_axi_r0 <= 32'd0;
- reply_rdata_axi_r1 <= 32'd0;
- reply_busy_axi_r0 <= 1'b0;
- reply_busy_axi_r1 <= 1'b0;
- end else begin
- reply_rdata_axi_r0 <= reply_rdata_sys_w;
- reply_rdata_axi_r1 <= reply_rdata_axi_r0;
- reply_busy_axi_r0 <= mle_busy_w;
- reply_busy_axi_r1 <= reply_busy_axi_r0;
- end
+    if (!rst_n_axi) begin
+        dl_raw_pdu_consume_axi_r0 <= 1'b0;
+        dl_raw_pdu_consume_axi_r1 <= 1'b0;
+    end else begin
+        dl_raw_pdu_consume_axi_r0 <= dl_raw_pdu_valid_sys_w;
+        dl_raw_pdu_consume_axi_r1 <= dl_raw_pdu_consume_axi_r0;
+    end
 end
 
-// CDC: GO-consume pulse clk_sys → clk_axi to clear the W1S trigger.
-(* ASYNC_REG = "TRUE" *) reg reply_go_consume_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg reply_go_consume_axi_r1;
+// CDC: push-cnt clk_sys → clk_axi (telemetry).
+(* ASYNC_REG = "TRUE" *) reg [15:0] dl_raw_pdu_push_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] dl_raw_pdu_push_cnt_axi_r1;
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
- if (!rst_n_axi) begin
- reply_go_consume_axi_r0 <= 1'b0;
- reply_go_consume_axi_r1 <= 1'b0;
- end else begin
- reply_go_consume_axi_r0 <= reply_go_pulse_sys_w;
- reply_go_consume_axi_r1 <= reply_go_consume_axi_r0;
- end
+    if (!rst_n_axi) begin
+        dl_raw_pdu_push_cnt_axi_r0 <= 16'd0;
+        dl_raw_pdu_push_cnt_axi_r1 <= 16'd0;
+    end else begin
+        dl_raw_pdu_push_cnt_axi_r0 <= dl_raw_pdu_push_cnt_sys_w;
+        dl_raw_pdu_push_cnt_axi_r1 <= dl_raw_pdu_push_cnt_axi_r0;
+    end
 end
 
 // =============================================================================

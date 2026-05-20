@@ -251,29 +251,33 @@
  * entfernt. SW walkt direkt aus der UL-Demand-Body Raw-Mailbox (Phase 1A,
  * REG_UL_DEMAND_BODY_* @ 0x250..0x25C) via tetra_mm_demand_parser. */
 
-/* Phase X.2 — Reply-Pull Mailbox (extension window 0x220..0x230).
- * SW stages a complete D-LOC-UPDATE-ACCEPT body via the indirect window
- * and pulses GO; the field outputs feed the MLE-FSM u_dloc input mux
- * when REG_REPLY_USE_SW[0] is set. Word layout (32 bit each):
- * W0 [23:0] ssi
- * W1 [13:0] la
- * W2 [ 2:0] addr_type
- * W3 [ 1:0] result (0=accept, 1=rej-temp, 2=rej-perm)
- * W4 [23:0] gila_gssi
- * W5 [ 4:2] gila_class [1:0] gila_lifetime
- * W6 [ 0] gila_present
- * W7 [ 1:0] encryption (Reserved Phase X.2)
- * W8 [ 1:0] auth_result (Reserved Phase X.2)
- * W9..W15 reserved Phase X.4 */
-#define REG_REPLY_INDEX 0x220 /* R/W [3:0] word selector 0..15 */
-#define REG_REPLY_DATA 0x224 /* R/W [31:0] indirect via INDEX */
-#define REG_REPLY_GO 0x228 /* W1S [0] pulse to MLE-FSM */
-#define REG_REPLY_STATUS 0x22C /* RO [0] busy mirror */
-#define REG_REPLY_USE_SW 0x230 /* R/W [0] use_sw_body field-mux */
+/* Phase Move-3+4 (2026-05-21) — DL Raw-PDU Push Mailbox (0x220..0x230).
+ * SW baut die KOMPLETTE 432-bit type-5 SCH/F-PDU in C (MAC-Resource +
+ * LLC + MLE-PD + MM-Body + Padding + SCH/F-Encode via tetra_dl_pdu.c)
+ * und schiebt sie hier rein. Ersetzt die alte Reply-Pull-Mailbox + die
+ * RTL-Pipeline u_mle_registration_fsm + u_dl_pdu_builder (~5000 LUT).
+ *
+ * Word layout (15 indirect words):
+ *   W0  [31:0] payload bits[431:400]    (= ersten 32 On-Air-Bits)
+ *   W1  [31:0] payload bits[399:368]
+ *   ...
+ *   W12 [31:0] payload bits[ 47: 16]
+ *   W13 [31:16] payload bits[ 15:  0]   (untere 16 bit ignoriert)
+ *   W14 [31:0] Metadata:
+ *               [ 1: 0] pdu_type (0 = SCH/F)
+ *               [ 3: 2] target_tn
+ *               [17: 4] aach_pattern (14 bit)
+ *               [18]    second_pdu_present
+ *               [19]    second_pdu_nr
+ *               [31:20] reserved
+ */
+#define REG_DL_RAW_PDU_INDEX  0x220 /* R/W [3:0] word selector 0..14 */
+#define REG_DL_RAW_PDU_DATA   0x224 /* R/W [31:0] indirect via INDEX */
+#define REG_DL_RAW_PDU_GO     0x228 /* W1S [0] push trigger */
+#define REG_DL_RAW_PDU_CNT    0x22C /* RO  [15:0] saturating push counter */
 
 /* Phase 1E-B (2026-05-20) — alte Group-Attach Demand-Mailbox (0x240..0x24C)
- * entfernt. mm=7 wird wie mm=2 aus dem raw-Body via SW gewalkt.
- * GroupAck-Reply läuft weiter über die mm=2 Reply-Pull-Mailbox (REG_REPLY_*). */
+ * entfernt. mm=7 wird wie mm=2 aus dem raw-Body via SW gewalkt. */
 
 /* Phase 1A — UL-Demand-Body Raw-Mailbox (Slice-Cleanup Vorbereitung).
  * Snapshot des 129-bit MM-Bodys + SSI + mm_pdu_type aus tetra_ul_demand_

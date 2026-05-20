@@ -427,26 +427,29 @@ module tetra_axi_lite_regs (
  input wire uldbod_consume_axi,
 
  // ------------------------------------------------------------------
- // Phase X.2 — Reply-Pull Mailbox (extension window 0x220..0x230).
- // REG_REPLY_INDEX @ 0x220 R/W [3:0] word selector 0..15
- // REG_REPLY_DATA @ 0x224 R/W [31:0] indirect-write via INDEX,
- // read-back for SW debug.
- // REG_REPLY_GO @ 0x228 W1S [0] 1-cycle GO pulse to FSM,
- // HW-clr on go_consume_axi pulse.
- // REG_REPLY_STATUS @ 0x22C RO [0] busy mirror (FSM-side)
- // REG_REPLY_USE_SW @ 0x230 R/W [0] use_sw_body field-mux toggle
- // The mailbox itself lives in clk_sys; this slave drives the AXI-side
- // shadow registers and the GO trigger. Caller (top-level) does the
- // 2-FF resyncs and edge-detect to a 1-cycle clk_sys pulse.
+ // Phase Move-3+4 (2026-05-21) — DL Raw-PDU Push Mailbox (0x220..0x230).
+ // Ersetzt die alte Reply-Pull-Mailbox + MLE-FSM + u_dl_pdu_builder Kette
+ // durch einen reinen Push-Pfad. SW baut die komplette 432-bit type-5
+ // SCH/F-PDU in C (tetra_build_dl_pdu_432) und schiebt sie hier rein.
+ //   REG_DL_RAW_PDU_INDEX  @ 0x220 R/W [3:0] word selector 0..14
+ //   REG_DL_RAW_PDU_DATA   @ 0x224 R/W [31:0] indirect via INDEX
+ //                                            (W0..W13 = 432-bit payload
+ //                                            MSB-first, W14 = meta)
+ //   REG_DL_RAW_PDU_GO     @ 0x228 W1S [0]   1-cycle GO; HW-clr on consume
+ //   REG_DL_RAW_PDU_CNT    @ 0x22C RO [15:0] saturating push counter
+ // Meta-Word Layout (W14, [31:0]):
+ //   [1:0]  pdu_type (SCH/F=0)
+ //   [3:2]  target_tn
+ //   [17:4] aach_pattern (14 bit)
+ //   [18]   second_pdu_present
+ //   [19]   second_pdu_nr
+ //   [31:20] reserved
  // ------------------------------------------------------------------
- output wire [3:0] reply_index_axi_o,
- output wire [31:0] reply_wdata_axi_o,
- output wire reply_we_axi_o,
- output wire reply_go_trigger_axi_o,
- input wire reply_go_consume_axi,
- input wire [31:0] reply_rdata_axi_i,
- input wire reply_busy_axi_i,
- output wire reply_use_sw_axi_o,
+ output wire [431:0] dl_raw_pdu_payload_axi,
+ output wire [31:0]  dl_raw_pdu_meta_axi,
+ output wire         dl_raw_pdu_trigger_axi,
+ input  wire         dl_raw_pdu_consume_axi,
+ input  wire [15:0]  dl_raw_pdu_push_cnt_axi,
 
  // ------------------------------------------------------------------
  // Phase 7 G.8 — Voice-Slot Filler-Mailbox (0x270..0x27C, Bank-1).
@@ -822,11 +825,11 @@ localparam [6:0] REG_NWRK_BCAST_PERIOD_MF = 7'h7A; // 0x1E8 R/W [4:0] auto-fire 
 // pulses GO so HW samples the staged values, and reads STATUS for SW-side
 // telemetry (busy mirror). USE_SW toggles the FSM-input mux.
 // ---------------------------------------------------------------------------
-localparam [6:0] REG_REPLY_INDEX = 7'h08; // 0x220 R/W [3:0] word selector 0..15
-localparam [6:0] REG_REPLY_DATA = 7'h09; // 0x224 R/W [31:0] indirect via INDEX
-localparam [6:0] REG_REPLY_GO = 7'h0A; // 0x228 W1S [0] 1-cycle pulse to MLE-FSM
-localparam [6:0] REG_REPLY_STATUS = 7'h0B; // 0x22C RO [0]=busy
-localparam [6:0] REG_REPLY_USE_SW = 7'h0C; // 0x230 R/W [0]=use_sw_body
+localparam [6:0] REG_DL_RAW_PDU_INDEX = 7'h08; // 0x220 R/W [3:0] word selector 0..14
+localparam [6:0] REG_DL_RAW_PDU_DATA  = 7'h09; // 0x224 R/W [31:0] indirect via INDEX
+localparam [6:0] REG_DL_RAW_PDU_GO    = 7'h0A; // 0x228 W1S [0] 1-cycle GO trigger
+localparam [6:0] REG_DL_RAW_PDU_CNT   = 7'h0B; // 0x22C RO [15:0] saturating push counter
+// 0x230 (REG_REPLY_USE_SW slot) — RESERVED, lese 0
 
 // Phase 1A — UL-Demand-Body Raw-Mailbox (0x250..0x25C)
 localparam [6:0] REG_UL_DEMAND_BODY_STATUS = 7'h14; // 0x250
@@ -1023,10 +1026,12 @@ reg [31:0] scratch_axi; // declared below
 reg [3:0] uldbod_index_axi;
 reg uldbod_ack_trigger_r;
 
-// Phase X.2 reply-pull-mailbox AXI-side state — declared below; forward refs OK.
-reg [3:0] reply_index_axi; // 4-bit indirect-window word selector
-reg reply_go_trigger_r; // W1S GO trigger, HW-clr on go_consume
-reg reply_use_sw_r; // R/W use_sw_body toggle
+// Phase Move-3+4 DL-Raw-PDU mailbox AXI-side state.
+// Storage: 14 × 32-bit payload words + 1 × 32-bit meta word = 15 entries.
+reg [3:0]  dl_raw_pdu_index_axi;
+reg [31:0] dl_raw_pdu_payload_axi_r [0:13]; // W0..W13 = 432-bit payload
+reg [31:0] dl_raw_pdu_meta_axi_r;            // W14 = meta
+reg        dl_raw_pdu_trigger_r;             // W1S GO, HW-clr on consume
 
 // Phase 7 G.8 voice-filler mailbox AXI-side state (analog Reply pattern)
 reg [3:0] vfill_index_axi; // 4-bit indirect-window word selector
@@ -1214,12 +1219,13 @@ always @(*) begin
  // ------------------------------------------------------------------
  if (rd_addr_axi[10:9] == 2'b01) begin
  case (rd_addr_axi[8:2])
- // Phase X.2 — reply-pull mailbox
- REG_REPLY_INDEX: rdata_mux_axi = {28'd0, reply_index_axi};
- REG_REPLY_DATA: rdata_mux_axi = reply_rdata_axi_i;
- REG_REPLY_GO: rdata_mux_axi = {31'd0, reply_go_trigger_r};
- REG_REPLY_STATUS: rdata_mux_axi = {31'd0, reply_busy_axi_i};
- REG_REPLY_USE_SW: rdata_mux_axi = {31'd0, reply_use_sw_r};
+ // Phase Move-3+4 — DL Raw-PDU push mailbox
+ REG_DL_RAW_PDU_INDEX: rdata_mux_axi = {28'd0, dl_raw_pdu_index_axi};
+ REG_DL_RAW_PDU_DATA:  rdata_mux_axi = (dl_raw_pdu_index_axi == 4'd14)
+                                       ? dl_raw_pdu_meta_axi_r
+                                       : dl_raw_pdu_payload_axi_r[dl_raw_pdu_index_axi];
+ REG_DL_RAW_PDU_GO:    rdata_mux_axi = {31'd0, dl_raw_pdu_trigger_r};
+ REG_DL_RAW_PDU_CNT:   rdata_mux_axi = {16'd0, dl_raw_pdu_push_cnt_axi};
  // Phase 1A UL-Demand-Body Raw-Mailbox
  REG_UL_DEMAND_BODY_STATUS: rdata_mux_axi = {uldbod_drop_cnt_axi_i,
                                               15'd0,
@@ -2393,44 +2399,61 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
 end
 
 // ---------------------------------------------------------------------------
-// Phase X.2 — Reply-Pull Mailbox AXI-side state (clk_axi)
+// Phase Move-3+4 (2026-05-21) — DL Raw-PDU Push Mailbox AXI-side state (clk_axi)
 // ---------------------------------------------------------------------------
-// REG_REPLY_INDEX @ 0x220 R/W — 4-bit indirect-window word selector
-// REG_REPLY_DATA @ 0x224 W — passes wdata + we directly to the clk_sys
-// reply-mailbox. The CDC is in top-level
-// (we pulse + 4-bit index + 32-bit data).
-// REG_REPLY_GO @ 0x228 W1S — set on SW write of [0]=1; HW-clears on
-// reply_go_consume_axi pulse from clk_sys.
-// REG_REPLY_USE_SW @ 0x230 R/W — use_sw_body toggle (Phase X.4 default 1 = SW path primary).
-// REG_REPLY_STATUS @ 0x22C RO — busy mirror, read-only.
+//   REG_DL_RAW_PDU_INDEX @ 0x220 R/W — 4-bit indirect-window word selector
+//   REG_DL_RAW_PDU_DATA  @ 0x224 R/W — payload (W0..W13) or meta (W14)
+//   REG_DL_RAW_PDU_GO    @ 0x228 W1S — push trigger; HW-clr on consume pulse
+//   REG_DL_RAW_PDU_CNT   @ 0x22C RO  — saturating push counter from clk_sys
 //
-// Outputs to top-level CDC: reply_index_axi_o, reply_wdata_axi_o,
-// reply_we_axi_o (1-cycle pulse on AXI write), reply_go_trigger_axi_o (W1S
-// trigger), reply_use_sw_axi_o.
-assign reply_index_axi_o = reply_index_axi;
-assign reply_wdata_axi_o = wr_data_axi;
-assign reply_we_axi_o = wr_en_x1_axi & (wr_addr_axi[8:2] == REG_REPLY_DATA);
-assign reply_go_trigger_axi_o = reply_go_trigger_r;
-assign reply_use_sw_axi_o = reply_use_sw_r;
+// Pack 14 × 32-bit payload regs → 432-bit bus. Layout: W0 = bits [431:400]
+// MSB-first, W13 upper 16 bits = bits [15:0]. Same as REG_NWRK_BCAST.
+genvar grawp;
+generate
+    for (grawp = 0; grawp < 14; grawp = grawp + 1) begin: g_rawpdu_payload
+        localparam integer WORD_HI = 432 - 1 - grawp * 32;
+        if (grawp < 13) begin: g_full
+            assign dl_raw_pdu_payload_axi[WORD_HI -: 32] = dl_raw_pdu_payload_axi_r[grawp];
+        end else begin: g_last
+            assign dl_raw_pdu_payload_axi[15:0] = dl_raw_pdu_payload_axi_r[grawp][31:16];
+        end
+    end
+endgenerate
 
-always @(posedge clk_axi or negedge rst_n_axi) begin
- if (!rst_n_axi)
- reply_index_axi <= 4'd0;
- else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_REPLY_INDEX)
- & wr_strb_axi[0])
- reply_index_axi <= wr_data_axi[3:0];
-end
+assign dl_raw_pdu_meta_axi    = dl_raw_pdu_meta_axi_r;
+assign dl_raw_pdu_trigger_axi = dl_raw_pdu_trigger_r;
 
+integer idx_rawp_init;
 always @(posedge clk_axi or negedge rst_n_axi) begin
- if (!rst_n_axi)
- reply_go_trigger_r <= 1'b0;
- else begin
- if (reply_go_consume_axi)
- reply_go_trigger_r <= 1'b0;
- if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_REPLY_GO)
- & wr_strb_axi[0] & wr_data_axi[0])
- reply_go_trigger_r <= 1'b1;
- end
+    if (!rst_n_axi) begin
+        dl_raw_pdu_index_axi <= 4'd0;
+        dl_raw_pdu_meta_axi_r <= 32'd0;
+        dl_raw_pdu_trigger_r <= 1'b0;
+        for (idx_rawp_init = 0; idx_rawp_init < 14; idx_rawp_init = idx_rawp_init + 1)
+            dl_raw_pdu_payload_axi_r[idx_rawp_init] <= 32'd0;
+    end else begin
+        if (dl_raw_pdu_consume_axi)
+            dl_raw_pdu_trigger_r <= 1'b0;
+        if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_DL_RAW_PDU_INDEX)
+            & wr_strb_axi[0])
+            dl_raw_pdu_index_axi <= wr_data_axi[3:0];
+        if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_DL_RAW_PDU_DATA)) begin
+            if (dl_raw_pdu_index_axi == 4'd14) begin
+                if (wr_strb_axi[0]) dl_raw_pdu_meta_axi_r[ 7: 0] <= wr_data_axi[ 7: 0];
+                if (wr_strb_axi[1]) dl_raw_pdu_meta_axi_r[15: 8] <= wr_data_axi[15: 8];
+                if (wr_strb_axi[2]) dl_raw_pdu_meta_axi_r[23:16] <= wr_data_axi[23:16];
+                if (wr_strb_axi[3]) dl_raw_pdu_meta_axi_r[31:24] <= wr_data_axi[31:24];
+            end else begin
+                if (wr_strb_axi[0]) dl_raw_pdu_payload_axi_r[dl_raw_pdu_index_axi][ 7: 0] <= wr_data_axi[ 7: 0];
+                if (wr_strb_axi[1]) dl_raw_pdu_payload_axi_r[dl_raw_pdu_index_axi][15: 8] <= wr_data_axi[15: 8];
+                if (wr_strb_axi[2]) dl_raw_pdu_payload_axi_r[dl_raw_pdu_index_axi][23:16] <= wr_data_axi[23:16];
+                if (wr_strb_axi[3]) dl_raw_pdu_payload_axi_r[dl_raw_pdu_index_axi][31:24] <= wr_data_axi[31:24];
+            end
+        end
+        if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_DL_RAW_PDU_GO)
+            & wr_strb_axi[0] & wr_data_axi[0])
+            dl_raw_pdu_trigger_r <= 1'b1;
+    end
 end
 
 // ---------------------------------------------------------------------------
@@ -2487,18 +2510,6 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
  & wr_strb_axi[0] & wr_data_axi[0])
  vnub_ack_trigger_r <= 1'b1;
  end
-end
-
-// Phase X.4 — SW-driven attach is the primary path. Reset default flips
-// 0 -> 1 so the encoder reads mb_* from the Reply-Pull-Mailbox out of
-// reset; the FSM in tetra_mle_registration_fsm.v also gates its new
-// SW-trigger flow on use_sw_body.
-always @(posedge clk_axi or negedge rst_n_axi) begin
- if (!rst_n_axi)
- reply_use_sw_r <= 1'b1;
- else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_REPLY_USE_SW)
- & wr_strb_axi[0])
- reply_use_sw_r <= wr_data_axi[0];
 end
 
 // ---------------------------------------------------------------------------

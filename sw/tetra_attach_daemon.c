@@ -525,7 +525,8 @@ int main(int argc, char **argv)
  tetra_db_count(0), tetra_db_count(1));
  }
 
- tetra_reg_write(&hal, REG_REPLY_USE_SW, 0x1u);
+ /* Phase Move-3+4 — REG_REPLY_USE_SW entfernt; alle Reply-Pfade laufen jetzt
+  * über REG_DL_RAW_PDU_* (SW baut 432-bit komplette PDU). */
 
  /* MER-Fix: VOICE_ACTIVE_MASK kann von einem vorherigen Call hängen
   * bleiben wenn die MS keinen U-RELEASE sendet (power-cycle, sync-loss,
@@ -652,9 +653,9 @@ int main(int argc, char **argv)
  }
  }
 
- tetra_reg_write(&hal, REG_REPLY_USE_SW, 0x0u);
+ /* Phase Move-3+4 — REG_REPLY_USE_SW gibt's nicht mehr. */
  fprintf(stderr,
- "tetra_attach_daemon: exiting — USE_SW=0 (MLE-FSM fallback) "
+ "tetra_attach_daemon: exiting — "
  "(serviced=%u)\n", serviced_g);
  tetra_hal_close(&hal);
  return 0;
