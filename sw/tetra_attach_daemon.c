@@ -31,6 +31,7 @@
 #include "tetra_tx_transport.h"
 #include "tetra_cmce_parser.h"
 #include "tetra_call_fsm.h"
+#include "tetra_mm_demand_parser.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -104,6 +105,13 @@ static uint32_t grp_demand_read(tetra_hal_t *hal, uint32_t idx)
  return tetra_reg_read(hal, REG_GRP_DEMAND_DATA);
 }
 
+/* Phase 1A — raw-body Mailbox (parallel zum RTL-Parser). */
+static uint32_t uldbod_read(tetra_hal_t *hal, uint32_t idx)
+{
+ tetra_reg_write(hal, REG_UL_DEMAND_BODY_INDEX, idx);
+ return tetra_reg_read(hal, REG_UL_DEMAND_BODY_DATA);
+}
+
 /* Tiny LLC stop-and-wait NR/NS hash (open-addressing on 24-bit SSI).
  * 64 slots is sufficient — typical cell sees < 10 simultaneously-attaching
  * MS, and slot eviction on collision just resets the alternation (next
@@ -148,6 +156,66 @@ static void grp_nsnr_step(uint32_t ssi, unsigned *out_ns, unsigned *out_nr)
  /* table full — fall back to fixed NS=1 NR=0 */
  *out_ns = 1u;
  *out_nr = 0u;
+}
+
+/* Phase 1C — service one raw-body demand snapshot. Liest die 8 Words aus
+ * REG_UL_DEMAND_BODY_*, unpackt zu 17-byte MSB-first Body, walked via
+ * tetra_mm_demand_parser (SW-Port von tetra_ul_demand_ie_parser.v),
+ * loggt das Ergebnis und ACKt die Snapshot.
+ *
+ * Parallel-Modus: läuft NEBEN dem existing RTL-Parser-Pfad (service_demand
+ * + service_grp_demand). Output dient als A/B-Vergleich gegen die RTL-
+ * Parser-Ausgabe via die parsed-Snapshot-Mailboxen. Bei Bit-Equivalenz
+ * (= alle Felder identisch über ≥10 PTT-Cycles + Group-Attaches) wird
+ * Phase 1E den RTL-Parser entfernen. */
+static void service_uldbod(tetra_hal_t *hal)
+{
+ uint32_t w0 = uldbod_read(hal, 0);  /* magic + mm_type + body[128] */
+ uint32_t w1 = uldbod_read(hal, 1);  /* ssi */
+ uint32_t w2 = uldbod_read(hal, 2);  /* body[127:96] */
+ uint32_t w3 = uldbod_read(hal, 3);  /* body[95:64] */
+ uint32_t w4 = uldbod_read(hal, 4);  /* body[63:32] */
+ uint32_t w5 = uldbod_read(hal, 5);  /* body[31:0] */
+
+ uint8_t body[TETRA_MM_DEMAND_BODY_BYTES];
+ uint8_t mm_type;
+ uint32_t pdu_ssi;
+ tetra_mm_demand_parser_unpack_mailbox(w0, w1, w2, w3, w4, w5,
+                                        body, &mm_type, &pdu_ssi);
+
+ tetra_mm_demand_parsed_t p;
+ int rc = tetra_mm_demand_parser_parse(body, mm_type, pdu_ssi, &p);
+
+ if (rc == 0 && p.parse_ok && mm_type == 2) {
+ fprintf(stderr,
+ "tetra_attach_daemon: [SW-WALK mm=2] ssi=0x%06X LUT=%u ra=%u cc=%u "
+ "class_valid=%u esm_valid=%u la_valid=%u la=0x%04X ssi_valid=%u "
+ "ae_valid=%u gild_valid=%u gild_gssi=0x%06X gild_at=%u\n",
+ p.pdu_ssi, p.location_update_type, p.request_to_append_la,
+ p.cipher_control, p.class_of_ms_valid, p.energy_saving_mode_valid,
+ p.la_information_valid, p.la_information, p.ssi_field_valid,
+ p.address_ext_valid, p.gild_valid, p.gild_gssi, p.gild_address_type);
+ } else if (rc == 0 && p.parse_ok && mm_type == 7) {
+ fprintf(stderr,
+ "tetra_attach_daemon: [SW-WALK mm=7] ssi=0x%06X gir=%u atd=%u count=%u",
+ p.pdu_ssi, p.gid_group_identity_report,
+ p.gid_attach_detach_mode, p.gid_count);
+ for (int r = 0; r < p.gid_count && r < 3; r++) {
+ fprintf(stderr, " rec%d{adi=%u cou=%u at=%u gssi=0x%06X}", r,
+ p.gid_records[r].attach_detach,
+ p.gid_records[r].class_of_usage,
+ p.gid_records[r].address_type,
+ p.gid_records[r].gssi);
+ }
+ fprintf(stderr, "\n");
+ } else {
+ fprintf(stderr,
+ "tetra_attach_daemon: [SW-WALK FAIL] mm=%u ssi=0x%06X rc=%d parse_ok=%u\n",
+ mm_type, pdu_ssi, rc, p.parse_ok);
+ }
+
+ /* ACK clears pending + arms next */
+ tetra_reg_write(hal, REG_UL_DEMAND_BODY_ACK, 0x1u);
 }
 
 /* Phase Y.1.e — service one Group-Attach (mm=7) demand: read MS-SSI +
@@ -397,6 +465,15 @@ int main(int argc, char **argv)
  * Wenn ein Slot über N ms gar nichts mehr macht (kein U-RELEASE
  * trotz Power-Cycle), Slot freigeben. */
  tetra_call_fsm_tick(&hal);
+
+ /* Phase 1C — service raw-body Mailbox parallel zu RTL-Parser-Pfaden.
+  * Logs SW-Walker-Output für A/B-Vergleich. Wird vor dem
+  * RTL-parsed-demand-poll geprüft damit die Reihenfolge im Log
+  * konsistent ist (raw → parsed). */
+ uint32_t uldbod_status = tetra_reg_read(&hal, REG_UL_DEMAND_BODY_STATUS);
+ if (uldbod_status & 0x1u) {
+ service_uldbod(&hal);
+ }
 
  /* Phase Y.1.e — service Group-Attach (mm=7) demand mailbox first.
  * It's a separate AXI window, independent of mm=2 ITSI Attach. */
