@@ -728,95 +728,13 @@ tetra_ul_demand_reassembly #(
 // Phase 7 sprint scope); slot 1/2 remain 0 — multi-IE bodies will land in
 // M4 alongside U-ATTACH-DETACH-GROUP-IDENTITY support.
 
-wire [2:0] iep_loc_upd_type_sys;
-wire iep_req_to_append_la_sys;
-wire iep_cipher_control_sys;
-wire [23:0] iep_class_of_ms_sys;
-wire iep_class_of_ms_valid_sys;
-wire [2:0] iep_esm_sys;
-wire iep_esm_valid_sys;
-wire [13:0] iep_la_info_sys;
-wire iep_la_info_valid_sys;
-wire [23:0] iep_ssi_field_sys;
-wire iep_ssi_field_valid_sys;
-wire [23:0] iep_address_ext_sys;
-wire iep_address_ext_valid_sys;
-wire iep_gild_valid_sys;
-wire [23:0] iep_gild_gssi_sys;
-wire [2:0] iep_gild_class_sys;
-wire [1:0] iep_gild_at_sys;
-wire [23:0] iep_pdu_ssi_sys;
-// Phase Y.1.a — mm=7 outputs
-wire [1:0] iep_gid_count_sys;
-wire iep_gid_atd_mode_sys;
-wire iep_gid_grp_report_sys;
-wire [2:0] iep_gid_adi_arr_sys;
-wire [8:0] iep_gid_class_arr_sys;
-wire [5:0] iep_gid_at_arr_sys;
-wire [71:0] iep_gid_gssi_arr_sys;
-wire iep_parse_done_sys;
-wire iep_parse_ok_sys;
-
-tetra_ul_demand_ie_parser u_ul_demand_ie_parser (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
-.start_sys (reass_valid_sys),
-.body_sys (reass_body_sys),
-.ssi_sys (reass_ssi_sys),
-.mm_pdu_type_sys (reass_mm_type_sys),
-.location_update_type_sys (iep_loc_upd_type_sys),
-.request_to_append_la_sys (iep_req_to_append_la_sys),
-.cipher_control_sys (iep_cipher_control_sys),
-.class_of_ms_sys (iep_class_of_ms_sys),
-.class_of_ms_valid_sys (iep_class_of_ms_valid_sys),
-.energy_saving_mode_sys (iep_esm_sys),
-.energy_saving_mode_valid_sys (iep_esm_valid_sys),
-.la_information_sys (iep_la_info_sys),
-.la_information_valid_sys (iep_la_info_valid_sys),
-.ssi_field_sys (iep_ssi_field_sys),
-.ssi_field_valid_sys (iep_ssi_field_valid_sys),
-.address_ext_sys (iep_address_ext_sys),
-.address_ext_valid_sys (iep_address_ext_valid_sys),
-.gild_valid_sys (iep_gild_valid_sys),
-.gild_gssi_sys (iep_gild_gssi_sys),
-.gild_class_of_usage_sys (iep_gild_class_sys),
-.gild_address_type_sys (iep_gild_at_sys),
-.pdu_ssi_sys (iep_pdu_ssi_sys),
-.gid_count_sys (iep_gid_count_sys),
-.gid_attach_detach_mode_sys (iep_gid_atd_mode_sys),
-.gid_group_identity_report_sys (iep_gid_grp_report_sys),
-.gid_attach_detach_array_sys (iep_gid_adi_arr_sys),
-.gid_class_array_sys (iep_gid_class_arr_sys),
-.gid_address_type_array_sys (iep_gid_at_arr_sys),
-.gid_gssi_array_sys (iep_gid_gssi_arr_sys),
-.parse_done_sys (iep_parse_done_sys),
-.parse_ok_sys (iep_parse_ok_sys)
-);
-
-// MLE-FSM demand port composition. Only one GSSI carried for now. The
-// demand_gssi_count goes to 1 when both the parser succeeded and a GILD
-// IE was present; otherwise 0 (MLE-FSM falls back to the legacy default-
-// GSSI path, identical to Phase D-rev).
-//
-// Phase Y.1.b — mm-type gating: only mm=2 (LOCATION-UPDATE-DEMAND) drives
-// the existing ITSI demand mailbox; mm=7 (ATTACH-DETACH-GROUP-IDENTITY)
-// drives the NEW Group-Attach demand mailbox below. This keeps the M2
-// ITSI-Attach path bit-identical to the pre-Y.1 build.
-wire mle_demand_parsed_valid_sys =
- iep_parse_done_sys & iep_parse_ok_sys & (reass_mm_type_sys == 4'd2);
-wire [23:0] mle_demand_pdu_ssi_sys = iep_pdu_ssi_sys;
-wire [2:0] mle_demand_gssi_count_sys = iep_gild_valid_sys ? 3'd1: 3'd0;
-wire [71:0] mle_demand_gssi_array_sys = {48'd0, iep_gild_gssi_sys};
-wire [8:0] mle_demand_class_array_sys = {6'd0, iep_gild_class_sys};
-
-// Phase Y.1.b — Group-Attach mm=7 trigger (drives new tetra_grp_demand_mailbox).
-wire grp_demand_parsed_valid_sys =
- iep_parse_done_sys & iep_parse_ok_sys & (reass_mm_type_sys == 4'd7);
-
-// Phase H.0.1 — Group-Attach (mm=7) trigger composition removed. The
-// mm=7 path moves to ARM SW per the FPGA+SW split (ARCH-Pivot
-// 2026-04-26). MLE-FSM mm=7 input ports are tied off to constants
-// below and the FSM-side ports are stripped in H.0.2.
+// Phase 1E-B (2026-05-20) — tetra_ul_demand_ie_parser RTL-Instanz + die
+// zwei nachgelagerten "parsed-snapshot"-Mailboxen (tetra_demand_mailbox,
+// tetra_grp_demand_mailbox) entfernt. Walking der 129-bit MM-Bodies passiert
+// jetzt in SW (tetra_mm_demand_parser.c, gefüttert aus dem raw-Body-Mailbox
+// tetra_ul_demand_body_mailbox). Pre-Reply-BL-ACK triggert weiterhin auf
+// Frag-2-Done — siehe u_pre_reply_blck.trigger_valid weiter unten, dort
+// direkt auf reass_valid_sys & mm_type ∈ {2,7} umgestellt.
 
 // =============================================================================
 // LMAC — Lower MAC Channel Coding (RX: descramble/deinterleave/viterbi/CRC)
@@ -2123,13 +2041,6 @@ tetra_axi_lite_regs u_axi_regs (
 .nwrk_bcast_cnt_axi (nwrk_bcast_cnt_axi_r1),
  // Phase H.7-AF — Auto-Fire period (multiframes; 0 = SW-Trigger mode)
 .nwrk_bcast_period_mf_axi (nwrk_bcast_period_mf_axi_w),
- // Phase X.1 — UL-Demand Snapshot Mailbox extension window 0x200..0x20C
-.demand_pending_axi_i (demand_pending_axi_r1),
-.demand_drop_cnt_axi_i (demand_drop_cnt_axi_r1),
-.demand_data_word_axi_i (demand_data_word_axi_w),
-.demand_index_axi_o (demand_index_axi_w),
-.demand_ack_trigger_axi (demand_ack_trigger_axi_w),
-.demand_consume_axi (demand_consume_axi_r1),
  // Phase 1A — UL-Demand-Body Raw Mailbox extension window 0x250..0x25C
 .uldbod_pending_axi_i (uldbod_pending_axi_r1),
 .uldbod_drop_cnt_axi_i (uldbod_drop_cnt_axi_r1),
@@ -2160,13 +2071,6 @@ tetra_axi_lite_regs u_axi_regs (
 .vnub_ack_consume_axi (vnub_ack_consume_axi_r1),
 .vnub_rdata_axi_i (vnub_rdata_axi_r1),
 .vnub_valid_axi_i (vnub_valid_axi_r1),
- // Phase Y.1.f — Group-Attach mailbox extension window 0x240..0x25C
-.grp_demand_pending_axi_i (grp_demand_pending_axi_r1),
-.grp_demand_drop_cnt_axi_i (grp_demand_drop_cnt_axi_r1),
-.grp_demand_data_word_axi_i (grp_demand_data_word_axi_w),
-.grp_demand_index_axi_o (grp_demand_index_axi_w),
-.grp_demand_ack_trigger_axi (grp_demand_ack_trigger_axi_w),
-.grp_demand_consume_axi (grp_demand_consume_axi_r1),
  // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
 .schedule_axi_we (schedule_axi_we_w),
 .schedule_axi_re (schedule_axi_re_w),
@@ -2803,13 +2707,18 @@ tetra_sch_hd_shared u_sch_hd_shared (
 tetra_pre_reply_blck u_pre_reply_blck (
 .clk_sys (clk_sys),
 .rst_n_sys (rst_n_sys),
- // Reassembly+IEP-Done trigger (Step 4 — post-Frag-2 BL-ACK).
+ // Reassembly-Done trigger (Step 4 — post-Frag-2 BL-ACK).
  // Y.1.fix: feuert für mm=2 (ITSI-Attach) UND mm=7 (Group-Attach).
  // Memory removed-memory zeigt für beide
  // mm-Types das gleiche 5-Schritt-Pattern: Frag-1 → Frag-2 →
  // Pre-Reply BL-ACK LI=7 → MS-Frag-3 BL-ACK → finaler ACK.
-.trigger_valid (mle_demand_parsed_valid_sys |
- grp_demand_parsed_valid_sys),
+ //
+ // Phase 1E-B (2026-05-20): triggert direkt auf reass_valid_sys
+ // (= Frag-2-Done), nicht mehr auf den entfernten IE-Parser. Effekt
+ // ist identisch — Parser brauchte nur ein paar Takte, beide Pfade
+ // landen im gleichen Frame.
+.trigger_valid (reass_valid_sys & ((reass_mm_type_sys == 4'd2) |
+                                    (reass_mm_type_sys == 4'd7))),
 .ul_ssi (ul_issi_sys),
  // Target TN = MCCH slot (where the MS expects the BL-ACK).
 .cfg_mcch_tn (cfg_mcch_tn_sys_r1),
@@ -3016,124 +2925,11 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
 end
 
 // =============================================================================
-// Phase X.1 — UL-Demand Snapshot Mailbox: Modul-Instance + CDC
-//
-// AXI side (clk_axi):
-// demand_index_axi_w — 4-bit indirect-window word selector
-// demand_ack_trigger_axi_w — W1S, set by SW write to REG_DEMAND_ACK,
-// cleared by demand_consume_axi pulse
-// demand_pending_axi_r1 — 2-FF resync of pending flag (clk_sys)
-// demand_drop_cnt_axi_r1 — 2-FF resync of drop counter (clk_sys)
-// demand_data_word_axi_w — 32-bit indirect mailbox word (clk_sys mux,
-// combinational; index drives via 2-FF resync)
-//
-// clk_sys side: tetra_demand_mailbox latches the IE-Parser output on
-// demand_parsed_valid_sys, holds it until ack_consumed_pulse_sys clears
-// pending. Drop counter increments on overlapping pushes.
+// Phase 1E-B (2026-05-20) — tetra_demand_mailbox + zugehörige CDC entfernt.
+// SW walkt jetzt direkt aus tetra_ul_demand_body_mailbox (unten) den 129-bit
+// MM-Body, daher nicht mehr nötig. AXI-Register REG_DEMAND_* (0x200..0x20C)
+// werden in tetra_axi_lite_regs.v ebenfalls entfernt.
 // =============================================================================
-wire [3:0] demand_index_axi_w;
-wire demand_ack_trigger_axi_w;
-wire [31:0] demand_data_word_axi_w;
-wire demand_pending_sys_w;
-wire [15:0] demand_drop_cnt_sys_w;
-wire [31:0] demand_data_word_sys_w;
-
-// 2-FF index resync clk_axi → clk_sys (slow-changing R/W)
-(* ASYNC_REG = "TRUE" *) reg [3:0] demand_index_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg [3:0] demand_index_sys_r1;
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys) begin
- demand_index_sys_r0 <= 4'd0;
- demand_index_sys_r1 <= 4'd0;
- end else begin
- demand_index_sys_r0 <= demand_index_axi_w;
- demand_index_sys_r1 <= demand_index_sys_r0;
- end
-end
-
-// 2-FF ACK-trigger resync clk_axi → clk_sys, edge-detect to a 1-cycle pulse.
-(* ASYNC_REG = "TRUE" *) reg demand_ack_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg demand_ack_sys_r1;
-reg demand_ack_sys_r2;
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys) begin
- demand_ack_sys_r0 <= 1'b0;
- demand_ack_sys_r1 <= 1'b0;
- demand_ack_sys_r2 <= 1'b0;
- end else begin
- demand_ack_sys_r0 <= demand_ack_trigger_axi_w;
- demand_ack_sys_r1 <= demand_ack_sys_r0;
- demand_ack_sys_r2 <= demand_ack_sys_r1;
- end
-end
-wire demand_ack_pulse_sys_w = demand_ack_sys_r1 & ~demand_ack_sys_r2;
-
-tetra_demand_mailbox u_demand_mailbox (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
- // Passive tap of UL-Demand-IE-Parser outputs (slot 0 plumbed in Phase
- // X.1; multi-IE rolls in Phase X.2). iep_la_info_sys is the parsed
- // LA value from the IE walker; iep_loc_upd_type_sys is the 3-bit
- // location-update-type from the Type-1 fields.
-.demand_parsed_valid_sys (mle_demand_parsed_valid_sys),
-.demand_ul_ssi_sys (mle_demand_pdu_ssi_sys),
-.demand_gssi_count_sys (mle_demand_gssi_count_sys),
-.demand_gssi_array_sys (mle_demand_gssi_array_sys),
-.demand_class_array_sys (mle_demand_class_array_sys),
-.demand_loc_upd_type_sys (iep_loc_upd_type_sys),
-.demand_la_sys (iep_la_info_sys),
-.ack_consumed_pulse_sys (demand_ack_pulse_sys_w),
-.index_sys (demand_index_sys_r1),
-.data_word_sys (demand_data_word_sys_w),
-.pending_sys (demand_pending_sys_w),
-.drop_cnt_sys (demand_drop_cnt_sys_w)
-);
-
-// CDC: pending + drop_cnt + data_word clk_sys → clk_axi (slow-changing,
-// 2-FF-per-bit OK; data_word may glitch during index transition but SW
-// reads only after writing INDEX and then waiting ≥ 1 AXI transaction
-// round-trip, which provides ample settling time).
-(* ASYNC_REG = "TRUE" *) reg demand_pending_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg demand_pending_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [15:0] demand_drop_cnt_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0] demand_drop_cnt_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [31:0] demand_data_word_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [31:0] demand_data_word_axi_r1;
-always @(posedge s_axi_aclk or negedge rst_n_axi) begin
- if (!rst_n_axi) begin
- demand_pending_axi_r0 <= 1'b0;
- demand_pending_axi_r1 <= 1'b0;
- demand_drop_cnt_axi_r0 <= 16'd0;
- demand_drop_cnt_axi_r1 <= 16'd0;
- demand_data_word_axi_r0 <= 32'd0;
- demand_data_word_axi_r1 <= 32'd0;
- end else begin
- demand_pending_axi_r0 <= demand_pending_sys_w;
- demand_pending_axi_r1 <= demand_pending_axi_r0;
- demand_drop_cnt_axi_r0 <= demand_drop_cnt_sys_w;
- demand_drop_cnt_axi_r1 <= demand_drop_cnt_axi_r0;
- demand_data_word_axi_r0 <= demand_data_word_sys_w;
- demand_data_word_axi_r1 <= demand_data_word_axi_r0;
- end
-end
-assign demand_data_word_axi_w = demand_data_word_axi_r1;
-
-// CDC: ACK-consume pulse clk_sys → clk_axi. Drive a 1-cycle pulse on
-// every clk_sys ACK pulse — that pulse is then 2-FF resynced to clk_axi
-// and used by axi_lite_regs to clear the W1S trigger. Since we already
-// edge-detected a clk_sys pulse from the AXI W1S, simply forward it back
-// after handshake.
-(* ASYNC_REG = "TRUE" *) reg demand_consume_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg demand_consume_axi_r1;
-always @(posedge s_axi_aclk or negedge rst_n_axi) begin
- if (!rst_n_axi) begin
- demand_consume_axi_r0 <= 1'b0;
- demand_consume_axi_r1 <= 1'b0;
- end else begin
- demand_consume_axi_r0 <= demand_ack_pulse_sys_w;
- demand_consume_axi_r1 <= demand_consume_axi_r0;
- end
-end
 
 // =============================================================================
 // Phase 1A — UL-Demand-Body Raw-Mailbox: Modul-Instance + CDC
@@ -3620,115 +3416,12 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
 end
 
 // =============================================================================
-// Phase Y.1.b — Group-Attach Demand Mailbox (mm=7, indirect AXI window)
-//
-// AXI side (clk_axi):
-// grp_demand_index_axi_w — 4-bit indirect-window word selector
-// grp_demand_ack_trigger_w — W1S, set by SW write to REG_GRP_DEMAND_ACK,
-// cleared by grp_demand_consume_axi pulse
-// grp_demand_pending_axi_r1 — 2-FF resync of pending flag (clk_sys)
-// grp_demand_drop_cnt_axi_r1 — 2-FF resync of drop counter (clk_sys)
-// grp_demand_data_word_axi_w — 32-bit indirect mailbox word
-//
-// clk_sys side: tetra_grp_demand_mailbox latches the IE-Parser mm=7 outputs
-// on grp_demand_parsed_valid_sys, holds them until ack_consumed_pulse_sys
-// clears pending. Drop counter increments on overlapping pushes.
+// Phase 1E-B (2026-05-20) — tetra_grp_demand_mailbox + zugehörige CDC
+// entfernt. mm=7 wird wie mm=2 jetzt aus dem raw-Body via SW gewalkt; siehe
+// sw/tetra_mm_demand_parser.c + react_mm7_grpid() in attach_daemon.
+// AXI-Register REG_GRP_DEMAND_* (0x240..0x24C) ebenfalls aus
+// tetra_axi_lite_regs.v entfernt.
 // =============================================================================
-wire [3:0] grp_demand_index_axi_w;
-wire grp_demand_ack_trigger_axi_w;
-wire [31:0] grp_demand_data_word_axi_w;
-wire grp_demand_pending_sys_w;
-wire [15:0] grp_demand_drop_cnt_sys_w;
-wire [31:0] grp_demand_data_word_sys_w;
-
-// 2-FF index resync clk_axi → clk_sys
-(* ASYNC_REG = "TRUE" *) reg [3:0] grp_demand_index_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg [3:0] grp_demand_index_sys_r1;
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys) begin
- grp_demand_index_sys_r0 <= 4'd0;
- grp_demand_index_sys_r1 <= 4'd0;
- end else begin
- grp_demand_index_sys_r0 <= grp_demand_index_axi_w;
- grp_demand_index_sys_r1 <= grp_demand_index_sys_r0;
- end
-end
-
-// 2-FF ACK-trigger resync clk_axi → clk_sys with edge-detect
-(* ASYNC_REG = "TRUE" *) reg grp_demand_ack_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg grp_demand_ack_sys_r1;
-reg grp_demand_ack_sys_r2;
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys) begin
- grp_demand_ack_sys_r0 <= 1'b0;
- grp_demand_ack_sys_r1 <= 1'b0;
- grp_demand_ack_sys_r2 <= 1'b0;
- end else begin
- grp_demand_ack_sys_r0 <= grp_demand_ack_trigger_axi_w;
- grp_demand_ack_sys_r1 <= grp_demand_ack_sys_r0;
- grp_demand_ack_sys_r2 <= grp_demand_ack_sys_r1;
- end
-end
-wire grp_demand_ack_pulse_sys_w =
- grp_demand_ack_sys_r1 & ~grp_demand_ack_sys_r2;
-
-tetra_grp_demand_mailbox u_grp_demand_mailbox (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
-.grp_parsed_valid_sys (grp_demand_parsed_valid_sys),
-.grp_ul_ssi_sys (iep_pdu_ssi_sys),
-.grp_rec_count_sys (iep_gid_count_sys),
-.grp_attach_detach_mode_sys (iep_gid_atd_mode_sys),
-.grp_group_identity_report_sys (iep_gid_grp_report_sys),
-.grp_gssi_array_sys (iep_gid_gssi_arr_sys),
-.grp_class_array_sys (iep_gid_class_arr_sys),
-.grp_adi_array_sys (iep_gid_adi_arr_sys),
-.grp_at_array_sys (iep_gid_at_arr_sys),
-.ack_consumed_pulse_sys (grp_demand_ack_pulse_sys_w),
-.index_sys (grp_demand_index_sys_r1),
-.data_word_sys (grp_demand_data_word_sys_w),
-.pending_sys (grp_demand_pending_sys_w),
-.drop_cnt_sys (grp_demand_drop_cnt_sys_w)
-);
-
-// CDC: pending + drop_cnt + data_word clk_sys → clk_axi
-(* ASYNC_REG = "TRUE" *) reg grp_demand_pending_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg grp_demand_pending_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_demand_drop_cnt_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [15:0] grp_demand_drop_cnt_axi_r1;
-(* ASYNC_REG = "TRUE" *) reg [31:0] grp_demand_data_word_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg [31:0] grp_demand_data_word_axi_r1;
-always @(posedge s_axi_aclk or negedge rst_n_axi) begin
- if (!rst_n_axi) begin
- grp_demand_pending_axi_r0 <= 1'b0;
- grp_demand_pending_axi_r1 <= 1'b0;
- grp_demand_drop_cnt_axi_r0 <= 16'd0;
- grp_demand_drop_cnt_axi_r1 <= 16'd0;
- grp_demand_data_word_axi_r0 <= 32'd0;
- grp_demand_data_word_axi_r1 <= 32'd0;
- end else begin
- grp_demand_pending_axi_r0 <= grp_demand_pending_sys_w;
- grp_demand_pending_axi_r1 <= grp_demand_pending_axi_r0;
- grp_demand_drop_cnt_axi_r0 <= grp_demand_drop_cnt_sys_w;
- grp_demand_drop_cnt_axi_r1 <= grp_demand_drop_cnt_axi_r0;
- grp_demand_data_word_axi_r0 <= grp_demand_data_word_sys_w;
- grp_demand_data_word_axi_r1 <= grp_demand_data_word_axi_r0;
- end
-end
-assign grp_demand_data_word_axi_w = grp_demand_data_word_axi_r1;
-
-// CDC: ACK-consume pulse clk_sys → clk_axi
-(* ASYNC_REG = "TRUE" *) reg grp_demand_consume_axi_r0;
-(* ASYNC_REG = "TRUE" *) reg grp_demand_consume_axi_r1;
-always @(posedge s_axi_aclk or negedge rst_n_axi) begin
- if (!rst_n_axi) begin
- grp_demand_consume_axi_r0 <= 1'b0;
- grp_demand_consume_axi_r1 <= 1'b0;
- end else begin
- grp_demand_consume_axi_r0 <= grp_demand_ack_pulse_sys_w;
- grp_demand_consume_axi_r1 <= grp_demand_consume_axi_r0;
- end
-end
 
 // =============================================================================
 // Phase Y.2 — Group-Attach Reply Mailbox + GroupAck encoder REMOVED.

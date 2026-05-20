@@ -567,13 +567,9 @@ int main(int argc, char **argv)
  service_uldbod(&hal);
  }
 
- /* Phase 1E-A — RTL-parsed group-demand mailbox: drain only. Reaktion
-  * auf mm=7 läuft jetzt aus dem SW-Walker-Pfad. Wird in Phase 1E-B
-  * physisch entfernt. */
- uint32_t grp_status = tetra_reg_read(&hal, REG_GRP_DEMAND_STATUS);
- if (grp_status & 0x1u) {
- tetra_reg_write(&hal, REG_GRP_DEMAND_ACK, 0x1u);
- }
+ /* Phase 1E-B (2026-05-20) — RTL-parsed group-demand Mailbox entfernt.
+  * Reaktion auf mm=7 läuft komplett aus dem SW-Walker-Pfad
+  * (service_uldbod → react_mm7_grpid). */
 
  /* Phase 7 G.2 — CMCE-Dispatch. We share REG_UL_PDU_STATUS with
  * tetra_ul_mon (which W1Cs the sticky for logging). Instead of
@@ -636,15 +632,9 @@ int main(int argc, char **argv)
  }
  }
 
- /* Phase 1E-A — RTL-parsed demand mailbox: drain only. Reaktion auf
-  * mm=2 / mm=7 läuft jetzt vollständig im SW-Walker-Pfad (service_uldbod
-  * → react_mm2_locupd / react_mm7_grpid). Wir ACKen die alten Mailboxen
-  * weiter damit drop_cnt nicht überrollt. Wird in Phase 1E-B physisch
-  * entfernt. */
- uint32_t status = tetra_reg_read(&hal, REG_DEMAND_STATUS);
- if (status & 0x1u) {
- tetra_reg_write(&hal, REG_DEMAND_ACK, 0x1u);
- }
+ /* Phase 1E-B (2026-05-20) — RTL-parsed demand Mailbox entfernt.
+  * Reaktion auf mm=2 / mm=7 läuft vollständig im SW-Walker-Pfad
+  * (service_uldbod → react_mm2_locupd / react_mm7_grpid). */
 
  struct timespec ts;
  ts.tv_sec = 0;

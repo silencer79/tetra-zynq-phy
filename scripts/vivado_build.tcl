@@ -164,14 +164,11 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_mle_registration_fsm.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_signal_queue.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_signal_scheduler.v \
- $PROJ_DIR/rtl/lmac/tetra_ul_demand_ie_parser.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_nwrk_broadcast.v \
  $PROJ_DIR/rtl/lmac/tetra_indirect_mailbox.v \
  $PROJ_DIR/rtl/lmac/tetra_indirect_mailbox_wr.v \
- $PROJ_DIR/rtl/lmac/tetra_demand_mailbox.v \
  $PROJ_DIR/rtl/lmac/tetra_ul_demand_body_mailbox.v \
  $PROJ_DIR/rtl/lmac/tetra_reply_mailbox.v \
- $PROJ_DIR/rtl/lmac/tetra_grp_demand_mailbox.v \
  $PROJ_DIR/rtl/lmac/tetra_pre_reply_blck.v \
  $PROJ_DIR/rtl/lmac/tetra_pre_reply_slotgrant.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_pdu_builder.v \

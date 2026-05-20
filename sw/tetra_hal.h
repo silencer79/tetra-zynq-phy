@@ -247,11 +247,9 @@
 #define REG_NWRK_BCAST_CNT 0x1E4 /* RO [15:0] sticky push counter */
 #define REG_NWRK_BCAST_PERIOD_MF 0x1E8 /* R/W [4:0] auto-fire MF period */
 
-/* Phase X.1 — UL-Demand Snapshot Mailbox (extension window 0x200..0x2FC) */
-#define REG_DEMAND_STATUS 0x200 /* RO [31:16]=drop_cnt, [0]=pending */
-#define REG_DEMAND_INDEX 0x204 /* R/W [3:0] word selector 0..15 */
-#define REG_DEMAND_DATA 0x208 /* RO [31:0] indirect via INDEX */
-#define REG_DEMAND_ACK 0x20C /* W1S [0] HW-clr after consume */
+/* Phase 1E-B (2026-05-20) — alte parsed-Demand Snapshot Mailbox (0x200..0x20C)
+ * entfernt. SW walkt direkt aus der UL-Demand-Body Raw-Mailbox (Phase 1A,
+ * REG_UL_DEMAND_BODY_* @ 0x250..0x25C) via tetra_mm_demand_parser. */
 
 /* Phase X.2 — Reply-Pull Mailbox (extension window 0x220..0x230).
  * SW stages a complete D-LOC-UPDATE-ACCEPT body via the indirect window
@@ -273,31 +271,9 @@
 #define REG_REPLY_STATUS 0x22C /* RO [0] busy mirror */
 #define REG_REPLY_USE_SW 0x230 /* R/W [0] use_sw_body field-mux */
 
-/* Phase Y.1.f — Group-Attach mailbox extension window (mm=7 dispatch).
- * Demand layout (RO words read via INDEX):
- * W0 [31:24]=0xA7 magic, [20:19]=rec_count, [18]=atd_mode,
- * [17]=group_identity_report, [16:0]=resv
- * W1 [23:0]=ssi
- * W2..W4 [23:0]=gssi[0..2]
- * W5 [17:12]=at_arr (3×2bit), [11:9]=adi_arr (3×1bit), [8:0]=class_arr (3×3bit)
- * W6 [15:0]=drop_cnt (debug)
- * Reply layout (W/W via INDEX, then GO pulse):
- * W0 [23:0]=ssi
- * W1 [0]=accept_reject (0=accept, 1=reject)
- * W2 [1:0]=gid_count (0..3)
- * W3..W5 [23:0]=gssi[0..2]
- * W6 [20:15]=at_arr, [14:9]=lifetime_arr, [8:6]=adi_arr
- * W7 [8:0]=class_arr
- * W8 [1]=ns, [0]=nr (LLC stop-and-wait, alterniert pro Round-Trip pro MS) */
-#define REG_GRP_DEMAND_STATUS 0x240 /* RO [31:16]=drop_cnt, [0]=pending */
-#define REG_GRP_DEMAND_INDEX 0x244 /* R/W [3:0] word selector 0..15 */
-#define REG_GRP_DEMAND_DATA 0x248 /* RO [31:0] indirect via INDEX */
-#define REG_GRP_DEMAND_ACK 0x24C /* W1S [0] HW-clr after consume */
-
-/* Phase Y.2 — Group-Attach Reply mailbox (0x250..0x25C) and GROUPack-Pfad
- * counters (0x260..0x280) REMOVED. GroupAck-Build is in SW per Lock-
- * Decision `memory/project_arch_fpga_thin_signaling.md`; SW reuses the
- * mm=2 Reply-Pull-Mailbox (REG_REPLY_*) for raw MM-bit staging. */
+/* Phase 1E-B (2026-05-20) — alte Group-Attach Demand-Mailbox (0x240..0x24C)
+ * entfernt. mm=7 wird wie mm=2 aus dem raw-Body via SW gewalkt.
+ * GroupAck-Reply läuft weiter über die mm=2 Reply-Pull-Mailbox (REG_REPLY_*). */
 
 /* Phase 1A — UL-Demand-Body Raw-Mailbox (Slice-Cleanup Vorbereitung).
  * Snapshot des 129-bit MM-Bodys + SSI + mm_pdu_type aus tetra_ul_demand_
