@@ -237,11 +237,19 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
   * via setup_stage in tetra_call_fsm_tick (statt blockierendem
   * usleep(113ms), das daemon-Mainloop für 226 ms blockierte und
   * MS-Retransmits verzögerte). */
+ /* TIMING-DIAGNOSE: t0 = U-SETUP arrived */
+ uint32_t t0_ms = mono_ms_lo();
+ s->t_setup_arrived_ms = t0_ms;
+ s->t_first_nub_ms = 0u;
+ s->t_ceased_ms = 0u;
+ s->t_first_nub_logged = 0u;
+
  int rc = stage_d_connect(hal, s);
+ uint32_t t_conn1_ms = mono_ms_lo();
  fprintf(stderr,
  "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[1/3] "
- "call_id=%u rc=%d\n",
- ssi, s->group_gssi, s->call_id, rc);
+ "call_id=%u rc=%d  [TIMING t0+%ums]\n",
+ ssi, s->group_gssi, s->call_id, rc, t_conn1_ms - t0_ms);
  s->setup_stage = 1u; /* tick triggert D-CONNECT[2] dann [3]+D-SETUP */
  s->setup_next_ms = mono_ms_lo() + 113u;
  /* MER-Fix (2026-05-16 rev2): mask MUSS ab U-SETUP scharf sein —
@@ -287,7 +295,19 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  case CMCE_U_TX_CEASED: {
  if (s == NULL) return -1;
  s->state = CALL_STATE_CONNECTED;
- s->last_activity_poll_cnt = mono_ms_lo();
+ uint32_t t_ceased_now = mono_ms_lo();
+ if (s->t_ceased_ms == 0u) {
+ s->t_ceased_ms = t_ceased_now;
+ /* Einmalig: Latenz U-SETUP → U-TX-CEASED (= komplette PTT-Dauer
+  * vom BS-Sicht). Repeats zählen nicht (siehe MS-Retransmissions). */
+ fprintf(stderr,
+ "tetra_call_fsm: [TIMING] PTT-Dauer t0→ceased = %u ms "
+ "(t_first_nub=%u ms %s)\n",
+ t_ceased_now - s->t_setup_arrived_ms,
+ s->t_first_nub_ms ? s->t_first_nub_ms - s->t_setup_arrived_ms : 0u,
+ s->t_first_nub_ms ? "after t0" : "NEVER (no NUB)");
+ }
+ s->last_activity_poll_cnt = t_ceased_now;
  /* Talker beendet, Watchdog wird mask=0 setzen sobald relay_cnt
   * stillsteht (1.5 s). Hier mask NICHT direkt 0 setzen — Call-Slot
   * bleibt aktiv, evtl. Re-Key kommt sofort.
@@ -381,24 +401,26 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  int rc = stage_d_connect(hal, s);
  fprintf(stderr,
  "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[2/3] "
- "call_id=%u rc=%d\n",
- s->ssi, s->group_gssi, s->call_id, rc);
+ "call_id=%u rc=%d  [TIMING t0+%ums]\n",
+ s->ssi, s->group_gssi, s->call_id, rc,
+ now - s->t_setup_arrived_ms);
  s->setup_stage = 2u;
  s->setup_next_ms = now + 113u;
  } else if (s->setup_stage == 2u) {
  int rc = stage_d_connect(hal, s);
  fprintf(stderr,
  "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[3/3] "
- "call_id=%u rc=%d\n",
- s->ssi, s->group_gssi, s->call_id, rc);
+ "call_id=%u rc=%d  [TIMING t0+%ums]\n",
+ s->ssi, s->group_gssi, s->call_id, rc,
+ now - s->t_setup_arrived_ms);
  if (s->group_gssi != 0u || s->target_issi != 0u) {
  int src = stage_d_setup(hal, s);
  fprintf(stderr,
  "tetra_call_fsm: D-SETUP → %s=0x%06X "
- "call_id=%u rc=%d\n",
+ "call_id=%u rc=%d  [TIMING t0+%ums]\n",
  s->group_gssi ? "gssi": "issi",
  s->group_gssi ? s->group_gssi : s->target_issi,
- s->call_id, src);
+ s->call_id, src, mono_ms_lo() - s->t_setup_arrived_ms);
  }
  s->setup_stage = 0u;
  }
@@ -463,5 +485,29 @@ void tetra_call_fsm_dump(void)
  " [%u] ssi=0x%06X call_id=%u state=%d ns=%u nr=%u\n",
  i, g_slots[i].ssi, g_slots[i].call_id,
  (int)g_slots[i].state, g_slots[i].ns, g_slots[i].nr);
+ }
+}
+
+/* TIMING-DIAGNOSE (2026-05-20): wird vom voice_pipe_tick beim ERSTEN
+ * dekodierten NUB-Burst innerhalb eines aktiven Setup-Cycles aufgerufen.
+ * Loggt einmalig die Latenz U-SETUP → erster Voice-Burst.
+ * Falls kein Slot mit pending Setup gefunden wird, no-op. */
+void tetra_call_fsm_notify_first_nub(uint32_t now_ms)
+{
+ for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
+ call_slot_t *s = &g_slots[i];
+ if (s->ssi == 0u) continue;
+ if (s->t_first_nub_logged) continue;
+ if (s->t_setup_arrived_ms == 0u) continue;
+ /* Heuristik: NUB innerhalb 10s nach Setup-Start zählt zum Setup */
+ uint32_t age = now_ms - s->t_setup_arrived_ms;
+ if (age > 10000u) continue;
+ s->t_first_nub_ms = now_ms;
+ s->t_first_nub_logged = 1u;
+ fprintf(stderr,
+ "tetra_call_fsm: [TIMING] first NUB-burst — t0→voice = %u ms "
+ "(call_id=%u ssi=0x%06X)\n",
+ age, s->call_id, s->ssi);
+ break;
  }
 }

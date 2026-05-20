@@ -15,6 +15,7 @@
 
 #include "tetra_voice_pipe.h"
 #include "tetra_bs_tch_s.h"
+#include "tetra_call_fsm.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -170,6 +171,12 @@ int tetra_voice_pipe_tick(tetra_hal_t *hal, uint32_t target_ssi)
 
  uint8_t acelp[274];
  int bfi = tetra_bs_tch_s_decode_softi8(softs_in, scramb_init, acelp);
+
+ /* TIMING-DIAGNOSE (2026-05-20): erster erfolgreich dekodierter NUB-Burst
+  *   → Hook in call_fsm, der einmalig pro Call die Latenz t0→voice loggt. */
+ if (!bfi) {
+ tetra_call_fsm_notify_first_nub(mono_ms_lo_vp());
+ }
 
  /* Combine BFI count for A/B logging (s_bfi_h tracks hard, s_bfi soft). */
  static int s_bfi_h = 0;

@@ -66,6 +66,16 @@ typedef struct {
   * Statt usleep(113) blockierend im Mainloop. */
  uint8_t setup_stage;
  uint32_t setup_next_ms;
+ /* Setup-Timing-Diagnose (2026-05-20):
+  *   t_setup_arrived_ms = mono_ms_lo() bei U-SETUP-Empfang
+  *   t_first_nub_ms     = mono_ms_lo() bei erstem NUB-Burst nach Setup (=
+  *                        MS hat Voice-TX gestartet)
+  *   t_ceased_ms        = mono_ms_lo() bei U-TX-CEASED-Empfang
+  *   t_first_nub_logged = 1× pro Call setzen, damit Latenz nur 1× geloggt */
+ uint32_t t_setup_arrived_ms;
+ uint32_t t_first_nub_ms;
+ uint32_t t_ceased_ms;
+ uint8_t  t_first_nub_logged;
 } call_slot_t;
 
 /* Dispatch one parsed UL CMCE PDU into the FSM. Stages the appropriate
@@ -86,5 +96,12 @@ void tetra_call_fsm_tick(tetra_hal_t *hal);
 
 /* Diagnostic: print all active slots. */
 void tetra_call_fsm_dump(void);
+
+/* Setup-Timing-Hook (2026-05-20):
+ * Wird vom voice_pipe_tick beim ERSTEN dekodierten NUB-Burst innerhalb
+ * eines aktiven Call-Slots aufgerufen. Loggt einmalig die Latenz von
+ * U-SETUP-Empfang bis erster Voice-Burst — typisch erwartet 100-200 ms,
+ * "langsame" Setups zeigen sich hier als 500+ ms. */
+void tetra_call_fsm_notify_first_nub(uint32_t now_ms);
 
 #endif /* TETRA_CALL_FSM_H */
