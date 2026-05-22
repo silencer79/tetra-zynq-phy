@@ -1254,14 +1254,29 @@ def parse_mle(bits, pos):
 
     if disc == 2:  # CMCE
         if pos + 5 <= len(bits):
-            cmce_type = extract_bits(bits, pos, 5); pos += 5
+            cmce_type = extract_bits(bits, pos, 5)
             r['cmce_type'] = cmce_type
             r['cmce_name'] = CMCE_NAMES.get(cmce_type, f'Unknown({cmce_type})')
+            # Phase-1: full field-level CMCE PDU parse
+            try:
+                from tetra_cmce import parse_cmce_dl
+                r['cmce'] = parse_cmce_dl(bits, pos)
+            except ImportError:
+                pass
+            pos += 5
     elif disc == 1:  # MM
         if pos + 4 <= len(bits):
-            mm_type = extract_bits(bits, pos, 4); pos += 4
+            mm_type = extract_bits(bits, pos, 4)
             r['mm_type'] = mm_type
             r['mm_name'] = MM_NAMES.get(mm_type, f'Unknown({mm_type})')
+            # Phase-2 — full field-level MM PDU parse (BlueStation-aligned).
+            # Old parse_mm_pdu (line 1158) stays as fallback for partial coverage.
+            try:
+                from tetra_mm import parse_mm_dl as _mm_dl
+                r['mm_full'] = _mm_dl(bits, pos)
+            except ImportError:
+                pass
+            pos += 4
             r['mm'] = parse_mm_pdu(bits, pos, mm_type)
     elif disc == 5:  # MLE protocol
         if pos + 3 <= len(bits):
@@ -2096,6 +2111,24 @@ def _print_mle(prefix, mle):
     elif 'mle_prim_name' in mle:
         print(f" → {mle['mle_prim_name']}", end='')
     print()
+
+    # Phase-1 — field-level CMCE PDU dump
+    cmce = mle.get('cmce')
+    if cmce:
+        try:
+            from tetra_cmce import format_cmce
+            print(f"{prefix}    {format_cmce(cmce)}")
+        except ImportError:
+            pass
+
+    # Phase-2 — field-level MM PDU dump
+    mm_full = mle.get('mm_full')
+    if mm_full:
+        try:
+            from tetra_mm import format_mm
+            print(f"{prefix}    {format_mm(mm_full)}")
+        except ImportError:
+            pass
 
     mm = mle.get('mm')
     if mm:

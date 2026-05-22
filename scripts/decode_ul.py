@@ -415,10 +415,28 @@ def parse_ul_mle(bits, pos):
         'mle_disc_name': UL_MLE_PDU_NAMES.get(disc, '?'),
     }
     if disc == 1 and pos + 4 <= len(bits):  # MM
-        mm_type = extract_bits(bits, pos, 4); pos += 4
+        mm_type = extract_bits(bits, pos, 4)
         r['mm_type'] = mm_type
         r['mm_name'] = UL_MM_NAMES.get(mm_type, f'Unknown({mm_type})')
+        # Phase-2 — full field-level MM PDU parse
+        try:
+            from tetra_mm import parse_mm_ul as _mm_ul
+            r['mm_full'] = _mm_ul(bits, pos)
+        except ImportError:
+            pass
+        pos += 4
         r['mm'] = parse_ul_mm(bits, pos, mm_type)
+    elif disc == 2 and pos + 5 <= len(bits):  # CMCE
+        cmce_type = extract_bits(bits, pos, 5)
+        r['cmce_type'] = cmce_type
+        # Phase-1 — full field-level CMCE PDU parse
+        try:
+            from tetra_cmce import parse_cmce_ul, CMCE_UL as _CMCE_UL
+            r['cmce_name'] = _CMCE_UL.get(cmce_type, f'Unknown({cmce_type})')
+            r['cmce'] = parse_cmce_ul(bits, pos)
+        except ImportError:
+            pass
+        pos += 5
     r['payload_start'] = pos
     return r
 
@@ -428,9 +446,16 @@ def parse_ul_direct_mm(bits, pos):
     r = {}
     if pos + 4 > len(bits):
         return r
-    mm_type = extract_bits(bits, pos, 4); pos += 4
+    mm_type = extract_bits(bits, pos, 4)
     r['mm_type'] = mm_type
     r['mm_name'] = UL_MM_NAMES.get(mm_type, f'Unknown({mm_type})')
+    # Phase-2 — full field-level MM PDU parse
+    try:
+        from tetra_mm import parse_mm_ul as _mm_ul
+        r['mm_full'] = _mm_ul(bits, pos)
+    except ImportError:
+        pass
+    pos += 4
     r['mm'] = parse_ul_mm(bits, pos, mm_type)
     r['payload_start'] = pos
     return r
@@ -555,14 +580,43 @@ def format_parsed_mac_access(parsed):
                 mm = mle.get('mm', {})
                 if 'location_update_type_name' in mm:
                     seg += f"/{mm['location_update_type_name']}"
+            if 'cmce_name' in mle:
+                seg += f"/{mle['cmce_name']}"
             parts.append(f"MLE={seg}")
-        direct_mm = parsed.get('direct_mm')
-        if direct_mm:
-            seg = direct_mm.get('mm_name', '?')
-            mm = direct_mm.get('mm', {})
-            if 'location_update_type_name' in mm:
-                seg += f"/{mm['location_update_type_name']}"
-            parts.append(f"DirectMM={seg}")
+            # Phase-1 — full field-level CMCE PDU
+            cmce = mle.get('cmce')
+            if cmce:
+                try:
+                    from tetra_cmce import format_cmce
+                    parts.append(f"CMCE=[{format_cmce(cmce)}]")
+                except ImportError:
+                    pass
+            # Phase-2 — full field-level MM PDU
+            mm_full = mle.get('mm_full')
+            if mm_full:
+                try:
+                    from tetra_mm import format_mm
+                    parts.append(f"MM=[{format_mm(mm_full)}]")
+                except ImportError:
+                    pass
+        # Only print DirectMM if it's the chosen decode mode — otherwise it's
+        # a stale alt-interpretation that gets confusing alongside MLE/CMCE.
+        if parsed.get('decoded_mode') == 'direct_mm':
+            direct_mm = parsed.get('direct_mm')
+            if direct_mm:
+                seg = direct_mm.get('mm_name', '?')
+                mm = direct_mm.get('mm', {})
+                if 'location_update_type_name' in mm:
+                    seg += f"/{mm['location_update_type_name']}"
+                parts.append(f"DirectMM={seg}")
+                # Phase-2 — full field-level direct-MM PDU
+                mm_full = direct_mm.get('mm_full')
+                if mm_full:
+                    try:
+                        from tetra_mm import format_mm
+                        parts.append(f"MM=[{format_mm(mm_full)}]")
+                    except ImportError:
+                        pass
         if 'decoded_mode' in parsed:
             parts.append(f"mode={parsed['decoded_mode']}")
     return ' '.join(parts)
