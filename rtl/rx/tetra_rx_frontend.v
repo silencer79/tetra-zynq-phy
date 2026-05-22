@@ -106,7 +106,14 @@ module tetra_rx_frontend #(
  // are already full-scale; the gain would clip the entire waveform and
  // destroy the raised-cosine pulse shape needed by timing recovery.
  // ------------------------------------------------------------------
- input wire loopback_en_sys
+ input wire loopback_en_sys,
+
+ // ------------------------------------------------------------------
+ // Pack B.1 — Runtime-tunable CIC gain shift (clk_sys, 2-FF synced upstream)
+ // Range 0..6. Values > 6 are clamped internally. Default 6 reproduces
+ // the historical fixed-shift behaviour (×64 gain pre-saturation).
+ // ------------------------------------------------------------------
+ input wire [2:0] cic_gain_shf_sys
 );
 
 // =============================================================================
@@ -502,9 +509,11 @@ wire signed [CIC_BITS-1:0] q_comb5_sys = q_comb4_sys - q_comb5_z1_sys;
 // One cycle after cic_strobe, cic_valid_sys goes high.
 // ---------------------------------------------------------------------------
 
-// Wide (pre-saturation) CIC output — CIC_WIDE_BITS = 22 bits
-// RF mode: bits [45:24] → 22-bit slice with ×64 gain, then saturate to 16-bit
-// Loopback mode: bits [45:30] → 16-bit slice, no extra gain (signal already full-scale)
+// Wide (pre-saturation) CIC output — CIC_WIDE_BITS = 22 bits (max gain shift=6)
+// RF mode: bits [45:24] → 22-bit slice. The runtime-tunable cic_gain_shf_sys
+// then arithmetically shifts the slice right by (CIC_GAIN_SHF - shf) before
+// saturation to 16 bit. shf=6 → no shift (×64), shf=0 → shift 6 right (×1).
+// Loopback mode: bits [45:30] → 16-bit slice, no extra gain.
 wire signed [CIC_WIDE_BITS-1:0] i_cic_wide_sys = i_comb5_sys[CIC_BITS-1: CIC_OUT_LOW];
 wire signed [CIC_WIDE_BITS-1:0] q_cic_wide_sys = q_comb5_sys[CIC_BITS-1: CIC_OUT_LOW];
 
@@ -512,34 +521,59 @@ wire signed [CIC_WIDE_BITS-1:0] q_cic_wide_sys = q_comb5_sys[CIC_BITS-1: CIC_OUT
 wire signed [IQ_WIDTH-1:0] i_cic_unity_sys = i_comb5_sys[CIC_BITS-1: CIC_TRUNC];
 wire signed [IQ_WIDTH-1:0] q_cic_unity_sys = q_comb5_sys[CIC_BITS-1: CIC_TRUNC];
 
-// Saturation (gained path only): overflow iff the CIC_GAIN_SHF guard bits
-// differ from the sign bit.
-// Guard bits are [CIC_WIDE_BITS-2: IQ_WIDTH-1] = [20:15] — must all equal bit [21].
-wire i_pos_ovf = (!i_cic_wide_sys[CIC_WIDE_BITS-1]) && (|i_cic_wide_sys[CIC_WIDE_BITS-2:IQ_WIDTH-1]);
-wire i_neg_ovf = i_cic_wide_sys[CIC_WIDE_BITS-1] && (~&i_cic_wide_sys[CIC_WIDE_BITS-2:IQ_WIDTH-1]);
-wire q_pos_ovf = (!q_cic_wide_sys[CIC_WIDE_BITS-1]) && (|q_cic_wide_sys[CIC_WIDE_BITS-2:IQ_WIDTH-1]);
-wire q_neg_ovf = q_cic_wide_sys[CIC_WIDE_BITS-1] && (~&q_cic_wide_sys[CIC_WIDE_BITS-2:IQ_WIDTH-1]);
+// Clamp runtime gain shift to 0..6 (CIC_GAIN_SHF)
+wire [2:0] cic_gain_shf_clamped = (cic_gain_shf_sys > 3'd6) ? 3'd6 : cic_gain_shf_sys;
+wire [2:0] cic_gain_rshift      = 3'd6 - cic_gain_shf_clamped;
+
+// Pipeline-Stage CIC-0: register the shifted slice before the saturation
+// network. Avoids the long combinational path (comb5 → wide slice → barrel
+// shifter → saturation compare → mux) that violated setup timing when the
+// shift moved from a localparam to a runtime input.
+reg signed [CIC_WIDE_BITS-1:0] i_cic_shifted_r, q_cic_shifted_r;
+reg                            cic_shifted_valid_r;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ i_cic_shifted_r     <= {CIC_WIDE_BITS{1'b0}};
+ q_cic_shifted_r     <= {CIC_WIDE_BITS{1'b0}};
+ cic_shifted_valid_r <= 1'b0;
+ end else begin
+ i_cic_shifted_r     <= i_cic_wide_sys >>> cic_gain_rshift;
+ q_cic_shifted_r     <= q_cic_wide_sys >>> cic_gain_rshift;
+ cic_shifted_valid_r <= cic_strobe_sys;
+ end
+end
+
+// Saturation: overflow iff guard bits [20:15] differ from sign bit [21].
+wire i_pos_ovf = (!i_cic_shifted_r[CIC_WIDE_BITS-1]) && (|i_cic_shifted_r[CIC_WIDE_BITS-2:IQ_WIDTH-1]);
+wire i_neg_ovf = i_cic_shifted_r[CIC_WIDE_BITS-1] && (~&i_cic_shifted_r[CIC_WIDE_BITS-2:IQ_WIDTH-1]);
+wire q_pos_ovf = (!q_cic_shifted_r[CIC_WIDE_BITS-1]) && (|q_cic_shifted_r[CIC_WIDE_BITS-2:IQ_WIDTH-1]);
+wire q_neg_ovf = q_cic_shifted_r[CIC_WIDE_BITS-1] && (~&q_cic_shifted_r[CIC_WIDE_BITS-2:IQ_WIDTH-1]);
 
 wire signed [IQ_WIDTH-1:0] i_cic_gained =
  i_pos_ovf ? {1'b0, {(IQ_WIDTH-1){1'b1}}}: // +32767
  i_neg_ovf ? {1'b1, {(IQ_WIDTH-1){1'b0}}}: // -32768
- i_cic_wide_sys[IQ_WIDTH-1:0];
+ i_cic_shifted_r[IQ_WIDTH-1:0];
 
 wire signed [IQ_WIDTH-1:0] q_cic_gained =
  q_pos_ovf ? {1'b0, {(IQ_WIDTH-1){1'b1}}}:
  q_neg_ovf ? {1'b1, {(IQ_WIDTH-1){1'b0}}}:
- q_cic_wide_sys[IQ_WIDTH-1:0];
+ q_cic_shifted_r[IQ_WIDTH-1:0];
 
-// Mux: loopback → unity gain; RF → ×64 gain with saturation
+// Mux: loopback → unity gain (still combinational from comb5); RF → registered
+// shifted output saturated. The loopback path stays single-cycle as before
+// because unity-gain has no barrel shift.
 wire signed [IQ_WIDTH-1:0] i_cic_sat = loopback_en_sys ? i_cic_unity_sys: i_cic_gained;
 wire signed [IQ_WIDTH-1:0] q_cic_sat = loopback_en_sys ? q_cic_unity_sys: q_cic_gained;
 
-// Pipeline Stage CIC-1: register CIC output
+// Pipeline Stage CIC-1: register CIC output. The Pack B.1 shift register
+// (i_cic_shifted_r) sits one cycle BEFORE this stage, so latch on the
+// pipelined strobe `cic_shifted_valid_r` rather than the raw `cic_strobe_sys`
+// to keep alignment.
 reg signed [IQ_WIDTH-1:0] i_cic_out_sys;
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
  i_cic_out_sys <= {IQ_WIDTH{1'b0}};
- else if (cic_strobe_sys)
+ else if (cic_shifted_valid_r)
  i_cic_out_sys <= i_cic_sat;
 end
 
@@ -547,15 +581,17 @@ reg signed [IQ_WIDTH-1:0] q_cic_out_sys;
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
  q_cic_out_sys <= {IQ_WIDTH{1'b0}};
- else if (cic_strobe_sys)
+ else if (cic_shifted_valid_r)
  q_cic_out_sys <= q_cic_sat;
 end
 
-// Valid flag: 1 cycle after cic_strobe (aligned with cic_out registers)
+// Valid flag: aligned with cic_out registers. Pack B.1 added the
+// cic_shifted_valid_r pipeline stage, so cic_valid_sys now follows
+// cic_shifted_valid_r (one extra cycle vs. pre-Pack-B layout).
 reg cic_valid_sys;
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys) cic_valid_sys <= 1'b0;
- else cic_valid_sys <= cic_strobe_sys;
+ else cic_valid_sys <= cic_shifted_valid_r;
 end
 
 // =============================================================================

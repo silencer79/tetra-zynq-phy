@@ -50,6 +50,12 @@ module tetra_rx_chain #(
  input wire [CORR_WIDTH-1:0] corr_threshold_sys,
  input wire [1:0] seq_select_sys,
 
+ // Pack B.1 — CIC gain shift (runtime-tunable). 2-FF-resynced upstream.
+ input wire [2:0] cic_gain_shf_sys,
+
+ // Pack B.2 — UL-RA sync detector threshold (separate from DL corr_threshold).
+ input wire [CORR_WIDTH-1:0] ul_ra_sync_thresh_sys,
+
  // Digital loopback mode — bypasses CIC ×64 gain in rx_frontend
  input wire loopback_en_sys,
 
@@ -92,6 +98,10 @@ module tetra_rx_chain #(
  output wire ul_sync_found_sys,
  output wire [CORR_WIDTH-1:0] ul_corr_peak_sys,
  output wire [1:0] ul_best_phase_sys,
+
+ // Pack B.3 — UL-RA burst-capture diagnostics
+ output wire        ul_burst_capture_busy_sys,
+ output wire [15:0] ul_burst_captured_cnt_sys,
 
  // -------------------------------------------------------------------------
  // Phase C/E2 — UL TCH/S NUB sync + capture (parallel to RA-path above).
@@ -236,7 +246,8 @@ tetra_rx_frontend #(
 .i_out_sys (fe_i_sys),
 .q_out_sys (fe_q_sys),
 .out_valid_sys(fe_valid_sys),
-.loopback_en_sys(loopback_en_sys)
+.loopback_en_sys(loopback_en_sys),
+.cic_gain_shf_sys(cic_gain_shf_sys)
 );
 
 // =============================================================================
@@ -312,7 +323,7 @@ tetra_ul_sync_detect_os4 #(
 .i_in_sys (fe_i_sys),
 .q_in_sys (fe_q_sys),
 .valid_in_sys (fe_valid_sys),
-.corr_threshold_sys (corr_threshold_sys),
+.corr_threshold_sys (ul_ra_sync_thresh_sys), // Pack B.2 — separat von DL
 .sync_found_sys (ul_sync_found_sys),
 .corr_peak_sys (ul_corr_peak_sys),
 .best_phase_sys (ul_best_phase_sys)
@@ -351,8 +362,8 @@ tetra_ul_burst_capture #(
 .iq_first_sys (ul_cap_first_sys),
 .iq_last_sys (ul_cap_last_sys),
 .iq_half_sys (ul_cap_half_sys),
-.capture_busy_sys (),
-.bursts_captured_sys()
+.capture_busy_sys (ul_burst_capture_busy_sys),
+.bursts_captured_sys(ul_burst_captured_cnt_sys)
 );
 
 // =============================================================================

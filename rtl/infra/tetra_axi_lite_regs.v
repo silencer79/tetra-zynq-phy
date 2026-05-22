@@ -543,6 +543,15 @@ module tetra_axi_lite_regs (
  input wire [15:0] voice_relay_cnt_axi,
  output reg [31:0] voice_nub_sync_thresh_axi,
 
+ /* Pack B — UL-RX-Pipeline Diagnose + Tuning (Bank-1 0x290..0x298).
+ * REG_RX_CIC_GAIN_SHF    @ 0x290 R/W [2:0] CIC output gain shift (default 6, range 0..6)
+ * REG_UL_RA_SYNC_THRESH  @ 0x294 R/W [5:0] UL-RA sync detector threshold (default 13)
+ * REG_UL_RA_RX_STATUS    @ 0x298 RO  {15'd0, capture_busy, captured_cnt[15:0]} */
+ output reg [31:0] rx_cic_gain_shf_axi,
+ output reg [31:0] ul_ra_sync_thresh_axi,
+ input wire [15:0] ul_burst_captured_cnt_axi,
+ input wire        ul_burst_capture_busy_axi,
+
  // ------------------------------------------------------------------
  // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
  // 144 words, each word packs TWO 16-bit schedule entries.
@@ -850,6 +859,10 @@ localparam [6:0] REG_VOICE_NUB_READ_INDEX  = 7'h20; // 0x280 R/W [3:0] word sele
 localparam [6:0] REG_VOICE_NUB_READ_DATA   = 7'h21; // 0x284 RO  [31:0] indirect via INDEX
 localparam [6:0] REG_VOICE_NUB_READ_STATUS = 7'h22; // 0x288 RO  [0] valid mirror
 localparam [6:0] REG_VOICE_NUB_READ_ACK    = 7'h23; // 0x28C W1S [0] ack — clear valid
+// Pack B — UL-RX-Pipeline Diagnose + Tuning (0x290..0x298, Bank-1)
+localparam [6:0] REG_RX_CIC_GAIN_SHF   = 7'h24; // 0x290 R/W [2:0] CIC gain shift (def 6)
+localparam [6:0] REG_UL_RA_SYNC_THRESH = 7'h25; // 0x294 R/W [5:0] UL-RA sync threshold (def 13)
+localparam [6:0] REG_UL_RA_RX_STATUS   = 7'h26; // 0x298 RO  {15'd0, busy, captures[15:0]}
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -1247,6 +1260,12 @@ always @(*) begin
  REG_VOICE_NUB_READ_DATA: rdata_mux_axi = vnub_rdata_axi_i;
  REG_VOICE_NUB_READ_STATUS: rdata_mux_axi = {31'd0, vnub_valid_axi_i};
  REG_VOICE_NUB_READ_ACK: rdata_mux_axi = {31'd0, vnub_ack_trigger_r};
+ // Pack B — UL-RX-Pipeline Diagnose + Tuning
+ REG_RX_CIC_GAIN_SHF:   rdata_mux_axi = rx_cic_gain_shf_axi;
+ REG_UL_RA_SYNC_THRESH: rdata_mux_axi = ul_ra_sync_thresh_axi;
+ REG_UL_RA_RX_STATUS:   rdata_mux_axi = {15'd0,
+                                          ul_burst_capture_busy_axi,
+                                          ul_burst_captured_cnt_axi};
  default: rdata_mux_axi = 32'd0;
  endcase
  end
@@ -1465,6 +1484,36 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
  if (wr_strb_axi[1]) voice_nub_sync_thresh_axi[15: 8] <= wr_data_axi[15: 8];
  if (wr_strb_axi[2]) voice_nub_sync_thresh_axi[23:16] <= wr_data_axi[23:16];
  if (wr_strb_axi[3]) voice_nub_sync_thresh_axi[31:24] <= wr_data_axi[31:24];
+ end
+end
+
+// ---- REG_RX_CIC_GAIN_SHF (0x290, Bank-1) — Pack B.1 ----
+// Default 4 (= ×16) — Air-Test 2026-05-22 zeigte CRC-Rate sprung von ~16 %
+// (×64) auf ~25 % (×16). ×8 zu niedrig (MS-PTT abgewiesen). Tunable 0..6;
+// Werte >6 werden in rx_frontend auf 6 gekappt.
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ rx_cic_gain_shf_axi <= 32'd4;
+ else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_RX_CIC_GAIN_SHF)) begin
+ if (wr_strb_axi[0]) rx_cic_gain_shf_axi[ 7: 0] <= wr_data_axi[ 7: 0];
+ if (wr_strb_axi[1]) rx_cic_gain_shf_axi[15: 8] <= wr_data_axi[15: 8];
+ if (wr_strb_axi[2]) rx_cic_gain_shf_axi[23:16] <= wr_data_axi[23:16];
+ if (wr_strb_axi[3]) rx_cic_gain_shf_axi[31:24] <= wr_data_axi[31:24];
+ end
+end
+
+// ---- REG_UL_RA_SYNC_THRESH (0x294, Bank-1) — Pack B.2 ----
+// Default 15 — Air-Test 2026-05-22 zeigte CRC-Rate-Sprung von ~25 %
+// (thresh=13) auf ~93 % (thresh=15) bei gleichem gain=4. Höherer Threshold
+// = weniger noise-false-positives, jeder Sync sauberer.
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ ul_ra_sync_thresh_axi <= 32'd15;
+ else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_UL_RA_SYNC_THRESH)) begin
+ if (wr_strb_axi[0]) ul_ra_sync_thresh_axi[ 7: 0] <= wr_data_axi[ 7: 0];
+ if (wr_strb_axi[1]) ul_ra_sync_thresh_axi[15: 8] <= wr_data_axi[15: 8];
+ if (wr_strb_axi[2]) ul_ra_sync_thresh_axi[23:16] <= wr_data_axi[23:16];
+ if (wr_strb_axi[3]) ul_ra_sync_thresh_axi[31:24] <= wr_data_axi[31:24];
  end
 end
 

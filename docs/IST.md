@@ -1,21 +1,57 @@
 # IST — tetra-zynq-phy Code-State
 
-**Stand:** 2026-05-19
+**Stand:** 2026-05-22
 **Branch:** `refactor/phase-7-groupcall`
-**Letzter Commit:** `d0f266d feat(webui): Phase B — live status dashboard with RSSI/BFI/MER`
-**Working-Tree:** clean (Submodule `tetra-bluestation` dirty, `scripts/vcxo_cal.sh` IP-Fix uncommitted, `sw/test_bs_codec.c` + `tetra-kit/` untracked — keine kritischen RTL/SW-Diffs)
-**Build-Artefakt:** `build/tetra_zynq_phy.bit.bin` (Phase-E2-Build vom 2026-05-18, MD5 `44af4da62168a89f2bc4e87ab22bd833`)
-**Vivado-Stand nach E2:** Slice **98.10 %**, LUT 71.61 %, FF 43.61 %, **WNS +0.114 ns** (positiv, knapp)
+**Letzter Commit (HEAD):** `7c8614e feat(rtl,sw): Move 3+4 — RTL-DL-Pipeline raus, SW baut komplette 432-bit PDUs`
+**Working-Tree (uncommitted):** Pack B — Amplitude-Robustheit. RTL: `tetra_axi_lite_regs.v` (REG_RX_CIC_GAIN_SHF, REG_UL_RA_SYNC_THRESH, REG_UL_RA_RX_STATUS), `tetra_rx_frontend.v` (dynamische Shift+Sat mit Pipeline-Register), `tetra_rx_chain.v`, `tetra_zynq_top.v` (CDC + Wiring). SW: `sw/tetra_hal.h` (Defines), `sw/web/*` (RX-Gain/AGC-Mode + CIC-Gain-Shift + UL-RA-Sync-Threshold Controls), `board_autostart/tetra_autostart.sh` (devmem auf Boot).
+**Deployed Build-Artefakt:** `build/tetra_zynq_phy.bit.bin` (Pack B Build, 2026-05-22)
+**Vivado-Stand Pack B:** Slice **93.56 %**, LUT **57.03 %**, **WNS +0.018 ns** (positiv, met)
+**Pack A Stufe 2b/2c (AGC-Freeze + Power-Detect):** FALSIFIZIERT 2026-05-22 (CRC-Streuung 9–39 % bei identischen Settings, revertiert).
+**Pack B (Amplitude + Sync-Separation):** BREAKTHROUGH 2026-05-22. Air-Test CRC-Rate von ~27 % Baseline → **93 % reproduzierbar** mit gain_shf=4 (×16) und ul_ra_sync_thresh=15 (separat von DL-Threshold=13). Reviewer-Hypothese bestätigt: das CIC×64-Gain saturierte UL-Bursts bei AGC-Transienten; gekoppelter DL+UL-Threshold ließ noise-syncs durch.
 
 Diese Dokumentation beschreibt was der Code **TUT**, nicht was er tun **sollte**. Keine Pläne, keine Bewertungen, keine ETSI-Spec-Vergleiche. Reiner IST-Stand zum Stichtag.
 
-## Änderungen seit 2026-05-14
+## Änderungen seit 2026-05-19 (post-E2-Phase)
 
-Voice-Pfad live (Phase 7 G.8+), Soft-Decisions @ NUB-Capture (E2), SW-resident
-BS-Codec, persistent WebUI gekoppelt mit Conf-File, Live-Status-Dashboard.
+**Slice-Cleanup-Phase 1E + Move 3+4:** UL-Demand-IE-Parser + RTL-DL-Pipeline +
+MLE-Registration-FSM komplett nach SW verschoben. -8 RTL-Files, -7220 LUT, Slice
+**98.10 % → 92.56 %** (-5.5 pp Headroom für nächste RTL-Schritte).
+
+**Pack A RTL-Versuche 2026-05-21 (alle REVERTIERT, kein Win):**
+
+| Versuch | Commit-Stand | Live-Befund | Status |
+|---|---|---|---|
+| Soft-Decisions UL (`SOFT_SHIFT=24`) | reverted | CRC 28 % ≈ Baseline 29 % | reverted, Diagnostic-Tap bleibt |
+| CFO-Korrektur (CORDIC+DDS IPs) | reverted | konvergiert auf -6 kHz (27× ETSI-Spec), BFI unverändert | reverted |
+| Digital AGC nach RRC im FPGA | reverted | shift saturiert → MS bucht nicht ein | reverted |
+| AD9361 slow_attack/hybrid AGC | reverted | MS bucht aus | reverted |
+| AD9361 FIR-Filter aktivieren | nicht umgesetzt | TETRA-Coeffs fehlen, ~2 Tage Aufwand | aufgeschoben |
+
+**Diagnose 2026-05-22 (UL-Decoder Root-Cause):**
+
+71 % CRC-Fail bei UL-Signaling-Decode trotz perfekter Sync (corr_peak=15/15).
+Root-Cause: AD9361-AGC update-interval = 1 ms = 18 Symbole, RA-Burst = 7 ms.
+→ 7 AGC-Steps mitten im Burst, 46 dB Gain-Swing zwischen Idle (rssi=120, gain=73)
+und Burst-aktiv (rssi=39, gain=20). Differential-π/4-DQPSK-Demod liest verzerrte
+Magnitudes → bit-flips → Viterbi commits zu falschem Pfad → CRC fail.
+
+**AGC-Freeze-Konzept FALSIFIZIERT 2026-05-22 (revertiert):** Mehrere Varianten
+gebaut (sync-trigger, Power-Detect, Power-Detect+Settle-FSM, threshold-sweep,
+AD9361-update-interval). CRC-Rate schwankte 9–39 % bei identischen Settings,
+nie deutlich über Baseline 27 %. AGC-Freeze-RTL + Power-Detect-RTL aus dem
+Code entfernt. WebUI-Controls (RX-Gain + AGC-Mode) bleiben drin.
+
+### Commits 2026-05-14..05-22
 
 | Commit | Was | Wo dokumentiert |
 |--------|-----|-----------------|
+| `7c8614e` (2026-05-21) | **feat: Move 3+4 — RTL-DL-Pipeline raus, SW baut 432-bit PDUs** | Ch 7 (raw-PDU mailbox), Ch 9 (dl_pdu_builder.c) |
+| `469bb10` (2026-05-21) | feat WIP Move 3+4 — SW DL-PDU builder + raw-PDU mailbox | Ch 9 |
+| `998bdb3` (2026-05-20) | feat Phase 1E-B — RTL-Parser + parsed-Mailboxen raus, SW walkt komplett | Ch 7, Ch 9 |
+| `f0e4f8f` (2026-05-20) | feat Phase 1E-A — SW-Walker reagiert direkt | Ch 9 |
+| `1a4633f`, `2dc0891`, `7041ae2` (2026-05-19/20) | Phase 1A/1B/1C — ul_demand_body_mailbox + SW-Parser-Port | Ch 7 |
+| `e9f06a3` (2026-05-19) | feat(debug): PTT setup-timing instrumentation | Ch 9 |
+| `bdfb38e`, `f2abbf2`, `26aec22`, `2594a91`, `c396ac5` (2026-05-19) | docs sweep — IP-Korrektur, post-E2 WNS/Slice, AST-historisch | docs/* |
 | `0f6d8b0`, `2ceb141` | feat(phase c): voice-channel relay pipeline (UL-NUB → DL-NDB1) + FN 1-9 gate | Ch 4 (UL voice capture), Ch 5 (vfill DL path) |
 | `7e18b7b` | fix(mer): VOICE_ACTIVE_MASK gating + watchdog (MER 0 % im Idle) | Ch 9 (call_fsm), Ch 8 (REG_VOICE_ACTIVE_MASK) |
 | `00228e7` | fix(mer): NUB-thresh=10 (default 8 → 10) + nub_rx-Heartbeat | Ch 9 (attach_daemon init), Ch 8 (REG_VOICE_NUB_SYNC_THRESH) |
@@ -34,11 +70,13 @@ BS-Codec, persistent WebUI gekoppelt mit Conf-File, Live-Status-Dashboard.
 
 Neu dokumentationswürdig (siehe entsprechende Kapitel):
 - **Phase E2 Soft-Decisions** — 4-bit signed soft pro Coded-Bit aus `tetra_ul_nub_capture.v`, 54-Word-Mailbox, SW `decode_softi8()`. BFI im Median ~6 % → ~3 % im Air-Test, im Sweetspot 7× besser (Ch 4 + Ch 9)
-- **WebUI Persistent Config** — `/root/tetra_cell.conf` ist single source of truth, vom Autostart UND apply.cgi gelesen/geschrieben. Editierbare Duplex-Spacing-Tabelle (Ch 10)
-- **Live Status Dashboard** — Auto-Refresh-Tab im WebUI mit RSSI/BFI/MER-Proxy aus voice_pipe-Log + AD9361 sysfs + FPGA-AXI-Counter (Ch 10)
+- **Move 2 (Phase 1E)** — UL-Demand-IE-Parser + parsed-Mailboxen komplett in SW. `attach_daemon` walkt direkt die Demand-Body-Mailbox. -3 379 LUT, -0.8 pp Slice (Ch 6 deprecated, Ch 9 mm-demand walker)
+- **Move 3+4** — DL-PDU-Builder (incl. MAC-Resource-Header + LLC + SCH/F-Encode) + MLE-Registration-FSM komplett in SW. 8 RTL-Files entfernt, neue raw-PDU-Push-Mailbox. -3 841 LUT, -5.08 pp Slice. (Ch 5 deprecated, Ch 7 raw-pdu mailbox, Ch 9 dl_pdu_builder.c)
+- **WebUI Persistent Config + Live Dashboard** — `/root/tetra_cell.conf` ist single source of truth. Auto-Refresh-Tab mit RSSI/BFI/MER-Proxy (Ch 10). Seit 2026-05-21 erweitert um RX-Gain + AGC-Mode Live-Controls (uncommitted)
 - **SW-resident BS-TCH/S codec** — `sw/etsi_codec/`, `sw/tetra_bs_tch_s.{c,h}`, `sw/tetra_voice_pipe.c`, `sw/tetra_voice_filler.c` (Ch 9)
-- **Vivado-Bilanz aktuell** — Slice 98.10 % (+1.13 pp durch E2 Pipeline-FFs), WNS +0.114 ns (Ch 11)
-- **D-CONNECT-Retransmit-Rate** — 3/10 (30 %) U-SETUPs erleben Retransmit, worst 3.6 s PTT-bis-Audio (Ch 12). 4-Run-PTT-Test 2026-05-19: U-SETUP-Retries NICHT mehr beobachtet (1 PTT = 1 U-SETUP)
+- **Vivado-Bilanz aktuell** — Slice 92.56 %, LUT 57.43 %, WNS +0.006 ns (Ch 11)
+- **AGC-Freeze (uncommitted, im Build)** — `tetra_ul_agc_freeze.v` neuer Block + IOBUF-Override `tetra_system_top.v` + BD-Port `o_ad9361_en_agc` (Ch 0 zynq_top wiring, Ch 4 sync_found taps)
+- **UL-Decoder-Diagnose** — Sync findet alles (15/15), aber 71 % CRC-Fail. Root-Cause AGC-Swing mitten im Burst. Drei RTL-Versuche (Soft/CFO/Dig-AGC) reverted (Ch 4 + Ch 12)
 
 ## Kapitel-Übersicht
 

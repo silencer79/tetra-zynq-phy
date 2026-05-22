@@ -326,6 +326,20 @@
 #define REG_VOICE_RELAY_CNT 0x264
 #define REG_VOICE_NUB_SYNC_THRESH 0x268
 
+/* Pack B — UL-RX-Pipeline Diagnose + Tuning (Bank-1 0x290..0x298).
+ * REG_RX_CIC_GAIN_SHF   R/W [2:0] CIC gain shift (default 6, range 0..6)
+ *                       6 = ×64 (historisch fix), 0 = unity. Live-tune
+ *                       via devmem; nach Wechsel CRC/sync_cnt vergleichen.
+ * REG_UL_RA_SYNC_THRESH R/W [5:0] UL-RA-Korrelator-Threshold (default 13)
+ *                       Separat von DL REG_SYNC_THRESH @ 0x0C.
+ * REG_UL_RA_RX_STATUS   RO  {15'd0, capture_busy, captured_cnt[15:0]}
+ *                       capture_busy = 1 während ein RA-Burst gerade
+ *                       gestreamt wird; captured_cnt = Bursts seit Boot,
+ *                       saturiert bei 0xFFFF. */
+#define REG_RX_CIC_GAIN_SHF   0x290
+#define REG_UL_RA_SYNC_THRESH 0x294
+#define REG_UL_RA_RX_STATUS   0x298
+
 /* Phase 7 G.8 — Voice-Slot Filler-Mailbox (Bank-1 0x270..0x27C).
  * Bit-pipe for SW-encoded SCH/F type-5 burst (432 bits). SW writes
  * W0..W13 via INDEX+DATA (LSB-first packing within each word), sets

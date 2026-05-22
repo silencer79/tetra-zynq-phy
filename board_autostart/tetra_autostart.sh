@@ -33,6 +33,10 @@ fi
 # shellcheck disable=SC1090
 source "$CONF"
 
+# Pack B — UL-RX-Pipeline tuning (optional, fall back to RTL defaults)
+RX_CIC_GAIN_SHF=${RX_CIC_GAIN_SHF:-4}
+UL_RA_SYNC_THRESH=${UL_RA_SYNC_THRESH:-15}
+
 # Required vars sanity-check
 for v in RX_FREQ_HZ TX_FREQ_HZ SAMPLERATE_HZ RF_BW_HZ GAIN_MODE \
          TX_ATT_INIT_DB TX_ATT_OP_DB VCXO_DAC_VAL XO_CORRECTION_HZ \
@@ -191,9 +195,14 @@ echo 1 > /sys/class/gpio/gpio${CS}/value
 # -----------------------------------------------------------------------------
 # 10: REG_DB_POLICY + devmem symlink (für tetra_attach_daemon)
 # -----------------------------------------------------------------------------
-echo "--- 10/12 REG_DB_POLICY + devmem symlink ---"
+echo "--- 10/12 REG_DB_POLICY + devmem symlink + Pack B tuning ---"
 ln -sf /usr/bin/busybox /usr/bin/devmem
 busybox devmem 0x43C001AC 32 "$DB_POLICY"
+
+# Pack B — UL-RX-Pipeline AXI tuning. Overrides RTL defaults if conf-set.
+busybox devmem 0x43C00290 32 "$RX_CIC_GAIN_SHF"     # REG_RX_CIC_GAIN_SHF
+busybox devmem 0x43C00294 32 "$UL_RA_SYNC_THRESH"   # REG_UL_RA_SYNC_THRESH
+echo "       CIC_GAIN_SHF=$RX_CIC_GAIN_SHF UL_RA_SYNC_THRESH=$UL_RA_SYNC_THRESH"
 
 # DB seed wenn /root/db.tsv fehlt
 [ -f /root/db.tsv ] || [ ! -f /root/db.tsv.default ] || cp /root/db.tsv.default /root/db.tsv

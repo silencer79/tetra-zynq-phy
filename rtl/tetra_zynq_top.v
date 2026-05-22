@@ -261,6 +261,11 @@ wire [31:0] voice_nub_sync_thresh_axi_w;
 wire [1727:0] voice_nub_coded_softs_sys_w;
 wire voice_nub_coded_valid_sys_w;
 wire [15:0] voice_nub_rx_cnt_sys_w;
+// Pack B — runtime config + diagnostics
+wire [31:0] rx_cic_gain_shf_axi_w;
+wire [31:0] ul_ra_sync_thresh_axi_w;
+wire        ul_burst_capture_busy_sys_w;
+wire [15:0] ul_burst_captured_cnt_sys_w;
 // Phase 7 G.8 — relay_cnt deprecated; tied to 0 since voice_relay was
 // removed. SW reads REG_VOICE_RELAY_CNT @ 0x264 = always 0.
 wire [15:0] voice_relay_cnt_sys_w = 16'd0;
@@ -536,6 +541,10 @@ tetra_rx_chain #(
  // config from AXI-Lite (clk_axi ≈ clk_sys — no CDC for single-source clock)
 .corr_threshold_sys ({16'd0, sync_thresh_axi}), // zero-extend 8→24-bit
 .seq_select_sys (2'd2), // STS — DL SDB detection; UL uses tetra_ul_sync_detect_os4 (parallel)
+ // Pack B.1 — CIC gain shift (2-FF synced clk_axi → clk_sys below)
+.cic_gain_shf_sys (rx_cic_gain_shf_sys_r1[2:0]),
+ // Pack B.2 — UL-RA sync threshold separate from DL
+.ul_ra_sync_thresh_sys ({18'd0, ul_ra_sync_thresh_sys_r1[5:0]}),
 .loopback_en_sys (ctrl_loopback_en_sys), // bypass CIC gain in digital loopback
 .block1_out_sys (rx_block1_sys),
 .block2_out_sys (rx_block2_sys),
@@ -559,6 +568,9 @@ tetra_rx_chain #(
 .ul_sync_found_sys (ul_sync_found_sys),
 .ul_corr_peak_sys (ul_corr_peak_sys),
 .ul_best_phase_sys (ul_best_phase_sys),
+ // Pack B.3 — UL-RA burst-capture diagnostics
+.ul_burst_capture_busy_sys (ul_burst_capture_busy_sys_w),
+.ul_burst_captured_cnt_sys (ul_burst_captured_cnt_sys_w),
  // UL RA-burst decoder pipeline (Task #37)
 .ul_scramb_init_sys (ul_scramb_init_sys),
 .ul_pdu_valid_sys (ul_pdu_valid_sys),
@@ -1522,6 +1534,16 @@ wire ul_pdu_valid_axi_pulse = ul_pdu_tgl_axi_r1 ^ ul_pdu_tgl_axi_r2;
 (* ASYNC_REG = "TRUE" *) reg [15:0] voice_nub_rx_cnt_axi_r1;
 (* ASYNC_REG = "TRUE" *) reg [15:0] voice_relay_cnt_axi_r0;
 (* ASYNC_REG = "TRUE" *) reg [15:0] voice_relay_cnt_axi_r1;
+// Pack B.3 — UL-RA burst-capture counters, resynced clk_sys → clk_axi
+(* ASYNC_REG = "TRUE" *) reg [15:0] ul_burst_captured_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] ul_burst_captured_cnt_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg        ul_burst_capture_busy_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg        ul_burst_capture_busy_axi_r1;
+// Pack B.1/B.2 — config registers, resynced clk_axi → clk_sys
+(* ASYNC_REG = "TRUE" *) reg [2:0]  rx_cic_gain_shf_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [2:0]  rx_cic_gain_shf_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [5:0]  ul_ra_sync_thresh_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [5:0]  ul_ra_sync_thresh_sys_r1;
 
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  if (!rst_n_axi) begin
@@ -1559,6 +1581,10 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  voice_nub_rx_cnt_axi_r1 <= 16'd0;
  voice_relay_cnt_axi_r0 <= 16'd0;
  voice_relay_cnt_axi_r1 <= 16'd0;
+ ul_burst_captured_cnt_axi_r0 <= 16'd0;
+ ul_burst_captured_cnt_axi_r1 <= 16'd0;
+ ul_burst_capture_busy_axi_r0 <= 1'b0;
+ ul_burst_capture_busy_axi_r1 <= 1'b0;
  end else begin
  ul_pdu_type_axi_r0 <= ul_pdu_type_sys;
  ul_pdu_type_axi_r1 <= ul_pdu_type_axi_r0;
@@ -1603,6 +1629,26 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  voice_nub_rx_cnt_axi_r1 <= voice_nub_rx_cnt_axi_r0;
  voice_relay_cnt_axi_r0 <= voice_relay_cnt_sys_w;
  voice_relay_cnt_axi_r1 <= voice_relay_cnt_axi_r0;
+ // Pack B.3 — UL-RA burst-capture counters; clk_sys → clk_axi
+ ul_burst_captured_cnt_axi_r0 <= ul_burst_captured_cnt_sys_w;
+ ul_burst_captured_cnt_axi_r1 <= ul_burst_captured_cnt_axi_r0;
+ ul_burst_capture_busy_axi_r0 <= ul_burst_capture_busy_sys_w;
+ ul_burst_capture_busy_axi_r1 <= ul_burst_capture_busy_axi_r0;
+ end
+end
+
+// Pack B.1/B.2 — config CDC: clk_axi → clk_sys (single-source-clock, 2-FF safe)
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ rx_cic_gain_shf_sys_r0   <= 3'd4;
+ rx_cic_gain_shf_sys_r1   <= 3'd4;
+ ul_ra_sync_thresh_sys_r0 <= 6'd15;
+ ul_ra_sync_thresh_sys_r1 <= 6'd15;
+ end else begin
+ rx_cic_gain_shf_sys_r0   <= rx_cic_gain_shf_axi_w[2:0];
+ rx_cic_gain_shf_sys_r1   <= rx_cic_gain_shf_sys_r0;
+ ul_ra_sync_thresh_sys_r0 <= ul_ra_sync_thresh_axi_w[5:0];
+ ul_ra_sync_thresh_sys_r1 <= ul_ra_sync_thresh_sys_r0;
  end
 end
 
@@ -1988,6 +2034,11 @@ tetra_axi_lite_regs u_axi_regs (
 .voice_nub_rx_cnt_axi (voice_nub_rx_cnt_axi_r1),
 .voice_relay_cnt_axi (voice_relay_cnt_axi_r1),
 .voice_nub_sync_thresh_axi (voice_nub_sync_thresh_axi_w),
+ // Pack B — UL-RX-Pipeline Diagnose + Tuning
+.rx_cic_gain_shf_axi       (rx_cic_gain_shf_axi_w),
+.ul_ra_sync_thresh_axi     (ul_ra_sync_thresh_axi_w),
+.ul_burst_captured_cnt_axi (ul_burst_captured_cnt_axi_r1),
+.ul_burst_capture_busy_axi (ul_burst_capture_busy_axi_r1),
  // Phase X.4 — ast_ttl_multiframes_axi/ast_ttl_evict_cnt_axi removed (AST in SW)
  // Phase 7 F.3 — UL-Demand reassembly counters + T0 config
 .reass_reassembled_cnt_axi (reass_reassembled_cnt_axi_r1),
