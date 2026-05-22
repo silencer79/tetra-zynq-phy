@@ -436,6 +436,23 @@ def parse_u_alert(bits, start=0) -> dict:
 # ---------------------------------------------------------------------------
 # Dispatchers
 # ---------------------------------------------------------------------------
+def _parse_d_sds_data_wrap(bits, start=0):
+    """Phase 4 — D-SDS-DATA via tetra_sds. Imported lazily."""
+    try:
+        from tetra_sds import parse_d_sds_data
+        return parse_d_sds_data(bits, start)
+    except ImportError:
+        return {"pdu": "D-SDS-DATA", "raw": "tetra_sds module missing"}
+
+
+def _parse_u_sds_data_wrap(bits, start=0):
+    try:
+        from tetra_sds import parse_u_sds_data
+        return parse_u_sds_data(bits, start)
+    except ImportError:
+        return {"pdu": "U-SDS-DATA", "raw": "tetra_sds module missing"}
+
+
 _DL_DISPATCH = {
     0: parse_d_alert,
     1: parse_d_call_proceeding,
@@ -450,6 +467,7 @@ _DL_DISPATCH = {
     11: parse_d_tx_granted,
     12: parse_d_tx_wait,
     13: parse_d_tx_interrupt,
+    15: _parse_d_sds_data_wrap,
 }
 
 _UL_DISPATCH = {
@@ -460,6 +478,7 @@ _UL_DISPATCH = {
     7: parse_u_setup,
     9: parse_u_tx_ceased,
     10: parse_u_tx_demand,
+    15: _parse_u_sds_data_wrap,
 }
 
 
@@ -508,6 +527,13 @@ def format_cmce(p: dict) -> str:
     """Compact single-line representation of a CMCE parse result."""
     if not p or "pdu" not in p:
         return "<empty>"
+    # SDS PDUs have richer field layout — delegate to tetra_sds.format_sds
+    if p.get("pdu") in ("D-SDS-DATA", "U-SDS-DATA"):
+        try:
+            from tetra_sds import format_sds
+            return format_sds(p)
+        except ImportError:
+            pass
     parts = [p["pdu"]]
     for k in ("call_id", "call_timeout", "call_timeout_setup", "cause",
               "tx_grant", "tx_req_perm", "hook", "duplex",
