@@ -343,6 +343,26 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  return rc;
  }
 
+ case CMCE_U_DISCONNECT: {
+ /* User-Initiated Hangup: MS sendet U-DISCONNECT, BS muss D-RELEASE
+  * an die Group senden um den Call zu beenden. Ohne Antwort retried
+  * MS U-DISCONNECT bis zu 7× (ETSI/MTP3550-FW). Bisher fehlte der
+  * Handler komplett — gemessen an Local-WAV vom 2026-05-23 16:51:
+  * 7× U-DISCONNECT von ssi=1316858 cause=UserRequested, 0× D-RELEASE
+  * von uns als Antwort. */
+ if (s == NULL) return -1;
+ nsnr_step_bs(s);
+ int rc = stage_d_release(hal, s, p->disconnect_cause);
+ fprintf(stderr,
+ "tetra_call_fsm: U-DISCONNECT ssi=0x%06X cause=%u → D-RELEASE "
+ "call_id=%u rc=%d\n",
+ ssi, p->disconnect_cause, s->call_id, rc);
+ mask_write_cached(hal, 0x00u);
+ tetra_voice_filler_clear(hal);
+ free_slot(s);
+ return rc;
+ }
+
  default:
  return -2;
  }
