@@ -165,14 +165,36 @@ static void react_mm7_grpid(tetra_hal_t *hal,
  * Parser-Ausgabe via die parsed-Snapshot-Mailboxen. Bei Bit-Equivalenz
  * (= alle Felder identisch über ≥10 PTT-Cycles + Group-Attaches) wird
  * Phase 1E den RTL-Parser entfernen. */
+static uint32_t mono_ms_lo_ad(void)
+{
+ struct timespec ts;
+ clock_gettime(CLOCK_MONOTONIC, &ts);
+ return (uint32_t)((uint64_t)ts.tv_sec * 1000ull + ts.tv_nsec / 1000000ull);
+}
+
 static void service_uldbod(tetra_hal_t *hal)
 {
+ /* Bug-#2 instrumentation (2026-05-23): timestamp + raw-mailbox-snapshot
+  * Logged on every push so we can correlate WAV-decoded U-LOC-UPD-DEMAND
+  * burst-sets against RTL-mailbox pushes. Hypothesis: WAV zeigt 3 Anmelde-
+  * Versuche, RTL liefert nur 2 Snapshots → entweder Reassembly-T0 verwirft
+  * oder Mailbox-Drop. */
+ static uint32_t s_uldbod_snapshot_cnt = 0;
+ s_uldbod_snapshot_cnt++;
+ uint32_t t_in = mono_ms_lo_ad();
+
  uint32_t w0 = uldbod_read(hal, 0);  /* magic + mm_type + body[128] */
  uint32_t w1 = uldbod_read(hal, 1);  /* ssi */
  uint32_t w2 = uldbod_read(hal, 2);  /* body[127:96] */
  uint32_t w3 = uldbod_read(hal, 3);  /* body[95:64] */
  uint32_t w4 = uldbod_read(hal, 4);  /* body[63:32] */
  uint32_t w5 = uldbod_read(hal, 5);  /* body[31:0] */
+
+ fprintf(stderr,
+ "tetra_attach_daemon: [MAILBOX-IN #%u] t=%ums w0=0x%08X ssi=0x%06X "
+ "mm_type=%u\n",
+ s_uldbod_snapshot_cnt, t_in, w0, w1 & 0xFFFFFFu,
+ (unsigned)((w0 >> 28) & 0xFu));
 
  uint8_t body[TETRA_MM_DEMAND_BODY_BYTES];
  uint8_t mm_type;
