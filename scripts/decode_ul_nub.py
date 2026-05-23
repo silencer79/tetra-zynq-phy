@@ -37,8 +37,9 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from decode_dl import (
     SYMBOL_RATE, load_iq_file, rrc_filter, dibits_to_bits, make_scramb_code,
-    decode_channel_soft, NTS1_DIBITS, NTS1_DIFF_REF, _correlate_at,
-    extract_bits,
+    decode_channel_soft, NTS1_DIBITS, NTS1_DIFF_REF,
+    NTS2_DIBITS, NTS2_DIFF_REF, _correlate_at,
+    extract_bits, parse_mac_pdu, parse_llc, parse_mle, parse_direct_mm,
 )
 from decode_ul import (
     estimate_freq_offset_dqpsk, demod_pi4dqpsk_soft_etsi,
@@ -56,20 +57,9 @@ NUB_BKN2_FIRST_SYM       = 1
 NUB_BKN2_LAST_SYM        = 108
 
 
-def correlate_nts1_grid(iq, sps, search_step_sym=1):
-    """Slide NTS1 reference across the IQ stream at symbol resolution.
-
-    Returns array of (pos_samples, correlation) tuples for peaks
-    above threshold.
-    """
-    nts1_dibits = NTS1_DIBITS
-    nts1_diff = NTS1_DIFF_REF
-    # NTS1 reference spans 11 dibits — diff-correlation uses 10 pairs.
-    # _correlate_at expects pos = first dibit position of the sequence.
+def _correlate_grid(iq, sps, ts_dibits, ts_diff, search_step_sym=1):
+    """Slide a TS reference across the IQ stream at symbol resolution."""
     n_iq = len(iq)
-    # NUB needs 119 syms before anchor and 108 after; we anchor at NTS1[10].
-    # NTS1 starts at NTS1[10] - 10 sym; first dibit at NTS1[0] = anchor - 10 sym.
-    # We pre-pad: leave room for BKN1 = 119 sym before NTS1[0] anchor.
     margin_sym = 130
     start_pos = int(margin_sym * sps)
     end_pos = n_iq - int((NUB_BKN2_LAST_SYM + 10) * sps)
@@ -78,49 +68,53 @@ def correlate_nts1_grid(iq, sps, search_step_sym=1):
     step = max(1, int(round(sps * search_step_sym)))
     corrs = []
     for pos in range(start_pos, end_pos, step):
-        # pos = NTS1[0] location; _correlate_at uses 11-dibit window
-        c = _correlate_at(iq, pos, sps, nts1_dibits, nts1_diff)
+        c = _correlate_at(iq, pos, sps, ts_dibits, ts_diff)
         corrs.append((pos, c))
     return np.array(corrs)
 
 
-def refine_nts1(iq, sps, coarse_pos, search_syms=2):
-    """Sub-symbol refinement of NTS1[0] position."""
+def _refine_ts(iq, sps, coarse_pos, ts_dibits, ts_diff, search_syms=2):
+    """Sub-symbol refinement of TS[0] position."""
     best_c = 0.0
     best_pos = coarse_pos
     step = max(1, sps / 16.0)
     n = int(round(2 * search_syms * sps / step))
     for k in range(-n // 2, n // 2 + 1):
         pos = coarse_pos + k * step
-        c = _correlate_at(iq, pos, sps, NTS1_DIBITS, NTS1_DIFF_REF)
+        c = _correlate_at(iq, pos, sps, ts_dibits, ts_diff)
         if c > best_c:
             best_c = c
             best_pos = pos
     return best_pos, best_c
 
 
-def find_nub_bursts(iq, sps, threshold=0.5, min_separation_sym=200):
-    """Find NUB-burst NTS1[0] anchor positions.
+def find_nub_bursts(iq, sps, threshold=0.5, min_separation_sym=200,
+                    train_seq='nts1'):
+    """Find NUB-burst TS[0] anchor positions for given training sequence.
 
+    train_seq: 'nts1' (NUB voice/SCH-F) or 'nts2' (NUB FACCH-stealing STCH).
     Returns list of (anchor_sample_pos, correlation, refined).
-    min_separation_sym suppresses double-detections within a single burst
-    (NUB length = 231 sym).
     """
-    grid = correlate_nts1_grid(iq, sps, search_step_sym=1)
+    if train_seq == 'nts1':
+        ts_dibits, ts_diff = NTS1_DIBITS, NTS1_DIFF_REF
+    elif train_seq == 'nts2':
+        ts_dibits, ts_diff = NTS2_DIBITS, NTS2_DIFF_REF
+    else:
+        raise ValueError(f'unknown train_seq: {train_seq}')
+
+    grid = _correlate_grid(iq, sps, ts_dibits, ts_diff, search_step_sym=1)
     if len(grid) == 0:
         return []
-    # peak threshold = correlation above absolute threshold
     sel = grid[:, 1] > threshold
     if not np.any(sel):
         return []
     cand = grid[sel]
-    # Non-maximum suppression
     cand_sorted = cand[np.argsort(-cand[:, 1])]
     accepted = []
     min_sep_smp = int(min_separation_sym * sps)
     for pos, c in cand_sorted:
         if all(abs(int(pos) - int(ap)) > min_sep_smp for ap, _, _ in accepted):
-            ref_pos, ref_c = refine_nts1(iq, sps, pos)
+            ref_pos, ref_c = _refine_ts(iq, sps, pos, ts_dibits, ts_diff)
             accepted.append((int(ref_pos), float(ref_c), float(c)))
     accepted.sort(key=lambda x: x[0])
     return accepted
@@ -252,17 +246,26 @@ def main():
     h = rrc_filter(ntaps, 0.35, sps)
     iq = np.convolve(iq, h, mode='same')
 
-    # NTS1 burst detection
+    # Burst detection: BOTH NTS1 (voice/SCH-F) AND NTS2 (FACCH-Stealing STCH).
+    # BlueStation lmac_bs.rs:131: NormalTrainSeq2 → STCH+TCH (= FACCH-Stealing).
     scramb = make_scramb_code(args.mcc, args.mnc, args.cc)
     print(f"  ScrambCode: 0x{scramb:08X}")
-    print(f"  Searching for NUB bursts via NTS1 correlation (thresh={args.threshold})...")
-    bursts = find_nub_bursts(iq, sps, threshold=args.threshold)
-    print(f"  {len(bursts)} NUB-burst candidates found")
+    print(f"  Searching NTS1 (NUB voice/SCH-F) bursts (thresh={args.threshold})...")
+    bursts_nts1 = find_nub_bursts(iq, sps, threshold=args.threshold, train_seq='nts1')
+    print(f"  Searching NTS2 (NUB FACCH-Stealing STCH) bursts (thresh={args.threshold})...")
+    bursts_nts2 = find_nub_bursts(iq, sps, threshold=args.threshold, train_seq='nts2')
+    print(f"  Found: {len(bursts_nts1)} NTS1 + {len(bursts_nts2)} NTS2 candidates")
+
+    # Tag with train_seq, merge, sort by position
+    bursts = [(p, c, r, 'nts1') for p, c, r in bursts_nts1] + \
+             [(p, c, r, 'nts2') for p, c, r in bursts_nts2]
+    bursts.sort(key=lambda x: x[0])
 
     # Per-burst demod + FACCH-decode attempt
     facch_count = 0
     voice_count = 0
-    for i, (pos, corr, _raw_c) in enumerate(bursts[:args.max_bursts]):
+    nts2_facch_count = 0
+    for i, (pos, corr, _raw_c, train_seq) in enumerate(bursts[:args.max_bursts]):
         t_s = pos / sample_rate_dec
         result = demod_nub_burst(iq, sps, pos, scramb_init=scramb)
         soft1 = result["bkn1_soft"]
@@ -291,12 +294,43 @@ def main():
 
         if flag:
             facch_count += 1
-            print(f"-- NUB #{i:3d}  t={t_s:7.3f}s  corr={corr:.3f}  pos={pos}  {flag} --")
+            if train_seq == 'nts2':
+                nts2_facch_count += 1
+            tag_train = f"[{train_seq.upper()}]"
+            print(f"-- NUB #{i:3d}  t={t_s:7.3f}s  corr={corr:.3f}  pos={pos} {tag_train} {flag} --")
             # Convert numpy soft to int hard bits for parsing
             info_hard = [int(b) for b in decoded_info]
             print(f"  info[{len(info_hard)}]: {bits_to_hex(info_hard)}")
-            # Parse as MAC-ACCESS PDU (FACCH carries MAC-RESOURCE / MAC-DATA on DL,
-            # MAC-DATA / MAC-END-HU on UL — here we're decoding UL bursts).
+            # Try TWO parser variants:
+            #   1. parse_mac_access (UL RA-format, 92-bit) — works only for
+            #      randomly-accessed signaling (rarely the case for FACCH-stealing).
+            #   2. parse_mac_pdu (DL/UL MAC-RESOURCE-style, 124/268-bit) — that's
+            #      what FACCH-Stealing on NUB-NTS2 typically carries.
+            # Whichever produces a sensible MLE/CMCE-PDU wins.
+            n_info = len(info_hard)
+            try:
+                # Variant 2: MAC-RESOURCE parse (full info_bits)
+                mac = parse_mac_pdu(info_hard, n_info)
+                print(f"  MAC: type={mac.get('type')} pdu_name={mac.get('pdu_type_name','?')} addr={mac.get('addr_type_name','?')} id={mac.get('ssi') or mac.get('event_label','?')}")
+                if mac.get('type') == 0 and not mac.get('is_null_pdu'):
+                    pstart = mac.get('payload_start', 0)
+                    if pstart + 4 < n_info:
+                        llc = parse_llc(info_hard, pstart)
+                        print(f"    LLC: {llc.get('llc_type_name','?')}")
+                        if 'payload_start' in llc and llc['payload_start'] + 3 < n_info:
+                            if llc.get('llc_type') == 14:
+                                direct_mm = parse_direct_mm(info_hard, llc['payload_start'])
+                                print(f"    DirectMM: {direct_mm.get('mm_name','?')}")
+                            else:
+                                mle = parse_mle(info_hard, llc['payload_start'])
+                                disc = mle.get('mle_disc_name', '?')
+                                cmce = mle.get('cmce_name', '')
+                                mm = mle.get('mm_name', '')
+                                tag = cmce or mm or ''
+                                print(f"    MLE: disc={disc} → {tag}")
+            except Exception as e:
+                print(f"  MAC-RESOURCE parse error: {e}")
+            # Variant 1: also try MAC-ACCESS for completeness
             try:
                 parsed = parse_mac_access(info_hard[:92])
                 summary = format_parsed_mac_access(parsed)
