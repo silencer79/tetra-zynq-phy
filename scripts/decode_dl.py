@@ -28,6 +28,20 @@ import argparse
 import sys
 import wave
 import numpy as np
+
+# numba JIT for hot inner loops (Viterbi, RM-decode, correlation).
+# Graceful fallback if numba not installed → decorator becomes no-op.
+try:
+    from numba import njit
+    _HAVE_NUMBA = True
+except ImportError:
+    _HAVE_NUMBA = False
+    def njit(*args, **kwargs):
+        def _wrap(fn):
+            return fn
+        if len(args) == 1 and callable(args[0]):
+            return args[0]
+        return _wrap
 from numpy.fft import fft
 
 # =============================================================================
@@ -187,16 +201,45 @@ NTS1_DIFF_REF = _build_diff_ref(NTS1_DIBITS)
 NTS2_DIFF_REF = _build_diff_ref(NTS2_DIBITS)
 
 
-def _correlate_at(iq, pos, sps, ref_dibits, ref_diff):
-    """Correlation score at a given sample position."""
-    n_sym = len(ref_dibits)
-    indices = np.round(np.arange(n_sym) * sps + pos).astype(int)
-    if indices[-1] >= len(iq) or indices[0] < 0:
+@njit(cache=True, fastmath=True)
+def _correlate_at_jit(iq, pos, sps, n_sym, ref_diff):
+    """JIT-compiled correlation @ sample position."""
+    n_iq = len(iq)
+    # Compute sample indices
+    idx_last = int(round((n_sym - 1) * sps + pos))
+    idx_first = int(round(pos))
+    if idx_last >= n_iq or idx_first < 0:
         return 0.0
-    syms = iq[indices]
-    diff = syms[1:] * np.conj(syms[:-1])
-    diff_norm = diff / (np.abs(diff) + 1e-12)
-    return float(np.abs(np.sum(diff_norm * np.conj(ref_diff))) / len(ref_diff))
+    # Sample the n_sym complex values
+    acc_re = 0.0
+    acc_im = 0.0
+    prev_re = iq[idx_first].real
+    prev_im = iq[idx_first].imag
+    for k in range(1, n_sym):
+        ix = int(round(k * sps + pos))
+        s_re = iq[ix].real
+        s_im = iq[ix].imag
+        # diff = s * conj(prev) = (s_re + j*s_im) * (prev_re - j*prev_im)
+        d_re = s_re * prev_re + s_im * prev_im
+        d_im = s_im * prev_re - s_re * prev_im
+        mag = (d_re * d_re + d_im * d_im) ** 0.5 + 1e-12
+        d_re_n = d_re / mag
+        d_im_n = d_im / mag
+        # ref_diff is complex; ref_diff[k-1] has real/imag
+        r_re = ref_diff[k - 1].real
+        r_im = ref_diff[k - 1].imag
+        # sum += diff_norm * conj(ref_diff) = (d_re_n + j*d_im_n) * (r_re - j*r_im)
+        acc_re += d_re_n * r_re + d_im_n * r_im
+        acc_im += d_im_n * r_re - d_re_n * r_im
+        prev_re = s_re
+        prev_im = s_im
+    return (acc_re * acc_re + acc_im * acc_im) ** 0.5 / len(ref_diff)
+
+
+def _correlate_at(iq, pos, sps, ref_dibits, ref_diff):
+    """Correlation score at a given sample position (numba JIT wrapper)."""
+    n_sym = len(ref_dibits)
+    return _correlate_at_jit(iq, float(pos), float(sps), n_sym, ref_diff)
 
 
 # =============================================================================
@@ -478,39 +521,61 @@ def depuncture_r23_soft(soft_bits, mother_len):
     return out
 
 
-def viterbi_r14_soft(coded_soft):
-    """K=5 soft-decision Viterbi, rate-1/4 mother.
-    coded_soft: float array, positive=0, negative=1, 0=erasure.
-    Uses correlation metric (maximize)."""
+@njit(cache=True, fastmath=True)
+def _viterbi_r14_soft_numba(coded_soft, g1, g2, g3, g4):
+    """JIT-compiled K=5 soft Viterbi (16-state, rate-1/4 mother).
+    Pre-computes per-state expected symbols for each input bit → no parity
+    re-calc in inner loop. Maximisation metric (correlation)."""
     n_states = 16
     n_coded = len(coded_soft)
     n_input = n_coded // 4
     NINF = -1e18
+
+    # Pre-compute output bits per (old_state, input) — 32 transitions × 4 outputs.
+    # exp_sign[s, inp, m] = +1 if expected bit == 0, -1 if == 1.
+    exp_sign = np.empty((n_states, 2, 4), dtype=np.float64)
+    next_state = np.empty((n_states, 2), dtype=np.int32)
+    for s in range(n_states):
+        for inp in range(2):
+            sr = ((s << 1) | inp) & 0x1F
+            next_state[s, inp] = sr & 0xF
+            for m in range(4):
+                if m == 0:   g = g1
+                elif m == 1: g = g2
+                elif m == 2: g = g3
+                else:        g = g4
+                v = sr & g
+                v ^= v >> 4
+                v ^= v >> 2
+                v ^= v >> 1
+                e = v & 1
+                exp_sign[s, inp, m] = 1.0 - 2.0 * e
 
     pm = np.full(n_states, NINF, dtype=np.float64)
     pm[0] = 0.0
     tb_state = np.zeros((n_input, n_states), dtype=np.int32)
     tb_input = np.zeros((n_input, n_states), dtype=np.int32)
 
-    Gs = (ETSI_G1, ETSI_G2, ETSI_G3, ETSI_G4)
     for i in range(n_input):
-        rx = coded_soft[4 * i : 4 * i + 4]
+        r0 = coded_soft[4*i + 0]
+        r1 = coded_soft[4*i + 1]
+        r2 = coded_soft[4*i + 2]
+        r3 = coded_soft[4*i + 3]
         new_pm = np.full(n_states, NINF, dtype=np.float64)
         for old_state in range(n_states):
             if pm[old_state] <= NINF:
                 continue
             for inp in range(2):
-                sr = ((old_state << 1) | inp) & 0x1F
-                new_state = sr & 0xF
-                metric = pm[old_state]
-                for m, G in enumerate(Gs):
-                    e = _parity5(sr & G)
-                    expected_sign = 1.0 - 2.0 * e  # +1 for bit=0, -1 for bit=1
-                    metric += float(rx[m]) * expected_sign
-                if metric > new_pm[new_state]:
-                    new_pm[new_state] = metric
-                    tb_state[i, new_state] = old_state
-                    tb_input[i, new_state] = inp
+                ns = next_state[old_state, inp]
+                metric = (pm[old_state]
+                          + r0 * exp_sign[old_state, inp, 0]
+                          + r1 * exp_sign[old_state, inp, 1]
+                          + r2 * exp_sign[old_state, inp, 2]
+                          + r3 * exp_sign[old_state, inp, 3])
+                if metric > new_pm[ns]:
+                    new_pm[ns] = metric
+                    tb_state[i, ns] = old_state
+                    tb_input[i, ns] = inp
         pm = new_pm
 
     decoded = np.zeros(n_input, dtype=np.int32)
@@ -519,6 +584,14 @@ def viterbi_r14_soft(coded_soft):
         decoded[i] = tb_input[i, state]
         state = tb_state[i, state]
     return decoded
+
+
+def viterbi_r14_soft(coded_soft):
+    """K=5 soft-decision Viterbi, rate-1/4 mother. numba-JIT wrapper."""
+    return _viterbi_r14_soft_numba(
+        np.ascontiguousarray(coded_soft, dtype=np.float64),
+        ETSI_G1, ETSI_G2, ETSI_G3, ETSI_G4,
+    )
 
 
 def decode_channel_soft(soft_type5, K, a, info_bits_len):
@@ -574,33 +647,43 @@ def _build_rm_codewords():
 _RM_ROWS = _build_rm_codewords()
 
 
-def rm3014_decode(bits30):
-    """Brute-force RM(30,14) decode: find closest codeword by Hamming distance.
-    Returns (info_14bits_int, distance) or (None, 30) if too many errors."""
-    # Pack received 30 bits into int
-    rx = 0
-    for b in bits30:
-        rx = (rx << 1) | (int(b) & 1)
-
+@njit(cache=True)
+def _rm3014_decode_jit(rx, rm_rows_arr):
+    """JIT-compiled brute-force RM(30,14) decode."""
     best_dist = 31
     best_info = 0
-
-    # Try all 2^14 info words
     for info_word in range(1 << 14):
         cw = 0
         for i in range(14):
             if (info_word >> (13 - i)) & 1:
-                cw ^= _RM_ROWS[i]
-        dist = bin(rx ^ cw).count('1')
-        if dist < best_dist:
-            best_dist = dist
+                cw ^= rm_rows_arr[i]
+        # Hamming distance via popcount-by-shift on 32-bit int
+        v = rx ^ cw
+        d = 0
+        while v != 0:
+            d += v & 1
+            v >>= 1
+        if d < best_dist:
+            best_dist = d
             best_info = info_word
-            if dist == 0:
+            if d == 0:
                 break
-
-    if best_dist > 4:  # RM(30,14) can correct up to t=? errors, be generous
-        return None, best_dist
     return best_info, best_dist
+
+
+_RM_ROWS_NP = np.array(_RM_ROWS, dtype=np.int64)
+
+
+def rm3014_decode(bits30):
+    """Brute-force RM(30,14) decode: find closest codeword by Hamming distance.
+    Returns (info_14bits_int, distance) or (None, dist) if too many errors."""
+    rx = 0
+    for b in bits30:
+        rx = (rx << 1) | (int(b) & 1)
+    best_info, best_dist = _rm3014_decode_jit(rx, _RM_ROWS_NP)
+    if best_dist > 4:
+        return None, int(best_dist)
+    return int(best_info), int(best_dist)
 
 
 def parse_aach(info14):
@@ -1905,9 +1988,38 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                                     mle = parse_mle(info_bits, llc['payload_start'])
                                     _print_mle("    MLE", mle)
                 else:
-                    n_ndb_fail += 1
-                    bad_burst_counter += 0.5
-                    print("  SCH/F CRC FAIL")
+                    # SCH/F CRC FAIL — try FACCH-stealing fallback:
+                    # one of the two half-blocks might be SCH/HD-coded signaling
+                    # (= FACCH stealing), the other voice. Try SCH/HD on each
+                    # half-block separately.
+                    bkn1_soft_descr = descramble_soft(blk1_soft, scramb_code, 216)
+                    fac_ok1, fac_info1, _ = decode_channel_soft(bkn1_soft_descr, 216, 101, 124)
+                    bkn2_soft_descr = descramble_soft(blk2_soft, scramb_code, 216)
+                    fac_ok2, fac_info2, _ = decode_channel_soft(bkn2_soft_descr, 216, 101, 124)
+                    if fac_ok1 or fac_ok2:
+                        n_ndb_ok += 1
+                        # Pick the half that decoded successfully
+                        info_bits = fac_info1 if fac_ok1 else fac_info2
+                        half_tag = "BKN1" if fac_ok1 else "BKN2"
+                        print(f"  FACCH-Stealing on {half_tag} (SCH/HD): CRC OK")
+                        mac = parse_mac_pdu(info_bits, 124)
+                        _print_mac(f"  {half_tag} SCH/HD-FACCH", mac, info_bits, verbose)
+                        if mac.get('type') == 0 and not mac.get('is_null_pdu'):
+                            pstart = mac.get('payload_start', 0)
+                            if pstart + 4 < len(info_bits):
+                                llc = parse_llc(info_bits, pstart)
+                                _print_llc("    LLC", llc)
+                                if 'payload_start' in llc and llc['payload_start'] + 3 < len(info_bits):
+                                    if llc.get('llc_type') == 14:
+                                        direct_mm = parse_direct_mm(info_bits, llc['payload_start'])
+                                        _print_direct_mm("    DirectMM", direct_mm)
+                                    else:
+                                        mle = parse_mle(info_bits, llc['payload_start'])
+                                        _print_mle("    MLE", mle)
+                    else:
+                        n_ndb_fail += 1
+                        bad_burst_counter += 0.5
+                        print("  SCH/F CRC FAIL")
 
             else:  # btype == 'NDB2' → NDB_SF, two separate SCH/HD blocks
                 def _decode_halves(sbits):
@@ -1969,9 +2081,25 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                 else:
                     n_ndb_fail += 1
 
+                def _parse_full_stack(prefix, mac, info_bits):
+                    """LLC → MLE → CMCE/MM parse, same as NDB1 SCH/F path."""
+                    if mac.get('type') == 0 and not mac.get('is_null_pdu'):
+                        pstart = mac.get('payload_start', 0)
+                        if pstart + 4 < len(info_bits):
+                            llc = parse_llc(info_bits, pstart)
+                            _print_llc(f"    {prefix.strip()} LLC", llc)
+                            if 'payload_start' in llc and llc['payload_start'] + 3 < len(info_bits):
+                                if llc.get('llc_type') == 14:
+                                    direct_mm = parse_direct_mm(info_bits, llc['payload_start'])
+                                    _print_direct_mm(f"    {prefix.strip()} DirectMM", direct_mm)
+                                else:
+                                    mle = parse_mle(info_bits, llc['payload_start'])
+                                    _print_mle(f"    {prefix.strip()} MLE", mle)
+
                 if crc1:
                     mac1 = parse_mac_pdu(info1, 124)
                     _print_mac("  BKN1 SCH/HD", mac1, info1, verbose)
+                    _parse_full_stack("BKN1", mac1, info1)
                 else:
                     print("  BKN1 SCH/HD CRC FAIL")
                     bad_burst_counter += 0.25
@@ -1986,6 +2114,7 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                     else:
                         mac2 = parse_mac_pdu(info2, 124)
                         _print_mac(f"  {bkn2_tag}", mac2, info2, verbose)
+                        _parse_full_stack("BKN2", mac2, info2)
                 else:
                     print(f"  {bkn2_tag} CRC FAIL")
                     bad_burst_counter += 0.25
