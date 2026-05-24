@@ -261,6 +261,8 @@ wire [31:0] voice_nub_sync_thresh_axi_w;
 wire [1727:0] voice_nub_coded_softs_sys_w;
 wire voice_nub_coded_valid_sys_w;
 wire [15:0] voice_nub_rx_cnt_sys_w;
+wire [15:0] rx_iq_peak_i_sys_w;
+wire [15:0] rx_iq_peak_q_sys_w;
 // Phase 7 G.8 — relay_cnt deprecated; tied to 0 since voice_relay was
 // removed. SW reads REG_VOICE_RELAY_CNT @ 0x264 = always 0.
 wire [15:0] voice_relay_cnt_sys_w = 16'd0;
@@ -630,7 +632,10 @@ tetra_rx_chain #(
 .voice_nub_sync_thresh_sys (voice_nub_sync_thresh_sys_r1[4:0]),
 .voice_nub_coded_softs_sys (voice_nub_coded_softs_sys_w),
 .voice_nub_coded_valid_sys (voice_nub_coded_valid_sys_w),
-.voice_nub_rx_cnt_sys (voice_nub_rx_cnt_sys_w)
+.voice_nub_rx_cnt_sys (voice_nub_rx_cnt_sys_w),
+// 2026-05-24 RX IQ peak monitor
+.rx_iq_peak_i_sys (rx_iq_peak_i_sys_w),
+.rx_iq_peak_q_sys (rx_iq_peak_q_sys_w)
 );
 
 // =============================================================================
@@ -1544,6 +1549,11 @@ wire ul_pdu_valid_axi_pulse = ul_pdu_tgl_axi_r1 ^ ul_pdu_tgl_axi_r2;
 (* ASYNC_REG = "TRUE" *) reg [15:0] voice_nub_rx_cnt_axi_r1;
 (* ASYNC_REG = "TRUE" *) reg [15:0] voice_relay_cnt_axi_r0;
 (* ASYNC_REG = "TRUE" *) reg [15:0] voice_relay_cnt_axi_r1;
+// 2026-05-24 — RX IQ peak monitor CDC (sys→axi)
+(* ASYNC_REG = "TRUE" *) reg [15:0] rx_iq_peak_i_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] rx_iq_peak_i_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] rx_iq_peak_q_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] rx_iq_peak_q_axi_r1;
 
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  if (!rst_n_axi) begin
@@ -1581,6 +1591,10 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  voice_nub_rx_cnt_axi_r1 <= 16'd0;
  voice_relay_cnt_axi_r0 <= 16'd0;
  voice_relay_cnt_axi_r1 <= 16'd0;
+ rx_iq_peak_i_axi_r0 <= 16'd0;
+ rx_iq_peak_i_axi_r1 <= 16'd0;
+ rx_iq_peak_q_axi_r0 <= 16'd0;
+ rx_iq_peak_q_axi_r1 <= 16'd0;
  end else begin
  ul_pdu_type_axi_r0 <= ul_pdu_type_sys;
  ul_pdu_type_axi_r1 <= ul_pdu_type_axi_r0;
@@ -1625,6 +1639,11 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  voice_nub_rx_cnt_axi_r1 <= voice_nub_rx_cnt_axi_r0;
  voice_relay_cnt_axi_r0 <= voice_relay_cnt_sys_w;
  voice_relay_cnt_axi_r1 <= voice_relay_cnt_axi_r0;
+ // 2026-05-24 RX IQ peak monitor CDC
+ rx_iq_peak_i_axi_r0 <= rx_iq_peak_i_sys_w;
+ rx_iq_peak_i_axi_r1 <= rx_iq_peak_i_axi_r0;
+ rx_iq_peak_q_axi_r0 <= rx_iq_peak_q_sys_w;
+ rx_iq_peak_q_axi_r1 <= rx_iq_peak_q_axi_r0;
  end
 end
 
@@ -2010,6 +2029,9 @@ tetra_axi_lite_regs u_axi_regs (
 .voice_nub_rx_cnt_axi (voice_nub_rx_cnt_axi_r1),
 .voice_relay_cnt_axi (voice_relay_cnt_axi_r1),
 .voice_nub_sync_thresh_axi (voice_nub_sync_thresh_axi_w),
+// 2026-05-24 RX IQ peak monitor
+.rx_iq_peak_i_axi (rx_iq_peak_i_axi_r1),
+.rx_iq_peak_q_axi (rx_iq_peak_q_axi_r1),
  // Phase X.4 — ast_ttl_multiframes_axi/ast_ttl_evict_cnt_axi removed (AST in SW)
  // Phase 7 F.3 — UL-Demand reassembly counters + T0 config
 .reass_reassembled_cnt_axi (reass_reassembled_cnt_axi_r1),

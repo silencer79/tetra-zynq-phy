@@ -108,6 +108,17 @@ module tetra_rx_chain #(
  output wire [15:0] voice_nub_rx_cnt_sys,
 
  // -------------------------------------------------------------------------
+ // 2026-05-24 — RX IQ peak monitor (post-CIC+RRC, sys-domain).
+ // Tracks max |I| and max |Q| of fe_i_sys / fe_q_sys over a 100 ms
+ // sliding window (= 7200 samples @ 72 kSps). Top auto-resets at end
+ // of window. 12-bit value (0..2047); SW reads via REG_RX_IQ_PEAK_*
+ // to see whether ADC/CIC level is sane (~1000-1400 = ~70% FS) vs
+ // too low (<100) or near saturation (~2000).
+ // -------------------------------------------------------------------------
+ output wire [15:0] rx_iq_peak_i_sys,
+ output wire [15:0] rx_iq_peak_q_sys,
+
+ // -------------------------------------------------------------------------
  // UL RX Chain — MS RA-burst decoder (Task #37)
  // sync_detect_os4 → burst_capture → pi4dqpsk_demod → sch_hu_decoder
  // → mac_access_parser. scramb_init is the cell extended-scrambling
@@ -238,6 +249,43 @@ tetra_rx_frontend #(
 .out_valid_sys(fe_valid_sys),
 .loopback_en_sys(loopback_en_sys)
 );
+
+// =============================================================================
+// 2026-05-24 — RX IQ Peak-Monitor (post-CIC+RRC, 72 kSps).
+// 13-bit sliding-window-Peak: über 7200 samples (= 100 ms @ 72 kSps) sammeln,
+// dann latch in *_lat-Register + Counter+Peak reset → User-Reads sehen ein
+// stabiles 100ms-Peak. 16-bit Output (top-padded mit 0).
+// =============================================================================
+reg [12:0] iq_peak_i_acc_sys;
+reg [12:0] iq_peak_q_acc_sys;
+reg [12:0] iq_peak_i_lat_sys;
+reg [12:0] iq_peak_q_lat_sys;
+reg [12:0] iq_win_cnt_sys;
+wire [12:0] abs_i_sys = fe_i_sys[15] ? (~fe_i_sys[12:0] + 13'd1) : fe_i_sys[12:0];
+wire [12:0] abs_q_sys = fe_q_sys[15] ? (~fe_q_sys[12:0] + 13'd1) : fe_q_sys[12:0];
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ iq_peak_i_acc_sys <= 13'd0;
+ iq_peak_q_acc_sys <= 13'd0;
+ iq_peak_i_lat_sys <= 13'd0;
+ iq_peak_q_lat_sys <= 13'd0;
+ iq_win_cnt_sys    <= 13'd0;
+ end else if (fe_valid_sys) begin
+ if (iq_win_cnt_sys == 13'd7199) begin
+ iq_peak_i_lat_sys <= (abs_i_sys > iq_peak_i_acc_sys) ? abs_i_sys : iq_peak_i_acc_sys;
+ iq_peak_q_lat_sys <= (abs_q_sys > iq_peak_q_acc_sys) ? abs_q_sys : iq_peak_q_acc_sys;
+ iq_peak_i_acc_sys <= 13'd0;
+ iq_peak_q_acc_sys <= 13'd0;
+ iq_win_cnt_sys    <= 13'd0;
+ end else begin
+ if (abs_i_sys > iq_peak_i_acc_sys) iq_peak_i_acc_sys <= abs_i_sys;
+ if (abs_q_sys > iq_peak_q_acc_sys) iq_peak_q_acc_sys <= abs_q_sys;
+ iq_win_cnt_sys <= iq_win_cnt_sys + 13'd1;
+ end
+ end
+end
+assign rx_iq_peak_i_sys = {3'd0, iq_peak_i_lat_sys};
+assign rx_iq_peak_q_sys = {3'd0, iq_peak_q_lat_sys};
 
 // =============================================================================
 // pi4dqpsk_demod

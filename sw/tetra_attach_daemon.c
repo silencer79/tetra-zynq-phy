@@ -546,6 +546,7 @@ int main(int argc, char **argv)
  "tetra_attach_daemon: started — USE_SW=1, polling REG_DEMAND_STATUS, "
  "policy=0x%08X, VOICE_ACTIVE_MASK=0, NUB_SYNC_THRESH=11\n",
  tetra_reg_read(&hal, REG_DB_POLICY));
+ fprintf(stderr, "tetra_attach_daemon: W1C-RACE-FIX v2 ACTIVE (build 2026-05-24)\n");
 
  uint32_t since_reload_ms = 0;
  uint16_t last_ul_count = 0xFFFFu; /* sentinel: first PDU always triggers */
@@ -578,11 +579,7 @@ int main(int argc, char **argv)
  * act on mle_disc==2 (CMCE); mle_disc==1 (MM) is already handled
  * by the reassembly path below. */
  uint32_t ul_status = tetra_reg_read(&hal, REG_UL_PDU_STATUS);
- /* 2026-05-24 — UL_STATUS_VALID-Gate ENTFERNT. tetra_ul_mon W1C-cleart
-  * den valid-sticky direkt nach jedem Log → wir sahen valid=0 obwohl
-  * count_hi weitergewachsen war. Folge: jede 2. CMCE-PDU (U-SETUP,
-  * U-DISCONNECT) wurde ignoriert. Counter-Track allein reicht — RTL hält
-  * SSI/RAW stabil bis nächste PDU. */
+ /* 2026-05-24 — UL_STATUS_VALID-Gate ENTFERNT (W1C-race-fix v2 ACTIVE). */
  {
  uint16_t ul_count = (uint16_t)UL_STATUS_PDU_COUNT(ul_status);
  if (ul_count != last_ul_count) {

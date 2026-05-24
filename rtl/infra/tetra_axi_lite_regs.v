@@ -540,6 +540,13 @@ module tetra_axi_lite_regs (
  input wire [15:0] voice_relay_cnt_axi,
  output reg [31:0] voice_nub_sync_thresh_axi,
 
+ /* 2026-05-24 — RX IQ peak-monitor (post-CIC+RRC, 100ms sliding window).
+  * REG_RX_IQ_PEAK_I @ 0x290 RO max-|I| over 7200 samples
+  * REG_RX_IQ_PEAK_Q @ 0x294 RO max-|Q| over 7200 samples
+  * Idealer Bereich ~1000-1400 (= 50-70% von 13-bit Full-Scale 4095). */
+ input wire [15:0] rx_iq_peak_i_axi,
+ input wire [15:0] rx_iq_peak_q_axi,
+
  // ------------------------------------------------------------------
  // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
  // 144 words, each word packs TWO 16-bit schedule entries.
@@ -837,6 +844,9 @@ localparam [6:0] REG_UL_DEMAND_BODY_ACK    = 7'h17; // 0x25C
 localparam [6:0] REG_VOICE_NUB_RX_CNT = 7'h18; // 0x260 RO [15:0] bursts_captured
 localparam [6:0] REG_VOICE_RELAY_CNT = 7'h19; // 0x264 RO [15:0] relay_cnt
 localparam [6:0] REG_VOICE_NUB_SYNC_THRESH = 7'h1A; // 0x268 R/W [4:0] corr threshold (default 8)
+// 2026-05-24 RX IQ peak monitor
+localparam [6:0] REG_RX_IQ_PEAK_I = 7'h24; // 0x290 RO [15:0] max-|I| 100ms window
+localparam [6:0] REG_RX_IQ_PEAK_Q = 7'h25; // 0x294 RO [15:0] max-|Q| 100ms window
 // Phase 7 G.8 — Voice-Slot Filler-Mailbox (0x270..0x27C, Bank-1)
 localparam [6:0] REG_VOICE_FILLER_INDEX = 7'h1C; // 0x270 R/W [3:0] word selector
 localparam [6:0] REG_VOICE_FILLER_DATA = 7'h1D; // 0x274 R/W [31:0] indirect via INDEX
@@ -1231,6 +1241,8 @@ always @(*) begin
  REG_VOICE_NUB_RX_CNT: rdata_mux_axi = {16'd0, voice_nub_rx_cnt_axi};
  REG_VOICE_RELAY_CNT: rdata_mux_axi = {16'd0, voice_relay_cnt_axi};
  REG_VOICE_NUB_SYNC_THRESH: rdata_mux_axi = voice_nub_sync_thresh_axi;
+ REG_RX_IQ_PEAK_I: rdata_mux_axi = {16'd0, rx_iq_peak_i_axi};
+ REG_RX_IQ_PEAK_Q: rdata_mux_axi = {16'd0, rx_iq_peak_q_axi};
  // Phase 7 G.8 — Voice-Filler mailbox
  REG_VOICE_FILLER_INDEX: rdata_mux_axi = {28'd0, vfill_index_axi};
  REG_VOICE_FILLER_DATA: rdata_mux_axi = vfill_rdata_axi_i;

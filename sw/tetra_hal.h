@@ -322,6 +322,12 @@
 #define REG_VOICE_RELAY_CNT 0x264
 #define REG_VOICE_NUB_SYNC_THRESH 0x268
 
+/* 2026-05-24 — RX IQ peak-Monitor, post-CIC+RRC, 100ms sliding window.
+ * Tracks max-|fe_i_sys| / max-|fe_q_sys| (13-bit signed = 0..4095).
+ * Idealer Pegel ~1000-1400 (50-70% FS). <100 = zu klein, ~4000 = nahe sat. */
+#define REG_RX_IQ_PEAK_I 0x290 /* RO [15:0] max-|I| 100ms */
+#define REG_RX_IQ_PEAK_Q 0x294 /* RO [15:0] max-|Q| 100ms */
+
 /* Phase 7 G.8 — Voice-Slot Filler-Mailbox (Bank-1 0x270..0x27C).
  * Bit-pipe for SW-encoded SCH/F type-5 burst (432 bits). SW writes
  * W0..W13 via INDEX+DATA (LSB-first packing within each word), sets
