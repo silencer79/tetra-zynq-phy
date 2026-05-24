@@ -53,6 +53,7 @@ rxlevel_min=${rxlevel_min:-${RXLEVEL_MIN:-0}}
 access_param=${access_param:-${ACCESS_PARAM:-10}}
 radio_dl_timeout=${radio_dl_timeout:-${RADIO_DL_TIMEOUT:-5}}
 opt_field=${opt_field:-${OPT_FIELD:-1011456}}
+opt_sel=${opt_sel:-${OPT_SEL:-2}}
 priority_cell=${priority_cell:-${PRIORITY_CELL:-0}}
 migration=${migration:-${MIGRATION:-0}}
 ncb=${ncb:-${NCB:-3}}
@@ -139,6 +140,7 @@ RXLEVEL_MIN=$rxlevel_min
 ACCESS_PARAM=$access_param
 RADIO_DL_TIMEOUT=$radio_dl_timeout
 OPT_FIELD=$opt_field
+OPT_SEL=$opt_sel
 PRIORITY_CELL=$priority_cell
 MIGRATION=$migration
 NCB=$ncb
@@ -179,6 +181,7 @@ nohup /root/tetra_sysinfo \
     --access "$access_param" \
     --dltimo "$radio_dl_timeout" \
     --optfield "$opt_field" \
+    --optsel "$opt_sel" \
     --prio "$priority_cell" \
     --migr "$migration" \
     --ncb "$ncb" \

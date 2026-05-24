@@ -1628,7 +1628,7 @@ int main(int argc, char *argv[])
 
  enum {
  OPT_SC = 256, OPT_DUPLEX, OPT_TXPWR, OPT_RXMIN,
- OPT_ACCESS, OPT_DLTIMO, OPT_OPTFIELD, OPT_PRIO,
+ OPT_ACCESS, OPT_DLTIMO, OPT_OPTFIELD, OPT_OPTSEL, OPT_PRIO,
  OPT_MIGR, OPT_NCB, OPT_CSL, OPT_HF, OPT_DAEMON
  };
  static struct option long_opts[] = {
@@ -1644,6 +1644,7 @@ int main(int argc, char *argv[])
  {"access", required_argument, NULL, OPT_ACCESS},
  {"dltimo", required_argument, NULL, OPT_DLTIMO},
  {"optfield", required_argument, NULL, OPT_OPTFIELD},
+ {"optsel", required_argument, NULL, OPT_OPTSEL},
  {"prio", required_argument, NULL, OPT_PRIO},
  {"migr", required_argument, NULL, OPT_MIGR},
  {"ncb", required_argument, NULL, OPT_NCB},
@@ -1672,6 +1673,7 @@ int main(int argc, char *argv[])
  case OPT_ACCESS: info.access_parameter = atoi(optarg); break;
  case OPT_DLTIMO: info.radio_dl_timeout = atoi(optarg); break;
  case OPT_OPTFIELD: info.optional_field_value = strtoul(optarg, NULL, 10); break;
+ case OPT_OPTSEL: info.optional_field_selector = (uint8_t)(atoi(optarg) & 0x3); break;
  case OPT_PRIO: info.priority_cell = atoi(optarg); break;
  case OPT_MIGR: info.migration_supported = atoi(optarg); break;
  case OPT_NCB: info.neighbour_cell_broadcast = atoi(optarg); break;

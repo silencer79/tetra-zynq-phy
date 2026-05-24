@@ -287,6 +287,21 @@ if $DO_SW; then
  ssh_cmd "pkill -f '[h]ttpd.*-p 80' 2>/dev/null; true"
  ssh_cmd "setsid busybox httpd -p 80 -h /www < /dev/null > /dev/null 2>&1 &"
  echo "WebUI httpd started → http://${BOARD_IP}/"
+
+ # 2026-05-24 — board_autostart/tetra_autostart.sh hochladen,
+ # sonst greift jeder Edit dort nicht.
+ AUTOSTART_DIR="${PROJECT_ROOT}/board_autostart"
+ if [ -d "$AUTOSTART_DIR" ]; then
+ echo "Uploading tetra_autostart.sh + systemd unit..."
+ scp_to "${AUTOSTART_DIR}/tetra_autostart.sh" "/root/tetra_autostart.sh"
+ ssh_cmd "chmod +x /root/tetra_autostart.sh"
+ if [ -f "${AUTOSTART_DIR}/tetra-autostart.service" ]; then
+ scp_to "${AUTOSTART_DIR}/tetra-autostart.service" \
+ "/etc/systemd/system/tetra-autostart.service"
+ ssh_cmd "systemctl daemon-reload 2>/dev/null || true"
+ fi
+ echo "Autostart-Script aktualisiert"
+ fi
  fi
 fi
 

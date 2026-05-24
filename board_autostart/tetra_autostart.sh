@@ -202,7 +202,30 @@ busybox devmem 0x43C001AC 32 "$DB_POLICY"
 # 11: Daemons starten (setsid damit sie nach systemd-Exit nicht sterben)
 # -----------------------------------------------------------------------------
 echo "--- 11/12 Start daemons ---"
-setsid /root/tetra_sysinfo --daemon < /dev/null > /tmp/tetra_sysinfo.log 2>&1 &
+# 2026-05-24 — alle Cell-Args aus tetra_cell.conf an sysinfo übergeben,
+# sonst nutzt sysinfo die hardcoded defaults aus tetra_hal.c und der User
+# muss nach jedem Boot WebUI bemühen um die richtigen Werte zu senden.
+# Conf-Vars wurden oben via `source "$CONF"` geladen.
+setsid /root/tetra_sysinfo \
+    --freq    "${TX_FREQ_HZ}"     \
+    --mcc     "${MCC:-901}"       \
+    --mnc     "${MNC:-9998}"      \
+    --la      "${LA:-1}"          \
+    --cc      "${CC:-49}"         \
+    --sc      "${SYSTEM_CODE:-2}" \
+    --duplex  "${DUPLEX_SPACING:-1}" \
+    --txpwr   "${MS_TXPWR:-6}"    \
+    --rxmin   "${RXLEVEL_MIN:-0}" \
+    --access  "${ACCESS_PARAM:-10}" \
+    --dltimo  "${RADIO_DL_TIMEOUT:-5}" \
+    --optfield "${OPT_FIELD:-1011456}" \
+    --optsel  "${OPT_SEL:-2}"     \
+    --prio    "${PRIORITY_CELL:-0}" \
+    --migr    "${MIGRATION:-0}"   \
+    --ncb     "${NCB:-3}"         \
+    --csl     "${CSL:-0}"         \
+    --daemon \
+    < /dev/null > /tmp/tetra_sysinfo.log 2>&1 &
 sleep 0.5
 setsid /root/tetra_ul_mon < /dev/null > /tmp/tetra_ul_mon.log 2>&1 &
 sleep 0.5

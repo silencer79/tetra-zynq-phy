@@ -27,6 +27,7 @@ fi
 : ${ACCESS_PARAM:=10}
 : ${RADIO_DL_TIMEOUT:=5}
 : ${OPT_FIELD:=1011456}
+: ${OPT_SEL:=2}
 : ${PRIORITY_CELL:=0}
 : ${MIGRATION:=0}
 : ${NCB:=3}
@@ -56,6 +57,7 @@ cat <<EOF
   "access_param": $ACCESS_PARAM,
   "radio_dl_timeout": $RADIO_DL_TIMEOUT,
   "opt_field": $OPT_FIELD,
+  "opt_sel": $OPT_SEL,
   "priority_cell": $PRIORITY_CELL,
   "migration": $MIGRATION,
   "ncb": $NCB,

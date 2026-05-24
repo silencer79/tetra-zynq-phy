@@ -320,11 +320,20 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  m.target_ssi = s->group_gssi ? s->group_gssi: s->ssi;
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.transmission_request_permission = 0; /* 0 = "allowed to request" per bluestation */
- int rc = tetra_tx_submit(hal, TX_D_TX_CEASED, &m);
+ /* 2026-05-24 — beim ERSTEN U-TX-CEASED 3× D-TX-CEASED stagen (gleiche
+  * Robust-Strategie wie D-CONNECT). MS sieht damit mind. 1 auch bei
+  * Air-Burst-Verlust → keine U-TX-CEASED-Retries mehr. Bei späteren
+  * U-TX-CEASED-Retries (= MS hatte unsere ersten 3 verloren) nur 1×
+  * antworten — Pattern wie ETSI Stop-and-Wait. */
+ unsigned reps = (s->t_ceased_ms == t_ceased_now) ? 3u : 1u;
+ int rc = 0;
+ for (unsigned i = 0; i < reps; i++) {
+ rc = tetra_tx_submit(hal, TX_D_TX_CEASED, &m);
+ }
  fprintf(stderr,
  "tetra_call_fsm: U-TX-CEASED ssi=0x%06X → D-TX-CEASED gssi=0x%06X "
- "call_id=%u rc=%d VOICE_ACTIVE_MASK=0x00\n",
- ssi, m.target_ssi, s->call_id, rc);
+ "call_id=%u reps=%u rc=%d\n",
+ ssi, m.target_ssi, s->call_id, reps, rc);
  return rc;
  }
 

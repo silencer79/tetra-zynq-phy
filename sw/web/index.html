@@ -140,10 +140,150 @@ td.num { text-align: right; }
   <label>Radio DL Timeout <span>4 bits (0-15)</span>
     <input name="radio_dl_timeout" type="number" value="5" min="0" max="15">
   </label>
-  <label>Optional Field Value <span>20 bits</span>
-    <input name="opt_field" type="number" value="1011456" min="0" max="1048575">
-  </label>
 </div>
+
+<!-- ===================== Optional Field (alle 4 Selectoren) ===================== -->
+<fieldset style="margin-top:1em;padding:0.8em 1em;border:1px solid #ccc;border-radius:4px">
+  <legend style="padding:0 0.5em;font-weight:bold">Optional Field <span style="font-weight:normal;font-size:0.85em;color:#888">ETSI EN 300 392-2 §21.4.4.1 — Selector (2 bit) + Value (20 bit)</span></legend>
+  <div class="grid" style="grid-template-columns: 2fr 1fr">
+    <label>Selector
+      <select name="opt_sel" id="opt_sel" onchange="onOptSelChange()">
+        <option value="0">0 = TS_COMMON_FRAMES (Even Multiframe)</option>
+        <option value="1">1 = TS_COMMON_FRAMES (Odd Multiframe)</option>
+        <option value="2" selected>2 = Default Access Code A</option>
+        <option value="3">3 = Extended Services Broadcast</option>
+      </select>
+    </label>
+    <label>aktueller Wert (hex / dec)
+      <input id="opt_field_display" type="text" value="" readonly
+             style="background:#f0f0f0;font-family:monospace;font-size:0.9em">
+    </label>
+  </div>
+
+  <!-- Sel 0/1: TS_COMMON_FRAMES — 18 bool flags f1..f18 (+ 2 reserved) -->
+  <div id="opt_block_ts" class="opt_block" style="display:none;margin-top:0.6em">
+    <div style="font-size:0.85em;color:#666;margin-bottom:0.3em">
+      Flag pro Frame (f1..f18) — gesetzt = Common-Frame, sonst Assigned-Slot.
+      Bits f19/f20 sind reserved (=0).
+    </div>
+    <div class="grid" id="opt_ts_flags"
+         style="grid-template-columns: repeat(9, 1fr); gap: 0.3em;font-size:0.85em"></div>
+  </div>
+
+  <!-- Sel 2: Default Access Code A — IMM/WT/NU/FLF/TSP/MinPri = 20 bit -->
+  <div id="opt_block_acc" class="opt_block" style="margin-top:0.6em">
+    <div class="grid">
+      <label>IMM <span>4 bit — 0=randomize, 15=immediate</span>
+        <input id="opt_imm" type="number" value="15" min="0" max="15" onchange="packOptField()">
+      </label>
+      <label>WT <span>4 bit — wait time</span>
+        <input id="opt_wt" type="number" value="6" min="0" max="15" onchange="packOptField()">
+      </label>
+      <label>NU <span>4 bit — access attempts</span>
+        <input id="opt_nu" type="number" value="15" min="0" max="15" onchange="packOptField()">
+      </label>
+      <label>FLF <span>1 bit — frame-len factor</span>
+        <select id="opt_flf" onchange="packOptField()">
+          <option value="0" selected>0 = normal</option>
+          <option value="1">1 = ×4</option>
+        </select>
+      </label>
+      <label>TS-Ptr <span>4 bit — timeslot pointer</span>
+        <input id="opt_tsp" type="number" value="0" min="0" max="15" onchange="packOptField()">
+      </label>
+      <label>MinPri <span>3 bit — min priority</span>
+        <input id="opt_minpri" type="number" value="0" min="0" max="7" onchange="packOptField()">
+      </label>
+    </div>
+  </div>
+
+  <!-- Sel 3: ExtServices — komplex, conditional. Erstmal Roh-Hex-Edit. -->
+  <div id="opt_block_ext" class="opt_block" style="display:none;margin-top:0.6em">
+    <div style="font-size:0.85em;color:#666;margin-bottom:0.3em">
+      Extended Services Broadcast (Table 21.67) — 3 bit Security-Class + 5 bit DCK/SCK + 12 bit SDS-Info.
+      Komplex-bedingte Sub-Felder — hier als 20-bit Hex direkt editierbar.
+    </div>
+    <div class="grid" style="grid-template-columns: 1fr">
+      <label>Value (5-stelliges Hex)
+        <input id="opt_ext_hex" type="text" value="40C10" pattern="[0-9A-Fa-f]{1,5}"
+               style="font-family:monospace" onchange="packOptField()">
+      </label>
+    </div>
+  </div>
+
+  <!-- Hidden — apply.cgi liest opt_field per name -->
+  <input type="hidden" name="opt_field" id="opt_field" value="1011456">
+</fieldset>
+
+<script>
+/* TS-Flags Generator (f1..f18) — einmal beim Load */
+(function() {
+  var box = document.getElementById('opt_ts_flags');
+  for (var i = 1; i <= 18; i++) {
+    var l = document.createElement('label');
+    l.style.display = 'flex'; l.style.flexDirection = 'column'; l.style.alignItems = 'center';
+    l.style.padding = '0.2em'; l.style.fontWeight = 'normal';
+    l.innerHTML = 'f' + i + ' <input type="checkbox" id="opt_ts_f' + i + '" onchange="packOptField()">';
+    box.appendChild(l);
+  }
+})();
+
+function onOptSelChange() {
+  var sel = parseInt(document.getElementById('opt_sel').value);
+  document.getElementById('opt_block_ts').style.display  = (sel === 0 || sel === 1) ? '' : 'none';
+  document.getElementById('opt_block_acc').style.display = (sel === 2) ? '' : 'none';
+  document.getElementById('opt_block_ext').style.display = (sel === 3) ? '' : 'none';
+  packOptField();
+}
+
+function packOptField() {
+  var sel = parseInt(document.getElementById('opt_sel').value);
+  var val = 0;
+  if (sel === 0 || sel === 1) {
+    /* 18 flags f1..f18 in bits[19:2], bits[1:0] reserved=0 */
+    for (var i = 1; i <= 18; i++) {
+      if (document.getElementById('opt_ts_f' + i).checked) val |= (1 << (20 - i));
+    }
+  } else if (sel === 2) {
+    var imm    = parseInt(document.getElementById('opt_imm').value)    || 0;
+    var wt     = parseInt(document.getElementById('opt_wt').value)     || 0;
+    var nu     = parseInt(document.getElementById('opt_nu').value)     || 0;
+    var flf    = parseInt(document.getElementById('opt_flf').value)    || 0;
+    var tsp    = parseInt(document.getElementById('opt_tsp').value)    || 0;
+    var minpri = parseInt(document.getElementById('opt_minpri').value) || 0;
+    val = (imm<<16) | (wt<<12) | (nu<<8) | (flf<<7) | (tsp<<3) | minpri;
+  } else if (sel === 3) {
+    val = parseInt(document.getElementById('opt_ext_hex').value, 16) || 0;
+  }
+  val = val & 0xFFFFF;
+  document.getElementById('opt_field').value = val;
+  document.getElementById('opt_field_display').value =
+    '0x' + val.toString(16).toUpperCase().padStart(5, '0') + '  (' + val + ')';
+}
+
+function unpackOptField(val) {
+  /* Bei conf-Load nur die Sub-Felder für aktuell selektierten Selector setzen. */
+  var sel = parseInt(document.getElementById('opt_sel').value);
+  if (sel === 0 || sel === 1) {
+    for (var i = 1; i <= 18; i++) {
+      document.getElementById('opt_ts_f' + i).checked = !!((val >> (20 - i)) & 1);
+    }
+  } else if (sel === 2) {
+    document.getElementById('opt_imm').value    = (val >> 16) & 0xF;
+    document.getElementById('opt_wt').value     = (val >> 12) & 0xF;
+    document.getElementById('opt_nu').value     = (val >> 8)  & 0xF;
+    document.getElementById('opt_flf').value    = (val >> 7)  & 0x1;
+    document.getElementById('opt_tsp').value    = (val >> 3)  & 0xF;
+    document.getElementById('opt_minpri').value = val & 0x7;
+  } else if (sel === 3) {
+    document.getElementById('opt_ext_hex').value =
+      val.toString(16).toUpperCase().padStart(5, '0');
+  }
+  packOptField();
+}
+
+window.addEventListener('load', function() { onOptSelChange(); });
+</script>
 
 <h2>Duplex-Spacing-Tabelle <span style="font-weight:normal;font-size:0.85em;color:#888">Offset pro Duplex-ID in MHz (negativ = UL unter DL). Editierbar pro MS-Codeplug.</span></h2>
 <div class="grid" style="grid-template-columns: repeat(8, 1fr); gap: 0.4em">
@@ -477,12 +617,18 @@ function loadConfig() {
       /* Scalar fields */
       var scalars = ['freq','mcc','mnc','la','cc','tx_atten','system_code',
                      'duplex_spacing','ms_txpwr','rxlevel_min','access_param',
-                     'radio_dl_timeout','opt_field','priority_cell','migration',
+                     'radio_dl_timeout','opt_sel','priority_cell','migration',
                      'ncb','csl'];
       scalars.forEach(function(k) {
         var el = document.querySelector('[name="' + k + '"]');
         if (el && c[k] !== undefined) el.value = c[k];
       });
+      /* opt_sel ändert die sichtbaren Sub-Felder; danach opt_field
+       * in den Sub-Feldern (für den aktiven Selector) anzeigen. */
+      if (typeof onOptSelChange === 'function') onOptSelChange();
+      if (c.opt_field !== undefined && typeof unpackOptField === 'function') {
+        unpackOptField(parseInt(c.opt_field));
+      }
       /* Duplex table: Hz → MHz for display */
       if (Array.isArray(c.duplex_offsets)) {
         c.duplex_offsets.forEach(function(hz, i) {
