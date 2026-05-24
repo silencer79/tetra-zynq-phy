@@ -247,7 +247,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  int rc = stage_d_connect(hal, s);
  uint32_t t_conn1_ms = mono_ms_lo();
  fprintf(stderr,
- "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[1/3] "
+ "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[1/2] "
  "call_id=%u rc=%d  [TIMING t0+%ums]\n",
  ssi, s->group_gssi, s->call_id, rc, t_conn1_ms - t0_ms);
  s->setup_stage = 1u; /* tick triggert D-CONNECT[2] dann [3]+D-SETUP */
@@ -427,21 +427,21 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  if (s->setup_stage > 0u &&
  (int32_t)(now - s->setup_next_ms) >= 0) {
  if (s->setup_stage == 1u) {
+ /* 2026-05-24 — D-CONNECT 3× → 2× reduziert. Gold-WAV (call_id=18)
+  * zeigt nur 2 D-CONNECT-Wiederholungen, nicht 3. Memory
+  * project_d_connect_retransmit_rate: "1 Hard-Reject Case bei
+  * 3 D-CONNECTs zu schnell" → Reduktion eliminiert das Risiko. */
  int rc = stage_d_connect(hal, s);
  fprintf(stderr,
- "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[2/3] "
+ "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[2/2] "
  "call_id=%u rc=%d  [TIMING t0+%ums]\n",
  s->ssi, s->group_gssi, s->call_id, rc,
  now - s->t_setup_arrived_ms);
  s->setup_stage = 2u;
  s->setup_next_ms = now + 113u;
  } else if (s->setup_stage == 2u) {
- int rc = stage_d_connect(hal, s);
- fprintf(stderr,
- "tetra_call_fsm: U-SETUP ssi=0x%06X gssi=0x%06X → D-CONNECT[3/3] "
- "call_id=%u rc=%d  [TIMING t0+%ums]\n",
- s->ssi, s->group_gssi, s->call_id, rc,
- now - s->t_setup_arrived_ms);
+ /* D-CONNECT[3] entfernt — direkt D-SETUP nach 113 ms.
+  * Gold-Pattern: 2 D-CONNECT + (optional) D-SETUP für Group-Notify. */
  if (s->group_gssi != 0u || s->target_issi != 0u) {
  int src = stage_d_setup(hal, s);
  fprintf(stderr,
