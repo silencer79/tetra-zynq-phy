@@ -55,6 +55,37 @@ static call_slot_t *find_slot(uint32_t ssi)
  return NULL;
 }
 
+/* 2026-05-25 — Floor-Lookup für Group-Member B, der PTT drückt während Call
+ * läuft (Talker A, MS-B ist Group-Listener). MS-B sendet U-TX-DEMAND mit der
+ * call_id die sie aus D-SETUP empfangen hat — nicht mit ihrer eigenen ISSI
+ * im find_slot()-Sinn. Per Gold-Standard (DL-Decode UMt=23 konstant über
+ * gesamten Group-Call) bleibt der Slot derselbe; nur der Talker wechselt. */
+static call_slot_t *find_slot_by_call_id(uint16_t call_id)
+{
+ if (call_id == 0u) return NULL;
+ for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
+ if (g_slots[i].ssi != 0u && g_slots[i].call_id == call_id) {
+ return &g_slots[i];
+ }
+ }
+ return NULL;
+}
+
+/* 2026-05-25 — Multi-MS Group-Call: MS-B drückt PTT während A spricht und
+ * sendet U-SETUP (NICHT U-TX-DEMAND wie ETSI-Spec sagt — MTP3550-FW-Verhalten,
+ * via attach_daemon-Log beobachtet). BS muss erkennen: es läuft schon ein
+ * Group-Call mit dieser GSSI → kein neuer Slot, sondern Floor-Transfer an B. */
+static call_slot_t *find_slot_by_gssi(uint32_t gssi)
+{
+ if (gssi == 0u) return NULL;
+ for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
+ if (g_slots[i].ssi != 0u && g_slots[i].group_gssi == gssi) {
+ return &g_slots[i];
+ }
+ }
+ return NULL;
+}
+
 /* 2026-05-24 Klasse 2 — UMt-Pool 4..63 round-robin.
  * ETSI EN 300 392-2 §21.4.7.2: UMt = Traffic Usage Marker im AACH des
  * Voice-Slots, pro Call eindeutig. UMt=0..3 sind reserviert (UMx/UMa/UMc/
@@ -240,15 +271,6 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
 
  switch (p->pdu_type) {
  case CMCE_U_SETUP: {
- if (s == NULL) {
- s = alloc_slot(hal, ssi);
- if (s == NULL) {
- fprintf(stderr,
- "tetra_call_fsm: U-SETUP ssi=0x%06X — no free slot\n",
- ssi);
- return -1;
- }
- }
  /* Called-party-SSI aus U-SETUP übernehmen. Group vs Individual
   * steht im BSI.communication_type (ETSI §14.8.41):
   *   00 = Point-to-Point (= Individual call, target = ISSI)
@@ -263,14 +285,41 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  ? (p->called_party_ssi & 0x00FFFFFFu): 0u;
  uint8_t ct = p->bsi.communication_type;
  int cp_is_group = (cp_ssi != 0u) && (ct == 1u || ct == 2u || ct == 3u);
- /* Wenn Group laut BSI: DB validate; wenn nicht in GSSI-Tabelle →
-  * fallback auf Individual (= MS sendet vermutlich falschen ct). */
  if (cp_is_group && tetra_db_lookup(cp_ssi, 1u, NULL) != 1) {
  fprintf(stderr,
  "tetra_call_fsm: U-SETUP ssi=0x%06X cp=0x%06X ct=%u "
  "advertised group but not in GSSI table → individual\n",
  ssi, cp_ssi, ct);
  cp_is_group = 0;
+ }
+ /* 2026-05-25 — Multi-MS Floor-Transfer via U-SETUP (MTP3550-FW
+  * sendet U-SETUP statt U-TX-DEMAND wenn anderes Group-Member PTT
+  * drückt). Wenn schon ein Group-Call für dieselbe GSSI läuft:
+  * KEIN neuer Slot, Floor an B transferieren, gleiche UMt/voice_tn
+  * behalten. Sonst kollidiert SLOT_AACH_N zwischen A's und B's Call. */
+ if (s == NULL && cp_is_group) {
+ call_slot_t *group_slot = find_slot_by_gssi(cp_ssi);
+ if (group_slot != NULL) {
+ fprintf(stderr,
+ "tetra_call_fsm: U-SETUP floor-transfer ssi=0x%06X "
+ "gssi=0x%06X → call_id=%u (alter Talker=0x%06X, "
+ "UMt=%u/voice_tn=%u behalten)\n",
+ ssi, cp_ssi, group_slot->call_id, group_slot->ssi,
+ group_slot->umt, group_slot->voice_tn);
+ group_slot->ssi = ssi;
+ group_slot->ns = 0u;
+ group_slot->nr = 0u;
+ s = group_slot;
+ }
+ }
+ if (s == NULL) {
+ s = alloc_slot(hal, ssi);
+ if (s == NULL) {
+ fprintf(stderr,
+ "tetra_call_fsm: U-SETUP ssi=0x%06X — no free slot\n",
+ ssi);
+ return -1;
+ }
  }
  s->group_gssi = cp_is_group ? cp_ssi: 0u;
  s->target_issi = cp_is_group ? 0u : cp_ssi;
@@ -327,8 +376,27 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  }
 
  case CMCE_U_TX_DEMAND: {
+ /* 2026-05-25 — Floor-Wechsel im Group-Call: MS-B (≠ Caller) drückt
+  * PTT während A spricht. B hat keinen eigenen Call-Slot — wir finden
+  * den existing Group-Slot via call_id, übernehmen Floor an B.
+  * Gold-Standard verifiziert (Decode 04-20): UMt+voice_tn+SLOT_AACH
+  * bleiben konstant über Floor-Wechsel, nur s->ssi (= aktueller Talker)
+  * wechselt. */
  if (s == NULL) {
- /* No active call — silently drop. */
+ s = find_slot_by_call_id(p->call_identifier);
+ if (s != NULL) {
+ fprintf(stderr,
+ "tetra_call_fsm: U-TX-DEMAND floor-transfer ssi=0x%06X "
+ "→ call_id=%u (alter Talker=0x%06X, UMt=%u behalten)\n",
+ ssi, s->call_id, s->ssi, s->umt);
+ s->ssi = ssi;
+ s->ns = 0u; /* LLC stop-and-wait für neuen Talker reset */
+ s->nr = 0u;
+ }
+ }
+ if (s == NULL) {
+ /* Kein Group-Call mit dieser call_id und kein eigener Slot —
+  * MS hat veraltete call_id oder Race. Silently drop wie bisher. */
  return -1;
  }
  nsnr_step_bs(s);
