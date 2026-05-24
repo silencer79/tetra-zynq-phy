@@ -72,12 +72,7 @@ dx7=${dx7:-${DUPLEX_OFFSET_HZ_7:--7600000}}
 # Hardware defaults (preserved from existing conf if not overridden).
 SAMPLERATE_HZ=${SAMPLERATE_HZ:-4608000}
 RF_BW_HZ=${RF_BW_HZ:-200000}
-# Form-overridable RX path (AD9361 gain_control_mode + hardwaregain).
-gain_mode=${gain_mode:-${GAIN_MODE:-fast_attack}}
-rx_gain=${rx_gain:-${RX_GAIN_DB:-40}}
-# Pack B — UL-RX-Pipeline Tuning (clamped at hardware: gain_shf 0..6, thresh 8..20)
-rx_cic_gain_shf=${rx_cic_gain_shf:-${RX_CIC_GAIN_SHF:-4}}
-ul_ra_sync_thresh=${ul_ra_sync_thresh:-${UL_RA_SYNC_THRESH:-15}}
+GAIN_MODE=${GAIN_MODE:-fast_attack}
 TX_ATT_INIT_DB=${TX_ATT_INIT_DB:--89}
 VCXO_DAC_VAL=${VCXO_DAC_VAL:-153}
 XO_CORRECTION_HZ=${XO_CORRECTION_HZ:-40000000}
@@ -118,10 +113,7 @@ TX_FREQ_HZ=$freq
 RX_FREQ_HZ=$rx_freq
 SAMPLERATE_HZ=$SAMPLERATE_HZ
 RF_BW_HZ=$RF_BW_HZ
-GAIN_MODE=$gain_mode
-RX_GAIN_DB=$rx_gain
-RX_CIC_GAIN_SHF=$rx_cic_gain_shf
-UL_RA_SYNC_THRESH=$ul_ra_sync_thresh
+GAIN_MODE=$GAIN_MODE
 
 # TX-Pegel
 TX_ATT_INIT_DB=$TX_ATT_INIT_DB
@@ -174,20 +166,6 @@ echo "$freq"    > /sys/bus/iio/devices/iio:device1/out_altvoltage1_TX_LO_frequen
 echo "$rx_freq" > /sys/bus/iio/devices/iio:device1/out_altvoltage0_RX_LO_frequency 2>/dev/null
 printf "%f"     "$tx_atten" > /sys/bus/iio/devices/iio:device1/out_voltage0_hardwaregain 2>/dev/null
 
-# RX path: AGC mode + manual gain (per memory `reference_iio_attr_systemd_hang`,
-# use direct sysfs writes — iio_attr hangs unkillable in systemd context).
-echo "$gain_mode" > /sys/bus/iio/devices/iio:device1/in_voltage0_gain_control_mode 2>/dev/null
-if [ "$gain_mode" = "manual" ]; then
-    echo "$rx_gain" > /sys/bus/iio/devices/iio:device1/in_voltage0_hardwaregain 2>/dev/null
-fi
-
-# Pack B — UL-RX-Pipeline tuning via FPGA AXI registers.
-# REG_RX_CIC_GAIN_SHF @ 0x290 (CIC output gain shift, 0..6)
-# REG_UL_RA_SYNC_THRESH @ 0x294 (UL-RA correlator threshold, 8..20)
-AXI_BASE=0x43C00000
-devmem $((AXI_BASE + 0x290)) 32 "$rx_cic_gain_shf"   2>/dev/null
-devmem $((AXI_BASE + 0x294)) 32 "$ul_ra_sync_thresh" 2>/dev/null
-
 nohup /root/tetra_sysinfo \
     --freq "$freq" \
     --mcc "$mcc" \
@@ -218,8 +196,6 @@ if pidof tetra_sysinfo > /dev/null 2>&1; then
     echo "DL: $(cat /sys/bus/iio/devices/iio:device1/out_altvoltage1_TX_LO_frequency) Hz"
     echo "RX: $(cat /sys/bus/iio/devices/iio:device1/out_altvoltage0_RX_LO_frequency) Hz"
     echo "TX-Atten: $(cat /sys/bus/iio/devices/iio:device1/out_voltage0_hardwaregain) dB"
-    echo "RX AGC-Mode: $(cat /sys/bus/iio/devices/iio:device1/in_voltage0_gain_control_mode 2>/dev/null)"
-    echo "RX Gain: $(cat /sys/bus/iio/devices/iio:device1/in_voltage0_hardwaregain 2>/dev/null) dB"
     echo ""
     echo "Cell: MCC=$mcc MNC=$mnc LA=$la CC=$cc SC=$system_code"
     echo "Duplex-Spacing-ID=$duplex_spacing → Offset=$(case $duplex_spacing in

@@ -31,10 +31,6 @@ fi
 : ${MIGRATION:=0}
 : ${NCB:=3}
 : ${CSL:=0}
-: ${GAIN_MODE:=fast_attack}
-: ${RX_GAIN_DB:=40}
-: ${RX_CIC_GAIN_SHF:=4}
-: ${UL_RA_SYNC_THRESH:=15}
 : ${DUPLEX_OFFSET_HZ_0:=-10000000}
 : ${DUPLEX_OFFSET_HZ_1:=-45000000}
 : ${DUPLEX_OFFSET_HZ_2:=0}
@@ -64,10 +60,6 @@ cat <<EOF
   "migration": $MIGRATION,
   "ncb": $NCB,
   "csl": $CSL,
-  "gain_mode": "$GAIN_MODE",
-  "rx_gain": $RX_GAIN_DB,
-  "rx_cic_gain_shf": $RX_CIC_GAIN_SHF,
-  "ul_ra_sync_thresh": $UL_RA_SYNC_THRESH,
   "duplex_offsets": [
     $DUPLEX_OFFSET_HZ_0,
     $DUPLEX_OFFSET_HZ_1,

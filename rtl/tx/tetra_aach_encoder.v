@@ -77,19 +77,6 @@ module tetra_aach_encoder (
  * REG_VOICE_ACTIVE_MASK @ 0x1EC. */
  input wire [3:0] voice_active_mask_sys,
 
- /* Phase 2/3 (2026-05-23) — Per-TN slot_mode (4×4-bit = 16-bit), höchste
-  * Priorität nach FN=18-Override und TN=0-Branches. Wenn slot_mode[tn] != 0,
-  * gewinnt die LUT (TCH_VOICE/HALF_STEAL_SIG/FULL_STEAL_SIG/FULL_STEAL_FILLER).
-  * Wenn slot_mode[tn] == 0 → Fallback auf bisherigen voice_active_mask-Pfad.
-  * SW kontrolliert via REG_SLOT_MODE @ 0x2B4. */
- input wire [15:0] slot_mode_sys,
- /* Phase 3.4 (2026-05-24) — Per-TN Traffic Usage Marker (UMt), ETSI
-  * EN 300 392-2 §21.4.7.2. 4×8-bit packed; bits[TN*8 +: 6] = UMt für TN.
-  * UMt=0 → kein aktiver Call, AACH-LUT-Pfade nutzen legacy hardcoded
-  * Werte; UMt=4..63 → dynamische AACH-Berechnung (Voice: Header=11+UMt+UMt,
-  * HALF_STEAL: Header=10+UMt+0x09). SW kontrolliert via REG_SLOT_UMT @ 0x2D4. */
- input wire [31:0] slot_umt_sys,
-
  // Phase Z.13 (2026-05-04): the Z.2/Z.12 `aach_override_valid_sys` +
  // `aach_override_info_sys` inputs were removed. Queued-PDU AACH
  // patterns now flow through a separate combinational tetra_aach_rm_
@@ -223,31 +210,17 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  grant_consume_sys <= 1'b1;
  end else if (tn_sys == 2'd0) begin
  info_sys <= signalling_active_sys ? 14'h0009: 14'h0249;
- end else if (slot_mode_sys[tn_sys*4 +: 4] != 4'd0) begin
- /* Phase 3.4 (2026-05-24) — DYNAMISCHE AACH-Berechnung aus slot_mode +
-  * UMt (Traffic Usage Marker), ETSI EN 300 392-2 §21.4.7.2 Table 21.82.
-  * slot_mode-LUT (gewinnt vor voice_active_mask):
-  *   1 = TCH_VOICE         → Header=11 + DL=UMt + UL=UMt
-  *   2 = HALF_STEAL_SIG    → Header=10 + DL=UMt + UL=AccessField(code=A,len=8)
-  *   3 = FULL_STEAL_SIG    → Header=10 + DL=UMa(1) + UL=AccessField(code=A,len=8)
-  *   4 = FULL_STEAL_FILLER → wie 3
-  *   default               → 14'h3000 (idle traffic)
-  * Access field default 6'h09 = (00=code-A) | (1001=8 subslots base-frame-len). */
- case (slot_mode_sys[tn_sys*4 +: 4])
- 4'd1: info_sys <= {2'b11, slot_umt_sys[tn_sys*8 +: 6], slot_umt_sys[tn_sys*8 +: 6]};
- 4'd2: info_sys <= {2'b10, slot_umt_sys[tn_sys*8 +: 6], 6'h09};
- 4'd3: info_sys <= {2'b10, 6'd1, 6'h09}; /* UMa = Assigned Control */
- 4'd4: info_sys <= {2'b10, 6'd1, 6'h09};
- default: info_sys <= 14'h3000;
- endcase
  end else if (voice_active_mask_sys[tn_sys]) begin
- /* Fallback: voice_active_mask-Pfad. Wenn SW UMt im Register stehen hat,
-  * berechne AACH dynamisch (Header=11 + UMt + UMt); sonst hardcoded
-  * 0x33CF (legacy backward-compat für Setup ohne UMt-Allokation). */
- if (|slot_umt_sys[tn_sys*8 +: 6])
- info_sys <= {2'b11, slot_umt_sys[tn_sys*8 +: 6], slot_umt_sys[tn_sys*8 +: 6]};
- else
- info_sys <= 14'h33CF;
+ /* MER-Fix 2026-05-16 (gold-audit dl_events.jsonl mn=60..N):
+  * Die echte BS sendet AACH=0x32CB DURCHGEHEND für FN 1-17 auf
+  * dem voice-slot, unabhängig vom emittierten Burst-Typ (NDB1
+  * voice ODER NDB2 SCH/HD signalling). 0x32CB ist der Voice-
+  * Call-Allocation-Marker, nicht ein burst-encoding-Indicator.
+  * Vorherige FN-Rotation (0x32CB/0x22C9/0x2049) war Drift:
+  * 0x22C9 (n=11 in Gold) und 0x2049 (n=151 in Gold) gelten
+  * für Transition/Idle-Slots, nicht aktiven Voice-Call.
+  * FN 18 (fn_sys=17) bleibt BSCH-Anchor (oberer Pfad). */
+ info_sys <= 14'h32CB;
  end else begin
  // F1-17 TN!=0 idle (Traffic-Slots) — rotiert nach FN/MN%4
  if (mn_low2_sys == 2'd1 &&

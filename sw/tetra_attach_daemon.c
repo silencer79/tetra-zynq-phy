@@ -32,7 +32,6 @@
 #include "tetra_cmce_parser.h"
 #include "tetra_call_fsm.h"
 #include "tetra_mm_demand_parser.h"
-#include "tetra_facch_decode.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -166,36 +165,14 @@ static void react_mm7_grpid(tetra_hal_t *hal,
  * Parser-Ausgabe via die parsed-Snapshot-Mailboxen. Bei Bit-Equivalenz
  * (= alle Felder identisch über ≥10 PTT-Cycles + Group-Attaches) wird
  * Phase 1E den RTL-Parser entfernen. */
-static uint32_t mono_ms_lo_ad(void)
-{
- struct timespec ts;
- clock_gettime(CLOCK_MONOTONIC, &ts);
- return (uint32_t)((uint64_t)ts.tv_sec * 1000ull + ts.tv_nsec / 1000000ull);
-}
-
 static void service_uldbod(tetra_hal_t *hal)
 {
- /* Bug-#2 instrumentation (2026-05-23): timestamp + raw-mailbox-snapshot
-  * Logged on every push so we can correlate WAV-decoded U-LOC-UPD-DEMAND
-  * burst-sets against RTL-mailbox pushes. Hypothesis: WAV zeigt 3 Anmelde-
-  * Versuche, RTL liefert nur 2 Snapshots → entweder Reassembly-T0 verwirft
-  * oder Mailbox-Drop. */
- static uint32_t s_uldbod_snapshot_cnt = 0;
- s_uldbod_snapshot_cnt++;
- uint32_t t_in = mono_ms_lo_ad();
-
  uint32_t w0 = uldbod_read(hal, 0);  /* magic + mm_type + body[128] */
  uint32_t w1 = uldbod_read(hal, 1);  /* ssi */
  uint32_t w2 = uldbod_read(hal, 2);  /* body[127:96] */
  uint32_t w3 = uldbod_read(hal, 3);  /* body[95:64] */
  uint32_t w4 = uldbod_read(hal, 4);  /* body[63:32] */
  uint32_t w5 = uldbod_read(hal, 5);  /* body[31:0] */
-
- fprintf(stderr,
- "tetra_attach_daemon: [MAILBOX-IN #%u] t=%ums w0=0x%08X ssi=0x%06X "
- "mm_type=%u\n",
- s_uldbod_snapshot_cnt, t_in, w0, w1 & 0xFFFFFFu,
- (unsigned)((w0 >> 28) & 0xFu));
 
  uint8_t body[TETRA_MM_DEMAND_BODY_BYTES];
  uint8_t mm_type;
@@ -548,8 +525,7 @@ int main(int argc, char **argv)
  tetra_db_count(0), tetra_db_count(1));
  }
 
- /* Phase Move-3+4 — REG_REPLY_USE_SW entfernt; alle Reply-Pfade laufen jetzt
-  * über REG_DL_RAW_PDU_* (SW baut 432-bit komplette PDU). */
+ tetra_reg_write(&hal, REG_REPLY_USE_SW, 0x1u);
 
  /* MER-Fix: VOICE_ACTIVE_MASK kann von einem vorherigen Call hängen
   * bleiben wenn die MS keinen U-RELEASE sendet (power-cycle, sync-loss,
@@ -582,15 +558,6 @@ int main(int argc, char **argv)
  * trotz Power-Cycle), Slot freigeben. */
  tetra_call_fsm_tick(&hal);
 
- /* Phase A (2026-05-23) — UL-NTS2-FACCH-Stealing-Decode + Dispatch.
-  * MS sendet U-DISCONNECT/U-RELEASE als NTS2-Burst auf UL-Voice-Slot.
-  * FPGA-RTL hat dafür eine 2. NUB-Capture-Pipeline (siehe
-  * tetra_rx_chain.v u_ul_facch_capture). Diese SW liest die
-  * REG_FACCH_NUB_READ_*-Mailbox, dekodiert SCH/HD, parst CMCE und
-  * ruft tetra_call_fsm_handle() — der existierende U-DISCONNECT-Handler
-  * triggert dann stage_d_release(). */
- (void)tetra_facch_decode_tick(&hal);
-
  /* Phase 1C — service raw-body Mailbox parallel zu RTL-Parser-Pfaden.
   * Logs SW-Walker-Output für A/B-Vergleich. Wird vor dem
   * RTL-parsed-demand-poll geprüft damit die Reihenfolge im Log
@@ -613,9 +580,9 @@ int main(int argc, char **argv)
  uint32_t ul_status = tetra_reg_read(&hal, REG_UL_PDU_STATUS);
  /* 2026-05-24 — UL_STATUS_VALID-Gate ENTFERNT. tetra_ul_mon W1C-cleart
   * den valid-sticky direkt nach jedem Log → wir sahen valid=0 obwohl
-  * count_hi weitergewachsen war. Folge: alle CMCE-PDUs (U-SETUP,
-  * U-DISCONNECT) wurden ignoriert → "PTT abgewiesen". Counter-Track
-  * allein reicht: RTL hält SSI/RAW stabil bis nächste PDU. */
+  * count_hi weitergewachsen war. Folge: jede 2. CMCE-PDU (U-SETUP,
+  * U-DISCONNECT) wurde ignoriert. Counter-Track allein reicht — RTL hält
+  * SSI/RAW stabil bis nächste PDU. */
  {
  uint16_t ul_count = (uint16_t)UL_STATUS_PDU_COUNT(ul_status);
  if (ul_count != last_ul_count) {
@@ -690,9 +657,9 @@ int main(int argc, char **argv)
  }
  }
 
- /* Phase Move-3+4 — REG_REPLY_USE_SW gibt's nicht mehr. */
+ tetra_reg_write(&hal, REG_REPLY_USE_SW, 0x0u);
  fprintf(stderr,
- "tetra_attach_daemon: exiting — "
+ "tetra_attach_daemon: exiting — USE_SW=0 (MLE-FSM fallback) "
  "(serviced=%u)\n", serviced_g);
  tetra_hal_close(&hal);
  return 0;

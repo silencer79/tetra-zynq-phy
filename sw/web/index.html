@@ -93,27 +93,6 @@ td.num { text-align: right; }
     <span>0 = max, -89.75 = min</span>
     <input name="tx_atten" type="number" value="-10" step="0.25" min="-89.75" max="0">
   </label>
-  <label>RX AGC Mode
-    <span>fast_attack = burst-rated, manual = fixed gain, slow_attack/hybrid = average</span>
-    <select name="gain_mode" id="gain_mode_sel">
-      <option value="manual">manual</option>
-      <option value="fast_attack" selected>fast_attack</option>
-      <option value="slow_attack">slow_attack</option>
-      <option value="hybrid">hybrid</option>
-    </select>
-  </label>
-  <label>RX Gain (dB, manual only)
-    <span>0..71 dB, used only when AGC Mode = manual</span>
-    <input name="rx_gain" type="number" value="40" step="1" min="0" max="71">
-  </label>
-  <label>RX CIC Gain Shift
-    <span>0=×1, 4=×16 (Default, Air-Test optimal), 6=×64 (klippt). REG 0x290</span>
-    <input name="rx_cic_gain_shf" type="number" value="4" step="1" min="0" max="6">
-  </label>
-  <label>UL-RA Sync Threshold
-    <span>UL-RA-Korrelator. 13=permissiv, 15=Default (CRC ~93%), &gt;16 zu strikt. REG 0x294</span>
-    <input name="ul_ra_sync_thresh" type="number" value="15" step="1" min="8" max="20">
-  </label>
 </div>
 
 <h2>Netzwerk-Identifikation</h2>
@@ -499,8 +478,7 @@ function loadConfig() {
       var scalars = ['freq','mcc','mnc','la','cc','tx_atten','system_code',
                      'duplex_spacing','ms_txpwr','rxlevel_min','access_param',
                      'radio_dl_timeout','opt_field','priority_cell','migration',
-                     'ncb','csl','gain_mode','rx_gain',
-                     'rx_cic_gain_shf','ul_ra_sync_thresh'];
+                     'ncb','csl'];
       scalars.forEach(function(k) {
         var el = document.querySelector('[name="' + k + '"]');
         if (el && c[k] !== undefined) el.value = c[k];

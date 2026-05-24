@@ -152,23 +152,28 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_crc16.v \
  $PROJ_DIR/rtl/lmac/tetra_steal_detect.v \
  $PROJ_DIR/rtl/lmac/tetra_ul_mac_access_parser.v \
- $PROJ_DIR/rtl/lmac/tetra_dl_raw_pdu_mailbox.v \
+ $PROJ_DIR/rtl/lmac/tetra_d_location_update_encoder.v \
+ $PROJ_DIR/rtl/lmac/tetra_d_location_update_reject_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_sch_hd_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_sch_hd_shared.v \
+ $PROJ_DIR/rtl/lmac/tetra_sch_f_encoder.v \
+ $PROJ_DIR/rtl/lmac/tetra_basic_slotgrant_encoder.v \
+ $PROJ_DIR/rtl/lmac/tetra_chan_alloc_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_mac_resource_dl_builder.v \
  $PROJ_DIR/rtl/lmac/tetra_mac_resource_bl_ack_builder.v \
+ $PROJ_DIR/rtl/lmac/tetra_mle_registration_fsm.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_signal_queue.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_signal_scheduler.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_nwrk_broadcast.v \
  $PROJ_DIR/rtl/lmac/tetra_indirect_mailbox.v \
  $PROJ_DIR/rtl/lmac/tetra_indirect_mailbox_wr.v \
  $PROJ_DIR/rtl/lmac/tetra_ul_demand_body_mailbox.v \
+ $PROJ_DIR/rtl/lmac/tetra_reply_mailbox.v \
  $PROJ_DIR/rtl/lmac/tetra_pre_reply_blck.v \
  $PROJ_DIR/rtl/lmac/tetra_pre_reply_slotgrant.v \
+ $PROJ_DIR/rtl/lmac/tetra_dl_pdu_builder.v \
  $PROJ_DIR/rtl/lmac/tetra_voice_filler_mailbox.v \
  $PROJ_DIR/rtl/lmac/tetra_voice_nub_read_mailbox.v \
- $PROJ_DIR/rtl/lmac/tetra_facch_nub_read_mailbox.v \
- $PROJ_DIR/rtl/lmac/tetra_facch_steal_mailbox.v \
 ]
 
 # Top-Level modules

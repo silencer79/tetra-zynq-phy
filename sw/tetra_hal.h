@@ -251,33 +251,29 @@
  * entfernt. SW walkt direkt aus der UL-Demand-Body Raw-Mailbox (Phase 1A,
  * REG_UL_DEMAND_BODY_* @ 0x250..0x25C) via tetra_mm_demand_parser. */
 
-/* Phase Move-3+4 (2026-05-21) — DL Raw-PDU Push Mailbox (0x220..0x230).
- * SW baut die KOMPLETTE 432-bit type-5 SCH/F-PDU in C (MAC-Resource +
- * LLC + MLE-PD + MM-Body + Padding + SCH/F-Encode via tetra_dl_pdu.c)
- * und schiebt sie hier rein. Ersetzt die alte Reply-Pull-Mailbox + die
- * RTL-Pipeline u_mle_registration_fsm + u_dl_pdu_builder (~5000 LUT).
- *
- * Word layout (15 indirect words):
- *   W0  [31:0] payload bits[431:400]    (= ersten 32 On-Air-Bits)
- *   W1  [31:0] payload bits[399:368]
- *   ...
- *   W12 [31:0] payload bits[ 47: 16]
- *   W13 [31:16] payload bits[ 15:  0]   (untere 16 bit ignoriert)
- *   W14 [31:0] Metadata:
- *               [ 1: 0] pdu_type (0 = SCH/F)
- *               [ 3: 2] target_tn
- *               [17: 4] aach_pattern (14 bit)
- *               [18]    second_pdu_present
- *               [19]    second_pdu_nr
- *               [31:20] reserved
- */
-#define REG_DL_RAW_PDU_INDEX  0x220 /* R/W [3:0] word selector 0..14 */
-#define REG_DL_RAW_PDU_DATA   0x224 /* R/W [31:0] indirect via INDEX */
-#define REG_DL_RAW_PDU_GO     0x228 /* W1S [0] push trigger */
-#define REG_DL_RAW_PDU_CNT    0x22C /* RO  [15:0] saturating push counter */
+/* Phase X.2 — Reply-Pull Mailbox (extension window 0x220..0x230).
+ * SW stages a complete D-LOC-UPDATE-ACCEPT body via the indirect window
+ * and pulses GO; the field outputs feed the MLE-FSM u_dloc input mux
+ * when REG_REPLY_USE_SW[0] is set. Word layout (32 bit each):
+ * W0 [23:0] ssi
+ * W1 [13:0] la
+ * W2 [ 2:0] addr_type
+ * W3 [ 1:0] result (0=accept, 1=rej-temp, 2=rej-perm)
+ * W4 [23:0] gila_gssi
+ * W5 [ 4:2] gila_class [1:0] gila_lifetime
+ * W6 [ 0] gila_present
+ * W7 [ 1:0] encryption (Reserved Phase X.2)
+ * W8 [ 1:0] auth_result (Reserved Phase X.2)
+ * W9..W15 reserved Phase X.4 */
+#define REG_REPLY_INDEX 0x220 /* R/W [3:0] word selector 0..15 */
+#define REG_REPLY_DATA 0x224 /* R/W [31:0] indirect via INDEX */
+#define REG_REPLY_GO 0x228 /* W1S [0] pulse to MLE-FSM */
+#define REG_REPLY_STATUS 0x22C /* RO [0] busy mirror */
+#define REG_REPLY_USE_SW 0x230 /* R/W [0] use_sw_body field-mux */
 
 /* Phase 1E-B (2026-05-20) — alte Group-Attach Demand-Mailbox (0x240..0x24C)
- * entfernt. mm=7 wird wie mm=2 aus dem raw-Body via SW gewalkt. */
+ * entfernt. mm=7 wird wie mm=2 aus dem raw-Body via SW gewalkt.
+ * GroupAck-Reply läuft weiter über die mm=2 Reply-Pull-Mailbox (REG_REPLY_*). */
 
 /* Phase 1A — UL-Demand-Body Raw-Mailbox (Slice-Cleanup Vorbereitung).
  * Snapshot des 129-bit MM-Bodys + SSI + mm_pdu_type aus tetra_ul_demand_
@@ -326,20 +322,6 @@
 #define REG_VOICE_RELAY_CNT 0x264
 #define REG_VOICE_NUB_SYNC_THRESH 0x268
 
-/* Pack B — UL-RX-Pipeline Diagnose + Tuning (Bank-1 0x290..0x298).
- * REG_RX_CIC_GAIN_SHF   R/W [2:0] CIC gain shift (default 6, range 0..6)
- *                       6 = ×64 (historisch fix), 0 = unity. Live-tune
- *                       via devmem; nach Wechsel CRC/sync_cnt vergleichen.
- * REG_UL_RA_SYNC_THRESH R/W [5:0] UL-RA-Korrelator-Threshold (default 13)
- *                       Separat von DL REG_SYNC_THRESH @ 0x0C.
- * REG_UL_RA_RX_STATUS   RO  {15'd0, capture_busy, captured_cnt[15:0]}
- *                       capture_busy = 1 während ein RA-Burst gerade
- *                       gestreamt wird; captured_cnt = Bursts seit Boot,
- *                       saturiert bei 0xFFFF. */
-#define REG_RX_CIC_GAIN_SHF   0x290
-#define REG_UL_RA_SYNC_THRESH 0x294
-#define REG_UL_RA_RX_STATUS   0x298
-
 /* Phase 7 G.8 — Voice-Slot Filler-Mailbox (Bank-1 0x270..0x27C).
  * Bit-pipe for SW-encoded SCH/F type-5 burst (432 bits). SW writes
  * W0..W13 via INDEX+DATA (LSB-first packing within each word), sets
@@ -363,54 +345,6 @@
 #define REG_VOICE_NUB_READ_DATA 0x284 /* RO [31:0] indirect via INDEX */
 #define REG_VOICE_NUB_READ_STATUS 0x288 /* RO [0] valid (burst pending) */
 #define REG_VOICE_NUB_READ_ACK 0x28C /* W1S [0] clear + arm next */
-
-/* Phase A (2026-05-23) — FACCH-NUB-Read-Mailbox (Bank-1 0x2A0..0x2B0).
- * Parallele Pipeline zu Voice-NUB-Read, getriggert von UL-NTS2-Sync (statt
- * NTS1). Enthält 432 signed 4-bit soft-values (= 54 × 32-bit words) für
- * FACCH-Stealing-Bursts (= signaling im UL-Voice-Slot wie U-DISCONNECT,
- * U-RELEASE). SW dekodiert SCH/HD (124 info bits) → CMCE-PDU →
- * tetra_call_fsm_handle(). Selber soft-Format wie Voice-NUB. */
-#define REG_FACCH_NUB_READ_INDEX  0x2A0 /* R/W [5:0] word selector */
-#define REG_FACCH_NUB_READ_DATA   0x2A4 /* RO  [31:0] indirect via INDEX */
-#define REG_FACCH_NUB_READ_STATUS 0x2A8 /* RO  [0]    valid (burst pending) */
-#define REG_FACCH_NUB_READ_ACK    0x2AC /* W1S [0]    clear + arm next */
-#define REG_FACCH_NUB_RX_CNT      0x2B0 /* RO  [15:0] facch-burst-capture count */
-
-/* Phase 2/3 (2026-05-23) — DL FACCH-Stealing-Mailbox + slot_mode
- * (Bank-1 0x2B4..0x2D0). SW staged Gold-konformes Voice-Slot-Routing:
- * - REG_SLOT_MODE: 32-bit, 4×4-bit per TN (bit[tn*4+:4]):
- *     0=IDLE, 1=TCH_VOICE, 2=HALF_STEAL_SIG, 3=FULL_STEAL_SIG,
- *     4=FULL_STEAL_FILLER, 5..15=reserved.
- *   slot_mode[tn]!=0 → aach_encoder + burst_dispatcher gewinnen LUT-Pfad
- *   (NDB2-Format + facch_steal-bits) statt voice_active_mask + vfill-Pfad.
- * - REG_FACCH_STEAL_BKN1_*: 16×32-bit indirect mailbox für SCH/HD-encoded
- *   signaling BKN1 (D-RELEASE PDU etc., 216 type-5 bits in W0..W6, W15[0]=valid).
- * - REG_FACCH_STEAL_BKN2_*: analog für BKN2 (SCH/HD SYSINFO im
- *   FULL_STEAL-Mode; im HALF_STEAL-Mode wird vfill_blk2 statt facch_bkn2 genutzt).
- * - REG_FACCH_STEAL_STATUS: valid=1 wenn beide Mailboxes loaded sind. */
-#define REG_SLOT_MODE             0x2B4 /* R/W [15:0] 4×4-bit per TN */
-#define REG_FACCH_STEAL_BKN1_INDEX 0x2B8 /* R/W [3:0] */
-#define REG_FACCH_STEAL_BKN1_DATA  0x2BC /* R/W [31:0] indirect via INDEX */
-#define REG_FACCH_STEAL_BKN1_GO    0x2C0 /* W1S [0] commit pulse */
-#define REG_FACCH_STEAL_BKN2_INDEX 0x2C4 /* R/W [3:0] */
-#define REG_FACCH_STEAL_BKN2_DATA  0x2C8 /* R/W [31:0] indirect via INDEX */
-#define REG_FACCH_STEAL_BKN2_GO    0x2CC /* W1S [0] commit pulse */
-#define REG_FACCH_STEAL_STATUS     0x2D0 /* RO  [0]   valid (both banks loaded) */
-
-/* Phase 3.4 (2026-05-24) — Per-TN Traffic Usage Marker (UMt), ETSI EN 300
- * 392-2 §21.4.7.2. 32-bit Register, 4×8-bit Lanes (bits[TN*8 +: 6] = UMt
- * für TN_sys=0..3). UMt=0 = kein aktiver Call auf dem TN (aach_encoder
- * fällt zurück auf legacy hardcoded oder idle pattern). UMt=4..63 = Traffic
- * Channel der MAC-RESOURCE-Allokation. SW updated bei alloc_slot/free_slot
- * via tetra_call_fsm.c::slot_umt_write(). */
-#define REG_SLOT_UMT               0x2D4 /* R/W [31:0] 4×8-bit per-TN UMt */
-
-/* slot_mode enumeration values for REG_SLOT_MODE[tn*4+:4]. */
-#define SLOT_MODE_IDLE              0
-#define SLOT_MODE_TCH_VOICE         1
-#define SLOT_MODE_HALF_STEAL_SIG    2
-#define SLOT_MODE_FULL_STEAL_SIG    3
-#define SLOT_MODE_FULL_STEAL_FILLER 4
 
 /* Phase H.6.3 — AACH UL-Slot-Grant override (single-shot pulse) */
 #define REG_AACH_GRANT_HINT 0x1F4 /* R/W [31] pending, [13:0] info14 */

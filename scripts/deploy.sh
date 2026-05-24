@@ -288,25 +288,6 @@ if $DO_SW; then
  ssh_cmd "setsid busybox httpd -p 80 -h /www < /dev/null > /dev/null 2>&1 &"
  echo "WebUI httpd started → http://${BOARD_IP}/"
  fi
-
- # 2026-05-24 — SW-Daemons immer neustarten nach Upload.
- # Vorher: deploy.sh killte sie in Z.219, lud neue Binaries hoch, ließ
- # das Board aber ohne laufende Daemons zurück (nur --init startete sie
- # neu). Der --no-build-Pfad (reiner SW-Fix) brauchte manuelles
- # killall+nohup → wurde regelmäßig vergessen. Skip wenn $DO_INIT=true:
- # dann startet der Init-Block sie weiter unten ohnehin mit voller
- # Bitstream+AD9361-Sequenz.
- # Jeder Daemon in EIGENEM ssh_cmd: SSH wartet sonst auf Background-Pipes
- # der Subshell-Children und hängt unbestimmt. Separater ssh_cmd schließt
- # die Session sofort nach setsid-Spawn.
- if ! $DO_INIT; then
- echo "Restarting SW daemons (sysinfo + ul_mon + attach_daemon)..."
- ssh_cmd "setsid sh -c '. /root/tetra_cell.conf; exec /root/tetra_sysinfo --daemon' </dev/null >/tmp/tetra_sysinfo.log 2>&1 &"
- ssh_cmd "setsid /root/tetra_ul_mon         </dev/null >/tmp/tetra_ul_mon.log         2>&1 &"
- ssh_cmd "setsid /root/tetra_attach_daemon  </dev/null >/tmp/tetra_attach_daemon.log  2>&1 &"
- sleep 1
- ssh_cmd "pgrep -al tetra_ || echo '!!! NO DAEMONS RUNNING !!!'"
- fi
 fi
 
 # =============================================================================
@@ -316,19 +297,13 @@ fi
 if $DO_INIT; then
  step "Running full_init + subscriber-DB sync + tetra_sysinfo + tetra_ul_mon"
 
- # Phase 3.2 fix (2026-05-23) — RX/TX-Frequenzen aus /root/tetra_cell.conf
- # lesen statt hartkodieren. Vorher überschrieb jeder --init die persistent-
- # config (RX hardcoded 428.25 MHz statt cell-config 430.65 MHz),
- # User musste danach manuell korrigieren.
- RX_FREQ=$(ssh_cmd "grep -E '^RX_FREQ_HZ=' /root/tetra_cell.conf | cut -d= -f2" | tr -d '\r\n ')
- TX_FREQ=$(ssh_cmd "grep -E '^TX_FREQ_HZ=' /root/tetra_cell.conf | cut -d= -f2" | tr -d '\r\n ')
- if [ -z "$RX_FREQ" ] || [ -z "$TX_FREQ" ]; then
- echo "WARN: tetra_cell.conf unreadable, falling back to defaults"
- RX_FREQ=430650000
- TX_FREQ=438250000
- fi
- echo "Using RX=$RX_FREQ TX=$TX_FREQ from /root/tetra_cell.conf"
- bash "${SCRIPT_DIR}/tetra_ctrl.sh" full_init "$RX_FREQ" "$TX_FREQ"
+ # Operativer RF-Pfad (TETRA Basestation 70 cm Amateur):
+ # RX = 428.250 MHz (UL band — wir empfangen MS-Bursts)
+ # TX = 438.250 MHz (DL band — wir senden zum MS)
+ # TX_ATT = -10 dB
+ # full_init nimmt RX/TX als Args — vorher war der Default 429.95/439.95
+ # was eine manuelle Korrektur via rf_loopback erforderte. Jetzt direkt richtig.
+ bash "${SCRIPT_DIR}/tetra_ctrl.sh" full_init 428250000 438250000
 
  # VCXO trim — ohne diesen DAC-Wert driftet der Board-Takt; Wert 153
  # wurde als sweet-spot kalibriert (siehe scripts/vcxo_cal.sh).
@@ -336,7 +311,7 @@ if $DO_INIT; then
 
  # rf_loopback re-issued damit AGC + TX_ATT=-10 dB sauber gesetzt sind
  # (full_init initialisiert die Kette ohne TX_ATT-Override).
- bash "${SCRIPT_DIR}/tetra_ctrl.sh" rf_loopback "$RX_FREQ" "$TX_FREQ" 13 -10
+ bash "${SCRIPT_DIR}/tetra_ctrl.sh" rf_loopback 428250000 438250000 13 -10
 
  # Phase X.7 — Subscriber-DB is now a flat /root/db.tsv consumed in-process
  # by tetra_attach_daemon. No FPGA EntityTable BRAM (X.4 removed it), no

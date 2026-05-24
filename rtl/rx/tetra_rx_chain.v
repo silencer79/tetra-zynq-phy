@@ -50,12 +50,6 @@ module tetra_rx_chain #(
  input wire [CORR_WIDTH-1:0] corr_threshold_sys,
  input wire [1:0] seq_select_sys,
 
- // Pack B.1 — CIC gain shift (runtime-tunable). 2-FF-resynced upstream.
- input wire [2:0] cic_gain_shf_sys,
-
- // Pack B.2 — UL-RA sync detector threshold (separate from DL corr_threshold).
- input wire [CORR_WIDTH-1:0] ul_ra_sync_thresh_sys,
-
  // Digital loopback mode — bypasses CIC ×64 gain in rx_frontend
  input wire loopback_en_sys,
 
@@ -99,10 +93,6 @@ module tetra_rx_chain #(
  output wire [CORR_WIDTH-1:0] ul_corr_peak_sys,
  output wire [1:0] ul_best_phase_sys,
 
- // Pack B.3 — UL-RA burst-capture diagnostics
- output wire        ul_burst_capture_busy_sys,
- output wire [15:0] ul_burst_captured_cnt_sys,
-
  // -------------------------------------------------------------------------
  // Phase C/E2 — UL TCH/S NUB sync + capture (parallel to RA-path above).
  // Uses tetra_ul_sync_detect_os4 instance #2 configured with NTS1 pattern
@@ -116,18 +106,6 @@ module tetra_rx_chain #(
  output wire [1727:0] voice_nub_coded_softs_sys,
  output wire voice_nub_coded_valid_sys,
  output wire [15:0] voice_nub_rx_cnt_sys,
-
- // -------------------------------------------------------------------------
- // Phase A (2026-05-23) — UL NTS2 FACCH-Stealing sync + capture (parallel
- // to NTS1 Voice-NUB above). Triggert auf FACCH-stolen Bursts auf UL-Voice-
- // Slot (z.B. U-DISCONNECT, U-RELEASE während aktivem Call). Output liefert
- // 1728 soft-bits an SW (tetra_facch_nub_read_mailbox), wo SCH/HD
- // soft-Viterbi-Decode + CMCE-Parse läuft. Threshold shared mit Voice-NUB
- // (REG_VOICE_NUB_SYNC_THRESH).
- // -------------------------------------------------------------------------
- output wire [1727:0] facch_nub_coded_softs_sys,
- output wire facch_nub_coded_valid_sys,
- output wire [15:0] facch_nub_rx_cnt_sys,
 
  // -------------------------------------------------------------------------
  // UL RX Chain — MS RA-burst decoder (Task #37)
@@ -258,8 +236,7 @@ tetra_rx_frontend #(
 .i_out_sys (fe_i_sys),
 .q_out_sys (fe_q_sys),
 .out_valid_sys(fe_valid_sys),
-.loopback_en_sys(loopback_en_sys),
-.cic_gain_shf_sys(cic_gain_shf_sys)
+.loopback_en_sys(loopback_en_sys)
 );
 
 // =============================================================================
@@ -335,7 +312,7 @@ tetra_ul_sync_detect_os4 #(
 .i_in_sys (fe_i_sys),
 .q_in_sys (fe_q_sys),
 .valid_in_sys (fe_valid_sys),
-.corr_threshold_sys (ul_ra_sync_thresh_sys), // Pack B.2 — separat von DL
+.corr_threshold_sys (corr_threshold_sys),
 .sync_found_sys (ul_sync_found_sys),
 .corr_peak_sys (ul_corr_peak_sys),
 .best_phase_sys (ul_best_phase_sys)
@@ -374,8 +351,8 @@ tetra_ul_burst_capture #(
 .iq_first_sys (ul_cap_first_sys),
 .iq_last_sys (ul_cap_last_sys),
 .iq_half_sys (ul_cap_half_sys),
-.capture_busy_sys (ul_burst_capture_busy_sys),
-.bursts_captured_sys(ul_burst_captured_cnt_sys)
+.capture_busy_sys (),
+.bursts_captured_sys()
 );
 
 // =============================================================================
@@ -393,7 +370,6 @@ wire nub_sync_found_sys;
 wire [CORR_WIDTH-1:0] nub_corr_peak_sys;
 wire [1:0] nub_best_phase_sys;
 
-(* KEEP_HIERARCHY = "TRUE" *)
 tetra_ul_sync_detect_os4 #(
 .IQ_WIDTH (IQ_WIDTH),
 .CORR_WIDTH (CORR_WIDTH),
@@ -413,13 +389,6 @@ tetra_ul_sync_detect_os4 #(
 .best_phase_sys (nub_best_phase_sys)
 );
 
-/* Phase 3.2 fix-attempt (2026-05-23) — KEEP_HIERARCHY isoliert das Voice-NUB-
- * capture-Modul gegen Cross-Hierarchy-Optimization. Hypothese: meine 2.
- * NTS2-Instanzen unten haben Vivado dazu gebracht das ursprüngliche
- * u_ul_nub_capture (= Voice-NUB) anders zu optimieren, was BFI von 8% auf
- * 26% verschlechtert. KEEP_HIERARCHY zwingt Vivado die Modulgrenze nicht
- * aufzubrechen → ursprüngliche logic/routing bleibt erhalten. */
-(* KEEP_HIERARCHY = "TRUE" *)
 tetra_ul_nub_capture #(
 .IQ_WIDTH(IQ_WIDTH)
 ) u_ul_nub_capture (
@@ -433,60 +402,6 @@ tetra_ul_nub_capture #(
 .coded_softs_sys (voice_nub_coded_softs_sys),
 .coded_valid_sys (voice_nub_coded_valid_sys),
 .bursts_captured_sys (voice_nub_rx_cnt_sys)
-);
-
-// =============================================================================
-// Phase A (2026-05-23) — UL NTS2 FACCH-Stealing sync + capture.
-// Parallel zur NTS1-Voice-Pipeline oben. Detektiert FACCH-Bursts auf
-// UL-Voice-Slot (U-DISCONNECT, U-RELEASE, etc.). Selbe IQ-Quelle
-// (fe_i_sys/fe_q_sys), eigene Sync-Pattern, eigener Capture-Pfad.
-//
-// NTS2 dibits MSB-first (oldest in sreg = bit 21..20):
-//   01 11 10 10 01 00 00 11 01 11 10
-// → packed [29:22]=8'b0, [21:0]={01,11,10,10,01,00,00,11,01,11,10}
-// Quelle: tetra_burst_builder.v Z.119 NTS2_REF / ETSI EN 300 392-2 §9.4.4.3.2
-// =============================================================================
-localparam [21:0] NTS2_REF_22B = {
- 2'b01, 2'b11, 2'b10, 2'b10, 2'b01, 2'b00,
- 2'b00, 2'b11, 2'b01, 2'b11, 2'b10
-};
-
-wire facch_sync_found_sys;
-wire [CORR_WIDTH-1:0] facch_corr_peak_sys;
-wire [1:0] facch_best_phase_sys;
-
-tetra_ul_sync_detect_os4 #(
-.IQ_WIDTH (IQ_WIDTH),
-.CORR_WIDTH (CORR_WIDTH),
-.HOLDOFF (250), // ~1 voice frame at 72 kHz
-.SYNC_PATTERN({8'b0, NTS2_REF_22B}), // NTS2 in [21:0], top 8 zero
-.SYNC_LEN_SYM(11)
-) u_ul_sync_facch (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
-.reset_peak_sys (ul_reset_peak_sys),
-.i_in_sys (fe_i_sys),
-.q_in_sys (fe_q_sys),
-.valid_in_sys (fe_valid_sys),
-.corr_threshold_sys ({1'b0, voice_nub_sync_thresh_sys}),
-.sync_found_sys (facch_sync_found_sys),
-.corr_peak_sys (facch_corr_peak_sys),
-.best_phase_sys (facch_best_phase_sys)
-);
-
-tetra_ul_nub_capture #(
-.IQ_WIDTH(IQ_WIDTH)
-) u_ul_facch_capture (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
-.i_in_sys (fe_i_sys),
-.q_in_sys (fe_q_sys),
-.valid_in_sys (fe_valid_sys),
-.sync_found_sys (facch_sync_found_sys),
-.best_phase_sys (facch_best_phase_sys),
-.coded_softs_sys (facch_nub_coded_softs_sys),
-.coded_valid_sys (facch_nub_coded_valid_sys),
-.bursts_captured_sys (facch_nub_rx_cnt_sys)
 );
 
 tetra_ul_pi4dqpsk_demod #(
