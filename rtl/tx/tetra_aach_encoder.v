@@ -72,10 +72,17 @@ module tetra_aach_encoder (
 
  /* Phase Y.4.1 — Voice-Active-Mask (4 bit, bit N = active voice on
  * tn_sys==N). Wenn bit gesetzt UND tn_sys nicht 0 UND nicht F18
- * → AACH = 14'h22C9 (DL+UL allocated to traffic, #6136 Burst-
- * Forensik). Sonst idle-Pattern wie bisher. SW kontrolliert via
- * REG_VOICE_ACTIVE_MASK @ 0x1EC. */
+ * → AACH = slot_aach_sys[tn]. Sonst idle-Pattern wie bisher. SW
+ * kontrolliert via REG_VOICE_ACTIVE_MASK @ 0x1EC. */
  input wire [3:0] voice_active_mask_sys,
+
+ /* 2026-05-24 — Per-TN AACH-Wert, SW-kontrolliert. 4×16-bit packed
+  * (bits[15:0]=TN_0, [31:16]=TN_1, [47:32]=TN_2, [63:48]=TN_3).
+  * Untere 14 bit jedes Slots = AACH-info (vor RM(30,14)-Encoding).
+  * Default per AXI-Reg: 0x3000 (UMx/UMx idle). SW (call_fsm) schreibt
+  * 0x33CF/0x3555/0x2049/etc. per Call-Phase. Ersetzt das hardcoded
+  * 14'h32CB für voice_active_mask=1. ETSI EN 300 392-2 §21.4.7.2. */
+ input wire [63:0] slot_aach_sys,
 
  // Phase Z.13 (2026-05-04): the Z.2/Z.12 `aach_override_valid_sys` +
  // `aach_override_info_sys` inputs were removed. Queued-PDU AACH
@@ -211,16 +218,12 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  end else if (tn_sys == 2'd0) begin
  info_sys <= signalling_active_sys ? 14'h0009: 14'h0249;
  end else if (voice_active_mask_sys[tn_sys]) begin
- /* MER-Fix 2026-05-16 (gold-audit dl_events.jsonl mn=60..N):
-  * Die echte BS sendet AACH=0x32CB DURCHGEHEND für FN 1-17 auf
-  * dem voice-slot, unabhängig vom emittierten Burst-Typ (NDB1
-  * voice ODER NDB2 SCH/HD signalling). 0x32CB ist der Voice-
-  * Call-Allocation-Marker, nicht ein burst-encoding-Indicator.
-  * Vorherige FN-Rotation (0x32CB/0x22C9/0x2049) war Drift:
-  * 0x22C9 (n=11 in Gold) und 0x2049 (n=151 in Gold) gelten
-  * für Transition/Idle-Slots, nicht aktiven Voice-Call.
-  * FN 18 (fn_sys=17) bleibt BSCH-Anchor (oberer Pfad). */
- info_sys <= 14'h32CB;
+ /* 2026-05-24 — Passthrough aus SW-kontrolliertem Per-TN-AACH-Reg.
+  * Hardcoded 14'h32CB (BlueStation-default, UMt=11) ENTFERNT.
+  * SW (call_fsm) schreibt pro Call die richtige UMt-codierte AACH:
+  *   0x33CF (UMt=15 default) / 0x3555 (UMt=21) / etc.
+  * ETSI EN 300 392-2 §21.4.7.2 Tab. 21.82. */
+ info_sys <= slot_aach_sys[tn_sys*16 +: 14];
  end else begin
  // F1-17 TN!=0 idle (Traffic-Slots) — rotiert nach FN/MN%4
  if (mn_low2_sys == 2'd1 &&

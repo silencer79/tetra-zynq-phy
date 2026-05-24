@@ -2031,6 +2031,8 @@ def _print_mac(prefix, mac, info_bits, verbose):
                 print(f" ID={ssi}", end='')
             if 'event_label' in mac:
                 print(f" evt={mac['event_label']}", end='')
+            if 'usage_marker' in mac:
+                print(f" UMt={mac['usage_marker']}", end='')
             print(f" LI={li} ({mac.get('length_indicator_meaning', '?')})")
 
             ca = mac.get('channel_allocation')

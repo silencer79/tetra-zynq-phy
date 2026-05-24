@@ -547,6 +547,12 @@ module tetra_axi_lite_regs (
  input wire [15:0] rx_iq_peak_i_axi,
  input wire [15:0] rx_iq_peak_q_axi,
 
+ /* 2026-05-24 — Per-TN AACH-Wert, SW-kontrolliert (Klasse 2).
+  * 4× 16-bit Reg @ 0x2A0..0x2AC. Untere 14 bit jedes Slots = AACH-info.
+  * Default 0x3000 (UMx/UMx idle). SW (call_fsm) setzt 0x33CF/0x3555/0x2049
+  * je Call-Phase. Ersetzt das hardcoded 14'h32CB im aach_encoder.v. */
+ output reg [63:0] slot_aach_axi,
+
  // ------------------------------------------------------------------
  // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
  // 144 words, each word packs TWO 16-bit schedule entries.
@@ -847,6 +853,11 @@ localparam [6:0] REG_VOICE_NUB_SYNC_THRESH = 7'h1A; // 0x268 R/W [4:0] corr thre
 // 2026-05-24 RX IQ peak monitor
 localparam [6:0] REG_RX_IQ_PEAK_I = 7'h24; // 0x290 RO [15:0] max-|I| 100ms window
 localparam [6:0] REG_RX_IQ_PEAK_Q = 7'h25; // 0x294 RO [15:0] max-|Q| 100ms window
+// 2026-05-24 — Per-TN AACH (Klasse 2 dynamische Steuerung)
+localparam [6:0] REG_SLOT_AACH_0 = 7'h28; // 0x2A0 R/W [13:0] AACH-info TN_sys=0
+localparam [6:0] REG_SLOT_AACH_1 = 7'h29; // 0x2A4 R/W [13:0] AACH-info TN_sys=1
+localparam [6:0] REG_SLOT_AACH_2 = 7'h2A; // 0x2A8 R/W [13:0] AACH-info TN_sys=2
+localparam [6:0] REG_SLOT_AACH_3 = 7'h2B; // 0x2AC R/W [13:0] AACH-info TN_sys=3
 // Phase 7 G.8 — Voice-Slot Filler-Mailbox (0x270..0x27C, Bank-1)
 localparam [6:0] REG_VOICE_FILLER_INDEX = 7'h1C; // 0x270 R/W [3:0] word selector
 localparam [6:0] REG_VOICE_FILLER_DATA = 7'h1D; // 0x274 R/W [31:0] indirect via INDEX
@@ -1243,6 +1254,10 @@ always @(*) begin
  REG_VOICE_NUB_SYNC_THRESH: rdata_mux_axi = voice_nub_sync_thresh_axi;
  REG_RX_IQ_PEAK_I: rdata_mux_axi = {16'd0, rx_iq_peak_i_axi};
  REG_RX_IQ_PEAK_Q: rdata_mux_axi = {16'd0, rx_iq_peak_q_axi};
+ REG_SLOT_AACH_0: rdata_mux_axi = {16'd0, slot_aach_axi[15:0]};
+ REG_SLOT_AACH_1: rdata_mux_axi = {16'd0, slot_aach_axi[31:16]};
+ REG_SLOT_AACH_2: rdata_mux_axi = {16'd0, slot_aach_axi[47:32]};
+ REG_SLOT_AACH_3: rdata_mux_axi = {16'd0, slot_aach_axi[63:48]};
  // Phase 7 G.8 — Voice-Filler mailbox
  REG_VOICE_FILLER_INDEX: rdata_mux_axi = {28'd0, vfill_index_axi};
  REG_VOICE_FILLER_DATA: rdata_mux_axi = vfill_rdata_axi_i;
@@ -1471,6 +1486,32 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
  if (wr_strb_axi[1]) voice_nub_sync_thresh_axi[15: 8] <= wr_data_axi[15: 8];
  if (wr_strb_axi[2]) voice_nub_sync_thresh_axi[23:16] <= wr_data_axi[23:16];
  if (wr_strb_axi[3]) voice_nub_sync_thresh_axi[31:24] <= wr_data_axi[31:24];
+ end
+end
+
+// ---- REG_SLOT_AACH_0..3 (0x2A0..0x2AC) — 2026-05-24 Klasse 2 ----
+// 4× 16-bit, untere 14 bit = AACH-info per TN. Default 0x3000 (UMx/UMx).
+// SW (call_fsm) schreibt 0x33CF/0x3555/0x2049 je Call-Phase. RTL passthrough.
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ slot_aach_axi <= {4{16'h3000}}; // 0x3000_3000_3000_3000 = idle alle TN
+ else begin
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_AACH_0)) begin
+ if (wr_strb_axi[0]) slot_aach_axi[ 7: 0] <= wr_data_axi[ 7: 0];
+ if (wr_strb_axi[1]) slot_aach_axi[15: 8] <= wr_data_axi[15: 8];
+ end
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_AACH_1)) begin
+ if (wr_strb_axi[0]) slot_aach_axi[23:16] <= wr_data_axi[ 7: 0];
+ if (wr_strb_axi[1]) slot_aach_axi[31:24] <= wr_data_axi[15: 8];
+ end
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_AACH_2)) begin
+ if (wr_strb_axi[0]) slot_aach_axi[39:32] <= wr_data_axi[ 7: 0];
+ if (wr_strb_axi[1]) slot_aach_axi[47:40] <= wr_data_axi[15: 8];
+ end
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_AACH_3)) begin
+ if (wr_strb_axi[0]) slot_aach_axi[55:48] <= wr_data_axi[ 7: 0];
+ if (wr_strb_axi[1]) slot_aach_axi[63:56] <= wr_data_axi[15: 8];
+ end
  end
 end
 

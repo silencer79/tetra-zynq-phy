@@ -253,6 +253,7 @@ wire [13:0] cell_la_axi_w;
 // Bit 0 = accept_unknown (CDC-resynced into clk_sys below).
 wire [31:0] db_policy_axi_w;
 wire [31:0] voice_active_mask_axi_w;
+wire [63:0] slot_aach_axi_w; // 2026-05-24 Klasse 2 — 4×16-bit AACH per TN
 wire [31:0] voice_nub_sync_thresh_axi_w;
 
 // Phase E2 — UL-NUB capture outputs (rx_chain). Output is now 4-bit
@@ -481,6 +482,8 @@ wire mle_detach_pulse_w; // Phase 6 B
 wire mle_accept_build_req_w;
 wire [23:0] mle_accept_build_ssi_w;
 wire [2:0] mle_accept_build_addr_type_w;
+// Klasse 2 (2026-05-24) — UMt 4..63 (0=unallocated) für CMCE-PDUs.
+wire [5:0] mle_accept_build_usage_marker_w;
 wire [3:0] mle_accept_build_llc_pdu_type_w;
 wire mle_accept_build_random_access_flag_w;
 wire [127:0] mle_accept_build_mm_pdu_bits_w;
@@ -2026,6 +2029,7 @@ tetra_axi_lite_regs u_axi_regs (
 .cell_la_axi (cell_la_axi_w),
 .db_policy_axi (db_policy_axi_w),
 .voice_active_mask_axi (voice_active_mask_axi_w),
+.slot_aach_axi (slot_aach_axi_w),
 .voice_nub_rx_cnt_axi (voice_nub_rx_cnt_axi_r1),
 .voice_relay_cnt_axi (voice_relay_cnt_axi_r1),
 .voice_nub_sync_thresh_axi (voice_nub_sync_thresh_axi_w),
@@ -2296,6 +2300,8 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
 .mb_ssi (mb_ssi_sys_w),
 .mb_la (mb_la_sys_w),
 .mb_addr_type (mb_addr_type_sys_w),
+ // Klasse 2 (2026-05-24) — UMt aus Reply-Mailbox W2[8:3].
+.mb_usage_marker (mb_usage_marker_sys_w),
 .mb_result (mb_result_sys_w),
  // Bug-001 fix — Reply-Pull-Mailbox W3[4:2] carries MS demand
  // location_update_type echoed by SW. Encoder consumes via mb_loc_acc_type.
@@ -2319,6 +2325,8 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
 .accept_build_req (mle_accept_build_req_w),
 .accept_build_ssi (mle_accept_build_ssi_w),
 .accept_build_addr_type (mle_accept_build_addr_type_w),
+ // Klasse 2 (2026-05-24) — UMt → arbiter → dl_pdu_builder.req_usage_marker.
+.accept_build_usage_marker (mle_accept_build_usage_marker_w),
 .accept_build_llc_pdu_type (mle_accept_build_llc_pdu_type_w),
 .accept_build_random_access_flag (mle_accept_build_random_access_flag_w),
 .accept_build_mm_pdu_bits (mle_accept_build_mm_pdu_bits_w),
@@ -2862,6 +2870,8 @@ tetra_dl_pdu_builder u_dl_pdu_builder (
 .req_valid (dl_pdu_grant_mle_w),
 .req_ssi (mle_accept_build_ssi_w),
 .req_addr_type (mle_accept_build_addr_type_w),
+ // Klasse 2 (2026-05-24) — per-Call UMt aus Reply-Mailbox.
+.req_usage_marker (mle_accept_build_usage_marker_w),
 .req_llc_pdu_type (mle_accept_build_llc_pdu_type_w),
 .req_random_access_flag (mle_accept_build_random_access_flag_w),
 .req_mm_pdu_bits (mle_accept_build_mm_pdu_bits_w),
@@ -3147,6 +3157,8 @@ wire [31:0] reply_rdata_sys_w;
 wire [23:0] mb_ssi_sys_w;
 wire [13:0] mb_la_sys_w;
 wire [2:0] mb_addr_type_sys_w;
+// Klasse 2 (2026-05-24) — Reply-Mailbox W2[8:3] UMt-Wert.
+wire [5:0] mb_usage_marker_sys_w;
 wire [1:0] mb_result_sys_w;
 // Bug-001 fix — MS-demand location_update_type, echoed from Reply-Pull-Mailbox
 // W3[4:2] into D-LOC-UPDATE-ACCEPT loc_acc_type field (ETSI §16.10.35a).
@@ -3177,6 +3189,7 @@ tetra_reply_mailbox u_reply_mailbox (
 .mb_ssi_sys (mb_ssi_sys_w),
 .mb_la_sys (mb_la_sys_w),
 .mb_addr_type_sys (mb_addr_type_sys_w),
+.mb_usage_marker_sys (mb_usage_marker_sys_w),
 .mb_result_sys (mb_result_sys_w),
 .mb_loc_acc_type_sys (mb_loc_acc_type_sys_w),
 .mb_gila_gssi_sys (mb_gila_gssi_sys_w),
@@ -3692,6 +3705,18 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  else voice_active_mask_sys_r1 <= voice_active_mask_sys_r0;
 end
 
+// 2026-05-24 Klasse 2 — slot_aach CDC axi→sys (4×16-bit, default 0x3000 idle).
+(* ASYNC_REG = "TRUE" *) reg [63:0] slot_aach_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [63:0] slot_aach_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) slot_aach_sys_r0 <= {4{16'h3000}};
+ else slot_aach_sys_r0 <= slot_aach_axi_w;
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) slot_aach_sys_r1 <= {4{16'h3000}};
+ else slot_aach_sys_r1 <= slot_aach_sys_r0;
+end
+
 // Phase C — voice_nub_sync_thresh CDC (5-bit threshold, default 8).
 (* ASYNC_REG = "TRUE" *) reg [4:0] voice_nub_sync_thresh_sys_r0;
 (* ASYNC_REG = "TRUE" *) reg [4:0] voice_nub_sync_thresh_sys_r1;
@@ -3891,6 +3916,8 @@ tetra_aach_encoder u_aach_encoder (
 .grant_consume_sys (aach_grant_consume_sys_w),
  /* Phase Y.4.1 — Voice-Slot AACH-Override (4-bit bitmap per tn_sys). */
 .voice_active_mask_sys (voice_active_mask_sys_r1),
+ /* 2026-05-24 Klasse 2 — Per-TN AACH-Wert von SW. */
+.slot_aach_sys (slot_aach_sys_r1),
 .encode_start_sys (tx_tdma_state_slot_pulse_sys),
 .aach_coded_sys (aach_coded_sys_w),
 .aach_valid_sys (aach_valid_sys_w)

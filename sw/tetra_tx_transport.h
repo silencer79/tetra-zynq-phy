@@ -86,6 +86,16 @@ typedef struct {
  /* ---- Z.2 future-fields ---- */
  tx_slot_class_t slot_class; /* 0 = legacy */
  uint16_t aach_pattern; /* 0 = no override */
+
+ /* Klasse 2 (2026-05-24) — Traffic Usage Marker per Call (ETSI EN 300
+  * 392-2 §21.4.7.2). Range 4..63, 0 = nicht allokiert (legacy: dann
+  * landet 0 in W2[8:3] und RTL fällt auf hardcoded 11 zurück, falls
+  * RTL noch alt). Bei umt!=0 schreibt stage_raw_mm W2[8:3]=umt → RTL
+  * mac_resource_dl_builder packt die Bits in den SsiAndUsageMarker-
+  * Adress-Slot des MAC-RESOURCE PDUs. Muss zur AACH-Anzeige des
+  * Voice-Slot (REG_SLOT_AACH_N=AACH_VOICE_UMT(umt)) passen, sonst
+  * verwirft MS den Call. */
+ uint8_t umt;
 } tx_pdu_meta_t;
 
 /* Stage the PDU in the appropriate AXI reply mailbox and pulse GO.

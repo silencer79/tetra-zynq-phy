@@ -62,6 +62,9 @@ module tetra_dl_pdu_builder (
  input wire req_valid,
  input wire [23:0] req_ssi,
  input wire [2:0] req_addr_type,
+ // Klasse 2 (2026-05-24) — UMt per Call (4..63) für CMCE-PDUs
+ // (SsiAndUsageMarker). 0 = legacy / unallocated (mailbox-Default).
+ input wire [5:0] req_usage_marker,
  input wire [3:0] req_llc_pdu_type,
  input wire req_random_access_flag,
  input wire [127:0] req_mm_pdu_bits,
@@ -90,6 +93,7 @@ module tetra_dl_pdu_builder (
  // -------------------------------------------------------------------------
  reg [23:0] lat_ssi;
  reg [2:0] lat_addr_type;
+ reg [5:0] lat_usage_marker;
  reg [3:0] lat_llc_pdu_type;
  reg lat_random_access_flag;
  reg [127:0] lat_mm_pdu_bits;
@@ -130,13 +134,12 @@ module tetra_dl_pdu_builder (
 .start (builder_start),
 .ssi (lat_ssi),
 .addr_type (lat_addr_type),
- /* Phase 7 G.7 — UsageMarker for addr_type=6 (SsiAndUsageMarker).
- * burst #5887 D-CONNECT uses a per-call usage marker; first-pass
- * we hardcode marker=1 (matches single-call test setup, call_id=1).
- * Future: route from mailbox/call-FSM for multi-call support. */
- /* #5887 zeigt UsageMarker=11 (=0b001011, 6-bit) für aktiven Call.
- * Hardcoded 11 bis Multi-Call-Support (Phase Y.5+) per-Call Marker liefert. */
-.usage_marker ((lat_addr_type == 3'd6) ? 6'd11: 6'd0),
+ /* Klasse 2 (2026-05-24) — per-Call UsageMarker (UMt 4..63) aus dem
+  * Reply-Mailbox-W2[8:3], gelatcht vom MLE-FSM und über req_usage_marker
+  * hier durchgereicht. mac_resource_dl_builder packt die 6 Bit hinter
+  * die 24-bit SSI in den 30-bit SsiAndUsageMarker-Adress-Slot. Bei
+  * mm=2/mm=11 (addr_type≠6) ignoriert der Builder den Wert. */
+.usage_marker ((lat_addr_type == 3'd6) ? lat_usage_marker: 6'd0),
 .ns (lat_ns),
 .nr (lat_nr),
 .llc_pdu_type (lat_llc_pdu_type),
@@ -221,6 +224,7 @@ module tetra_dl_pdu_builder (
  state <= S_IDLE;
  lat_ssi <= 24'd0;
  lat_addr_type <= 3'd0;
+ lat_usage_marker <= 6'd0;
  lat_llc_pdu_type <= 4'd0;
  lat_random_access_flag <= 1'b0;
  lat_mm_pdu_bits <= 128'd0;
@@ -245,6 +249,7 @@ module tetra_dl_pdu_builder (
  if (req_valid) begin
  lat_ssi <= req_ssi;
  lat_addr_type <= req_addr_type;
+ lat_usage_marker <= req_usage_marker;
  lat_llc_pdu_type <= req_llc_pdu_type;
  lat_random_access_flag <= req_random_access_flag;
  lat_mm_pdu_bits <= req_mm_pdu_bits;

@@ -18,7 +18,8 @@
 // Word layout (verbindlich):
 // W0 [31:24] 8'd0 [23: 0] ssi[23:0]
 // W1 [31:14] 18'd0 [13: 0] la[13:0]
-// W2 [31: 3] 29'd0 [ 2: 0] addr_type[2:0]
+// W2 [31: 9] 23'd0 [8:3] usage_marker[5:0] [ 2: 0] addr_type[2:0]
+// (Klasse 2 2026-05-24 — UMt für CMCE-PDUs)
 // W3 [31: 2] 30'd0 [ 1: 0] result[1:0]
 // W4 [31:24] 8'd0 [23: 0] gila_gssi[23:0]
 // W5 [31: 5] 27'd0 [4:2] gila_class[2:0] [1:0] gila_lifetime[1:0]
@@ -70,6 +71,10 @@ module tetra_reply_mailbox (
  output wire [23:0] mb_ssi_sys,
  output wire [13:0] mb_la_sys,
  output wire [2:0] mb_addr_type_sys,
+ // Klasse 2 (2026-05-24) — UsageMarker (UMt 4..63) für CMCE-PDUs
+ // (SsiAndUsageMarker addr_type=6). 0 = unallocated → RTL nutzt 0
+ // im 6-bit Slot.
+ output wire [5:0] mb_usage_marker_sys,
  output wire [1:0] mb_result_sys,
  // Bug-001 fix: location_update_accept_type echoed from MS demand
  // (ETSI §16.10.35a). SW writes W3[4:2] = MS's location_update_type.
@@ -142,6 +147,7 @@ module tetra_reply_mailbox (
  assign mb_ssi_sys = w0_w[23:0];
  assign mb_la_sys = w1_w[13:0];
  assign mb_addr_type_sys = w2_w[2:0];
+ assign mb_usage_marker_sys = w2_w[8:3];
  assign mb_result_sys = w3_w[1:0];
  // Bug-001 fix — daemon writes MS-demand location_update_type into W3[4:2]
  // alongside the 2-bit result code. 0 in pre-fix firmware (= Roaming).

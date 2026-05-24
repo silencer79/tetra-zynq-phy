@@ -152,7 +152,8 @@ static int stage_raw_mm(tetra_hal_t *hal,
  int mm_len,
  uint8_t ns,
  uint8_t nr,
- uint8_t mle_pd)
+ uint8_t mle_pd,
+ uint8_t umt)
 {
  if (mm_len <= 0 || mm_len > 128) return -1;
 
@@ -176,9 +177,16 @@ static int stage_raw_mm(tetra_hal_t *hal,
  | ((uint32_t) mm_len & 0xFFu);
  if (reply_wait_idle(hal) < 0) return -2;
 
+ /* W2 layout: [2:0] addr_type, [8:3] usage_marker (UMt, 0=unallocated)
+  * Für CMCE-PDUs (mle_pd=010) erzwingt die RTL eh addr_type=6 (SsiAndUsage)
+  * via PDUC_CMCE_D_CONNECT_ADDRTYPE; W2[2:0]=1 hier ist also nur ein
+  * verständlicher Default für mm=2/mm=11. Die 6 Bit UMt aus W2[8:3]
+  * werden direkt in den 30-Bit SsiAndUsageMarker-Adress-Slot gepackt. */
+ uint32_t w2 = 0x1u | ((uint32_t)(umt & 0x3Fu) << 3);
+
  reply_write(hal, 0, target_ssi & 0x00FFFFFFu);
  reply_write(hal, 1, 0u);
- reply_write(hal, 2, 0x1u);
+ reply_write(hal, 2, w2);
  reply_write(hal, 3, 0u);
  reply_write(hal, 4, 0u);
  reply_write(hal, 5, 0u);
@@ -218,13 +226,14 @@ static int submit_grp_ack(tetra_hal_t *hal, const tx_pdu_meta_t *m)
  if (mm_len <= 0) return -1;
 
  return stage_raw_mm(hal, m->target_ssi, mm_bytes, mm_len,
- m->ns, m->nr, MLE_PD_MM);
+ m->ns, m->nr, MLE_PD_MM, 0u);
 }
 
 /* CMCE submit-Helpers — Phase 7 G.4. Jeder Helper baut den Body via den
  * passenden tetra_cmce_build_*() Builder und staged ihn via stage_raw_mm
  * mit MLE-PD=CMCE damit RTL die richtige Protocol-Discriminator auf Air
- * setzt (D-CONNECT/D-TX-GRANTED/... sind CMCE, nicht MM). */
+ * setzt (D-CONNECT/D-TX-GRANTED/... sind CMCE, nicht MM). UMt aus dem
+ * Call-Slot wandert via W2[8:3] in den MAC-RESOURCE-Adressblock. */
 static int submit_cmce_pdu(tetra_hal_t *hal,
  const tx_pdu_meta_t *m,
  int (*builder)(const cmce_meta_t *, uint8_t *))
@@ -233,7 +242,7 @@ static int submit_cmce_pdu(tetra_hal_t *hal,
  int mm_len = builder(&m->cmce, mm_bytes);
  if (mm_len <= 0) return -1;
  return stage_raw_mm(hal, m->target_ssi, mm_bytes, mm_len,
- m->ns, m->nr, MLE_PD_CMCE);
+ m->ns, m->nr, MLE_PD_CMCE, m->umt);
 }
 
 int tetra_tx_submit(tetra_hal_t *hal, tx_pdu_class_t cls,

@@ -328,6 +328,24 @@
 #define REG_RX_IQ_PEAK_I 0x290 /* RO [15:0] max-|I| 100ms */
 #define REG_RX_IQ_PEAK_Q 0x294 /* RO [15:0] max-|Q| 100ms */
 
+/* 2026-05-24 Klasse 2 — Per-TN AACH-Wert, SW-kontrolliert. Untere 14 bit
+ * jedes Slots = AACH-info (vor RM(30,14)-Encoding). Default 0x3000 (idle).
+ * SW (call_fsm) setzt 0x33CF/0x3555/0x2049 je Call-Phase.
+ * ETSI EN 300 392-2 §21.4.7.2 Tab. 21.82. */
+#define REG_SLOT_AACH_0 0x2A0 /* R/W [13:0] AACH-info für TN_sys=0 */
+#define REG_SLOT_AACH_1 0x2A4 /* R/W [13:0] AACH-info für TN_sys=1 */
+#define REG_SLOT_AACH_2 0x2A8 /* R/W [13:0] AACH-info für TN_sys=2 */
+#define REG_SLOT_AACH_3 0x2AC /* R/W [13:0] AACH-info für TN_sys=3 */
+
+/* Hilfs-Konstanten für SW: AACH-info-Werte je Call-Phase */
+#define AACH_IDLE             0x3000  /* Header=11 UMx/UMx — Slot frei */
+#define AACH_VOICE_DEFAULT    0x33CF  /* Header=11 UMt=15/15 — Gold-default */
+#define AACH_FULL_STEAL_FILL  0x2049  /* Header=10 UMa/AC-A/8sub */
+/* AACH_VOICE_UMT(n) baut {2'b11, n, n} aus UMt-Wert (4..63) */
+#define AACH_VOICE_UMT(n)     (0x3000u | (((n) & 0x3Fu) << 6) | ((n) & 0x3Fu))
+/* AACH_HALF_STEAL_UMT(n) baut {2'b10, n, 6'h09} — Half-Stealing mit Voice-half */
+#define AACH_HALF_STEAL_UMT(n) (0x2000u | (((n) & 0x3Fu) << 6) | 0x09u)
+
 /* Phase 7 G.8 — Voice-Slot Filler-Mailbox (Bank-1 0x270..0x27C).
  * Bit-pipe for SW-encoded SCH/F type-5 burst (432 bits). SW writes
  * W0..W13 via INDEX+DATA (LSB-first packing within each word), sets

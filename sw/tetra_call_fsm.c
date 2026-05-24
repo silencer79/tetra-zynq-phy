@@ -55,7 +55,39 @@ static call_slot_t *find_slot(uint32_t ssi)
  return NULL;
 }
 
-static call_slot_t *alloc_slot(uint32_t ssi)
+/* 2026-05-24 Klasse 2 — UMt-Pool 4..63 round-robin.
+ * ETSI EN 300 392-2 §21.4.7.2: UMt = Traffic Usage Marker im AACH des
+ * Voice-Slots, pro Call eindeutig. UMt=0..3 sind reserviert (UMx/UMa/UMc/
+ * UMr). Wir nehmen sequenziell 4,5,...,63,4,... — kollisionsfrei solange
+ * max 60 simultane Calls. CALL_FSM_MAX_CALLS=8 → garantiert ok. */
+static uint8_t g_next_umt = 4u;
+
+static uint8_t alloc_umt(void)
+{
+ uint8_t v = g_next_umt;
+ g_next_umt++;
+ if (g_next_umt > 63u) g_next_umt = 4u;
+ return v;
+}
+
+/* Per-TN AACH-Wert ans RTL schreiben. tn=0..3 = TN_sys (BS-intern, 0-indexed).
+ * SLOT_AACH_N wird vom aach_encoder ausgelesen wenn voice_active_mask[N]=1. */
+static void aach_write(tetra_hal_t *hal, unsigned tn, uint16_t info)
+{
+ static const uint32_t REGS[4] = {REG_SLOT_AACH_0, REG_SLOT_AACH_1,
+                                  REG_SLOT_AACH_2, REG_SLOT_AACH_3};
+ if (hal == NULL || tn >= 4u) return;
+ tetra_reg_write(hal, REGS[tn], (uint32_t)(info & 0x3FFFu));
+}
+
+/* Voice-TN für neuen Call (MVP single-call): TN=1 (BS-intern, 0-indexed).
+ * MUSS zu VOICE_ACTIVE_MASK passen (aktuell hardcoded 0x02 = bit1 = TN=1).
+ * Wenn diese Konstante geändert wird, muss VOICE_ACTIVE_MASK in U-SETUP /
+ * U-TX-DEMAND Handlern (mask_write_cached(hal, 0x02)) mit angepasst werden,
+ * sonst zeigt der AACH-Encoder slot_aach_sys[falscher_TN] = Idle on-air. */
+#define VOICE_TN_DEFAULT 1u
+
+static call_slot_t *alloc_slot(tetra_hal_t *hal, uint32_t ssi)
 {
  for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
  if (g_slots[i].ssi == 0u) {
@@ -69,14 +101,30 @@ static call_slot_t *alloc_slot(uint32_t ssi)
  * BS NR = 1 (next expected MS NS) */
  g_slots[i].ns = 0u;
  g_slots[i].nr = 1u;
+ g_slots[i].umt = alloc_umt();
+ g_slots[i].voice_tn = VOICE_TN_DEFAULT;
+ /* AACH für Voice-Slot direkt scharfstellen — MS sieht
+  * {Header=11, UMt, UMt} = "Traffic, UMt=N für DL+UL". */
+ aach_write(hal, g_slots[i].voice_tn,
+            (uint16_t)AACH_VOICE_UMT(g_slots[i].umt));
+ fprintf(stderr,
+ "tetra_call_fsm: alloc_slot ssi=0x%06X → call_id=%u UMt=%u "
+ "voice_tn=%u AACH=0x%04X\n",
+ ssi, g_slots[i].call_id, g_slots[i].umt, g_slots[i].voice_tn,
+ (unsigned)AACH_VOICE_UMT(g_slots[i].umt));
  return &g_slots[i];
  }
  }
  return NULL;
 }
 
-static void free_slot(call_slot_t *s)
+static void free_slot(tetra_hal_t *hal, call_slot_t *s)
 {
+ /* AACH zurück auf Idle bevor Slot-Daten verloren gehen. */
+ if (s->voice_tn < 4u) aach_write(hal, s->voice_tn, AACH_IDLE);
+ fprintf(stderr,
+ "tetra_call_fsm: free_slot ssi=0x%06X call_id=%u UMt=%u → AACH=0x3000 idle\n",
+ s->ssi, s->call_id, s->umt);
  memset(s, 0, sizeof(*s));
 }
 
@@ -98,6 +146,7 @@ static int stage_d_call_proceeding(tetra_hal_t *hal, call_slot_t *s)
  m.target_ssi = s->ssi;
  m.ns = s->ns;
  m.nr = s->nr;
+ m.umt = s->umt;
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  return tetra_tx_submit(hal, TX_D_CALL_PROCEEDING, &m);
 }
@@ -117,6 +166,7 @@ static int stage_d_setup(tetra_hal_t *hal, call_slot_t *s)
               : s->ssi;
  m.ns = s->ns;
  m.nr = s->nr;
+ m.umt = s->umt;
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.call_time_out = 7; /* T5m per bluestation */
  m.cmce.transmission_grant = 3; /* GrantedToOtherUser */
@@ -141,6 +191,7 @@ static int stage_d_connect(tetra_hal_t *hal, call_slot_t *s)
  m.target_ssi = s->ssi;
  m.ns = s->ns;
  m.nr = s->nr;
+ m.umt = s->umt;
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  /* verifizierte Werte (#5887 bit-exact, 2026-05-14): */
  m.cmce.call_time_out = 0; /*: Infinite (war 7 T5m) */
@@ -160,6 +211,7 @@ static int stage_d_tx_granted(tetra_hal_t *hal, call_slot_t *s)
  m.target_ssi = s->ssi;
  m.ns = s->ns;
  m.nr = s->nr;
+ m.umt = s->umt;
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.transmission_grant = CMCE_TG_GRANTED; /* 0 = Granted */
  m.cmce.encryption_control = 0;
@@ -173,6 +225,7 @@ static int stage_d_release(tetra_hal_t *hal, call_slot_t *s, uint8_t cause)
  m.target_ssi = s->ssi;
  m.ns = s->ns;
  m.nr = s->nr;
+ m.umt = s->umt;
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.disconnect_cause = cause;
  return tetra_tx_submit(hal, TX_D_RELEASE, &m);
@@ -188,7 +241,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  switch (p->pdu_type) {
  case CMCE_U_SETUP: {
  if (s == NULL) {
- s = alloc_slot(ssi);
+ s = alloc_slot(hal, ssi);
  if (s == NULL) {
  fprintf(stderr,
  "tetra_call_fsm: U-SETUP ssi=0x%06X — no free slot\n",
@@ -318,6 +371,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  tx_pdu_meta_t m;
  memset(&m, 0, sizeof(m));
  m.target_ssi = s->group_gssi ? s->group_gssi: s->ssi;
+ m.umt = s->umt;
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.transmission_request_permission = 0; /* 0 = "allowed to request" per bluestation */
  /* 2026-05-24 — beim ERSTEN U-TX-CEASED 3× D-TX-CEASED stagen (gleiche
@@ -348,7 +402,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  /* Phase Y.4.1 — Call beendet, voice-slot zurück zu idle. */
  mask_write_cached(hal, 0x00u);
  tetra_voice_filler_clear(hal);
- free_slot(s);
+ free_slot(hal, s);
  return rc;
  }
 
@@ -368,7 +422,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  ssi, p->disconnect_cause, s->call_id, rc);
  mask_write_cached(hal, 0x00u);
  tetra_voice_filler_clear(hal);
- free_slot(s);
+ free_slot(hal, s);
  return rc;
  }
 
@@ -467,7 +521,7 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  "%ums → freeing slot\n",
  s->ssi, s->call_id, age);
  tetra_voice_filler_clear(hal);
- free_slot(s);
+ free_slot(hal, s);
  continue;
  }
  active++;

@@ -56,6 +56,10 @@ typedef struct {
                                           *   exclusive with target_issi) */
  uint32_t target_issi; /* Target ISSI (individual call) */
  uint16_t call_id; /* 14-bit, allocated by BS */
+ uint8_t umt;        /* 2026-05-24 — Traffic Usage Marker per Call
+                                          * (ETSI EN 300 392-2 §21.4.7.2). Range 4..63,
+                                          * 0 = nicht allokiert. */
+ uint8_t voice_tn;   /* TDMA-Slot für Voice (1..3, 0 = nicht allokiert) */
  call_state_t state;
  uint8_t ns; /* LLC stop-and-wait per call slot */
  uint8_t nr;
