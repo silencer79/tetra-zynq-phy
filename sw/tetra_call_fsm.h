@@ -36,7 +36,11 @@
  *   PTT-Pause + Re-Key ohne neuen U-SETUP-Roundtrip möglich ist —
  *   Reservation bleibt, nur der Kanal geht aus. */
 #define CALL_FSM_VOICE_QUIET_MS 300u
-#define CALL_FSM_CALL_STALE_MS 5000u
+/* 2026-05-24 — von 5s auf 30s erhöht. 5s war zu kurz: PTT-Pausen zwischen
+ * Wörtern + SID-Frames in TCH/S können längere NUB-Lücken erzeugen, dann
+ * räumte WATCHDOG den Slot ab BEVOR U-DISCONNECT vom MS ankam → s==NULL,
+ * U-DISCONNECT-Handler greift nicht, MS-UI zeigt "abgewiesen". */
+#define CALL_FSM_CALL_STALE_MS 30000u
 
 typedef enum {
  CALL_STATE_IDLE = 0,
@@ -53,6 +57,21 @@ typedef struct {
  uint32_t target_issi; /* Target ISSI (individual call) */
  uint16_t call_id; /* 14-bit, allocated by BS */
  call_state_t state;
+ /* Phase 3.2 (2026-05-23) — Voice-TS-Allokation pro Call.
+  * voice_tn = TN_sys (0..3) auf dem dieser Call seine Voice-Bursts hat.
+  * TS-im-air = voice_tn + 1 (ETSI 1-basiert). ChanAlloc-TS in D-CONNECT/
+  * D-SETUP wird auf voice_tn+1 gesetzt, voice_active_mask hat bit[voice_tn]
+  * gesetzt, facch_steal_stage wird mit voice_tn aufgerufen → konsistent.
+  * Pool 1..3 (TN=0 = Main-Sig, reserviert). Mehrere parallele Calls bekommen
+  * verschiedene voice_tn (max 3 Voice-Calls simultan). */
+ uint8_t voice_tn;
+ /* Phase 3.4 (2026-05-24) — Traffic Usage Marker (UMt) pro Call, ETSI EN
+  * 300 392-2 §21.4.7.2 Table 21.82. UMt ist 6-bit, Wertebereich 4..63
+  * (0=UMx, 1=UMa, 2=UMc, 3=UMr sind reserved). Wird vom BS bei
+  * MAC-RESOURCE-Allokation zugewiesen + per AACH bei jedem TDMA-slot
+  * advertised (Header=11 für active Voice, Header=10 für FACCH-Stealing).
+  * MS verwendet UMt zur Channel-Identifikation im DL-AACH. */
+ uint8_t umt;
  uint8_t ns; /* LLC stop-and-wait per call slot */
  uint8_t nr;
  uint8_t hook_method; /* echoed from U-SETUP (Phase 7 G.7+) */

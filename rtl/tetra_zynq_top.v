@@ -260,6 +260,10 @@ wire [31:0] voice_nub_sync_thresh_axi_w;
 // by voice_nub_read_mailbox for SW soft-Viterbi.
 wire [1727:0] voice_nub_coded_softs_sys_w;
 wire voice_nub_coded_valid_sys_w;
+// Phase A (2026-05-23) — UL-NTS2-FACCH-Stealing-Pfad (parallel zu Voice-NUB).
+wire [1727:0] facch_nub_coded_softs_sys_w;
+wire facch_nub_coded_valid_sys_w;
+wire [15:0] facch_nub_rx_cnt_sys_w;
 wire [15:0] voice_nub_rx_cnt_sys_w;
 // Pack B — runtime config + diagnostics
 wire [31:0] rx_cic_gain_shf_axi_w;
@@ -620,7 +624,11 @@ tetra_rx_chain #(
 .voice_nub_sync_thresh_sys (voice_nub_sync_thresh_sys_r1[4:0]),
 .voice_nub_coded_softs_sys (voice_nub_coded_softs_sys_w),
 .voice_nub_coded_valid_sys (voice_nub_coded_valid_sys_w),
-.voice_nub_rx_cnt_sys (voice_nub_rx_cnt_sys_w)
+.voice_nub_rx_cnt_sys (voice_nub_rx_cnt_sys_w),
+ // Phase A — UL-NTS2-FACCH-Stealing-Pfad
+.facch_nub_coded_softs_sys (facch_nub_coded_softs_sys_w),
+.facch_nub_coded_valid_sys (facch_nub_coded_valid_sys_w),
+.facch_nub_rx_cnt_sys (facch_nub_rx_cnt_sys_w)
 );
 
 // =============================================================================
@@ -1203,6 +1211,12 @@ tetra_burst_dispatcher #(
 .vfill_valid_sys (vfill_valid_sys_w),
 .vfill_blk1_sys (vfill_blk1_sys_w),
 .vfill_blk2_sys (vfill_blk2_sys_w),
+.null_pdu_bits_sys ({216{1'b0}}),       // not yet routed
+ // Phase 2/3 — DL FACCH-Stealing mailbox + slot_mode
+.slot_mode_sys (slot_mode_sys_r1),
+.facch_steal_valid_sys (facch_steal_valid_sys_w),
+.facch_bkn1_sys (facch_bkn1_sys_w),
+.facch_bkn2_sys (facch_bkn2_sys_w),
  // Outputs to tetra_tx_chain
 .build_block1_sys (disp_block1_sys_w),
 .build_block2_sys (disp_block2_sys_w),
@@ -2097,6 +2111,26 @@ tetra_axi_lite_regs u_axi_regs (
 .vnub_ack_consume_axi (vnub_ack_consume_axi_r1),
 .vnub_rdata_axi_i (vnub_rdata_axi_r1),
 .vnub_valid_axi_i (vnub_valid_axi_r1),
+ // Phase A — FACCH-NUB-Read-Mailbox (NTS2-Stealing)
+.facch_nub_index_axi_o (facch_nub_index_axi_w),
+.facch_nub_ack_trigger_axi_o (facch_nub_ack_trigger_w),
+.facch_nub_ack_consume_axi (facch_nub_ack_consume_axi_r1),
+.facch_nub_rdata_axi_i (facch_nub_rdata_axi_r1),
+.facch_nub_valid_axi_i (facch_nub_valid_axi_r1),
+.facch_nub_rx_cnt_axi (facch_nub_rx_cnt_axi_r1),
+ // Phase 2/3 — DL FACCH-Stealing-Mailbox + slot_mode
+.slot_mode_axi (slot_mode_axi_w),
+.slot_umt_axi (slot_umt_axi_w),
+.fsteal_bkn1_index_axi_o (fsteal_bkn1_index_axi_w),
+.fsteal_bkn1_we_axi_o (fsteal_bkn1_we_axi_w),
+.fsteal_bkn1_go_axi_o (fsteal_bkn1_go_axi_w),
+.fsteal_bkn1_rdata_axi_i (fsteal_bkn1_rdata_axi_r1),
+.fsteal_bkn2_index_axi_o (fsteal_bkn2_index_axi_w),
+.fsteal_bkn2_we_axi_o (fsteal_bkn2_we_axi_w),
+.fsteal_bkn2_go_axi_o (fsteal_bkn2_go_axi_w),
+.fsteal_bkn2_rdata_axi_i (fsteal_bkn2_rdata_axi_r1),
+.fsteal_valid_axi_i (fsteal_valid_axi_r1),
+.fsteal_wdata_axi_o (fsteal_wdata_axi_w),
  // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
 .schedule_axi_we (schedule_axi_we_w),
 .schedule_axi_re (schedule_axi_re_w),
@@ -3131,6 +3165,192 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
 end
 
 // =============================================================================
+// Phase 2/3 (2026-05-23) — DL FACCH-Stealing-Mailbox CDC + instance.
+// Parallel zu vfill-Pattern: 2× Mailbox (BKN1 + BKN2), eigener wdata-bus,
+// separate index/we/go pro Bank. slot_mode CDC analog voice_active_mask.
+// =============================================================================
+wire [31:0] slot_mode_axi_w;
+wire [31:0] slot_umt_axi_w;
+wire [3:0] fsteal_bkn1_index_axi_w;
+wire fsteal_bkn1_we_axi_w;
+wire fsteal_bkn1_go_axi_w;
+wire [3:0] fsteal_bkn2_index_axi_w;
+wire fsteal_bkn2_we_axi_w;
+wire fsteal_bkn2_go_axi_w;
+wire [31:0] fsteal_wdata_axi_w;
+
+// slot_mode CDC axi→sys (16-bit, slow-changing).
+(* ASYNC_REG = "TRUE" *) reg [15:0] slot_mode_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] slot_mode_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ slot_mode_sys_r0 <= 16'd0;
+ slot_mode_sys_r1 <= 16'd0;
+ end else begin
+ slot_mode_sys_r0 <= slot_mode_axi_w[15:0];
+ slot_mode_sys_r1 <= slot_mode_sys_r0;
+ end
+end
+
+// Phase 3.4 — slot_umt CDC axi→sys (32-bit, slow-changing, 4×8-bit lanes).
+(* ASYNC_REG = "TRUE" *) reg [31:0] slot_umt_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] slot_umt_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ slot_umt_sys_r0 <= 32'd0;
+ slot_umt_sys_r1 <= 32'd0;
+ end else begin
+ slot_umt_sys_r0 <= slot_umt_axi_w;
+ slot_umt_sys_r1 <= slot_umt_sys_r0;
+ end
+end
+
+// BKN1 mailbox CDC (index + wdata 2-FF, we edge-detect, go edge-detect).
+(* ASYNC_REG = "TRUE" *) reg [3:0] fsteal_bkn1_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0] fsteal_bkn1_index_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [31:0] fsteal_wdata_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] fsteal_wdata_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ fsteal_bkn1_index_sys_r0 <= 4'd0;
+ fsteal_bkn1_index_sys_r1 <= 4'd0;
+ fsteal_wdata_sys_r0 <= 32'd0;
+ fsteal_wdata_sys_r1 <= 32'd0;
+ end else begin
+ fsteal_bkn1_index_sys_r0 <= fsteal_bkn1_index_axi_w;
+ fsteal_bkn1_index_sys_r1 <= fsteal_bkn1_index_sys_r0;
+ fsteal_wdata_sys_r0 <= fsteal_wdata_axi_w;
+ fsteal_wdata_sys_r1 <= fsteal_wdata_sys_r0;
+ end
+end
+
+(* ASYNC_REG = "TRUE" *) reg fsteal_bkn1_we_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg fsteal_bkn1_we_sys_r1;
+reg fsteal_bkn1_we_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ fsteal_bkn1_we_sys_r0 <= 1'b0;
+ fsteal_bkn1_we_sys_r1 <= 1'b0;
+ fsteal_bkn1_we_sys_r2 <= 1'b0;
+ end else begin
+ fsteal_bkn1_we_sys_r0 <= fsteal_bkn1_we_axi_w;
+ fsteal_bkn1_we_sys_r1 <= fsteal_bkn1_we_sys_r0;
+ fsteal_bkn1_we_sys_r2 <= fsteal_bkn1_we_sys_r1;
+ end
+end
+wire fsteal_bkn1_we_pulse_sys_w = fsteal_bkn1_we_sys_r1 & ~fsteal_bkn1_we_sys_r2;
+
+(* ASYNC_REG = "TRUE" *) reg fsteal_bkn1_go_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg fsteal_bkn1_go_sys_r1;
+reg fsteal_bkn1_go_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ fsteal_bkn1_go_sys_r0 <= 1'b0;
+ fsteal_bkn1_go_sys_r1 <= 1'b0;
+ fsteal_bkn1_go_sys_r2 <= 1'b0;
+ end else begin
+ fsteal_bkn1_go_sys_r0 <= fsteal_bkn1_go_axi_w;
+ fsteal_bkn1_go_sys_r1 <= fsteal_bkn1_go_sys_r0;
+ fsteal_bkn1_go_sys_r2 <= fsteal_bkn1_go_sys_r1;
+ end
+end
+wire fsteal_bkn1_go_pulse_sys_w = fsteal_bkn1_go_sys_r1 & ~fsteal_bkn1_go_sys_r2;
+
+// BKN2 mailbox CDC (analog BKN1).
+(* ASYNC_REG = "TRUE" *) reg [3:0] fsteal_bkn2_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0] fsteal_bkn2_index_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ fsteal_bkn2_index_sys_r0 <= 4'd0;
+ fsteal_bkn2_index_sys_r1 <= 4'd0;
+ end else begin
+ fsteal_bkn2_index_sys_r0 <= fsteal_bkn2_index_axi_w;
+ fsteal_bkn2_index_sys_r1 <= fsteal_bkn2_index_sys_r0;
+ end
+end
+
+(* ASYNC_REG = "TRUE" *) reg fsteal_bkn2_we_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg fsteal_bkn2_we_sys_r1;
+reg fsteal_bkn2_we_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ fsteal_bkn2_we_sys_r0 <= 1'b0;
+ fsteal_bkn2_we_sys_r1 <= 1'b0;
+ fsteal_bkn2_we_sys_r2 <= 1'b0;
+ end else begin
+ fsteal_bkn2_we_sys_r0 <= fsteal_bkn2_we_axi_w;
+ fsteal_bkn2_we_sys_r1 <= fsteal_bkn2_we_sys_r0;
+ fsteal_bkn2_we_sys_r2 <= fsteal_bkn2_we_sys_r1;
+ end
+end
+wire fsteal_bkn2_we_pulse_sys_w = fsteal_bkn2_we_sys_r1 & ~fsteal_bkn2_we_sys_r2;
+
+(* ASYNC_REG = "TRUE" *) reg fsteal_bkn2_go_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg fsteal_bkn2_go_sys_r1;
+reg fsteal_bkn2_go_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ fsteal_bkn2_go_sys_r0 <= 1'b0;
+ fsteal_bkn2_go_sys_r1 <= 1'b0;
+ fsteal_bkn2_go_sys_r2 <= 1'b0;
+ end else begin
+ fsteal_bkn2_go_sys_r0 <= fsteal_bkn2_go_axi_w;
+ fsteal_bkn2_go_sys_r1 <= fsteal_bkn2_go_sys_r0;
+ fsteal_bkn2_go_sys_r2 <= fsteal_bkn2_go_sys_r1;
+ end
+end
+wire fsteal_bkn2_go_pulse_sys_w = fsteal_bkn2_go_sys_r1 & ~fsteal_bkn2_go_sys_r2;
+
+// FACCH-Steal-Mailbox instance (clk_sys, 2× indirect_mailbox_wr inside).
+wire [31:0] fsteal_bkn1_rdata_sys_w;
+wire [31:0] fsteal_bkn2_rdata_sys_w;
+wire [215:0] facch_bkn1_sys_w;
+wire [215:0] facch_bkn2_sys_w;
+wire facch_steal_valid_sys_w;
+tetra_facch_steal_mailbox u_facch_steal_mailbox (
+.clk_sys (clk_sys),
+.rst_n_sys (rst_n_sys),
+.bkn1_index_sys (fsteal_bkn1_index_sys_r1),
+.bkn1_wdata_sys (fsteal_wdata_sys_r1),
+.bkn1_wr_en_sys (fsteal_bkn1_we_pulse_sys_w),
+.bkn1_go_pulse_sys (fsteal_bkn1_go_pulse_sys_w),
+.bkn1_rdata_sys (fsteal_bkn1_rdata_sys_w),
+.bkn2_index_sys (fsteal_bkn2_index_sys_r1),
+.bkn2_wdata_sys (fsteal_wdata_sys_r1),
+.bkn2_wr_en_sys (fsteal_bkn2_we_pulse_sys_w),
+.bkn2_go_pulse_sys (fsteal_bkn2_go_pulse_sys_w),
+.bkn2_rdata_sys (fsteal_bkn2_rdata_sys_w),
+.bkn1_out_sys (facch_bkn1_sys_w),
+.bkn2_out_sys (facch_bkn2_sys_w),
+.valid_sys (facch_steal_valid_sys_w)
+);
+
+// CDC: rdata + valid sys → axi.
+(* ASYNC_REG = "TRUE" *) reg [31:0] fsteal_bkn1_rdata_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] fsteal_bkn1_rdata_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [31:0] fsteal_bkn2_rdata_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] fsteal_bkn2_rdata_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg fsteal_valid_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg fsteal_valid_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) begin
+ fsteal_bkn1_rdata_axi_r0 <= 32'd0;
+ fsteal_bkn1_rdata_axi_r1 <= 32'd0;
+ fsteal_bkn2_rdata_axi_r0 <= 32'd0;
+ fsteal_bkn2_rdata_axi_r1 <= 32'd0;
+ fsteal_valid_axi_r0 <= 1'b0;
+ fsteal_valid_axi_r1 <= 1'b0;
+ end else begin
+ fsteal_bkn1_rdata_axi_r0 <= fsteal_bkn1_rdata_sys_w;
+ fsteal_bkn1_rdata_axi_r1 <= fsteal_bkn1_rdata_axi_r0;
+ fsteal_bkn2_rdata_axi_r0 <= fsteal_bkn2_rdata_sys_w;
+ fsteal_bkn2_rdata_axi_r1 <= fsteal_bkn2_rdata_axi_r0;
+ fsteal_valid_axi_r0 <= facch_steal_valid_sys_w;
+ fsteal_valid_axi_r1 <= fsteal_valid_axi_r0;
+ end
+end
+
+// =============================================================================
 // Phase E2 — Voice-NUB-Read-Mailbox CDC + instance.
 // FPGA→SW pipe: 432 signed 4-bit soft-values (= 1728 bits = 54 × 32) per
 // NUB burst, latched with valid-Flag. SW polls valid, reads W0..W53,
@@ -3212,6 +3432,104 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  end else begin
  vnub_ack_consume_axi_r0 <= vnub_ack_pulse_sys_w;
  vnub_ack_consume_axi_r1 <= vnub_ack_consume_axi_r0;
+ end
+end
+
+// =============================================================================
+// Phase A (2026-05-23) — FACCH-NUB-Read-Mailbox (NTS2-Stealing-Bursts)
+// Vollständig parallele Pipeline zu Voice-NUB-Read-Mailbox oben.
+// CDC + Mailbox + rdata/valid/ack genauso wie vnub-Block — Quelle ist
+// facch_nub_coded_softs_sys_w (von rx_chain.v u_ul_facch_capture).
+// =============================================================================
+wire [5:0] facch_nub_index_axi_w;
+wire facch_nub_ack_trigger_w;
+
+// 2-FF resync of index AXI → sys.
+(* ASYNC_REG = "TRUE" *) reg [5:0] facch_nub_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [5:0] facch_nub_index_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ facch_nub_index_sys_r0 <= 6'd0;
+ facch_nub_index_sys_r1 <= 6'd0;
+ end else begin
+ facch_nub_index_sys_r0 <= facch_nub_index_axi_w;
+ facch_nub_index_sys_r1 <= facch_nub_index_sys_r0;
+ end
+end
+
+// 2-FF resync + edge-detect of ACK trigger to 1-cycle clk_sys pulse.
+(* ASYNC_REG = "TRUE" *) reg facch_nub_ack_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg facch_nub_ack_sys_r1;
+reg facch_nub_ack_sys_r2;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ facch_nub_ack_sys_r0 <= 1'b0;
+ facch_nub_ack_sys_r1 <= 1'b0;
+ facch_nub_ack_sys_r2 <= 1'b0;
+ end else begin
+ facch_nub_ack_sys_r0 <= facch_nub_ack_trigger_w;
+ facch_nub_ack_sys_r1 <= facch_nub_ack_sys_r0;
+ facch_nub_ack_sys_r2 <= facch_nub_ack_sys_r1;
+ end
+end
+wire facch_nub_ack_pulse_sys_w = facch_nub_ack_sys_r1 & ~facch_nub_ack_sys_r2;
+
+// FACCH-NUB-Read-Mailbox instance (clk_sys).
+wire [31:0] facch_nub_rdata_sys_w;
+wire facch_nub_valid_sys_w;
+tetra_facch_nub_read_mailbox u_facch_nub_read_mailbox (
+.clk_sys (clk_sys),
+.rst_n_sys (rst_n_sys),
+.coded_softs_sys (facch_nub_coded_softs_sys_w),
+.coded_valid_sys (facch_nub_coded_valid_sys_w),
+.ack_pulse_sys (facch_nub_ack_pulse_sys_w),
+.index_sys (facch_nub_index_sys_r1),
+.rdata_sys (facch_nub_rdata_sys_w),
+.valid_sys (facch_nub_valid_sys_w)
+);
+
+// CDC: rdata + valid clk_sys → clk_axi.
+(* ASYNC_REG = "TRUE" *) reg [31:0] facch_nub_rdata_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] facch_nub_rdata_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg facch_nub_valid_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg facch_nub_valid_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) begin
+ facch_nub_rdata_axi_r0 <= 32'd0;
+ facch_nub_rdata_axi_r1 <= 32'd0;
+ facch_nub_valid_axi_r0 <= 1'b0;
+ facch_nub_valid_axi_r1 <= 1'b0;
+ end else begin
+ facch_nub_rdata_axi_r0 <= facch_nub_rdata_sys_w;
+ facch_nub_rdata_axi_r1 <= facch_nub_rdata_axi_r0;
+ facch_nub_valid_axi_r0 <= facch_nub_valid_sys_w;
+ facch_nub_valid_axi_r1 <= facch_nub_valid_axi_r0;
+ end
+end
+
+// CDC: rx-burst counter clk_sys → clk_axi (slow telemetry, simple 2-FF settle).
+(* ASYNC_REG = "TRUE" *) reg [15:0] facch_nub_rx_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] facch_nub_rx_cnt_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) begin
+ facch_nub_rx_cnt_axi_r0 <= 16'd0;
+ facch_nub_rx_cnt_axi_r1 <= 16'd0;
+ end else begin
+ facch_nub_rx_cnt_axi_r0 <= facch_nub_rx_cnt_sys_w;
+ facch_nub_rx_cnt_axi_r1 <= facch_nub_rx_cnt_axi_r0;
+ end
+end
+
+// CDC: ACK-consume pulse clk_sys → clk_axi to clear W1S trigger.
+(* ASYNC_REG = "TRUE" *) reg facch_nub_ack_consume_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg facch_nub_ack_consume_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) begin
+ facch_nub_ack_consume_axi_r0 <= 1'b0;
+ facch_nub_ack_consume_axi_r1 <= 1'b0;
+ end else begin
+ facch_nub_ack_consume_axi_r0 <= facch_nub_ack_pulse_sys_w;
+ facch_nub_ack_consume_axi_r1 <= facch_nub_ack_consume_axi_r0;
  end
 end
 
@@ -3669,6 +3987,10 @@ tetra_aach_encoder u_aach_encoder (
 .grant_consume_sys (aach_grant_consume_sys_w),
  /* Phase Y.4.1 — Voice-Slot AACH-Override (4-bit bitmap per tn_sys). */
 .voice_active_mask_sys (voice_active_mask_sys_r1),
+ /* Phase 2/3 — slot_mode-LUT (höchste Prio vor voice_active_mask) */
+.slot_mode_sys (slot_mode_sys_r1),
+ /* Phase 3.4 — per-TN UMt für dynamic AACH-encoding */
+.slot_umt_sys (slot_umt_sys_r1),
 .encode_start_sys (tx_tdma_state_slot_pulse_sys),
 .aach_coded_sys (aach_coded_sys_w),
 .aach_valid_sys (aach_valid_sys_w)

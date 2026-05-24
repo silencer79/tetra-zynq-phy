@@ -32,6 +32,7 @@
 #include "tetra_cmce_parser.h"
 #include "tetra_call_fsm.h"
 #include "tetra_mm_demand_parser.h"
+#include "tetra_facch_decode.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -581,6 +582,15 @@ int main(int argc, char **argv)
  * trotz Power-Cycle), Slot freigeben. */
  tetra_call_fsm_tick(&hal);
 
+ /* Phase A (2026-05-23) — UL-NTS2-FACCH-Stealing-Decode + Dispatch.
+  * MS sendet U-DISCONNECT/U-RELEASE als NTS2-Burst auf UL-Voice-Slot.
+  * FPGA-RTL hat dafür eine 2. NUB-Capture-Pipeline (siehe
+  * tetra_rx_chain.v u_ul_facch_capture). Diese SW liest die
+  * REG_FACCH_NUB_READ_*-Mailbox, dekodiert SCH/HD, parst CMCE und
+  * ruft tetra_call_fsm_handle() — der existierende U-DISCONNECT-Handler
+  * triggert dann stage_d_release(). */
+ (void)tetra_facch_decode_tick(&hal);
+
  /* Phase 1C — service raw-body Mailbox parallel zu RTL-Parser-Pfaden.
   * Logs SW-Walker-Output für A/B-Vergleich. Wird vor dem
   * RTL-parsed-demand-poll geprüft damit die Reihenfolge im Log
@@ -601,7 +611,12 @@ int main(int argc, char **argv)
  * act on mle_disc==2 (CMCE); mle_disc==1 (MM) is already handled
  * by the reassembly path below. */
  uint32_t ul_status = tetra_reg_read(&hal, REG_UL_PDU_STATUS);
- if (UL_STATUS_VALID(ul_status)) {
+ /* 2026-05-24 — UL_STATUS_VALID-Gate ENTFERNT. tetra_ul_mon W1C-cleart
+  * den valid-sticky direkt nach jedem Log → wir sahen valid=0 obwohl
+  * count_hi weitergewachsen war. Folge: alle CMCE-PDUs (U-SETUP,
+  * U-DISCONNECT) wurden ignoriert → "PTT abgewiesen". Counter-Track
+  * allein reicht: RTL hält SSI/RAW stabil bis nächste PDU. */
+ {
  uint16_t ul_count = (uint16_t)UL_STATUS_PDU_COUNT(ul_status);
  if (ul_count != last_ul_count) {
  last_ul_count = ul_count;

@@ -167,6 +167,8 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_pre_reply_slotgrant.v \
  $PROJ_DIR/rtl/lmac/tetra_voice_filler_mailbox.v \
  $PROJ_DIR/rtl/lmac/tetra_voice_nub_read_mailbox.v \
+ $PROJ_DIR/rtl/lmac/tetra_facch_nub_read_mailbox.v \
+ $PROJ_DIR/rtl/lmac/tetra_facch_steal_mailbox.v \
 ]
 
 # Top-Level modules

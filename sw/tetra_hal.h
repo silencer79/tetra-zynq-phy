@@ -364,6 +364,54 @@
 #define REG_VOICE_NUB_READ_STATUS 0x288 /* RO [0] valid (burst pending) */
 #define REG_VOICE_NUB_READ_ACK 0x28C /* W1S [0] clear + arm next */
 
+/* Phase A (2026-05-23) — FACCH-NUB-Read-Mailbox (Bank-1 0x2A0..0x2B0).
+ * Parallele Pipeline zu Voice-NUB-Read, getriggert von UL-NTS2-Sync (statt
+ * NTS1). Enthält 432 signed 4-bit soft-values (= 54 × 32-bit words) für
+ * FACCH-Stealing-Bursts (= signaling im UL-Voice-Slot wie U-DISCONNECT,
+ * U-RELEASE). SW dekodiert SCH/HD (124 info bits) → CMCE-PDU →
+ * tetra_call_fsm_handle(). Selber soft-Format wie Voice-NUB. */
+#define REG_FACCH_NUB_READ_INDEX  0x2A0 /* R/W [5:0] word selector */
+#define REG_FACCH_NUB_READ_DATA   0x2A4 /* RO  [31:0] indirect via INDEX */
+#define REG_FACCH_NUB_READ_STATUS 0x2A8 /* RO  [0]    valid (burst pending) */
+#define REG_FACCH_NUB_READ_ACK    0x2AC /* W1S [0]    clear + arm next */
+#define REG_FACCH_NUB_RX_CNT      0x2B0 /* RO  [15:0] facch-burst-capture count */
+
+/* Phase 2/3 (2026-05-23) — DL FACCH-Stealing-Mailbox + slot_mode
+ * (Bank-1 0x2B4..0x2D0). SW staged Gold-konformes Voice-Slot-Routing:
+ * - REG_SLOT_MODE: 32-bit, 4×4-bit per TN (bit[tn*4+:4]):
+ *     0=IDLE, 1=TCH_VOICE, 2=HALF_STEAL_SIG, 3=FULL_STEAL_SIG,
+ *     4=FULL_STEAL_FILLER, 5..15=reserved.
+ *   slot_mode[tn]!=0 → aach_encoder + burst_dispatcher gewinnen LUT-Pfad
+ *   (NDB2-Format + facch_steal-bits) statt voice_active_mask + vfill-Pfad.
+ * - REG_FACCH_STEAL_BKN1_*: 16×32-bit indirect mailbox für SCH/HD-encoded
+ *   signaling BKN1 (D-RELEASE PDU etc., 216 type-5 bits in W0..W6, W15[0]=valid).
+ * - REG_FACCH_STEAL_BKN2_*: analog für BKN2 (SCH/HD SYSINFO im
+ *   FULL_STEAL-Mode; im HALF_STEAL-Mode wird vfill_blk2 statt facch_bkn2 genutzt).
+ * - REG_FACCH_STEAL_STATUS: valid=1 wenn beide Mailboxes loaded sind. */
+#define REG_SLOT_MODE             0x2B4 /* R/W [15:0] 4×4-bit per TN */
+#define REG_FACCH_STEAL_BKN1_INDEX 0x2B8 /* R/W [3:0] */
+#define REG_FACCH_STEAL_BKN1_DATA  0x2BC /* R/W [31:0] indirect via INDEX */
+#define REG_FACCH_STEAL_BKN1_GO    0x2C0 /* W1S [0] commit pulse */
+#define REG_FACCH_STEAL_BKN2_INDEX 0x2C4 /* R/W [3:0] */
+#define REG_FACCH_STEAL_BKN2_DATA  0x2C8 /* R/W [31:0] indirect via INDEX */
+#define REG_FACCH_STEAL_BKN2_GO    0x2CC /* W1S [0] commit pulse */
+#define REG_FACCH_STEAL_STATUS     0x2D0 /* RO  [0]   valid (both banks loaded) */
+
+/* Phase 3.4 (2026-05-24) — Per-TN Traffic Usage Marker (UMt), ETSI EN 300
+ * 392-2 §21.4.7.2. 32-bit Register, 4×8-bit Lanes (bits[TN*8 +: 6] = UMt
+ * für TN_sys=0..3). UMt=0 = kein aktiver Call auf dem TN (aach_encoder
+ * fällt zurück auf legacy hardcoded oder idle pattern). UMt=4..63 = Traffic
+ * Channel der MAC-RESOURCE-Allokation. SW updated bei alloc_slot/free_slot
+ * via tetra_call_fsm.c::slot_umt_write(). */
+#define REG_SLOT_UMT               0x2D4 /* R/W [31:0] 4×8-bit per-TN UMt */
+
+/* slot_mode enumeration values for REG_SLOT_MODE[tn*4+:4]. */
+#define SLOT_MODE_IDLE              0
+#define SLOT_MODE_TCH_VOICE         1
+#define SLOT_MODE_HALF_STEAL_SIG    2
+#define SLOT_MODE_FULL_STEAL_SIG    3
+#define SLOT_MODE_FULL_STEAL_FILLER 4
+
 /* Phase H.6.3 — AACH UL-Slot-Grant override (single-shot pulse) */
 #define REG_AACH_GRANT_HINT 0x1F4 /* R/W [31] pending, [13:0] info14 */
 

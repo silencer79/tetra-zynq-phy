@@ -121,6 +121,15 @@ module tetra_burst_dispatcher #(
  input wire [BLOCK_BITS-1:0] vfill_blk2_sys, // type-5 bits 216..431
  input wire [BLOCK_BITS-1:0] null_pdu_bits_sys, // 216-bit NULL-PDU for NDB2-filler
 
+ // Phase 2/3 (2026-05-23) — DL FACCH-Stealing mailbox + slot_mode.
+ // Wenn slot_mode[tn] in {2,3,4}: NDB2-Format + facch_steal-mailbox-bits
+ // (statt vfill und statt scheduler). Mailbox liefert BKN1=signaling (SCH/HD-
+ // encoded D-RELEASE etc.), BKN2=SYSINFO-broadcast oder TCH-Voice-Half.
+ input wire [15:0] slot_mode_sys, // 4×4-bit per TN
+ input wire facch_steal_valid_sys, // beide BKN-Banken loaded
+ input wire [BLOCK_BITS-1:0] facch_bkn1_sys, // SCH/HD signaling
+ input wire [BLOCK_BITS-1:0] facch_bkn2_sys, // SCH/HD SYSINFO or TCH-half
+
  // -------------------------------------------------------------------------
  // Outputs to tetra_burst_builder
  // -------------------------------------------------------------------------
@@ -216,7 +225,18 @@ always @(*) begin
  2'd0: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys0);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys0);
- if (voice_active_mask_sys[0] & vfill_valid_sys
+ // Phase 2/3 — slot_mode FACCH-Stealing (höchste Prio, vor voice/sched).
+ // slot_mode[tn] in {2,3,4} → NDB2 + facch_steal-mailbox.
+ if ((slot_mode_sys[3:0] >= 4'd2) && (slot_mode_sys[3:0] <= 4'd4)
+ && facch_steal_valid_sys && (tx_fn_sys <= 5'd16)) begin
+ sel_blk1_w = facch_bkn1_sys;
+ sel_blk2_w = (slot_mode_sys[3:0] == 4'd2 && vfill_valid_sys)
+ ? vfill_blk2_sys // HALF_STEAL: BKN2 = TCH-Voice-Half
+ : facch_bkn2_sys; // FULL_STEAL: BKN2 = SCH/HD SYSINFO
+ sel_burst_type_w = 1'b0; // NDB
+ sel_ndb2_w = 1'b1; // NDB2 (NTS2) — FACCH-Stealing
+ sel_enable_w = 1'b1;
+ end else if (voice_active_mask_sys[0] & vfill_valid_sys
  & (voice_slot_tn_sys == 2'd0)
  & (tx_fn_sys <= 5'd16)) begin
  sel_blk1_w = vfill_blk1_sys;
@@ -237,7 +257,15 @@ always @(*) begin
  2'd1: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys1);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys1);
- if (voice_active_mask_sys[1] & vfill_valid_sys
+ if ((slot_mode_sys[7:4] >= 4'd2) && (slot_mode_sys[7:4] <= 4'd4)
+ && facch_steal_valid_sys && (tx_fn_sys <= 5'd16)) begin
+ sel_blk1_w = facch_bkn1_sys;
+ sel_blk2_w = (slot_mode_sys[7:4] == 4'd2 && vfill_valid_sys)
+ ? vfill_blk2_sys : facch_bkn2_sys;
+ sel_burst_type_w = 1'b0;
+ sel_ndb2_w = 1'b1;
+ sel_enable_w = 1'b1;
+ end else if (voice_active_mask_sys[1] & vfill_valid_sys
  & (voice_slot_tn_sys == 2'd1)
  & (tx_fn_sys <= 5'd16)) begin
  sel_blk1_w = vfill_blk1_sys;
@@ -258,7 +286,15 @@ always @(*) begin
  2'd2: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys2);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys2);
- if (voice_active_mask_sys[2] & vfill_valid_sys
+ if ((slot_mode_sys[11:8] >= 4'd2) && (slot_mode_sys[11:8] <= 4'd4)
+ && facch_steal_valid_sys && (tx_fn_sys <= 5'd16)) begin
+ sel_blk1_w = facch_bkn1_sys;
+ sel_blk2_w = (slot_mode_sys[11:8] == 4'd2 && vfill_valid_sys)
+ ? vfill_blk2_sys : facch_bkn2_sys;
+ sel_burst_type_w = 1'b0;
+ sel_ndb2_w = 1'b1;
+ sel_enable_w = 1'b1;
+ end else if (voice_active_mask_sys[2] & vfill_valid_sys
  & (voice_slot_tn_sys == 2'd2)
  & (tx_fn_sys <= 5'd16)) begin
  sel_blk1_w = vfill_blk1_sys;
@@ -279,7 +315,15 @@ always @(*) begin
  2'd3: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys3);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys3);
- if (voice_active_mask_sys[3] & vfill_valid_sys
+ if ((slot_mode_sys[15:12] >= 4'd2) && (slot_mode_sys[15:12] <= 4'd4)
+ && facch_steal_valid_sys && (tx_fn_sys <= 5'd16)) begin
+ sel_blk1_w = facch_bkn1_sys;
+ sel_blk2_w = (slot_mode_sys[15:12] == 4'd2 && vfill_valid_sys)
+ ? vfill_blk2_sys : facch_bkn2_sys;
+ sel_burst_type_w = 1'b0;
+ sel_ndb2_w = 1'b1;
+ sel_enable_w = 1'b1;
+ end else if (voice_active_mask_sys[3] & vfill_valid_sys
  & (voice_slot_tn_sys == 2'd3)
  & (tx_fn_sys <= 5'd16)) begin
  sel_blk1_w = vfill_blk1_sys;

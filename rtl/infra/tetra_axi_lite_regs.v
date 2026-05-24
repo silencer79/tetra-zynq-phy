@@ -482,6 +482,52 @@ module tetra_axi_lite_regs (
  input wire vnub_valid_axi_i,
 
  // ------------------------------------------------------------------
+ // Phase A (2026-05-23) — FACCH-NUB-Read-Mailbox (0x2A0..0x2AC, Bank-1).
+ // FPGA→SW pipe für UL-NTS2-FACCH-Stealing-Bursts (= U-DISCONNECT,
+ // U-RELEASE im UL-Voice-Slot). Selbes Layout wie Voice-NUB-Read (54×32 soft),
+ // aber zweite Pipeline parallel zur Voice-NUB. SW dekodiert SCH/HD
+ // (124 info bits) → CMCE-PDU → tetra_call_fsm_handle().
+ // REG_FACCH_NUB_READ_INDEX  @ 0x2A0 R/W [5:0] word selector
+ // REG_FACCH_NUB_READ_DATA   @ 0x2A4 RO  [31:0] indirect via INDEX
+ // REG_FACCH_NUB_READ_STATUS @ 0x2A8 RO  [0] valid (new burst pending)
+ // REG_FACCH_NUB_READ_ACK    @ 0x2AC W1S [0] clear valid + arm next
+ // ------------------------------------------------------------------
+ output wire [5:0] facch_nub_index_axi_o,
+ output wire facch_nub_ack_trigger_axi_o,
+ input wire facch_nub_ack_consume_axi,
+ input wire [31:0] facch_nub_rdata_axi_i,
+ input wire facch_nub_valid_axi_i,
+ input wire [15:0] facch_nub_rx_cnt_axi,
+
+ // ------------------------------------------------------------------
+ // Phase 2/3 (2026-05-23) — DL FACCH-Stealing-Mailbox + slot_mode
+ // (0x2B4..0x2D0, Bank-1). SW staged Gold-konformes Voice-Slot-Routing:
+ //   REG_SLOT_MODE @ 0x2B4 [15:0] = 4×4-bit per TN, value encoded:
+ //     0=IDLE, 1=TCH_VOICE, 2=HALF_STEAL_SIG, 3=FULL_STEAL_SIG,
+ //     4=FULL_STEAL_FILLER, 5=BNCH_FN18 (used by aach_encoder + burst_dispatcher)
+ //   REG_FACCH_STEAL_BKN1_INDEX  @ 0x2B8 R/W [3:0]
+ //   REG_FACCH_STEAL_BKN1_DATA   @ 0x2BC R/W [31:0]
+ //   REG_FACCH_STEAL_BKN1_GO     @ 0x2C0 W1S [0]
+ //   REG_FACCH_STEAL_BKN2_INDEX  @ 0x2C4 R/W [3:0]
+ //   REG_FACCH_STEAL_BKN2_DATA   @ 0x2C8 R/W [31:0]
+ //   REG_FACCH_STEAL_BKN2_GO     @ 0x2CC W1S [0]
+ //   REG_FACCH_STEAL_STATUS      @ 0x2D0 RO  [0] valid (both banks loaded)
+ // ------------------------------------------------------------------
+ output reg [31:0] slot_mode_axi,
+ /* Phase 3.4 (2026-05-24) — Per-TN Traffic Usage Marker (UMt). 4×8-bit lanes. */
+ output reg [31:0] slot_umt_axi,
+ output wire [3:0] fsteal_bkn1_index_axi_o,
+ output wire fsteal_bkn1_we_axi_o,
+ output wire fsteal_bkn1_go_axi_o,
+ input wire [31:0] fsteal_bkn1_rdata_axi_i,
+ output wire [3:0] fsteal_bkn2_index_axi_o,
+ output wire fsteal_bkn2_we_axi_o,
+ output wire fsteal_bkn2_go_axi_o,
+ input wire [31:0] fsteal_bkn2_rdata_axi_i,
+ input wire fsteal_valid_axi_i,
+ output wire [31:0] fsteal_wdata_axi_o, // shared wdata bus for fsteal mailboxes
+
+ // ------------------------------------------------------------------
  // Phase H.7 — D-NWRK-BROADCAST periodic push.
  // REG_NWRK_BCAST_INDEX @ 0x1D0 [3:0] payload word index (0..13)
  // REG_NWRK_BCAST_DATA @ 0x1D4 [31:0] 32-bit, write→payload[INDEX]
@@ -863,6 +909,24 @@ localparam [6:0] REG_VOICE_NUB_READ_ACK    = 7'h23; // 0x28C W1S [0] ack — cle
 localparam [6:0] REG_RX_CIC_GAIN_SHF   = 7'h24; // 0x290 R/W [2:0] CIC gain shift (def 6)
 localparam [6:0] REG_UL_RA_SYNC_THRESH = 7'h25; // 0x294 R/W [5:0] UL-RA sync threshold (def 13)
 localparam [6:0] REG_UL_RA_RX_STATUS   = 7'h26; // 0x298 RO  {15'd0, busy, captures[15:0]}
+// Phase A (2026-05-23) — FACCH-NUB-Read-Mailbox (0x2A0..0x2AC, Bank-1)
+// Parallel zu Voice-NUB-Read aber für NTS2-FACCH-Stealing-Bursts.
+// Plus Counter @ 0x2B0 (rx-burst count, RO).
+localparam [6:0] REG_FACCH_NUB_READ_INDEX  = 7'h28; // 0x2A0 R/W [5:0] word selector
+localparam [6:0] REG_FACCH_NUB_READ_DATA   = 7'h29; // 0x2A4 RO  [31:0] indirect via INDEX
+localparam [6:0] REG_FACCH_NUB_READ_STATUS = 7'h2A; // 0x2A8 RO  [0]  valid mirror
+localparam [6:0] REG_FACCH_NUB_READ_ACK    = 7'h2B; // 0x2AC W1S [0]  ack — clear valid
+localparam [6:0] REG_FACCH_NUB_RX_CNT      = 7'h2C; // 0x2B0 RO  [15:0] facch-burst-capture count
+// Phase 2/3 (2026-05-23) — DL FACCH-Stealing-Mailbox + slot_mode (0x2B4..0x2D0)
+localparam [6:0] REG_SLOT_MODE             = 7'h2D; // 0x2B4 R/W [15:0] 4×4-bit per TN
+localparam [6:0] REG_FACCH_STEAL_BKN1_INDEX = 7'h2E; // 0x2B8 R/W [3:0]
+localparam [6:0] REG_FACCH_STEAL_BKN1_DATA  = 7'h2F; // 0x2BC R/W [31:0]
+localparam [6:0] REG_FACCH_STEAL_BKN1_GO    = 7'h30; // 0x2C0 W1S [0]
+localparam [6:0] REG_FACCH_STEAL_BKN2_INDEX = 7'h31; // 0x2C4 R/W [3:0]
+localparam [6:0] REG_FACCH_STEAL_BKN2_DATA  = 7'h32; // 0x2C8 R/W [31:0]
+localparam [6:0] REG_FACCH_STEAL_BKN2_GO    = 7'h33; // 0x2CC W1S [0]
+localparam [6:0] REG_FACCH_STEAL_STATUS     = 7'h34; // 0x2D0 RO  [0] valid (both banks)
+localparam [6:0] REG_SLOT_UMT               = 7'h35; // 0x2D4 R/W [31:0] 4×8-bit per-TN UMt
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -1054,6 +1118,16 @@ reg vfill_go_trigger_r; // W1S GO trigger, HW-clr on go_consume
 // for soft-output (54 words instead of 14).
 reg [5:0] vnub_index_axi; // 6-bit indirect-window word selector
 reg vnub_ack_trigger_r; // W1S ACK trigger, HW-clr on ack_consume
+
+// Phase A (2026-05-23) FACCH-NUB-Read-Mailbox AXI-side state.
+reg [5:0] facch_nub_index_axi; // 6-bit indirect-window word selector
+reg facch_nub_ack_trigger_r; // W1S ACK trigger, HW-clr on ack_consume
+
+// Phase 2/3 (2026-05-23) FACCH-Steal-Mailbox AXI-side state.
+reg [3:0] fsteal_bkn1_index_axi;
+reg fsteal_bkn1_go_r;       // W1S GO trigger
+reg [3:0] fsteal_bkn2_index_axi;
+reg fsteal_bkn2_go_r;
 
 reg [31:0] rdata_mux_axi;
 always @(*) begin
@@ -1256,6 +1330,20 @@ always @(*) begin
  REG_VOICE_FILLER_GO: rdata_mux_axi = {31'd0, vfill_go_trigger_r};
  REG_VOICE_FILLER_STATUS: rdata_mux_axi = {31'd0, vfill_valid_axi_i};
  // Phase B — Voice-NUB-Read mailbox
+ REG_FACCH_NUB_READ_INDEX:  rdata_mux_axi = {26'd0, facch_nub_index_axi};
+ REG_FACCH_NUB_READ_DATA:   rdata_mux_axi = facch_nub_rdata_axi_i;
+ REG_FACCH_NUB_READ_STATUS: rdata_mux_axi = {31'd0, facch_nub_valid_axi_i};
+ REG_FACCH_NUB_READ_ACK:    rdata_mux_axi = {31'd0, facch_nub_ack_trigger_r};
+ REG_FACCH_NUB_RX_CNT:      rdata_mux_axi = {16'd0, facch_nub_rx_cnt_axi};
+ REG_SLOT_MODE:             rdata_mux_axi = slot_mode_axi;
+ REG_SLOT_UMT:              rdata_mux_axi = slot_umt_axi;
+ REG_FACCH_STEAL_BKN1_INDEX: rdata_mux_axi = {28'd0, fsteal_bkn1_index_axi};
+ REG_FACCH_STEAL_BKN1_DATA:  rdata_mux_axi = fsteal_bkn1_rdata_axi_i;
+ REG_FACCH_STEAL_BKN1_GO:    rdata_mux_axi = {31'd0, fsteal_bkn1_go_r};
+ REG_FACCH_STEAL_BKN2_INDEX: rdata_mux_axi = {28'd0, fsteal_bkn2_index_axi};
+ REG_FACCH_STEAL_BKN2_DATA:  rdata_mux_axi = fsteal_bkn2_rdata_axi_i;
+ REG_FACCH_STEAL_BKN2_GO:    rdata_mux_axi = {31'd0, fsteal_bkn2_go_r};
+ REG_FACCH_STEAL_STATUS:     rdata_mux_axi = {31'd0, fsteal_valid_axi_i};
  REG_VOICE_NUB_READ_INDEX: rdata_mux_axi = {26'd0, vnub_index_axi};
  REG_VOICE_NUB_READ_DATA: rdata_mux_axi = vnub_rdata_axi_i;
  REG_VOICE_NUB_READ_STATUS: rdata_mux_axi = {31'd0, vnub_valid_axi_i};
@@ -2558,6 +2646,114 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
  if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_VOICE_NUB_READ_ACK)
  & wr_strb_axi[0] & wr_data_axi[0])
  vnub_ack_trigger_r <= 1'b1;
+ end
+end
+
+// ---------------------------------------------------------------------------
+// Phase A (2026-05-23) — FACCH-NUB-Read-Mailbox AXI-side state (clk_axi)
+// Identische Semantik wie vnub: INDEX R/W, ACK W1S (HW-clr on ack_consume).
+// ---------------------------------------------------------------------------
+assign facch_nub_index_axi_o = facch_nub_index_axi;
+assign facch_nub_ack_trigger_axi_o = facch_nub_ack_trigger_r;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ facch_nub_index_axi <= 6'd0;
+ else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_FACCH_NUB_READ_INDEX)
+ & wr_strb_axi[0])
+ facch_nub_index_axi <= wr_data_axi[5:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ facch_nub_ack_trigger_r <= 1'b0;
+ else begin
+ if (facch_nub_ack_consume_axi)
+ facch_nub_ack_trigger_r <= 1'b0;
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_FACCH_NUB_READ_ACK)
+ & wr_strb_axi[0] & wr_data_axi[0])
+ facch_nub_ack_trigger_r <= 1'b1;
+ end
+end
+
+// ---------------------------------------------------------------------------
+// Phase 2/3 (2026-05-23) — DL FACCH-Stealing-Mailbox + slot_mode AXI-side.
+// SLOT_MODE = einfaches 32-bit-R/W (CDC zu clk_sys per top-level 2-FF).
+// FACCH-Steal-Mailboxes (BKN1+BKN2): jeweils INDEX (R/W), DATA (write-only,
+// passthrough zu wdata_axi-bus), GO (W1S, kein consume-CDC weil wir keinen
+// 1-cycle-pulse-Pfad brauchen — Mailbox latched W15[0]=1 als valid).
+// ---------------------------------------------------------------------------
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ slot_mode_axi <= 32'h0;
+ else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_MODE)) begin
+ if (wr_strb_axi[0]) slot_mode_axi[ 7: 0] <= wr_data_axi[ 7: 0];
+ if (wr_strb_axi[1]) slot_mode_axi[15: 8] <= wr_data_axi[15: 8];
+ if (wr_strb_axi[2]) slot_mode_axi[23:16] <= wr_data_axi[23:16];
+ if (wr_strb_axi[3]) slot_mode_axi[31:24] <= wr_data_axi[31:24];
+ end
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ slot_umt_axi <= 32'h0;
+ else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_UMT)) begin
+ if (wr_strb_axi[0]) slot_umt_axi[ 7: 0] <= wr_data_axi[ 7: 0];
+ if (wr_strb_axi[1]) slot_umt_axi[15: 8] <= wr_data_axi[15: 8];
+ if (wr_strb_axi[2]) slot_umt_axi[23:16] <= wr_data_axi[23:16];
+ if (wr_strb_axi[3]) slot_umt_axi[31:24] <= wr_data_axi[31:24];
+ end
+end
+
+assign fsteal_wdata_axi_o = wr_data_axi;
+assign fsteal_bkn1_index_axi_o = fsteal_bkn1_index_axi;
+assign fsteal_bkn1_we_axi_o = wr_en_x1_axi &
+ (wr_addr_axi[8:2] == REG_FACCH_STEAL_BKN1_DATA);
+assign fsteal_bkn1_go_axi_o = fsteal_bkn1_go_r;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ fsteal_bkn1_index_axi <= 4'd0;
+ else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_FACCH_STEAL_BKN1_INDEX)
+ & wr_strb_axi[0])
+ fsteal_bkn1_index_axi <= wr_data_axi[3:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ fsteal_bkn1_go_r <= 1'b0;
+ else begin
+ /* self-clearing 1-cycle pulse on axi-clock domain.
+  * CDC to sys-domain produced by top-level 2-FF + edge-detect (analog
+  * vfill go_pulse_sys path). */
+ fsteal_bkn1_go_r <= 1'b0;
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_FACCH_STEAL_BKN1_GO)
+ & wr_strb_axi[0] & wr_data_axi[0])
+ fsteal_bkn1_go_r <= 1'b1;
+ end
+end
+
+assign fsteal_bkn2_index_axi_o = fsteal_bkn2_index_axi;
+assign fsteal_bkn2_we_axi_o = wr_en_x1_axi &
+ (wr_addr_axi[8:2] == REG_FACCH_STEAL_BKN2_DATA);
+assign fsteal_bkn2_go_axi_o = fsteal_bkn2_go_r;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ fsteal_bkn2_index_axi <= 4'd0;
+ else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_FACCH_STEAL_BKN2_INDEX)
+ & wr_strb_axi[0])
+ fsteal_bkn2_index_axi <= wr_data_axi[3:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ fsteal_bkn2_go_r <= 1'b0;
+ else begin
+ fsteal_bkn2_go_r <= 1'b0;
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_FACCH_STEAL_BKN2_GO)
+ & wr_strb_axi[0] & wr_data_axi[0])
+ fsteal_bkn2_go_r <= 1'b1;
  end
 end
 

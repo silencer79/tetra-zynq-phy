@@ -22,6 +22,8 @@
 #include "tetra_voice_pipe.h"
 #include "tetra_db.h"
 
+#include "tetra_facch_steal.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -32,6 +34,83 @@ static uint16_t g_next_call_id = 1u;
 /* Cache: last value written to REG_VOICE_ACTIVE_MASK. Avoid issuing
  * redundant AXI writes from the watchdog tick. */
 static uint32_t g_mask_cached = 0xFFFFFFFFu;
+
+/* Phase 3.2 (2026-05-23) — Voice-TS-Allokation pro Call-Slot.
+ * Pool von TN_sys=1..3 (TN=0 = Main-Sig, reserviert). MVP: nur 1 fix-TS,
+ * matched zum hartkodierten ChanAlloc-Element (= TS=4 = TN_sys=3) in
+ * tetra_tx_transport.c. Multi-Call braucht später (a) dynamischen
+ * ChanAlloc-TS-Builder + (b) facch_steal_mailbox-pro-TN. Vorbereitet
+ * mit pool aber aktuell nur TN=3 verwendet. */
+#define VOICE_TN_NONE 0xFFu
+#define VOICE_TN_CHANALLOC_FIXED 3u  /* matches ca_element=0x00272FD3 TS=4 */
+
+static uint8_t alloc_voice_tn(void)
+{
+ /* MVP: fix TN=3, matched zum existierenden ChanAlloc-Element-Bit-Pattern.
+  * TODO: für Multi-Call dynamisch aus pool 1..3 wählen + ChanAlloc-Bits
+  * synchron neu berechnen (braucht parametrisierbaren ChanAlloc-Builder). */
+ for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
+ if (g_slots[i].ssi != 0u
+ && g_slots[i].voice_tn == VOICE_TN_CHANALLOC_FIXED) {
+ /* TS bereits belegt — Multi-Call kann nicht. Verweigern. */
+ return VOICE_TN_NONE;
+ }
+ }
+ return VOICE_TN_CHANALLOC_FIXED;
+}
+
+/* Phase 3.4 (2026-05-24) — UMt-Allokation pro Call.
+ * UMt = Traffic Usage Marker, ETSI EN 300 392-2 §21.4.7.2.
+ * Pool 4..63 (0..3 sind reserved für UMx/UMa/UMc/UMr). MVP nutzt
+ * statisch UMt = 21 (Gold2-Wert). Multi-Call später dynamisch aus
+ * freiem Pool — aber AACH per TN sieht eh nur 1 UMt zur Zeit. */
+#define UMT_NONE 0u
+#define UMT_DEFAULT 21u  /* Gold2 verwendet UMt=21 */
+
+static uint8_t alloc_umt(void)
+{
+ /* MVP: statisch UMt=21. Aktiver Call belegt UMt für seinen voice_tn,
+  * AACH spiegelt das. Wenn 2. Call kommt: aktuell selber UMt-Wert (TODO). */
+ return UMT_DEFAULT;
+}
+
+/* Aggregierter UMt-Wert pro TN als 32-bit (4×8-bit per TN).
+ * RTL liest REG_SLOT_UMT, packt in AACH-Encoder als Field1/Field2. */
+static uint32_t compute_slot_umt(void)
+{
+ uint32_t umt_reg = 0u;
+ for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
+ if (g_slots[i].ssi == 0u) continue;
+ if (g_slots[i].voice_tn > 3u) continue;
+ if (g_slots[i].umt == UMT_NONE) continue;
+ uint32_t lane_shift = g_slots[i].voice_tn * 8u;
+ umt_reg |= ((uint32_t)g_slots[i].umt & 0x3Fu) << lane_shift;
+ }
+ return umt_reg;
+}
+
+static void slot_umt_write(tetra_hal_t *hal)
+{
+ if (hal == NULL) return;
+ tetra_reg_write(hal, REG_SLOT_UMT, compute_slot_umt());
+}
+
+/* Aggregate voice_active_mask aus allen aktiven Call-Slots. Multi-Call
+ * fähig (OR aller bits). Pro Slot mit voice_tn != NONE wird bit gesetzt. */
+static uint32_t compute_active_mask(void)
+{
+ uint32_t mask = 0u;
+ for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
+ if (g_slots[i].ssi != 0u
+ && g_slots[i].voice_tn != VOICE_TN_NONE
+ && (g_slots[i].state == CALL_STATE_CONNECTED
+ || g_slots[i].state == CALL_STATE_TALKER
+ || g_slots[i].state == CALL_STATE_CONNECTING)) {
+ mask |= (1u << g_slots[i].voice_tn);
+ }
+ }
+ return mask;
+}
 
 static uint32_t mono_ms_lo(void)
 {
@@ -47,6 +126,16 @@ static void mask_write_cached(tetra_hal_t *hal, uint32_t v)
  g_mask_cached = v;
 }
 
+/* Forward decl — compute_active_mask is defined below alloc_voice_tn. */
+static uint32_t compute_active_mask(void);
+
+/* Phase 3.2 — neu berechnen und schreiben. Aggregiert über alle aktiven
+ * Call-Slots; mehrere parallele Calls setzen multiple bits in der mask. */
+static void mask_recompute_write(tetra_hal_t *hal)
+{
+ mask_write_cached(hal, compute_active_mask());
+}
+
 static call_slot_t *find_slot(uint32_t ssi)
 {
  for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
@@ -55,8 +144,15 @@ static call_slot_t *find_slot(uint32_t ssi)
  return NULL;
 }
 
-static call_slot_t *alloc_slot(uint32_t ssi)
+static call_slot_t *alloc_slot(tetra_hal_t *hal, uint32_t ssi)
 {
+ uint8_t v_tn = alloc_voice_tn();
+ if (v_tn == VOICE_TN_NONE) {
+ fprintf(stderr,
+ "tetra_call_fsm: alloc_slot ssi=0x%06X — no free voice-TS\n",
+ ssi);
+ return NULL;
+ }
  for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
  if (g_slots[i].ssi == 0u) {
  memset(&g_slots[i], 0, sizeof(g_slots[i]));
@@ -64,11 +160,23 @@ static call_slot_t *alloc_slot(uint32_t ssi)
  g_slots[i].call_id = g_next_call_id++;
  if ((g_next_call_id & 0x3FFFu) == 0u) g_next_call_id = 1u;
  g_slots[i].state = CALL_STATE_IDLE;
+ g_slots[i].voice_tn = v_tn;
+ g_slots[i].umt = alloc_umt(); /* Phase 3.4 */
  /* BS-side LLC stop-and-wait init nach MS NS=0:
  * BS NS = 0 (eigenes erstes Daten-Frame)
  * BS NR = 1 (next expected MS NS) */
  g_slots[i].ns = 0u;
  g_slots[i].nr = 1u;
+ /* Phase 3.2 fix (2026-05-23) — State-Leak fix:
+  * Vorheriger Call hat slot_mode lane evtl. auf FULL_STEAL_FILLER (4)
+  * stehen lassen (gold-pattern post-call). Neuer Call → clearen damit
+  * voice_active_mask-Pfad gewinnt (AACH=0x33CF Voice-marker). */
+ if (hal != NULL) tetra_facch_steal_clear(hal, v_tn);
+ /* Phase 3.4 — UMt-Register live updaten (alle aktiven slots) */
+ slot_umt_write(hal);
+ fprintf(stderr,
+ "tetra_call_fsm: alloc_slot ssi=0x%06X → voice_tn=%u (TS=%u) UMt=%u\n",
+ ssi, v_tn, v_tn + 1u, g_slots[i].umt);
  return &g_slots[i];
  }
  }
@@ -175,7 +283,16 @@ static int stage_d_release(tetra_hal_t *hal, call_slot_t *s, uint8_t cause)
  m.nr = s->nr;
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.disconnect_cause = cause;
- return tetra_tx_submit(hal, TX_D_RELEASE, &m);
+ int rc = tetra_tx_submit(hal, TX_D_RELEASE, &m);
+
+ /* Phase 3.1 (2026-05-23) — Gold-konformes TN=2-Routing:
+  * FULL_STEAL_SIG mit ECHTEN D-RELEASE-Bits in BKN1 (MAC-RES+LLC+CMCE)
+  * und ECHTEN SYSINFO-Bits in BKN2 (MAC-BROADCAST). Mailbox-content
+  * bleibt 6 TDMA-Frames lang stehen (~340 ms) — gold sendet 6×
+  * identische D-RELEASE-frames, das reproduzieren wir bit-equivalent. */
+ (void)tetra_facch_steal_d_release(hal, s->voice_tn, s->call_id & 0x3FFFu,
+ s->ssi, cause);
+ return rc;
 }
 
 int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
@@ -188,7 +305,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  switch (p->pdu_type) {
  case CMCE_U_SETUP: {
  if (s == NULL) {
- s = alloc_slot(ssi);
+ s = alloc_slot(hal, ssi);
  if (s == NULL) {
  fprintf(stderr,
  "tetra_call_fsm: U-SETUP ssi=0x%06X — no free slot\n",
@@ -257,7 +374,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
   * MS überspringt damit U-TX-DEMAND und sendet sofort UL-Voice.
   * Erwartet voice-busy AACH (0x32CB) auf voice-slot. Ohne mask=0x02
   * sieht MS idle-AACH → "PTT abgewiesen". */
- mask_write_cached(hal, 0x02u);
+ mask_recompute_write(hal);
  s->last_activity_poll_cnt = mono_ms_lo();
  s->state = CALL_STATE_CONNECTED;
  /* G.8-Filler entfernt (2026-05-16): die statische MAC-RESOURCE-NULL-
@@ -284,7 +401,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  s->last_activity_poll_cnt = mono_ms_lo();
  /* Re-Key während Call: mask wieder scharf, falls Watchdog sie nach
   * Idle-Phase auf 0 gesetzt hatte. */
- mask_write_cached(hal, 0x02u);
+ mask_recompute_write(hal);
  fprintf(stderr,
  "tetra_call_fsm: U-TX-DEMAND ssi=0x%06X → D-TX-GRANTED "
  "call_id=%u ns=%u nr=%u rc=%d VOICE_ACTIVE_MASK=0x02\n",
@@ -321,10 +438,18 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.transmission_request_permission = 0; /* 0 = "allowed to request" per bluestation */
  int rc = tetra_tx_submit(hal, TX_D_TX_CEASED, &m);
+
+ /* Phase 3.3 (2026-05-23) — Gold-konformes D-TX-CEASED via HALF_STEAL_SIG
+  * auf Voice-TS (NDB2 AACH=0x23C9, BKN1=SCH/HD-D-TX-CEASED an caller-SSI,
+  * BKN2=TCH-Voice-Half von vfill). Gold-WAV sendet D-TX-CEASED 1× direkt
+  * am Call-End während Voice noch im BKN2 läuft. */
+ (void)tetra_facch_steal_d_tx_ceased(hal, s->voice_tn,
+ s->call_id & 0x3FFFu, s->ssi);
+
  fprintf(stderr,
  "tetra_call_fsm: U-TX-CEASED ssi=0x%06X → D-TX-CEASED gssi=0x%06X "
- "call_id=%u rc=%d VOICE_ACTIVE_MASK=0x00\n",
- ssi, m.target_ssi, s->call_id, rc);
+ "call_id=%u rc=%d + HALF_STEAL_SIG(voice_tn=%u)\n",
+ ssi, m.target_ssi, s->call_id, rc, s->voice_tn);
  return rc;
  }
 
@@ -337,9 +462,10 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  "call_id=%u rc=%d\n",
  ssi, p->disconnect_cause, s->call_id, rc);
  /* Phase Y.4.1 — Call beendet, voice-slot zurück zu idle. */
- mask_write_cached(hal, 0x00u);
+ mask_recompute_write(hal);
  tetra_voice_filler_clear(hal);
- free_slot(s);
+ (void)tetra_facch_steal_filler(hal, s->voice_tn);
+ free_slot(s); slot_umt_write(hal);
  return rc;
  }
 
@@ -357,9 +483,10 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  "tetra_call_fsm: U-DISCONNECT ssi=0x%06X cause=%u → D-RELEASE "
  "call_id=%u rc=%d\n",
  ssi, p->disconnect_cause, s->call_id, rc);
- mask_write_cached(hal, 0x00u);
+ mask_recompute_write(hal);
  tetra_voice_filler_clear(hal);
- free_slot(s);
+ (void)tetra_facch_steal_filler(hal, s->voice_tn);
+ free_slot(s); slot_umt_write(hal);
  return rc;
  }
 
@@ -458,7 +585,8 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  "%ums → freeing slot\n",
  s->ssi, s->call_id, age);
  tetra_voice_filler_clear(hal);
- free_slot(s);
+ (void)tetra_facch_steal_filler(hal, s->voice_tn);
+ free_slot(s); slot_umt_write(hal);
  continue;
  }
  active++;
@@ -482,18 +610,17 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  "WATCHDOG: mask→0 reason=active==0 nub_cnt=%u "
  "nub_quiet_ms=%u nub_seen=%d\n",
  (unsigned)s_last_nub_cnt, nub_quiet_ms, s_nub_seen);
+ mask_recompute_write(hal);
  }
- mask_write_cached(hal, 0x00u);
- } else if (s_nub_seen && nub_quiet_ms > CALL_FSM_VOICE_QUIET_MS) {
- if (g_mask_cached != 0u) {
- fprintf(stderr,
- "WATCHDOG: mask→0 reason=nub_quiet>%ums active=%u "
- "nub_cnt=%u nub_quiet_ms=%u\n",
- (unsigned)CALL_FSM_VOICE_QUIET_MS, active,
- (unsigned)s_last_nub_cnt, nub_quiet_ms);
  }
- mask_write_cached(hal, 0x00u);
- }
+ /* 2026-05-24 — nub_quiet-WATCHDOG ENTFERNT. Vorher: 300 ms NUB-
+  * Stille killte mask=0 mitten in aktivem Call → AACH fiel von
+  * 0x3555 auf idle-marker → MS sah "BS hat Voice-Slot dealloziert"
+  * → MS brach Call in <1 s ab ("PTT abgewiesen"). Solange ein Slot
+  * CONNECTED ist, MUSS der Voice-Marker stehen — sonst denkt die
+  * MS der Floor wurde weggenommen. mask wird erst auf 0 gesetzt bei
+  * echtem free_slot (U-RELEASE, U-DISCONNECT, oder Slot-WATCHDOG
+  * nach 30 s). */
 }
 
 void tetra_call_fsm_dump(void)
