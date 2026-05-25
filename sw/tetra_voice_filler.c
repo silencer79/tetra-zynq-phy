@@ -135,24 +135,61 @@ int tetra_voice_filler_install(tetra_hal_t *hal, uint32_t group_gssi)
  tetra_reg_write(hal, REG_VOICE_FILLER_INDEX, (uint32_t)i);
  tetra_reg_write(hal, REG_VOICE_FILLER_DATA, words[i]);
  }
- /* W14[0] = 1 → filler_valid. */
+ /* W14 commit: [0]=valid=1, [3:1]=target_ts (1..4). Multi-Group 2026-05-25. */
  tetra_reg_write(hal, REG_VOICE_FILLER_INDEX, 14u);
- tetra_reg_write(hal, REG_VOICE_FILLER_DATA, 0x00000001u);
- /* GO pulse — currently informational only (dispatcher reads
-  *   blk1/blk2/valid combinationally), kept for symmetry with the
-  *   Reply-Pull mailbox handshake and future FSM extensions. */
+ tetra_reg_write(hal, REG_VOICE_FILLER_DATA, 0x00000001u | (0x4u << 1)); /* TS2 */
  tetra_reg_write(hal, REG_VOICE_FILLER_GO, 0x1u);
 
  fprintf(stderr,
- "tetra_voice_filler: installed gssi=0x%06X cc=%u mcc=%u mnc=%u\n",
+ "tetra_voice_filler: installed gssi=0x%06X cc=%u mcc=%u mnc=%u (TS2)\n",
  group_gssi & 0x00FFFFFFu, colour_code, mcc, mnc);
+ return 0;
+}
+
+/* Multi-Group 2026-05-25 — schreibt 432-bit type-5 in eine bestimmte TS-Bank.
+ * target_ts ∈ {1..4}. Verwendet vom voice_pipe für per-call DL-Relay. */
+int tetra_voice_filler_write_ts(tetra_hal_t *hal,
+ const uint8_t type5[/* SCHF_CODED_BITS=432 */],
+ unsigned target_ts)
+{
+ if (hal == NULL || target_ts < 1u || target_ts > 4u) return -1;
+
+ uint32_t words[14];
+ pack_bits_mailbox(type5, words);
+
+ for (int i = 0; i < 14; i++) {
+ tetra_reg_write(hal, REG_VOICE_FILLER_INDEX, (uint32_t)i);
+ tetra_reg_write(hal, REG_VOICE_FILLER_DATA, words[i]);
+ }
+ /* W14 commit: valid=1, target_ts in bits [3:1] */
+ tetra_reg_write(hal, REG_VOICE_FILLER_INDEX, 14u);
+ tetra_reg_write(hal, REG_VOICE_FILLER_DATA,
+                 0x00000001u | ((uint32_t)(target_ts & 0x7u) << 1));
+ tetra_reg_write(hal, REG_VOICE_FILLER_GO, 0x1u);
  return 0;
 }
 
 void tetra_voice_filler_clear(tetra_hal_t *hal)
 {
  if (hal == NULL) return;
+ /* Multi-Group: clear all 4 banks. W14 commit with valid=0 acts per-TS,
+  * also wir feuern 4× mit verschiedenen target_ts. */
+ for (unsigned ts = 1u; ts <= 4u; ts++) {
  tetra_reg_write(hal, REG_VOICE_FILLER_INDEX, 14u);
- tetra_reg_write(hal, REG_VOICE_FILLER_DATA, 0x00000000u);
- fprintf(stderr, "tetra_voice_filler: cleared\n");
+ tetra_reg_write(hal, REG_VOICE_FILLER_DATA,
+                 0x00000000u | ((uint32_t)(ts & 0x7u) << 1));
+ tetra_reg_write(hal, REG_VOICE_FILLER_GO, 0x1u);
+ }
+ fprintf(stderr, "tetra_voice_filler: cleared all 4 TS banks\n");
+}
+
+/* Multi-Group 2026-05-25 — clear nur einen TS-Bank (z.B. wenn ein einzelner
+ * Call endet, andere TS bleiben aktiv). target_ts ∈ {1..4}. */
+void tetra_voice_filler_clear_ts(tetra_hal_t *hal, unsigned target_ts)
+{
+ if (hal == NULL || target_ts < 1u || target_ts > 4u) return;
+ tetra_reg_write(hal, REG_VOICE_FILLER_INDEX, 14u);
+ tetra_reg_write(hal, REG_VOICE_FILLER_DATA,
+                 0x00000000u | ((uint32_t)(target_ts & 0x7u) << 1));
+ tetra_reg_write(hal, REG_VOICE_FILLER_GO, 0x1u);
 }

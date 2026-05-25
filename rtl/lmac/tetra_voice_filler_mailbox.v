@@ -1,26 +1,29 @@
 // =============================================================================
-// tetra_voice_filler_mailbox.v — Voice-Slot Filler Bit-Pipe
+// tetra_voice_filler_mailbox.v — Voice-Slot Filler Bit-Pipe (Multi-Group)
 // Project: tetra-zynq-phy
 // =============================================================================
 // Purpose:
-//   AXI-writable 16-word storage holding a pre-encoded SCH/F type-5 burst
-//   (432 bits) that the burst_dispatcher emits in the voice-slot during an
-//   active group-call. SW is the encoder (CRC + conv + interleave + scramble);
-//   this RTL module is just a bit-pipe. No new encoder/decoder logic per
-//   project_arch_fpga_thin_signaling.md.
+//   AXI-writable 16-word indirect mailbox holding pre-encoded SCH/F type-5
+//   bursts (432 bits) per ETSI Timeslot. burst_dispatcher emits the per-TS
+//   burst in the matching voice-slot during an active group-call.
+//
+//   Multi-Group 2026-05-25: 4 independent storage banks, one per ETSI TS1..TS4.
+//   SW writes one staging buffer (W0..W13), then commits to a specific bank
+//   via W14[3:1]=target_ts (1..4) + W14[0]=valid (1=set, 0=clear).
 //
 // Word layout (16 × 32-bit):
 //   W0..W13  type-5 bits 0..431, packed LSB-first within each word
-//            (W0[0]=bit 0, W0[31]=bit 31; W13[15:0]=bits 416..431,
-//            W13[31:16] padding=0)
-//   W14[0]   filler_valid (SW writes 1 after loading W0..W13 + GO pulse;
-//            cleared on SW write of 0 or on reset)
+//            (Stage-Buffer — wird beim GO-Puls in den Ziel-Bank kopiert)
+//   W14[0]   commit valid bit (1 = set valid[target_ts-1], 0 = clear)
+//   W14[3:1] target_ts (1..4, ETSI 1-based). 0 = legacy → wirkt auf TS2.
+//   W14[31:4] reserved (=0)
 //   W15      reserved (=0)
 //
 // Outputs (combinational, fanned out to burst_dispatcher):
-//   blk1_sys[215:0]  = type-5 bits 0..215   (= BKN1, NDB1 layout)
-//   blk2_sys[215:0]  = type-5 bits 216..431 (= BKN2)
-//   valid_sys        = W14[0]
+//   blk1_per_ts_sys[864-1:0]  4 × 216-bit type-5 bits 0..215 per TS
+//                              (LSB block = TS1, MSB block = TS4)
+//   blk2_per_ts_sys[864-1:0]  4 × 216-bit type-5 bits 216..431 per TS
+//   valid_per_ts_sys[3:0]     filler-valid per TS (bit 0 = TS1 ... bit 3 = TS4)
 //
 // Coding rules: Verilog-2001 strict, R1/R2/R4/R10 compliant.
 // =============================================================================
@@ -39,10 +42,10 @@ module tetra_voice_filler_mailbox (
  // AXI-side read port (combinational mux)
  output wire [31:0] rdata_sys,
 
- // Field outputs to burst_dispatcher
- output wire [215:0] blk1_sys,
- output wire [215:0] blk2_sys,
- output wire valid_sys,
+ // Field outputs to burst_dispatcher — per-TS flat bus
+ output wire [4*216-1:0] blk1_per_ts_sys,
+ output wire [4*216-1:0] blk2_per_ts_sys,
+ output reg  [3:0]       valid_per_ts_sys,
  output wire go_pulse_out_sys
 );
 
@@ -61,17 +64,58 @@ module tetra_voice_filler_mailbox (
  );
 
  // -----------------------------------------------------------------------
- // Slice 432 type-5 bits out of W0..W13 (14 words × 32 bit = 448 bits).
- //   bit n = words_flat_w[n], LSB-first per word.
+ // Stage buffer = W0..W13 (432-bit type-5 burst, LSB-first per word).
  // BKN1 = bits 0..215 (NDB1 layout, MSB-first = first symbol on air).
  // BKN2 = bits 216..431.
- // SW must pack bits accordingly (see sw/tetra_voice_filler.c).
  // -----------------------------------------------------------------------
- assign blk1_sys = words_flat_w[ 215 :   0];
- assign blk2_sys = words_flat_w[ 431 : 216];
+ wire [215:0] stage_blk1_w = words_flat_w[215:0];
+ wire [215:0] stage_blk2_w = words_flat_w[431:216];
 
- // W14[0] = filler_valid
- assign valid_sys = words_flat_w[14*32];
+ // W14 commit fields
+ wire commit_valid_w = words_flat_w[14*32 + 0];
+ wire [2:0] commit_target_ts_w = words_flat_w[14*32 + 3 : 14*32 + 1];
+
+ // Map target_ts (1..4) → bank index (0..3); 0/5+ → default TS2 (bank 1)
+ wire [1:0] commit_bank_w =
+   (commit_target_ts_w == 3'd1) ? 2'd0
+ : (commit_target_ts_w == 3'd2) ? 2'd1
+ : (commit_target_ts_w == 3'd3) ? 2'd2
+ : (commit_target_ts_w == 3'd4) ? 2'd3
+ :                                2'd1;
+
+ // -----------------------------------------------------------------------
+ // 4 storage banks — copy stage on GO into the selected bank.
+ // -----------------------------------------------------------------------
+ reg [215:0] bank_blk1_sys [3:0];
+ reg [215:0] bank_blk2_sys [3:0];
+
+ integer i;
+ always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ for (i = 0; i < 4; i = i + 1) begin
+ bank_blk1_sys[i] <= 216'd0;
+ bank_blk2_sys[i] <= 216'd0;
+ end
+ valid_per_ts_sys <= 4'b0000;
+ end else if (go_pulse_out_sys) begin
+ if (commit_valid_w) begin
+ bank_blk1_sys[commit_bank_w] <= stage_blk1_w;
+ bank_blk2_sys[commit_bank_w] <= stage_blk2_w;
+ valid_per_ts_sys[commit_bank_w] <= 1'b1;
+ end else begin
+ valid_per_ts_sys[commit_bank_w] <= 1'b0;
+ end
+ end
+ end
+
+ // -----------------------------------------------------------------------
+ // Flat outputs — TS1 = blk[215:0], TS2 = blk[431:216], TS3 = blk[647:432],
+ // TS4 = blk[863:648].
+ // -----------------------------------------------------------------------
+ assign blk1_per_ts_sys = {bank_blk1_sys[3], bank_blk1_sys[2],
+                           bank_blk1_sys[1], bank_blk1_sys[0]};
+ assign blk2_per_ts_sys = {bank_blk2_sys[3], bank_blk2_sys[2],
+                           bank_blk2_sys[1], bank_blk2_sys[0]};
 
 endmodule
 

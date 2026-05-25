@@ -1219,11 +1219,10 @@ tetra_burst_dispatcher #(
 .tx_busy_sys (disp_tx_busy_sys_w),
  // Phase 7 G.8 voice-slot filler-mailbox inputs (SW-encoded SCH/F)
 .voice_active_mask_sys (voice_active_mask_sys_r1),
-.voice_slot_tn_sys (voice_slot_tn_sys_w),
 .tx_fn_sys (tx_tdma_state_fn_sys),
-.vfill_valid_sys (vfill_valid_sys_w),
-.vfill_blk1_sys (vfill_blk1_sys_w),
-.vfill_blk2_sys (vfill_blk2_sys_w),
+.vfill_valid_per_ts_sys (vfill_valid_per_ts_sys_w),
+.vfill_blk1_per_ts_sys (vfill_blk1_per_ts_sys_w),
+.vfill_blk2_per_ts_sys (vfill_blk2_per_ts_sys_w),
  // Outputs to tetra_tx_chain
 .build_block1_sys (disp_block1_sys_w),
 .build_block2_sys (disp_block2_sys_w),
@@ -1289,22 +1288,28 @@ tetra_tx_chain #(
  );
 
 // =============================================================================
-// 2026-05-25 Mess-Infra — TS1-Stopuhr (clk_sys, AXI nur read-only)
+// 2026-05-25 Mess-Infra — Stopuhr-Anker (clk_sys, AXI nur read-only)
+//
+// 2026-05-25 v2: Anker liegt jetzt auf DL TS3 (tn==2 RTL = ETSI TS3) statt
+// DL TS1. Grund: UL/DL-Offset (~2 TS) zusammen mit den 4 UL-Slot-Arrivals
+// in [36.67..79.17 ms] führt mit DL TS1 Anker (Periode 56.67 ms) zum Wrap
+// für UL TS3/TS4. Mit DL TS3 Anker liegen alle 4 UL-Slot-Arrivals in
+// [8.34..50.84 ms] — kein Wrap, monoton wachsend.
 // =============================================================================
-// 1) current_burst_is_ts1_r: gelatcht bei build_req_sys & tx_slot_num==0
-// 2) ts1_pulse_sys = tx_first_dibit_sys_w & current_burst_is_ts1_r
-// 3) free-running counter, latch A bei ts1_pulse, latch B bei ul_sync_found
+// 1) current_burst_is_anchor_sys: gelatcht bei build_req für DL TS3
+// 2) anchor_pulse_sys = tx_first_dibit_sys_w & current_burst_is_anchor_sys
+// 3) free-running counter, latch A bei anchor_pulse, latch B bei ul_sync_found
 // 4) Event-Counter inkrementiert bei jedem UL-Latch
 // =============================================================================
-reg current_burst_is_ts1_sys;
+reg current_burst_is_anchor_sys;
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys)
- current_burst_is_ts1_sys <= 1'b0;
+ current_burst_is_anchor_sys <= 1'b0;
  else if (disp_build_req_sys_w)
- current_burst_is_ts1_sys <= (tx_tdma_state_tn_sys == 2'd0);
+ current_burst_is_anchor_sys <= (tx_tdma_state_tn_sys == 2'd2);
 end
 
-wire ts1_pulse_sys = tx_first_dibit_sys_w & current_burst_is_ts1_sys;
+wire anchor_pulse_sys = tx_first_dibit_sys_w & current_burst_is_anchor_sys;
 
 reg [31:0] sw_counter_sys;
 always @(posedge clk_sys or negedge rst_n_sys) begin
@@ -1315,7 +1320,7 @@ end
 reg [31:0] sw_ts1_latch_sys;
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys) sw_ts1_latch_sys <= 32'd0;
- else if (ts1_pulse_sys) sw_ts1_latch_sys <= sw_counter_sys;
+ else if (anchor_pulse_sys) sw_ts1_latch_sys <= sw_counter_sys;
 end
 
 reg [31:0] sw_ul_latch_sys;
@@ -3423,11 +3428,11 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
 end
 wire vfill_go_pulse_sys_w = vfill_go_sys_r1 & ~vfill_go_sys_r2;
 
-// Voice-Filler-Mailbox instance (clk_sys).
+// Voice-Filler-Mailbox instance (clk_sys). Multi-Group 2026-05-25 — 4-TS-Bank.
 wire [31:0] vfill_rdata_sys_w;
-wire [215:0] vfill_blk1_sys_w;
-wire [215:0] vfill_blk2_sys_w;
-wire vfill_valid_sys_w;
+wire [4*216-1:0] vfill_blk1_per_ts_sys_w;
+wire [4*216-1:0] vfill_blk2_per_ts_sys_w;
+wire [3:0] vfill_valid_per_ts_sys_w;
 wire vfill_go_pulse_out_sys_w;
 tetra_voice_filler_mailbox u_voice_filler_mailbox (
 .clk_sys (clk_sys),
@@ -3437,11 +3442,13 @@ tetra_voice_filler_mailbox u_voice_filler_mailbox (
 .wr_en_sys (vfill_we_pulse_sys_w),
 .go_pulse_sys (vfill_go_pulse_sys_w),
 .rdata_sys (vfill_rdata_sys_w),
-.blk1_sys (vfill_blk1_sys_w),
-.blk2_sys (vfill_blk2_sys_w),
-.valid_sys (vfill_valid_sys_w),
+.blk1_per_ts_sys (vfill_blk1_per_ts_sys_w),
+.blk2_per_ts_sys (vfill_blk2_per_ts_sys_w),
+.valid_per_ts_sys (vfill_valid_per_ts_sys_w),
 .go_pulse_out_sys (vfill_go_pulse_out_sys_w)
 );
+// Aggregated valid flag (any TS active) — kept for AXI status mirror.
+wire vfill_valid_sys_w = |vfill_valid_per_ts_sys_w;
 // vfill_go_pulse_out_sys_w currently unused — reserved for future SW-FSM
 // trigger pattern (e.g., one-shot voice-burst submit). Keep tied to keep
 // signal alive for ILA debug.

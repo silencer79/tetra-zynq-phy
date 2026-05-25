@@ -16,6 +16,7 @@
 #include "tetra_voice_pipe.h"
 #include "tetra_bs_tch_s.h"
 #include "tetra_call_fsm.h"
+#include "tetra_voice_filler.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -28,31 +29,21 @@ static uint32_t mono_ms_lo_vp(void)
  return (uint32_t)((uint64_t)ts.tv_sec * 1000u + (uint64_t)ts.tv_nsec / 1000000u);
 }
 
-/* 2026-05-25 — TS-Identifier aus dem hardware-gemessenen TS1→UL Air-Anchor.
+/* 2026-05-25 v2 — TS-Identifier mit Anker auf DL TS3 (statt DL TS1).
  *
- * Bei jedem UL-Burst latched die FPGA-Stopuhr in REG_TS1_STOPWATCH_DELTA die
- * Cycles vom letzten DL-TS1-Modulator-Output bis zum UL nub-sync. Dieser
- * Wert ist deterministisch und hängt nur davon ab, in welchem UL-Timeslot
- * der MS gesendet hat (jeder UL-TS hat 14.17 ms Distanz zum nächsten):
+ * Hardware-Anker liegt jetzt auf DL TS3 first-dibit (ehemals DL TS1).
+ * Erwartet (User-Vorgabe, NOCH NICHT KONTROLLIERT GEMESSEN):
  *
- *   UL TS1 → DELTA ≈ 50.84 ms  (DL-TS1-first-dibit + 3.59 TS Anchor)
- *   UL TS2 → DELTA ≈  9.0 ms   (50.84 - 56.67 + 14.17 = -27.5, wraps + 56.67)
+ *   UL TS1 → DELTA = 8.340 ms  =  834,000 cyc  (= TS1_TO_UL_TS1_OFFSET)
+ *   UL TS2 → DELTA = 22.502 ms = 2,250,200 cyc
+ *   UL TS3 → DELTA = 36.674 ms = 3,667,400 cyc
+ *   UL TS4 → DELTA = 50.841 ms = 5,084,100 cyc
  *
- * Im 56.67-ms TDMA-Frame nach jedem TS1-Puls landen die 4 UL-TS-Arrival-
- * Zeitpunkte bei modulo-56.67ms-Werten:
- *
- *   UL paired with DL TS1: DELTA ≈ 50.84 ms
- *   UL paired with DL TS2: DELTA ≈  8.50 ms   (50.84 + 14.17 - 56.67)
- *   UL paired with DL TS3: DELTA ≈ 22.67 ms
- *   UL paired with DL TS4: DELTA ≈ 36.84 ms
- *
- * Bei stabilem Bitstream-Pfad (cycles_per_ts und base_offset konstant)
- * mappen wir mit einem nearest-Center-Match. Tolerance ±7.1 ms = ±0.5 TS. */
-#define CYCLES_PER_TS         1416667u   /* 14.166666 ms @ 100 MHz */
-/* Gemessen 2026-05-25 @ voice_ts=TS2: TS1-Puls → UL-Burst nub-sync = 50.837 ms.
- * Daraus abgeleitet TS1-Puls → UL-TS1-Burst-Arrival = 50.837 − 14.167 = 36.670 ms.
- * Alle weiteren UL-TS um je +14.167 ms versetzt. */
-#define TS1_TO_UL_TS1_OFFSET  3667032u   /* 36.670 ms — UL TS1 air-arrival */
+ * Diese Werte müssen mit voice_ts force = 2,3,4 kontrolliert gemessen
+ * werden. Bisher nur voice_ts=TS2 mit DL-TS1-Anker verifiziert (50.83 ms). */
+#define CYCLES_PER_TS         1416700u   /* 14.167 ms — User-Vorgabe @ 100 MHz */
+#define TS1_TO_UL_TS1_OFFSET   834000u   /* 8.340 ms — UL TS1 nub_sync
+                                            relativ zum DL-TS3-Anker */
 
 static uint8_t compute_ul_air_ts(uint32_t delta_cycles)
 {
@@ -106,58 +97,27 @@ static void softs_to_hard(const int8_t *softs_432, uint8_t *hard_432_out)
 }
 
 /* Pack 432 type-5 bits into 14 words for the DL filler-mailbox using the
- * same convention as tetra_voice_filler.c::pack_bits_mailbox:
- *   BKN1 (i=0..215): type5[i] → bit position (215 - i)
- *   BKN2 (i=216..431): type5[i] → bit position (431 - (i-216)) = (647 - i)
- * Ensures block1[215]/block2[215] = first symbol on air. */
-static void pack_filler_mailbox_words(const uint8_t *type5_432, uint32_t *words_14)
-{
- memset(words_14, 0, 14 * sizeof(uint32_t));
- for (int i = 0; i < 216; i++) {
- if (type5_432[i] & 1) {
- int dst = 215 - i;
- words_14[dst >> 5] |= (uint32_t)1u << (dst & 31);
- }
- }
- for (int i = 0; i < 216; i++) {
- if (type5_432[216 + i] & 1) {
- int dst = 431 - i;
- words_14[dst >> 5] |= (uint32_t)1u << (dst & 31);
- }
- }
-}
-
-/* Write 14 packed words into the DL filler mailbox, set valid (W14[0]=1)
- * and pulse GO. */
-static void write_filler_mailbox(tetra_hal_t *hal, const uint32_t *words_14)
-{
- for (int i = 0; i < 14; i++) {
- tetra_reg_write(hal, REG_VOICE_FILLER_INDEX, (uint32_t)i);
- tetra_reg_write(hal, REG_VOICE_FILLER_DATA, words_14[i]);
- }
- tetra_reg_write(hal, REG_VOICE_FILLER_INDEX, 14u);
- tetra_reg_write(hal, REG_VOICE_FILLER_DATA, 0x00000001u);
- tetra_reg_write(hal, REG_VOICE_FILLER_GO, 0x1u);
-}
+/* Packing + Filler-Write läuft jetzt zentral in tetra_voice_filler.c
+ * (tetra_voice_filler_write_ts). Multi-Group 2026-05-25. */
 
 int tetra_voice_pipe_tick(tetra_hal_t *hal, uint32_t target_ssi)
 {
  if (hal == NULL) return -1;
- (void)target_ssi;
+ (void)target_ssi;  /* Phase D: Routing via UL-air-TS, nicht via SSI */
 
  if ((tetra_reg_read(hal, REG_VOICE_NUB_READ_STATUS) & 0x1u) == 0u)
  return 0; /* No burst pending */
 
- /* Phase A (2026-05-25): UL air-TS-Identifikation aus Hardware-Stopuhr.
-  * SW liest race-frei den FPGA-berechneten DELTA + Event-Count und mappt
-  * auf ETSI TS1..TS4. Bei Single-TS-Call (voice_ts=TS2) sollte hier
-  * konstant TS2 stehen — Sanity-Check für die Math vor Phase B. */
+ /* Phase A+D (2026-05-25): UL-air-TS aus Hardware-Stopuhr. Wird VOR dem
+  * Burst-Read gelesen damit DELTA atomar zur Burst-Erkennung paßt. */
+ uint32_t delta = tetra_reg_read(hal, REG_TS1_STOPWATCH_DELTA);
+ uint8_t ul_air_ts = compute_ul_air_ts(delta);
+
+ /* Periodisches Logging (jeder 16. Burst). */
+ static uint32_t s_log_div = 0u;
  static uint32_t s_last_evt_cnt = 0u;
  uint32_t evt_cnt = tetra_reg_read(hal, REG_TS1_STOPWATCH_EVT);
  if (evt_cnt != s_last_evt_cnt) {
- uint32_t delta = tetra_reg_read(hal, REG_TS1_STOPWATCH_DELTA);
- uint8_t ul_air_ts = compute_ul_air_ts(delta);
- static uint32_t s_log_div = 0u;
  if ((s_log_div++ & 0xF) == 0u) {
  fprintf(stderr,
  "voice_pipe: UL-air-TS=TS%u (DELTA=%u cyc = %.3f ms, evt_cnt=%u)\n",
@@ -349,10 +309,13 @@ int tetra_voice_pipe_tick(tetra_hal_t *hal, uint32_t target_ssi)
  : 0);
  }
 
- /* 4. Pack and write to filler mailbox. */
- uint32_t words[14];
- pack_filler_mailbox_words(type5_out, words);
- write_filler_mailbox(hal, words);
+ /* 4. Phase C+D (2026-05-25): per-TS DL-Filler. Schreibe re-encoded burst
+  *    in den TS-Bank entsprechend der gemessenen UL-air-TS. Damit landet
+  *    MS-A's UL-Voice (TS2) im DL-Filler-Bank TS2, MS-B's UL-Voice (TS3)
+  *    im Bank TS3 — kein Cross-Talk zwischen Group-Calls. */
+ if (ul_air_ts >= 1u && ul_air_ts <= 4u) {
+ (void)tetra_voice_filler_write_ts(hal, type5_out, ul_air_ts);
+ }
 
  /* 5. Acknowledge UL mailbox. */
  tetra_reg_write(hal, REG_VOICE_NUB_READ_ACK, 0x1u);

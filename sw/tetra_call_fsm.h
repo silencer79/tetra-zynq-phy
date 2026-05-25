@@ -41,11 +41,9 @@
  * sieht Channel-Busy zu lange → langsamere PTT-Reaktion. 300 ms = optimal
  * trade-off zwischen Mid-Call-Flicker und Post-Release-Latency. */
 #define CALL_FSM_VOICE_QUIET_MS 300u
-/* 2026-05-24 — 5s→30s. 5s war zu kurz: nach Voice-Ende wartete MS-FW
- * typisch 2-7s vor U-DISCONNECT. Wenn WATCHDOG zuerst freed, läuft
- * U-DISCONNECT in find_slot()==NULL → Handler silent dropped → MS
- * retried 7×. */
-#define CALL_FSM_CALL_STALE_MS 30000u
+/* 2026-05-25 — temporär 5s für Mess-Tests (war 30s wegen U-DISCONNECT-
+ * Race; wenn beim Test ok, dann zurück auf 30s für stabilen Betrieb). */
+#define CALL_FSM_CALL_STALE_MS 5000u
 
 typedef enum {
  CALL_STATE_IDLE = 0,

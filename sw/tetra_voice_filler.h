@@ -30,8 +30,14 @@
  */
 int tetra_voice_filler_install(tetra_hal_t *hal, uint32_t group_gssi);
 
-/* Clear the filler-valid bit (W14[0]=0). burst_dispatcher falls back to
- * static-idle on the voice-slot. Call on U-RELEASE / call teardown. */
+/* Clear ALL 4 TS-Banks (Multi-Group 2026-05-25 — clear-all-banks ist die
+ * Default-Semantik für Boot / globalen Reset). */
 void tetra_voice_filler_clear(tetra_hal_t *hal);
+
+/* Multi-Group 2026-05-25 — per-TS-Bank Operationen. target_ts ∈ {1..4}. */
+int  tetra_voice_filler_write_ts(tetra_hal_t *hal,
+ const uint8_t *type5_432,
+ unsigned target_ts);
+void tetra_voice_filler_clear_ts(tetra_hal_t *hal, unsigned target_ts);
 
 #endif /* TETRA_VOICE_FILLER_H */

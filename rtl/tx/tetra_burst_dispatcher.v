@@ -114,11 +114,13 @@ module tetra_burst_dispatcher #(
  // fallback mit den filler-bits.
  // -------------------------------------------------------------------------
  input wire [3:0] voice_active_mask_sys, // mask bit per tn
- input wire [1:0] voice_slot_tn_sys, // tn_sys of active voice slot
  input wire [4:0] tx_fn_sys, // 0-based fn (ETSI FN-1)
- input wire vfill_valid_sys, // SW: filler-mailbox loaded
- input wire [BLOCK_BITS-1:0] vfill_blk1_sys, // type-5 bits 0..215
- input wire [BLOCK_BITS-1:0] vfill_blk2_sys, // type-5 bits 216..431
+ /* Multi-Group 2026-05-25 — per-TS voice filler. Bit k im valid bzw.
+  * Slice k im blk_per_ts_sys gehört zu ETSI TS(k+1).
+  *   blk_per_ts_sys[k*BLOCK_BITS +: BLOCK_BITS] = TS(k+1) Inhalt. */
+ input wire [3:0] vfill_valid_per_ts_sys,
+ input wire [4*BLOCK_BITS-1:0] vfill_blk1_per_ts_sys,
+ input wire [4*BLOCK_BITS-1:0] vfill_blk2_per_ts_sys,
  input wire [BLOCK_BITS-1:0] null_pdu_bits_sys, // 216-bit NULL-PDU for NDB2-filler
 
  // -------------------------------------------------------------------------
@@ -216,11 +218,10 @@ always @(*) begin
  2'd0: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys0);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys0);
- if (voice_active_mask_sys[0] & vfill_valid_sys
- & (voice_slot_tn_sys == 2'd0)
+ if (voice_active_mask_sys[0] & vfill_valid_per_ts_sys[0]
  & (tx_fn_sys <= 5'd16)) begin
- sel_blk1_w = vfill_blk1_sys;
- sel_blk2_w = vfill_blk2_sys;
+ sel_blk1_w = vfill_blk1_per_ts_sys[0*BLOCK_BITS +: BLOCK_BITS];
+ sel_blk2_w = vfill_blk2_per_ts_sys[0*BLOCK_BITS +: BLOCK_BITS];
  sel_burst_type_w = 1'b0;  // NDB
  sel_ndb2_w = 1'b0;        // NDB1 (NTS1) — TCH/S voice = gold-konform
  sel_enable_w = 1'b1;
@@ -237,13 +238,12 @@ always @(*) begin
  2'd1: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys1);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys1);
- if (voice_active_mask_sys[1] & vfill_valid_sys
- & (voice_slot_tn_sys == 2'd1)
+ if (voice_active_mask_sys[1] & vfill_valid_per_ts_sys[1]
  & (tx_fn_sys <= 5'd16)) begin
- sel_blk1_w = vfill_blk1_sys;
- sel_blk2_w = vfill_blk2_sys;
+ sel_blk1_w = vfill_blk1_per_ts_sys[1*BLOCK_BITS +: BLOCK_BITS];
+ sel_blk2_w = vfill_blk2_per_ts_sys[1*BLOCK_BITS +: BLOCK_BITS];
  sel_burst_type_w = 1'b0;
- sel_ndb2_w = 1'b0;  // NDB1 (NTS1) — TCH/S voice = gold-konform (Voice-slot Class)
+ sel_ndb2_w = 1'b0;
  sel_enable_w = 1'b1;
  end else if (sched_active_sys[1] || bus_is_signal(sched_entry_reg_sys1)) begin
  sel_blk1_w = sched_blk1_tn1_sys;
@@ -258,13 +258,12 @@ always @(*) begin
  2'd2: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys2);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys2);
- if (voice_active_mask_sys[2] & vfill_valid_sys
- & (voice_slot_tn_sys == 2'd2)
+ if (voice_active_mask_sys[2] & vfill_valid_per_ts_sys[2]
  & (tx_fn_sys <= 5'd16)) begin
- sel_blk1_w = vfill_blk1_sys;
- sel_blk2_w = vfill_blk2_sys;
+ sel_blk1_w = vfill_blk1_per_ts_sys[2*BLOCK_BITS +: BLOCK_BITS];
+ sel_blk2_w = vfill_blk2_per_ts_sys[2*BLOCK_BITS +: BLOCK_BITS];
  sel_burst_type_w = 1'b0;
- sel_ndb2_w = 1'b0;  // NDB1 (NTS1) — TCH/S voice = gold-konform (Voice-slot Class)
+ sel_ndb2_w = 1'b0;
  sel_enable_w = 1'b1;
  end else if (sched_active_sys[2] || bus_is_signal(sched_entry_reg_sys2)) begin
  sel_blk1_w = sched_blk1_tn2_sys;
@@ -279,13 +278,12 @@ always @(*) begin
  2'd3: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys3);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys3);
- if (voice_active_mask_sys[3] & vfill_valid_sys
- & (voice_slot_tn_sys == 2'd3)
+ if (voice_active_mask_sys[3] & vfill_valid_per_ts_sys[3]
  & (tx_fn_sys <= 5'd16)) begin
- sel_blk1_w = vfill_blk1_sys;
- sel_blk2_w = vfill_blk2_sys;
+ sel_blk1_w = vfill_blk1_per_ts_sys[3*BLOCK_BITS +: BLOCK_BITS];
+ sel_blk2_w = vfill_blk2_per_ts_sys[3*BLOCK_BITS +: BLOCK_BITS];
  sel_burst_type_w = 1'b0;
- sel_ndb2_w = 1'b0;  // NDB1 (NTS1) — TCH/S voice = gold-konform (Voice-slot Class)
+ sel_ndb2_w = 1'b0;
  sel_enable_w = 1'b1;
  end else if (sched_active_sys[3] || bus_is_signal(sched_entry_reg_sys3)) begin
  sel_blk1_w = sched_blk1_tn3_sys;
