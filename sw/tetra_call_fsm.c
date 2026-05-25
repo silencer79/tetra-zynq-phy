@@ -20,6 +20,7 @@
 #include "tetra_cmce_body.h"
 #include "tetra_voice_filler.h"
 #include "tetra_voice_pipe.h"
+#include "tetra_ts_map.h"
 #include "tetra_db.h"
 
 #include <stdio.h>
@@ -47,18 +48,16 @@ static void mask_write_cached(tetra_hal_t *hal, uint32_t v)
  g_mask_cached = v;
 }
 
-/* Multi-Group 2026-05-25 — Mask aus den belegten voice_ts aller aktiven
- * Calls aggregieren (OR der bit (ts-1) Positionen). 0 = kein aktiver
- * Voice-Slot, sonst per-TS bit gesetzt. */
+/* Multi-Group 2026-05-25 — Aggregierte voice_active_mask: OR der bit-Positionen
+ * aller aktiven Calls (per-TS bit via tetra_ts_to_voice_mask_bit()). */
 static uint32_t compute_voice_mask(void)
 {
  uint32_t m = 0u;
  for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
  if (g_slots[i].ssi != 0u
- && g_slots[i].voice_ts >= 1u && g_slots[i].voice_ts <= 4u
  && g_slots[i].state != CALL_STATE_IDLE
  && g_slots[i].state != CALL_STATE_RELEASING) {
- m |= (1u << (g_slots[i].voice_ts - 1u));
+ m |= tetra_ts_to_voice_mask_bit(g_slots[i].voice_ts);
  }
  }
  return m;
@@ -118,34 +117,28 @@ static uint8_t alloc_umt(void)
  return v;
 }
 
-/* Per-TS AACH-Wert ans RTL schreiben. ts=1..4 = ETSI Timeslot-Index
- * (ETSI EN 300 392-2 §9.3, kein TS0). Intern auf REG_SLOT_AACH_(ts-1)
- * gemappt — RTL bleibt 0-based weil ETSI SYNC-PDU dort 2-bit-Feld
- * 0..3 vorgibt (§21.5.1). SLOT_AACH_(ts-1) wird vom aach_encoder
- * ausgelesen wenn voice_active_mask[ts-1]=1. */
+/* Per-TS AACH-Wert ans RTL schreiben — Mapping ETSI TS1..TS4 zu
+ * REG_SLOT_AACH_TSn via tetra_ts_to_aach_reg() aus tetra_ts_map.h. */
 static void aach_write(tetra_hal_t *hal, unsigned ts, uint16_t info)
 {
- static const uint32_t REGS[4] = {REG_SLOT_AACH_TS1, REG_SLOT_AACH_TS2,
-                                  REG_SLOT_AACH_TS3, REG_SLOT_AACH_TS4};
- if (hal == NULL || ts == 0u || ts > 4u) return;
- tetra_reg_write(hal, REGS[ts - 1u], (uint32_t)(info & 0x3FFFu));
+ if (hal == NULL) return;
+ uint32_t reg = tetra_ts_to_aach_reg((uint8_t)ts);
+ if (reg == 0u) return;
+ tetra_reg_write(hal, reg, (uint32_t)(info & 0x3FFFu));
 }
 
-/* Voice-TS Bereich: TS1 ist mcch (Control), TS2/TS3/TS4 sind Voice.
- * Multi-Group 2026-05-25 — round-robin Allocation über {2,3,4} mit
- * Kollisions-Check. Mask-Bit-Position = (ts-1): TS2→0x02, TS3→0x04,
- * TS4→0x08. ChanAlloc-Bitmap MSB-first [TS1,TS2,TS3,TS4]: TS2→0b0100. */
-#define VOICE_TS_MIN     2u
-#define VOICE_TS_MAX     4u
-
-static uint8_t g_next_voice_ts = VOICE_TS_MIN;
+/* Voice-Slot-Allocator: round-robin über TETRA_VOICE_TS_MIN..MAX mit
+ * Kollisions-Check gegen aktive Calls. TS1 ist mcch (Control). */
+static uint8_t g_next_voice_ts = TETRA_VOICE_TS_MIN;
 
 static uint8_t alloc_voice_ts(void)
 {
- for (unsigned tries = 0; tries < (VOICE_TS_MAX - VOICE_TS_MIN + 1u); tries++) {
+ const unsigned span = TETRA_VOICE_TS_MAX - TETRA_VOICE_TS_MIN + 1u;
+ for (unsigned tries = 0; tries < span; tries++) {
  uint8_t cand = g_next_voice_ts;
  g_next_voice_ts++;
- if (g_next_voice_ts > VOICE_TS_MAX) g_next_voice_ts = VOICE_TS_MIN;
+ if (g_next_voice_ts > TETRA_VOICE_TS_MAX)
+ g_next_voice_ts = TETRA_VOICE_TS_MIN;
  int collision = 0;
  for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
  if (g_slots[i].ssi != 0u && g_slots[i].voice_ts == cand) {
@@ -155,13 +148,6 @@ static uint8_t alloc_voice_ts(void)
  if (!collision) return cand;
  }
  return 0u;
-}
-
-/* ETSI ChanAlloc ts_assigned bitmap MSB-first [TS1,TS2,TS3,TS4]. */
-static uint8_t voice_ts_to_bitmap(uint8_t voice_ts)
-{
- if (voice_ts < 1u || voice_ts > 4u) return 0u;
- return (uint8_t)(1u << (4u - voice_ts));
 }
 
 static call_slot_t *alloc_slot(tetra_hal_t *hal, uint32_t ssi)
@@ -233,7 +219,7 @@ static int stage_d_call_proceeding(tetra_hal_t *hal, call_slot_t *s)
  m.ns = s->ns;
  m.nr = s->nr;
  m.umt = s->umt;
- m.chan_alloc_ts_bitmap = voice_ts_to_bitmap(s->voice_ts);
+ m.chan_alloc_ts_bitmap = tetra_ts_to_chan_alloc_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  return tetra_tx_submit(hal, TX_D_CALL_PROCEEDING, &m);
 }
@@ -254,7 +240,7 @@ static int stage_d_setup(tetra_hal_t *hal, call_slot_t *s)
  m.ns = s->ns;
  m.nr = s->nr;
  m.umt = s->umt;
- m.chan_alloc_ts_bitmap = voice_ts_to_bitmap(s->voice_ts);
+ m.chan_alloc_ts_bitmap = tetra_ts_to_chan_alloc_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.call_time_out = 7; /* T5m per bluestation */
  m.cmce.transmission_grant = 3; /* GrantedToOtherUser */
@@ -280,7 +266,7 @@ static int stage_d_connect(tetra_hal_t *hal, call_slot_t *s)
  m.ns = s->ns;
  m.nr = s->nr;
  m.umt = s->umt;
- m.chan_alloc_ts_bitmap = voice_ts_to_bitmap(s->voice_ts);
+ m.chan_alloc_ts_bitmap = tetra_ts_to_chan_alloc_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  /* verifizierte Werte (#5887 bit-exact, 2026-05-14): */
  m.cmce.call_time_out = 0; /*: Infinite (war 7 T5m) */
@@ -301,7 +287,7 @@ static int stage_d_tx_granted(tetra_hal_t *hal, call_slot_t *s)
  m.ns = s->ns;
  m.nr = s->nr;
  m.umt = s->umt;
- m.chan_alloc_ts_bitmap = voice_ts_to_bitmap(s->voice_ts);
+ m.chan_alloc_ts_bitmap = tetra_ts_to_chan_alloc_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.transmission_grant = CMCE_TG_GRANTED; /* 0 = Granted */
  m.cmce.encryption_control = 0;
@@ -316,7 +302,7 @@ static int stage_d_release(tetra_hal_t *hal, call_slot_t *s, uint8_t cause)
  m.ns = s->ns;
  m.nr = s->nr;
  m.umt = s->umt;
- m.chan_alloc_ts_bitmap = voice_ts_to_bitmap(s->voice_ts);
+ m.chan_alloc_ts_bitmap = tetra_ts_to_chan_alloc_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.disconnect_cause = cause;
  return tetra_tx_submit(hal, TX_D_RELEASE, &m);
@@ -501,7 +487,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  memset(&m, 0, sizeof(m));
  m.target_ssi = s->group_gssi ? s->group_gssi: s->ssi;
  m.umt = s->umt;
- m.chan_alloc_ts_bitmap = voice_ts_to_bitmap(s->voice_ts);
+ m.chan_alloc_ts_bitmap = tetra_ts_to_chan_alloc_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.transmission_request_permission = 0; /* 0 = "allowed to request" per bluestation */
  /* 2026-05-24 — beim ERSTEN U-TX-CEASED 3× D-TX-CEASED stagen (gleiche

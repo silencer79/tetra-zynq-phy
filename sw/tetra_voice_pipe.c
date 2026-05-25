@@ -17,6 +17,7 @@
 #include "tetra_bs_tch_s.h"
 #include "tetra_call_fsm.h"
 #include "tetra_voice_filler.h"
+#include "tetra_ts_map.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -29,30 +30,12 @@ static uint32_t mono_ms_lo_vp(void)
  return (uint32_t)((uint64_t)ts.tv_sec * 1000u + (uint64_t)ts.tv_nsec / 1000000u);
 }
 
-/* 2026-05-25 v2 — TS-Identifier mit Anker auf DL TS3 (statt DL TS1).
- *
- * Hardware-Anker liegt jetzt auf DL TS3 first-dibit (ehemals DL TS1).
- * Erwartet (User-Vorgabe, NOCH NICHT KONTROLLIERT GEMESSEN):
- *
- *   UL TS1 → DELTA = 8.340 ms  =  834,000 cyc  (= TS1_TO_UL_TS1_OFFSET)
- *   UL TS2 → DELTA = 22.502 ms = 2,250,200 cyc
- *   UL TS3 → DELTA = 36.674 ms = 3,667,400 cyc
- *   UL TS4 → DELTA = 50.841 ms = 5,084,100 cyc
- *
- * Diese Werte müssen mit voice_ts force = 2,3,4 kontrolliert gemessen
- * werden. Bisher nur voice_ts=TS2 mit DL-TS1-Anker verifiziert (50.83 ms). */
-#define CYCLES_PER_TS         1416700u   /* 14.167 ms — User-Vorgabe @ 100 MHz */
-#define TS1_TO_UL_TS1_OFFSET   834000u   /* 8.340 ms — UL TS1 nub_sync
-                                            relativ zum DL-TS3-Anker */
-
-static uint8_t compute_ul_air_ts(uint32_t delta_cycles)
-{
- const uint32_t frame = 4u * CYCLES_PER_TS;   /* 5,666,668 cyc = 56.6667 ms */
- uint32_t rel = (delta_cycles + frame - (TS1_TO_UL_TS1_OFFSET % frame)) % frame;
- uint32_t ts_idx = (rel + CYCLES_PER_TS / 2u) / CYCLES_PER_TS;
- if (ts_idx >= 4u) ts_idx = 0u;
- return (uint8_t)(ts_idx + 1u); /* ETSI 1-based TS1..TS4 */
-}
+/* TS-Identifier aus dem hardware-gemessenen DL-TS3 → UL Air-Anchor.
+ * Konstanten + Mapping zentral in tetra_ts_map.h (validiert 2026-05-25):
+ *   voice_ts=TS2 → DELTA 22.499 ms ✓
+ *   voice_ts=TS3 → DELTA 36.669 ms ✓
+ *   voice_ts=TS4 → DELTA 50.836 ms ✓ */
+#define compute_ul_air_ts(delta) tetra_delta_to_etsi_ts(delta)
 
 #define SCHF_CODED_BITS 432
 
@@ -96,7 +79,6 @@ static void softs_to_hard(const int8_t *softs_432, uint8_t *hard_432_out)
  hard_432_out[i] = (softs_432[i] > 0) ? 1u : 0u;
 }
 
-/* Pack 432 type-5 bits into 14 words for the DL filler-mailbox using the
 /* Packing + Filler-Write läuft jetzt zentral in tetra_voice_filler.c
  * (tetra_voice_filler_write_ts). Multi-Group 2026-05-25. */
 
