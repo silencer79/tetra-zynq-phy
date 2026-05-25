@@ -45,25 +45,25 @@ set PART "xc7z020clg400-1"
 # =============================================================================
 set ENABLE_ILA_DEBUG 0
 if {[info exists env(ENABLE_ILA_DEBUG)]} {
-    set ENABLE_ILA_DEBUG $env(ENABLE_ILA_DEBUG)
+ set ENABLE_ILA_DEBUG $env(ENABLE_ILA_DEBUG)
 }
 
 # Forward ADI_HDL_DIR to create_bd.tcl if set in environment
 if {[info exists env(ADI_HDL_DIR)]} {
-    set ADI_HDL_DIR $env(ADI_HDL_DIR)
+ set ADI_HDL_DIR $env(ADI_HDL_DIR)
 }
 
 puts "================================================================="
 puts " tetra-zynq-phy Build Script"
 puts "================================================================="
-puts " Part : $PART"
-puts " Dir : $PROJ_DIR"
-puts " Build : $BUILD_DIR"
-puts " ILA Debug : $ENABLE_ILA_DEBUG"
+puts " Part: $PART"
+puts " Dir: $PROJ_DIR"
+puts " Build: $BUILD_DIR"
+puts " ILA Debug: $ENABLE_ILA_DEBUG"
 if {[info exists ADI_HDL_DIR] && $ADI_HDL_DIR ne ""} {
-    puts " ADI IP : $ADI_HDL_DIR"
+ puts " ADI IP: $ADI_HDL_DIR"
 } else {
-    puts " ADI IP : auto-detect (set ADI_HDL_DIR if needed)"
+ puts " ADI IP: auto-detect (set ADI_HDL_DIR if needed)"
 }
 puts "================================================================="
 
@@ -114,11 +114,13 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/rx/tetra_sync_detect.v \
  $PROJ_DIR/rtl/rx/tetra_ul_sync_detect_os4.v \
  $PROJ_DIR/rtl/rx/tetra_ul_burst_capture.v \
+ $PROJ_DIR/rtl/rx/tetra_ul_nub_capture.v \
  $PROJ_DIR/rtl/rx/tetra_ul_pi4dqpsk_demod.v \
  $PROJ_DIR/rtl/rx/tetra_ul_sch_hu_decoder.v \
  $PROJ_DIR/rtl/rx/tetra_ul_viterbi_r14.v \
  $PROJ_DIR/rtl/rx/tetra_burst_demux.v \
  $PROJ_DIR/rtl/rx/tetra_frame_counter.v \
+ $PROJ_DIR/rtl/rx/tetra_ul_demand_reassembly.v \
 ]
 
 # TX Chain
@@ -127,14 +129,14 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/tx/tetra_tx_frontend.v \
  $PROJ_DIR/rtl/tx/tetra_pi4dqpsk_mod.v \
  $PROJ_DIR/rtl/tx/tetra_rrc_filter.v \
- $PROJ_DIR/rtl/tx/tetra_tx_inv_sinc.v \
  $PROJ_DIR/rtl/tx/tetra_burst_builder.v \
- $PROJ_DIR/rtl/tx/tetra_burst_mux.v \
+ $PROJ_DIR/rtl/tx/tetra_burst_dispatcher.v \
  $PROJ_DIR/rtl/tx/tetra_tdma_timebase.v \
  $PROJ_DIR/rtl/tx/tetra_slot_schedule.v \
  $PROJ_DIR/rtl/tx/tetra_slot_content_mux.v \
  $PROJ_DIR/rtl/tx/tetra_sb1_encoder.v \
  $PROJ_DIR/rtl/tx/tetra_aach_encoder.v \
+ $PROJ_DIR/rtl/tx/tetra_aach_rm_encoder.v \
 ]
 
 # LMAC
@@ -150,20 +152,27 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_crc16.v \
  $PROJ_DIR/rtl/lmac/tetra_steal_detect.v \
  $PROJ_DIR/rtl/lmac/tetra_ul_mac_access_parser.v \
- $PROJ_DIR/rtl/lmac/tetra_entity_table.v \
- $PROJ_DIR/rtl/lmac/tetra_profile_table.v \
- $PROJ_DIR/rtl/lmac/tetra_active_session_table.v \
  $PROJ_DIR/rtl/lmac/tetra_d_location_update_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_d_location_update_reject_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_sch_hd_encoder.v \
+ $PROJ_DIR/rtl/lmac/tetra_sch_hd_shared.v \
  $PROJ_DIR/rtl/lmac/tetra_sch_f_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_basic_slotgrant_encoder.v \
- $PROJ_DIR/rtl/lmac/tetra_chan_alloc_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_mac_resource_dl_builder.v \
  $PROJ_DIR/rtl/lmac/tetra_mac_resource_bl_ack_builder.v \
  $PROJ_DIR/rtl/lmac/tetra_mle_registration_fsm.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_signal_queue.v \
  $PROJ_DIR/rtl/lmac/tetra_dl_signal_scheduler.v \
+ $PROJ_DIR/rtl/lmac/tetra_dl_nwrk_broadcast.v \
+ $PROJ_DIR/rtl/lmac/tetra_indirect_mailbox.v \
+ $PROJ_DIR/rtl/lmac/tetra_indirect_mailbox_wr.v \
+ $PROJ_DIR/rtl/lmac/tetra_ul_demand_body_mailbox.v \
+ $PROJ_DIR/rtl/lmac/tetra_reply_mailbox.v \
+ $PROJ_DIR/rtl/lmac/tetra_pre_reply_blck.v \
+ $PROJ_DIR/rtl/lmac/tetra_pre_reply_slotgrant.v \
+ $PROJ_DIR/rtl/lmac/tetra_dl_pdu_builder.v \
+ $PROJ_DIR/rtl/lmac/tetra_voice_filler_mailbox.v \
+ $PROJ_DIR/rtl/lmac/tetra_voice_nub_read_mailbox.v \
 ]
 
 # Top-Level modules
@@ -182,6 +191,15 @@ add_files -fileset constrs_1 -norecurse [list \
  $PROJ_DIR/constraints/adi_cdc_async_reg.xdc \
 ]
 
+# Phase Z.3 — register tetra_pdu_class.vh as a header-source plus put
+# rtl/include on the include path. Vivado needs both: the file must
+# exist in the project (as IS_GLOBAL_INCLUDE) AND the directory must be
+# on the include search path.
+add_files -norecurse [list $PROJ_DIR/rtl/include/tetra_pdu_class.vh]
+set_property file_type "Verilog Header" [get_files tetra_pdu_class.vh]
+set_property is_global_include true [get_files tetra_pdu_class.vh]
+set_property include_dirs [list $PROJ_DIR/rtl/include] [get_filesets sources_1]
+
 # Update compile order before BD creation (needed for module reference)
 update_compile_order -fileset sources_1
 
@@ -195,7 +213,7 @@ puts "\n=== Step 3: Creating Block Design ==="
 
 # Pass ADI_HDL_DIR to the BD script
 if {[info exists ADI_HDL_DIR]} {
-    # Variable is already in scope — create_bd.tcl will use it
+ # Variable is already in scope — create_bd.tcl will use it
 }
 source $PROJ_DIR/scripts/create_bd.tcl
 
@@ -267,7 +285,7 @@ if {$ENABLE_ILA_DEBUG && [llength $debug_nets] > 0} {
  lappend sys_nets $net
  }
  }
- puts " l_clk nets : [llength $lvds_nets]"
+ puts " l_clk nets: [llength $lvds_nets]"
  puts " clk_sys nets: [llength $sys_nets]"
 
  # Find clock net from a known registered probe cell
@@ -281,7 +299,7 @@ if {$ENABLE_ILA_DEBUG && [llength $debug_nets] > 0} {
 
  set l_clk_net [ila_clk_net "dbg_adc_valid_i0_lvds_reg"]
  set clk_sys_net [ila_clk_net "dbg_sync_locked_sys_reg"]
- puts " l_clk net : $l_clk_net"
+ puts " l_clk net: $l_clk_net"
  puts " clk_sys net: $clk_sys_net"
 
  # Helper: create one ILA core with N single-bit probes
@@ -317,12 +335,12 @@ if {$ENABLE_ILA_DEBUG && [llength $debug_nets] > 0} {
  # ========================================================================
  # ILA Clock Domain Strategy (2026-04-07 Fix):
  # - REMOVED: u_ila_lvds (l_clk domain)
- #   REASON: l_clk = AD9361 DATA_CLK, requires AD9361 SPI config to be active.
- #   Without AD9361 init software, debug hub clock is dead → ILA undetectable.
+ # REASON: l_clk = AD9361 DATA_CLK, requires AD9361 SPI config to be active.
+ # Without AD9361 init software, debug hub clock is dead → ILA undetectable.
  # - KEPT: u_ila_sys (clk_sys = FCLK_CLK0 @ 100 MHz)
- #   REASON: Always active after FPGA program, independent of AD9361 state.
+ # REASON: Always active after FPGA program, independent of AD9361 state.
  # ========================================================================
- # create_ila u_ila_lvds 4096 $l_clk_net $lvds_nets  # DISABLED — l_clk not available without AD9361 init
+ # create_ila u_ila_lvds 4096 $l_clk_net $lvds_nets # DISABLED — l_clk not available without AD9361 init
  create_ila u_ila_sys 4096 $clk_sys_net $sys_nets
 
  implement_debug_core
@@ -376,9 +394,9 @@ write_debug_probes -force "$BUILD_DIR/$PROJ_NAME.ltx"
 puts "\n================================================================="
 puts " Build COMPLETE"
 puts "================================================================="
-puts " Bitstream : $BUILD_DIR/$PROJ_NAME.bit"
-puts " Probes : $BUILD_DIR/$PROJ_NAME.ltx"
-puts " Reports : $REPORT_DIR/"
+puts " Bitstream: $BUILD_DIR/$PROJ_NAME.bit"
+puts " Probes: $BUILD_DIR/$PROJ_NAME.ltx"
+puts " Reports: $REPORT_DIR/"
 puts "================================================================="
 
 close_project

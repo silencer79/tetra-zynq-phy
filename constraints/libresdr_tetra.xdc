@@ -198,6 +198,70 @@ set_multicycle_path 1 -hold \
     -to [get_cells -hierarchical -filter {NAME =~ *u_timing_recovery/loop_integ_sys_reg*}]
 
 # =============================================================================
+# Multicycle Path — Phase H.3.2e (2026-05-02): Slack-Sanierung WNS=-0.254 ns
+# =============================================================================
+# Folgende Datapaths violiteren das 10 ns Setup-Fenster, sind aber funktional
+# multicycle-fähig (Datenrate << clk_sys=100 MHz).  Vivado weiß das ohne XDC-
+# Hint nicht; daher Verletzungen in `impl_timing.rpt` Build vom 18:55.
+# =============================================================================
+
+# --- 1. RRC-Filter i_out_reg (analog zu existing q_out_reg block oben) -------
+# Symmetrischer i-Kanal des RRC, gleiches Sample-Rate-Profil wie q_out.
+# 2 von 26 Top-Verletzungen kommen von hier (-0.254 ns / -0.205 ns).
+set_multicycle_path 2 -setup \
+    -from [get_cells -hierarchical -filter {NAME =~ *u_rrc_filter/mac_tap_sys_reg*}] \
+    -to   [get_cells -hierarchical -filter {NAME =~ *u_rrc_filter/i_out_reg*}]
+set_multicycle_path 1 -hold \
+    -from [get_cells -hierarchical -filter {NAME =~ *u_rrc_filter/mac_tap_sys_reg*}] \
+    -to   [get_cells -hierarchical -filter {NAME =~ *u_rrc_filter/i_out_reg*}]
+
+# --- 2. UL Viterbi-Decoder soft-bit → survivor-state (13 Verletzungen) -------
+# Größte Cluster der Slack-Verletzungen (vit_soft0/1_sys_reg → surv_s8/s11/s13).
+# Symbol-Rate auf SCH/HU ist ~9 kHz (TETRA).  clk_sys ist 100 MHz.  Survivor-
+# State-Update läuft nur 1× pro Demod-Symbol — multicycle 4 (= 40 ns) ist
+# weit konservativer als das physische Update-Intervall.
+set_multicycle_path 4 -setup \
+    -from [get_cells -hierarchical -filter {NAME =~ *u_ul_sch_hu/vit_soft0_sys_reg*}] \
+    -to   [get_cells -hierarchical -filter {NAME =~ *u_ul_sch_hu/u_viterbi/surv_s*_reg*}]
+set_multicycle_path 3 -hold \
+    -from [get_cells -hierarchical -filter {NAME =~ *u_ul_sch_hu/vit_soft0_sys_reg*}] \
+    -to   [get_cells -hierarchical -filter {NAME =~ *u_ul_sch_hu/u_viterbi/surv_s*_reg*}]
+set_multicycle_path 4 -setup \
+    -from [get_cells -hierarchical -filter {NAME =~ *u_ul_sch_hu/vit_soft1_sys_reg*}] \
+    -to   [get_cells -hierarchical -filter {NAME =~ *u_ul_sch_hu/u_viterbi/surv_s*_reg*}]
+set_multicycle_path 3 -hold \
+    -from [get_cells -hierarchical -filter {NAME =~ *u_ul_sch_hu/vit_soft1_sys_reg*}] \
+    -to   [get_cells -hierarchical -filter {NAME =~ *u_ul_sch_hu/u_viterbi/surv_s*_reg*}]
+
+# --- 3. MLE-FSM Accept-Builder PDU-Build (3 Verletzungen) --------------------
+# llc_cov_len_reg → complete_pdu_bits_reg ist der 268-bit-MAC-RESOURCE-Build.
+# Feuert 1× pro Attach-Reply (= alle paar Sekunden).  Multicycle 4 sicher.
+set_multicycle_path 4 -setup \
+    -from [get_cells -hierarchical -filter {NAME =~ *u_accept_builder/llc_cov_len_reg*}] \
+    -to   [get_cells -hierarchical -filter {NAME =~ *u_accept_builder/complete_pdu_bits_reg*}]
+set_multicycle_path 3 -hold \
+    -from [get_cells -hierarchical -filter {NAME =~ *u_accept_builder/llc_cov_len_reg*}] \
+    -to   [get_cells -hierarchical -filter {NAME =~ *u_accept_builder/complete_pdu_bits_reg*}]
+
+# --- 4. RX Frontend CIC-Integrator (2 Verletzungen) --------------------------
+# q_comb4_z1_sys_reg → q_cic_out_sys_reg ist der CIC-Output-Stage.  Update-
+# Rate ist die Sample-Rate (1.8 MHz LVDS), nicht clk_sys (100 MHz).
+# Multicycle 2 wie für RRC.
+set_multicycle_path 2 -setup \
+    -from [get_cells -hierarchical -filter {NAME =~ *u_rx_frontend/q_comb4_z1_sys_reg*}] \
+    -to   [get_cells -hierarchical -filter {NAME =~ *u_rx_frontend/q_cic_out_sys_reg*}]
+set_multicycle_path 1 -hold \
+    -from [get_cells -hierarchical -filter {NAME =~ *u_rx_frontend/q_comb4_z1_sys_reg*}] \
+    -to   [get_cells -hierarchical -filter {NAME =~ *u_rx_frontend/q_cic_out_sys_reg*}]
+
+# --- 5. TX Frontend CIC-Integrator (6 Verletzungen) --------------------------
+# Ähnliches Profil wie RX-CIC — datapath-intensiv, läuft mit Sample-Rate.
+set_multicycle_path 2 -setup \
+    -to [get_cells -hierarchical -filter {NAME =~ *u_tx_frontend/intg_*_reg*}]
+set_multicycle_path 1 -hold \
+    -to [get_cells -hierarchical -filter {NAME =~ *u_tx_frontend/intg_*_reg*}]
+
+# =============================================================================
 # Board voltage identification (DRC)
 # =============================================================================
 

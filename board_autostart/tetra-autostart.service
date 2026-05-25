@@ -1,0 +1,15 @@
+[Unit]
+Description=tetra-zynq-phy boot init (bitstream + AD9361 + daemons)
+After=local-fs.target network.target
+Before=multi-user.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/root/tetra_autostart.sh
+ExecStop=/bin/sh -c '/usr/bin/pkill -f "[t]etra_attach_daemon" || true; /usr/bin/pkill -f "[t]etra_ul_mon" || true; /usr/bin/pkill -f "[t]etra_sysinfo" || true'
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

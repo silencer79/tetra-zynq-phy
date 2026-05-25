@@ -21,7 +21,7 @@ auf `/cgi-bin/apply.cgi`, nicht `/apply.cgi`.
 
 - `GET /` → `index.html` mit Form (Frequenz, MCC/MNC/LA/CC, TX-Atten, …)
 - `GET /cgi-bin/apply.cgi?freq=…&mcc=…&...` → konfiguriert AD9361
-  TX/RX_LO + restartet `tetra_sysinfo` mit neuen CLI-Args
+ TX/RX_LO + restartet `tetra_sysinfo` mit neuen CLI-Args
 - `GET /cgi-bin/status.cgi[?brief=1]` → Daemon + Frequenz + Counter dump
 - `GET /cgi-bin/stop.cgi` → kill tetra_sysinfo
 
@@ -50,14 +50,14 @@ Aktuell sind die Files **direkt auf dem Board** angelegt
 `scripts/deploy.sh` integriert. Nach manuellen Änderungen am Board:
 
 ```bash
-sshpass -p openwifi scp root@192.168.2.180:/www/cgi-bin/apply.cgi sw/web/apply.cgi
+sshpass -p openwifi scp root@192.168.2.183:/www/cgi-bin/apply.cgi sw/web/apply.cgi
 git add sw/web/apply.cgi && git commit
 ```
 
 Umgekehrt (lokal → Board):
 ```bash
-sshpass -p openwifi scp sw/web/apply.cgi root@192.168.2.180:/www/cgi-bin/apply.cgi
-sshpass -p openwifi ssh root@192.168.2.180 'chmod +x /www/cgi-bin/apply.cgi'
+sshpass -p openwifi scp sw/web/apply.cgi root@192.168.2.183:/www/cgi-bin/apply.cgi
+sshpass -p openwifi ssh root@192.168.2.183 'chmod +x /www/cgi-bin/apply.cgi'
 ```
 
 Auto-Sync ist Phase E (siehe `docs/ARCHITECTURE.md §9.7`).

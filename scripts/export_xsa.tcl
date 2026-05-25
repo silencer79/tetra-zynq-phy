@@ -24,17 +24,17 @@ puts "================================================================="
 # Check if checkpoint exists
 set dcp_file "$BUILD_DIR/post_route.dcp"
 if {![file exists $dcp_file]} {
-    puts "ERROR: Implementation checkpoint not found: $dcp_file"
-    puts "Please run full build first: vivado -mode batch -source scripts/vivado_build.tcl"
-    exit 1
+ puts "ERROR: Implementation checkpoint not found: $dcp_file"
+ puts "Please run full build first: vivado -mode batch -source scripts/vivado_build.tcl"
+ exit 1
 }
 
 # Check if bitstream exists
 set bit_file "$BUILD_DIR/${PROJ_NAME}.bit"
 if {![file exists $bit_file]} {
-    puts "ERROR: Bitstream not found: $bit_file"
-    puts "Please run full build first: vivado -mode batch -source scripts/vivado_build.tcl"
-    exit 1
+ puts "ERROR: Bitstream not found: $bit_file"
+ puts "Please run full build first: vivado -mode batch -source scripts/vivado_build.tcl"
+ exit 1
 }
 
 puts "\\n=== Step 1: Opening implemented design ==="
@@ -54,7 +54,7 @@ puts "================================================================="
 puts " XSA: $xsa_file"
 puts ""
 puts "Next steps:"
-puts " 1. Convert bitstream: ./scripts/convert_bitstream.sh"
+puts " 1. Convert bitstream:./scripts/convert_bitstream.sh"
 puts " 2. Follow deploy_workflow.md for deployment"
 puts "================================================================="
 

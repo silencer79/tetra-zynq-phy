@@ -5,7 +5,7 @@
 
 Ersetzt: `sdrsharp_tetra_dll_analysis.md`. Integriert Findings aus `osmo-tetra`
 Decoder, `tetra-bluestation` (MidnightBlueLabs, Rust-BS-Implementierung), sowie
-dem Gold-Reference-Capture einer fremden TETRA-BS mit erfolgreichem MS-Attach
+dem Reference-Capture einer fremden TETRA-BS mit erfolgreichem MS-Attach
 (`docs/references/captures_external_bs_2026-04-25/`).
 
 ---
@@ -69,10 +69,10 @@ Band 4 (400 MHz): carrier 1530 × 25 kHz + 400 MHz = **438.25 MHz DL**, -10 MHz 
 **LFSR 32-bit** mit polynom-AND + Popcount-Parity:
 
 ```
-masked      = scrambler & 0xDB710641
-output_bit  = popcount(masked) & 1
-scrambler   = (scrambler >> 1) | (output_bit << 31)
-data[i]    ^= output_bit
+masked = scrambler & 0xDB710641
+output_bit = popcount(masked) & 1
+scrambler = (scrambler >> 1) | (output_bit << 31)
+data[i] ^= output_bit
 ```
 
 ### 3.2 Scrambler-Init-Konstruktion
@@ -163,7 +163,7 @@ Soft-Decision, 16-state, rate-1/4 mother-decoded mit depuncturing.
 
 ```
 [tail(2)] [PA(34)] [Block1(216)] [BB1(14)] [NTS(22)] [BB2(16)] [Block2(216)] [guard(14)] 
-                                           = 255 symbols
+ = 255 symbols
 ```
 
 - **PA** — Power Amplifier ramp-up (Freq-Correction bei SB)
@@ -208,8 +208,8 @@ y = 1,1,0,0,0,0,0,1,1,0,0,1,1,1,0,0,1,1,1,0,1,0,0,1,1,1,0,0,0,0,0,1,1,0,0,1,1,1
 Aus SDRSharp `ConvertAngleToDiBits`:
 
 ```
-dibit_high = (angle >= 0) ? 0 : 1       // Sign → erstes Bit
-dibit_low  = (|angle| <= π/2) ? 0 : 1   // Magnitude → zweites Bit
+dibit_high = (angle >= 0) ? 0: 1 // Sign → erstes Bit
+dibit_low = (|angle| <= π/2) ? 0: 1 // Magnitude → zweites Bit
 ```
 
 ---
@@ -234,20 +234,20 @@ Wrap: `AddTimeSlot()` erhöht TN; bei TN>4 → TN=1, FN++; bei FN>18 → FN=1, M
 
 Nur auf Frame 18:
 ```
-BSCH_timeslot = 4 − ((MN+1) mod 4)    // intern 1-based
+BSCH_timeslot = 4 − ((MN+1) mod 4) // intern 1-based
 BNCH_timeslot = 4 − ((MN+3) mod 4)
 ```
 
 Beispiel MN=2: BSCH auf TN=4−((3)%4)=4−3=1, BNCH auf TN=4−(5%4)=4−1=3.
 
-Gold-Cell-Messung bestätigt: F18 TN=0 (ETSI 1) nur bei `MN%4==2` SB-Anchor, sonst NDB2 mit BNCH-Inhalt.
+Cell-Messung bestätigt: F18 TN=0 (ETSI 1) nur bei `MN%4==2` SB-Anchor, sonst NDB2 mit BNCH-Inhalt.
 
 ### 5.3 TDMA-Timing
 
 ```
-Frame  = 4 × 255 Symbole / 18 kHz = 56.67 ms
-Slot   = 255 Symbole / 18 kHz     = 14.167 ms
-Symbol = 1 / 18 kHz               = 55.56 µs
+Frame = 4 × 255 Symbole / 18 kHz = 56.67 ms
+Slot = 255 Symbole / 18 kHz = 14.167 ms
+Symbol = 1 / 18 kHz = 55.56 µs
 ```
 
 Response-Latenz-Budget für RA → Accept: ~2-3 Slots = 28-42 ms.
@@ -260,16 +260,16 @@ Response-Latenz-Budget für RA → Accept: ~2-3 Slots = 28-42 ms.
 
 ```
 MS ─ Air ─ BS
-           │
-           ▼
+ │
+ ▼
 ┌───────────────────────────────────────┐
-│ MAC Layer (§21)                       │
-│   MAC-RESOURCE / MAC-ACCESS / ...    │
-│   ├── LLC PDU Container              │
-│   │     ├── BL-ADATA / BL-UDATA /... │
-│   │     └── TL-SDU                   │
-│   │           ├── MLE PD (3 bit)     │
-│   │           └── MM / CMCE PDU      │
+│ MAC Layer (§21) │
+│ MAC-RESOURCE / MAC-ACCESS /... │
+│ ├── LLC PDU Container │
+│ │ ├── BL-ADATA / BL-UDATA /... │
+│ │ └── TL-SDU │
+│ │ ├── MLE PD (3 bit) │
+│ │ └── MM / CMCE PDU │
 └───────────────────────────────────────┘
 ```
 
@@ -291,15 +291,15 @@ MS ─ Air ─ BS
 [1 bit] FillBit
 [1 bit] PosOfGrant
 [2 bit] EncryptionMode
-[1 bit] RandAccFlag           ← 1 als RA-Acknowledgement für ISSI-adressiertes Accept
-[6 bit] LengthIndication       (MAC total octets)
-[3 bit] AddrType               (0=NULL, 1=SSI, 2=EventLabel, 3=USSI, 4=SMI, ...)
-[... bit] Address              (variable: 0/10/24/48 bit je AddrType)
-─────────  wenn PosOfGrant=1 AND addr!=NULL AND LI!=0: ──────────
+[1 bit] RandAccFlag ← 1 als RA-Acknowledgement für ISSI-adressiertes Accept
+[6 bit] LengthIndication (MAC total octets)
+[3 bit] AddrType (0=NULL, 1=SSI, 2=EventLabel, 3=USSI, 4=SMI,...)
+[... bit] Address (variable: 0/10/24/48 bit je AddrType)
+───────── wenn PosOfGrant=1 AND addr!=NULL AND LI!=0: ──────────
 [1 bit] PowerCtrl present
 [1 bit] SlotGrant present
 [1 bit] ChanAlloc present
-─────────  TM-SDU startet hier ──────────
+───────── TM-SDU startet hier ──────────
 ```
 
 **Wichtige Erkenntnis Bug #7 (2026-04-23):** unser RTL emittierte die 3 presence-flag-bits unkonditional. ETSI (§21.4.3.1) verlangt sie NUR bei `PosOfGrant=1 AND addr!=NULL AND LI!=0`. Für pure Registration-Accept (PosOfGrant=0) OMITTED.
@@ -310,26 +310,26 @@ Parser-Layout aus `rtl/lmac/tetra_ul_mac_access_parser.v`
 (bluestation-aligned, Rev. 2026-04-25 Commit `eeabf1f`):
 
 ```
-bit[0]      mac_pdu_type              (1 bit, 0 = MAC-ACCESS)
-bit[1]      fill_bits                 (1 bit)
-bit[2]      encrypted                 (1 bit)
-bits[3..4]  addr_type                 (2 bit, NICHT 3)
-bits[5..28] address                   (24 bit — Ssi/Ussi/Smi)
-                                      bei addr_type=1 (EventLabel): nur 10 bit → [5..14]
-bit[29]     optional_field_flag
+bit[0] mac_pdu_type (1 bit, 0 = MAC-ACCESS)
+bit[1] fill_bits (1 bit)
+bit[2] encrypted (1 bit)
+bits[3..4] addr_type (2 bit, NICHT 3)
+bits[5..28] address (24 bit — Ssi/Ussi/Smi)
+ bei addr_type=1 (EventLabel): nur 10 bit → [5..14]
+bit[29] optional_field_flag
 ───────── wenn optional_field_flag = 1: ─────────
-bit[30]     choice-bit (0 = length_ind, 1 = frag_flag+reservation_req)
+bit[30] choice-bit (0 = length_ind, 1 = frag_flag+reservation_req)
 bits[31..34] entweder 4 bit length_ind, oder
-             1 bit frag_flag + 3 bit reservation_req
-─────────  TL-SDU startet ab bit 30 (opt=0) bzw. 36 (opt=1) ──────────
-TL-SDU = LLC-PDU (BL-DATA / BL-ADATA / ...)
+ 1 bit frag_flag + 3 bit reservation_req
+───────── TL-SDU startet ab bit 30 (opt=0) bzw. 36 (opt=1) ──────────
+TL-SDU = LLC-PDU (BL-DATA / BL-ADATA /...)
 ```
 
 **Historischer Bug (2026-04-25 gefixt):** Parser las `addr_type` als 3 bit
 und danach `short_ssi_or_event_label` als 10 bit — falsch aligned, mit dem
 Resultat dass für jede Motorola-MS (ISSI-Präfix `0x282xxx`) konstant
 `short_id=523` herauskam. BS konnte die MS nicht adressieren, Accept landete
-on-Air mit SSI=523. Real-BS (Gold-Ref 2026-04-25) adressiert Accept immer an
+on-Air mit SSI=523. Real-BS (Ref 2026-04-25) adressiert Accept immer an
 die **echte 24-bit ISSI** aus dem MAC-ACCESS-Header (keine Lookup-Tabelle,
 keine Short-SSI-Auflösung). Parser + Mailbox + MLE-FSM + SW-Monitor sind
 seit Commit `1f1ec3a` 24-bit-durchgängig.
@@ -348,7 +348,7 @@ effektiv immer 24-bit-ISSI sobald die MS ihre ITSI kennt (nach erstem Attach).
 
 ### 6.4a UL-Demand-Reassembly + Group-Identity-Location-Demand (§16.10.21)
 
-**Befund 2026-04-26 (Bit-Forensik gegen Gold-Ref-Capture, MTP3550 + Sepura SC20):**
+**Befund 2026-04-26 (Bit-Forensik gegen Ref-Capture: MTP3550 + externe-BS-Capture mit MS unbekannten Vendors):**
 
 Die MS schickt ihre gewünschte primary-GSSI im U-LOC-UPDATE-DEMAND mit
 — aber **nicht im ersten Burst**. Der Demand-MM-Body ist 132 Bit lang
@@ -358,8 +358,8 @@ MS den Demand auf **zwei Bursts**:
 
 | Burst | Channel | mac_pdu_type | Header | MM-Body |
 |-------|---------|--------------|--------|--------|
-| UL#0  | SCH/HU  | 0 (MAC-ACCESS, 1-bit, frag=1) | 36 bit (bis TL-SDU-Anfang) | bits[48..91] = 44 bit |
-| UL#1  | SCH/HU  | 1 (MAC-END-HU, 1-bit) | 7 bit (incl. length_ind) | bits[7..91] = 85 bit |
+| UL#0 | SCH/HU | 0 (MAC-ACCESS, 1-bit, frag=1) | 36 bit (bis TL-SDU-Anfang) | bits[48..91] = 44 bit |
+| UL#1 | SCH/HU | 1 (MAC-END-HU, 1-bit) | 7 bit (incl. length_ind) | bits[7..91] = 85 bit |
 
 **Reassembly:** `full_mm_body[0..128] = ul0_bits[48..91] ++ ul1_bits[7..91]` = **129 bit**.
 
@@ -368,8 +368,8 @@ Position der GSSI im reassembled Body: ungefähr bei bit 88..111
 sitzt sie an Byte-Offset 6..8:
 
 ```
-Gold-Ref UL#1: D4 1C 3C 02 40 50 [2F 4D 61] 20 00 00   ← GSSI=0x2F4D61
-MTP3550  UL#6: D4 1C 3C 02 40 50 [00 00 01] 20 00 00   ← GSSI=0x000001
+Ref UL#1: D4 1C 3C 02 40 50 [2F 4D 61] 20 00 00 ← GSSI=0x2F4D61
+MTP3550 UL#6: D4 1C 3C 02 40 50 [00 00 01] 20 00 00 ← GSSI=0x000001
 ```
 
 Layout exakt identisch, nur der Wert variiert pro MS-Default-Konfig.
@@ -401,7 +401,7 @@ GILA funktioniert weiter ohne Reassembly. Memory:
 | 5 | BL-DATA+FCS | NS | ✓ | ✓ | wie 1, mit CRC-32 |
 | 6 | BL-UDATA+FCS | — | ✗ | ✓ | — |
 | 7 | BL-ACK+FCS | NR | — | ✓ | — |
-| 8-15 | AL-SETUP, AL-DATA, AL-ACK, ... | — | — | — | (Advanced Link, call control) |
+| 8-15 | AL-SETUP, AL-DATA, AL-ACK,... | — | — | — | (Advanced Link, call control) |
 
 **Kritisches Finding 2026-04-24:**
 
@@ -415,7 +415,7 @@ Aus bluestation `bl_adata.rs:38-46`:
 
 ```
 [1 bit] llc_link_type = 0
-[1 bit] has_fcs            ← 0 bei BL-ADATA, 1 bei BL-ADATA+FCS
+[1 bit] has_fcs ← 0 bei BL-ADATA, 1 bei BL-ADATA+FCS
 [2 bit] bl_pdu_type = 00
 [1 bit] N(R)
 [1 bit] N(S)
@@ -428,11 +428,11 @@ Aus bluestation `bl_adata.rs:38-46`:
 
 ```c
 uint32_t crc = 0xFFFFFFFF;
-if (len < 32) crc <<= (32 - len);          // Pre-Shift für kurze Payloads
+if (len < 32) crc <<= (32 - len); // Pre-Shift für kurze Payloads
 for (i = 0; i < len; i++) {
-    bit = (data[i] ^ (crc >> 31)) & 1;
-    crc <<= 1;
-    if (bit) crc ^= 0x04C11DB7;
+ bit = (data[i] ^ (crc >> 31)) & 1;
+ crc <<= 1;
+ if (bit) crc ^= 0x04C11DB7;
 }
 return ~crc;
 ```
@@ -441,8 +441,8 @@ return ~crc;
 
 SDRSharp.Tetra nutzt für FCS-Check:
 ```
-Poly    = 0xEDB88320    // bit-reversed CCITT-32
-GoodFCS = 0xDEBB20E3    // Magic Residual
+Poly = 0xEDB88320 // bit-reversed CCITT-32
+GoodFCS = 0xDEBB20E3 // Magic Residual
 ```
 (entspricht dem bit-reversed Äquivalent von `0x04C11DB7`-Poly + Komplement).
 
@@ -578,7 +578,7 @@ Layout aus SDRSharp `_syncInfoRulesTMO` + `decode_dl.py:parse_sysinfo_sb`:
 | Location-Area | 14 | |
 | Subscriber-Class | 16 | Service-Profile-Maske |
 | Registration-Required | 1 | |
-| ... weitere Felder ... | | |
+|... weitere Felder... | | |
 
 ### 6.14 MAC-RESOURCE RandAccFlag — das Random-Access-Ack-Bit
 
@@ -629,31 +629,31 @@ Ohne `RandAccFlag=1` cycled MS unbegrenzt neue RAs ungeachtet aller MM-Layer-Kor
 ### 7.1 Vollständiges Layout per bluestation `d_location_update_accept.rs`
 
 ```
-[4 bit]  PDU-Type = 0101 (ACCEPT)
-[3 bit]  Location Update Accept Type = echoed from U-DEMAND
-[1 bit]  O-bit — 1 wenn IRGENDEIN optional Feld folgt
+[4 bit] PDU-Type = 0101 (ACCEPT)
+[3 bit] Location Update Accept Type = echoed from U-DEMAND
+[1 bit] O-bit — 1 wenn IRGENDEIN optional Feld folgt
 ────── Wenn O=0: PDU ENDE bei 8 Bit. ──────
 ────── Wenn O=1: Optional-Felder in dieser Reihenfolge: ──────
-[1 bit]  P-bit SSI               (1 = SSI-Feld folgt)
-[24 bit] SSI                     (ASSI/VASSI der MS)
-[1 bit]  P-bit Address-Extension
-[24 bit] Address-Extension        (MNI der MS)
-[1 bit]  P-bit Subscriber-Class
+[1 bit] P-bit SSI (1 = SSI-Feld folgt)
+[24 bit] SSI (ASSI/VASSI der MS)
+[1 bit] P-bit Address-Extension
+[24 bit] Address-Extension (MNI der MS)
+[1 bit] P-bit Subscriber-Class
 [16 bit] Subscriber-Class
-[1 bit]  P-bit Energy-Saving-Info
-[var]    Energy-Saving-Info
-[1 bit]  P-bit SCCH-info-and-Distrib-18
-[6 bit]  SCCH-info-and-Distrib-18
+[1 bit] P-bit Energy-Saving-Info
+[var] Energy-Saving-Info
+[1 bit] P-bit SCCH-info-and-Distrib-18
+[6 bit] SCCH-info-and-Distrib-18
 ────── Type-4/Type-3 Felder (mit M-bit per Feld, NICHT vorangestellter Präfix): ──────
-[M + ...] New-Registered-Area (Type-4)
-[M + ...] Security-Downlink (Type-3)
-[M + ...] Group-Identity-Location-Accept (Type-3)
-[M + ...] Default-Group-Attach-Lifetime (Type-3)
-[M + ...] Authentication-Downlink (Type-3)
-[M + ...] Group-Identity-Security-Related-Info (Type-4)
-[M + ...] Cell-Type-Control (Type-3)
-[M + ...] Proprietary (Type-3)
-[1 bit]  Terminierendes M-bit = 0
+[M +...] New-Registered-Area (Type-4)
+[M +...] Security-Downlink (Type-3)
+[M +...] Group-Identity-Location-Accept (Type-3)
+[M +...] Default-Group-Attach-Lifetime (Type-3)
+[M +...] Authentication-Downlink (Type-3)
+[M +...] Group-Identity-Security-Related-Info (Type-4)
+[M +...] Cell-Type-Control (Type-3)
+[M +...] Proprietary (Type-3)
+[1 bit] Terminierendes M-bit = 0
 ```
 
 ### 7.2 bluestation Reference Accept (mm_bs.rs:273-288)
@@ -662,20 +662,20 @@ Was eine real-BS für ITSI-Attach-Erstregistrierung sendet:
 
 ```rust
 let pdu_response = DLocationUpdateAccept {
-    location_update_accept_type: pdu.location_update_type,   // echo demand
-    ssi: Some(issi as u64),                                   // ← SSI IM MM-Body!
-    address_extension: None,
-    subscriber_class: None,
-    energy_saving_information: esi,
-    scch_information_and_distribution_on_18th_frame: None,
-    new_registered_area: None,
-    security_downlink: None,
-    group_identity_location_accept: gila,
-    default_group_attachment_lifetime: None,
-    authentication_downlink: None,
-    group_identity_security_related_information: None,
-    cell_type_control: None,
-    proprietary: None,
+ location_update_accept_type: pdu.location_update_type, // echo demand
+ ssi: Some(issi as u64), // ← SSI IM MM-Body!
+ address_extension: None,
+ subscriber_class: None,
+ energy_saving_information: esi,
+ scch_information_and_distribution_on_18th_frame: None,
+ new_registered_area: None,
+ security_downlink: None,
+ group_identity_location_accept: gila,
+ default_group_attachment_lifetime: None,
+ authentication_downlink: None,
+ group_identity_security_related_information: None,
+ cell_type_control: None,
+ proprietary: None,
 };
 ```
 
@@ -701,74 +701,74 @@ Die Phasen sind unabhängig: eine registrierte MS ohne Group-Attach kann trotzde
 ### 8.1 Phase 1 — ITSI Attach / Location Update
 
 ```
-MS                                                           BS
-│                                                             │
-│  ── UL CB 127sym, SCH/HU ─────────────────────────────────► │
-│     MAC-ACCESS                                              │
-│     └─ addr_type = Event-Label (MS hat noch keine ISSI-Reg) │
-│     LLC: BL-DATA (type 1, no FCS)                           │
-│     └─ MLE-PD = MM (1)                                      │
-│        └─ MM PDU-Type = U-LOCATION UPDATE DEMAND (0x4)     │
-│           └─ location_update_type = ITSI attach (3)         │
-│           └─ optional: class_of_ms, energy_saving_mode,    │
-│              groups[], address_extension                    │
-│                                                             │
-│  [UMAC: dl_enqueue_random_access_ack(slot, issi)]           │
-│  [MLE → MM: parst ULocationUpdateDemand]                    │
-│  [MM: client_mgr.update_client(issi, class_of_ms, ...)]     │
-│  [MM: baut DLocationUpdateAccept]                           │
-│                                                             │
-│  ◄────────────────────── DL SCH/F, MAC-RESOURCE ─────────── │
-│     MAC-RESOURCE                                            │
-│     ├─ random_access_flag = 1  ← RA-Ack piggybacked         │
-│     ├─ addr_type = SSI (1)                                  │
-│     └─ ssi = MS-ISSI                                        │
-│     LLC: BL-DATA (type 1, no FCS) — oder BL-ADATA wenn     │
-│          UL-ACK im selben Slot zusammen läuft               │
-│     └─ MLE-PD = MM (1)                                      │
-│        └─ D-LOCATION UPDATE ACCEPT (0x5)                    │
-│           ├─ location_update_accept_type = ITSI attach (3)  │
-│           ├─ ssi = MS-ISSI (im MM-Body, 24-bit)             │
-│           └─ optional: energy_saving_info,                  │
-│              group_identity_location_accept                 │
-│                                                             │
-│  [MS: REGISTERED (bzgl. Lokation)]                          │
-│                                                             │
-│  ── UL NUB, MAC-END ───────────────────────────────────────►│
-│     LLC: BL-ACK (type 3)                                    │
-│     └─ N(R) = ns_seen + 1                                   │
-│                                                             │
-│  [BS: client_mgr markiert Accept als bestätigt,             │
-│       kein Retransmit nötig]                                │
+MS BS
+│ │
+│ ── UL CB 127sym, SCH/HU ─────────────────────────────────► │
+│ MAC-ACCESS │
+│ └─ addr_type = Event-Label (MS hat noch keine ISSI-Reg) │
+│ LLC: BL-DATA (type 1, no FCS) │
+│ └─ MLE-PD = MM (1) │
+│ └─ MM PDU-Type = U-LOCATION UPDATE DEMAND (0x4) │
+│ └─ location_update_type = ITSI attach (3) │
+│ └─ optional: class_of_ms, energy_saving_mode, │
+│ groups[], address_extension │
+│ │
+│ [UMAC: dl_enqueue_random_access_ack(slot, issi)] │
+│ [MLE → MM: parst ULocationUpdateDemand] │
+│ [MM: client_mgr.update_client(issi, class_of_ms,...)] │
+│ [MM: baut DLocationUpdateAccept] │
+│ │
+│ ◄────────────────────── DL SCH/F, MAC-RESOURCE ─────────── │
+│ MAC-RESOURCE │
+│ ├─ random_access_flag = 1 ← RA-Ack piggybacked │
+│ ├─ addr_type = SSI (1) │
+│ └─ ssi = MS-ISSI │
+│ LLC: BL-DATA (type 1, no FCS) — oder BL-ADATA wenn │
+│ UL-ACK im selben Slot zusammen läuft │
+│ └─ MLE-PD = MM (1) │
+│ └─ D-LOCATION UPDATE ACCEPT (0x5) │
+│ ├─ location_update_accept_type = ITSI attach (3) │
+│ ├─ ssi = MS-ISSI (im MM-Body, 24-bit) │
+│ └─ optional: energy_saving_info, │
+│ group_identity_location_accept │
+│ │
+│ [MS: REGISTERED (bzgl. Lokation)] │
+│ │
+│ ── UL NUB, MAC-END ───────────────────────────────────────►│
+│ LLC: BL-ACK (type 3) │
+│ └─ N(R) = ns_seen + 1 │
+│ │
+│ [BS: client_mgr markiert Accept als bestätigt, │
+│ kein Retransmit nötig] │
 ```
 
 ### 8.2 Phase 2 — Group Identity Attach (unabhängig von Phase 1)
 
 ```
-MS                                                           BS
-│                                                             │
-│  ── UL CB 127sym / oder ad-hoc NUB ──────────────────────── │
-│     MAC-ACCESS (auf RA-Slot) / MAC-END (auf assigned UL)   │
-│     LLC: BL-DATA (type 1)                                   │
-│     └─ MLE-PD = MM                                          │
-│        └─ MM PDU-Type = U-ATTACH/DETACH GROUP IDENTITY      │
-│           ├─ group_identity_attach_detach_mode              │
-│           └─ group_identity_uplink[] mit GSSI/class_of_usage│
-│                                                             │
-│  [MM: parst UAttachDetachGroupIdentity]                     │
-│  [MM: detach_all optional]                                  │
-│  [MM: attach/detach Gruppen in client_mgr]                  │
-│  [MM: baut DAttachDetachGroupIdentityAcknowledgement]       │
-│                                                             │
-│  ◄── DL MAC-RESOURCE ───────────────────────────────────── │
-│     LLC: BL-DATA                                            │
-│     └─ MM: D-ATTACH/DETACH GROUP IDENTITY ACK               │
-│        ├─ group_identity_accept_reject = 0 (accepted)       │
-│        └─ group_identity_downlink[] mit akzeptierten GSSI  │
-│                                                             │
-│  [MS: REGISTERED + ATTACHED to groups]                      │
-│                                                             │
-│  ── UL, LLC BL-ACK ────────────────────────────────────────►│
+MS BS
+│ │
+│ ── UL CB 127sym / oder ad-hoc NUB ──────────────────────── │
+│ MAC-ACCESS (auf RA-Slot) / MAC-END (auf assigned UL) │
+│ LLC: BL-DATA (type 1) │
+│ └─ MLE-PD = MM │
+│ └─ MM PDU-Type = U-ATTACH/DETACH GROUP IDENTITY │
+│ ├─ group_identity_attach_detach_mode │
+│ └─ group_identity_uplink[] mit GSSI/class_of_usage│
+│ │
+│ [MM: parst UAttachDetachGroupIdentity] │
+│ [MM: detach_all optional] │
+│ [MM: attach/detach Gruppen in client_mgr] │
+│ [MM: baut DAttachDetachGroupIdentityAcknowledgement] │
+│ │
+│ ◄── DL MAC-RESOURCE ───────────────────────────────────── │
+│ LLC: BL-DATA │
+│ └─ MM: D-ATTACH/DETACH GROUP IDENTITY ACK │
+│ ├─ group_identity_accept_reject = 0 (accepted) │
+│ └─ group_identity_downlink[] mit akzeptierten GSSI │
+│ │
+│ [MS: REGISTERED + ATTACHED to groups] │
+│ │
+│ ── UL, LLC BL-ACK ────────────────────────────────────────►│
 ```
 
 ### 8.3 Was im BS-Stack passiert (bluestation-Referenz)
@@ -833,34 +833,34 @@ isolierte BL-ACKs, MS bleibt in Re-Demand-Schleife.
 ### 9.1 Was den Durchbruch gebracht hat (Build `26191b4`)
 
 Bit-exakte Replik des D-LOCATION-UPDATE-ACCEPT MM-Body aus dem 2026-04-25
-Gold-Reference-Capture einer fremden BS @ 392.9875 MHz:
+Reference-Capture einer fremden BS @ 392.9875 MHz:
 
 ```
 MM body (102 bit total):
-  pdu_type           = 0101 (D-LOC-UPDATE-ACCEPT)
-  loc_acc_type       = 011  (ITSI attach)
-  o-bit              = 1
-  p_ssi              = 0   ← KEIN SSI im MM-Body (SSI ist in MAC-RESOURCE addr)
-  p_address_extension = 0
-  p_subscriber_class  = 0
-  p_energy_saving_info = 1, ESI = 14×0 (StayAlive)
-  p_scch_info        = 0
-  m-bit (T3)         = 1
-  Type-3 elem_id     = 5 (GroupIdentityLocationAccept)
-  Type-3 length      = 58
-  Type-3 payload     = bit-exakte Gold-Ref-Replik:
-                         accept_reject=0, reserved=0, obit=1
-                         T4 wrapper id=7 length=38 num_elems=1
-                           entry: attach_lifetime=1, class_of_usage=4,
-                                  addr_type=0, GSSI=0x2F4D61
-                         trailing m-bit=0
-  Trailing m-bit     = 0
+ pdu_type = 0101 (D-LOC-UPDATE-ACCEPT)
+ loc_acc_type = 011 (ITSI attach)
+ o-bit = 1
+ p_ssi = 0 ← KEIN SSI im MM-Body (SSI ist in MAC-RESOURCE addr)
+ p_address_extension = 0
+ p_subscriber_class = 0
+ p_energy_saving_info = 1, ESI = 14×0 (StayAlive)
+ p_scch_info = 0
+ m-bit (T3) = 1
+ Type-3 elem_id = 5 (GroupIdentityLocationAccept)
+ Type-3 length = 58
+ Type-3 payload = bit-exakte Ref-Replik:
+ accept_reject=0, reserved=0, obit=1
+ T4 wrapper id=7 length=38 num_elems=1
+ entry: attach_lifetime=1, class_of_usage=4,
+ addr_type=0, GSSI=0x2F4D61
+ trailing m-bit=0
+ Trailing m-bit = 0
 ```
 
 Plus: `random_access_flag=0` im SCH/F Accept (Pre-Reply behält RA=1).
 
 Vollständiger Bit-Walk, Reference-Capture-Verweis: siehe
-`reference_gold_attach_bitexact.md` im Memory-System bzw.
+`removed-memory` im Memory-System bzw.
 `docs/references/captures_external_bs_2026-04-25/README.md`.
 
 ### 9.1.1 Live-Validierung (2026-04-25 ~12:40, 4 MS-Power-Cycles)
@@ -884,11 +884,11 @@ werden**:
 
 Schlüsselbeobachtungen:
 - Beide PDUs sind **keine** Demand-Retry-Form. Eine nicht-registrierte MS
-  sendet diese Typen schlichtweg nicht.
+ sendet diese Typen schlichtweg nicht.
 - **N(S)=1** — der MS-LLC-Stack hat unser DL Accept (`N(S)=0`) verarbeitet
-  und seinen `V(S)` hochgezählt. Bestätigt LLC-Round-Trip-OK.
+ und seinen `V(S)` hochgezählt. Bestätigt LLC-Round-Trip-OK.
 - `U-ITSI-DETACH` ist das ETSI-konforme Pendant zu `U-LOC-UPDATE-DEMAND` —
-  die MS verabschiedet sich aktiv vor dem Ausschalten.
+ die MS verabschiedet sich aktiv vor dem Ausschalten.
 
 → M2 ist damit nicht nur „MS sendet keine Demands mehr" sondern **voll-
 funktional registriert aus MS-Sicht**, mit korrekt synchronisiertem
@@ -897,16 +897,16 @@ LLC-Sequence-State.
 ### 9.2 Lessons Learned
 
 - **TETRA-V+D-Spec ist nicht eindeutig genug** für jeden Hersteller. ETSI
-  EN 300 392-2 lässt mehrere Interpretationen offen.
+ EN 300 392-2 lässt mehrere Interpretationen offen.
 - **bluestation ist Implementierungs-Referenz, kein Standard.** Selbst
-  bluestation's `mm_bs.rs:273` trifft nicht den MTP3550-Akzeptanz-Punkt.
+ bluestation's `mm_bs.rs:273` trifft nicht den MTP3550-Akzeptanz-Punkt.
 - **Real-BS-Capture ist die einzige verlässliche Bit-Spec** für eine
-  konkrete MS. Eigene Improvisation hat 5+ Iterationen ohne Registration
-  gekostet.
+ konkrete MS. Eigene Improvisation hat 5+ Iterationen ohne Registration
+ gekostet.
 - **GILA-Inhalt (GSSI=0x2F4D61, class=4, lifetime=1) ist Replay-Daten** —
-  nicht semantisch begründet, on-air bewiesen funktionierend. Falls
-  später eine andere MS mit anderer Group-Membership benötigt wird, muss
-  GILA aus deren Subscriber-Shadow gefüllt werden.
+ nicht semantisch begründet, on-air bewiesen funktionierend. Falls
+ später eine andere MS mit anderer Group-Membership benötigt wird, muss
+ GILA aus deren Subscriber-Shadow gefüllt werden.
 
 ### 9.3 Verbleibende Lücken zu Phase-2 (M3 Group-Call)
 
@@ -935,20 +935,20 @@ erfolgreichen Attach:
 | 2026-04-24 | `90bda0a` | RandAccFlag=0 hart | =1 für SSI-adressierte Response (ETSI §21.4.3.1) |
 | 2026-04-25 | `eeabf1f`..`1f1ec3a` (6 Commits) | UL-Parser: addr_type=3-bit + short_ssi=10-bit (falsch) | korrigiert auf 2-bit addr_type + 24-bit ISSI per bluestation; ssi=523 Artefakt verschwunden |
 | 2026-04-25 | `545cc50` | MLE-FSM-Trigger filterte mm_pdu_type≠4 | UL-MM-Type 2 (= U-LOC-UPDATE-DEMAND per `MmPduTypeUl`) als Akzept-Trigger; 53 Accepts gefeuert |
-| 2026-04-25 | `b994e5d` | AACH statisch + falscher Pre-Reply→Accept Frame-Gap | Dynamic AACH Unalloc/Unalloc + 1-Frame-Gap (FN13→FN15) wie Gold-Ref |
-| 2026-04-25 | `26191b4` | MM-Body-Inhalt nicht bit-exakt | bit-exakte Gold-Ref-Replik (siehe §9.1) → **Attach erfolgreich** |
+| 2026-04-25 | `b994e5d` | AACH statisch + falscher Pre-Reply→Accept Frame-Gap | Dynamic AACH Unalloc/Unalloc + 1-Frame-Gap (FN13→FN15) wie Ref |
+| 2026-04-25 | `26191b4` | MM-Body-Inhalt nicht bit-exakt | bit-exakte Ref-Replik (siehe §9.1) → **Attach erfolgreich** |
 
-**Gold-Reference-Capture** als Bit-Spec für jedes weitere Detail:
+**Reference-Capture** als Bit-Spec für jedes weitere Detail:
 `docs/references/captures_external_bs_2026-04-25/`
 
 | Datei | Inhalt |
 |-------|--------|
-| `baseband_393084625Hz_*.wav` | DL @ 393.0846 MHz (gold-ref BS), sr=250 kHz, 18.1 s |
-| `baseband_382468718Hz_*.wav` | UL @ 382.4687 MHz (gold-ref MS), sr=1.536 MHz, 17.7 s (lokal, nicht im git wegen Größe) |
+| `baseband_393084625Hz_*.wav` | DL @ 393.0846 MHz (ref BS), sr=250 kHz, 18.1 s |
+| `baseband_382468718Hz_*.wav` | UL @ 382.4687 MHz (ref MS), sr=1.536 MHz, 17.7 s (lokal, nicht im git wegen Größe) |
 | `attach_sequence_bursts.txt` | Attach-relevante DL-Bursts mit Bit-Dumps |
 | `decode_dl_full.log` | 1278 CRC-OK Burst-Slots |
 
-**Time-aligned attach sequence (Gold-Ref):**
+**Time-aligned attach sequence (-Ref):**
 
 | Abs time | Side | Event |
 |----------|------|-------|
@@ -961,14 +961,14 @@ erfolgreichen Attach:
 **Verworfene Hypothesen** (zur Vollständigkeit dokumentiert):
 
 - *AACH Dynamic DL-Assign Phase-3-Switch* (2026-04-24): Spekulation, MS
-  benötige AACH-Header `01`/`10` mit Usage Marker auf RA/ITSI-Attach.
-  Widerlegt durch bluestation `bs_sched.rs::generate_bbk_block`-Audit:
-  AACH branched nur auf `ts.f`, `ts.t`, `traffic_usage`, `hangtime`,
-  niemals auf Queue-Inhalt. Echte Blocker waren MM-Body-Inhalt + ra_flag.
+ benötige AACH-Header `01`/`10` mit Usage Marker auf RA/ITSI-Attach.
+ Widerlegt durch bluestation `bs_sched.rs::generate_bbk_block`-Audit:
+ AACH branched nur auf `ts.f`, `ts.t`, `traffic_usage`, `hangtime`,
+ niemals auf Queue-Inhalt. Echte Blocker waren MM-Body-Inhalt + ra_flag.
 - *Authentication* (2026-04-24): MTP3550 erwartet keine Auth-Challenge
-  für Default-ITSI-Attach.
+ für Default-ITSI-Attach.
 - *MM-Type Filter* (2026-04-25): mm_type=4 (DL-Tabelle) statt 2 (UL) als
-  Trigger. UL-MM-Type-Tabelle ist disjunkt von DL.
+ Trigger. UL-MM-Type-Tabelle ist disjunkt von DL.
 
 ---
 
@@ -979,24 +979,24 @@ Aus SDRSharp + unser eigenes `decode_dl.py`:
 **1. Training-Sequence-Detection** → Burst-Typ identifizieren (NDB1/NDB2/SB)
 
 **2. Bei SB-Detect (BurstType=3):**
-   - SB (120 dibits) extrahieren
-   - Descramble mit **init=3 fix** (nicht Netzwerk-Code!)
-   - Deinterleave (K=120, a=11)
-   - Depuncture r=2/3
-   - Viterbi decode → 76 bit (60 info + 16 CRC)
-   - CRC-Check → 60 info bits
+ - SB (120 dibits) extrahieren
+ - Descramble mit **init=3 fix** (nicht Netzwerk-Code!)
+ - Deinterleave (K=120, a=11)
+ - Depuncture r=2/3
+ - Viterbi decode → 76 bit (60 info + 16 CRC)
+ - CRC-Check → 60 info bits
 
 **3. SYNC-PDU parsen:**
-   - MCC, MNC, ColourCode extrahieren
-   - `network_scramb_init = (MCC<<22) | (MNC<<8) | (CC<<2) | 3` berechnen
-   - `network_scramb_init` ab jetzt für alle BKN-Channels
-   - TN, FN, MN → `NetworkTime.Synchronize(TN+1, FN+1, MN+1)`
+ - MCC, MNC, ColourCode extrahieren
+ - `network_scramb_init = (MCC<<22) | (MNC<<8) | (CC<<2) | 3` berechnen
+ - `network_scramb_init` ab jetzt für alle BKN-Channels
+ - TN, FN, MN → `NetworkTime.Synchronize(TN+1, FN+1, MN+1)`
 
 **4. BKN2 von SB-Burst dekodieren → SYSINFO.**
 
 **5. Bei NDB-Bursts:** BB-Block via RM(30,14) → 14-bit AACH → Channel-Alloc-Info. BKN1+BKN2 je nach Allocation:
-   - Full-slot SCH/F: 432 bit → deinterleave(K=432,a=103) → decode → 268 bit
-   - Half-slot SCH/HD: 216 bit → deinterleave(K=216,a=101) → decode → 124 bit
+ - Full-slot SCH/F: 432 bit → deinterleave(K=432,a=103) → decode → 268 bit
+ - Half-slot SCH/HD: 216 bit → deinterleave(K=216,a=101) → decode → 124 bit
 
 **6. MAC-PDU-Routing:** 2-bit Header-Typ dispatcht zu Parser.
 
@@ -1035,15 +1035,15 @@ Also "Burst Error Rate" in %, nicht MER im RF-Sinn.
 ### 11.1 Unser Cell-Default
 
 ```
-MCC = 901  (Test-MCC)
+MCC = 901 (Test-MCC)
 MNC = 9998 (Test-MNC)
-CC  = 49   (Test-ColourCode)
+CC = 49 (Test-ColourCode)
 → network_scramb_init = (901<<22) | (9998<<8) | (49<<2) | 3
-                       = 0xE1670EC7
+ = 0xE1670EC7
 Carrier = 1530 (Band 4)
-DL-LO   = 438.25 MHz
-UL-LO   = 428.25 MHz (10 MHz Duplex, Band 4 Code 0)
-LA      = 1 (Default, via REG_CELL_LA settable)
+DL-LO = 438.25 MHz
+UL-LO = 428.25 MHz (10 MHz Duplex, Band 4 Code 0)
+LA = 1 (Default, via REG_CELL_LA settable)
 ```
 
 ---
@@ -1073,11 +1073,11 @@ LA      = 1 (Default, via REG_CELL_LA settable)
 - `osmo-debug-rx/vendor/osmo-tetra/src/` — Decoder-Referenz (Harald Welte, Gitea)
 - `tetra-kit/` (extern) — Zweit-Decoder für Validierung
 - `tetra-bluestation` (via GitHub clone in `/tmp/bs-ref/`) — **einzige Rust-BS-Referenz**
-  - `crates/tetra-pdus/src/mm/pdus/d_location_update_accept.rs` — PDU-Parser/Serializer
-  - `crates/tetra-entities/src/mm/mm_bs.rs` — MM-BS-State-Machine
-  - `crates/tetra-entities/src/llc/llc_bs_ms.rs` — LLC mit NR/NS-Tracking + Retransmit
-  - `crates/tetra-entities/src/umac/umac_bs.rs` — Upper-MAC + `rx_mac_end_ul` (BL-ACK)
-  - `crates/tetra-entities/src/llc/components/fcs.rs` — CRC-32-Implementation
+ - `crates/tetra-pdus/src/mm/pdus/d_location_update_accept.rs` — PDU-Parser/Serializer
+ - `crates/tetra-entities/src/mm/mm_bs.rs` — MM-BS-State-Machine
+ - `crates/tetra-entities/src/llc/llc_bs_ms.rs` — LLC mit NR/NS-Tracking + Retransmit
+ - `crates/tetra-entities/src/umac/umac_bs.rs` — Upper-MAC + `rx_mac_end_ul` (BL-ACK)
+ - `crates/tetra-entities/src/llc/components/fcs.rs` — CRC-32-Implementation
 - `SDRSharp.Tetra.dll` (reverse-engineered, 2026-04-18) — RX-only C#-Plugin-Analyse
 
 **Projekt-Docs:**

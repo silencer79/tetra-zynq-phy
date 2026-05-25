@@ -14,22 +14,23 @@ Referenz-Standard: **ETSI EN 300 392-2** (TETRA V+D Air Interface).
 
 ---
 
-## Milestone-Status (Stand 2026-04-25)
+## Milestone-Status (Stand 2026-05-19)
 
 | Meilenstein | Ziel | Status |
 |-------------|------|--------|
 | **M1** | MS sieht BS, RACH sichtbar | ✅ HW-verifiziert (MTP3550, 41/42 CRC-OK) |
-| **M2** | MS bucht sich ein | ✅ **HW-verifiziert 2026-04-25 12:18 ZULU** (MTP3550 ITSI-Attach erfolgreich, Build `26191b4`, 1:1 Demand→Accept ohne Retry-Loop) |
-| **M3** | Gruppenruf mit Voice-Relay | ⏳ Plan (RTL-basiert) |
-| **M4** | Einzelrufe + Paging | ⏳ Plan |
+| **M2** | MS bucht sich ein | ✅ HW-verifiziert 2026-04-25 (1:1 Demand→Accept, kein Retry-Loop) |
+| **M3** | Gruppenruf mit Voice-Relay | ✅ **HW-verifiziert** — Phase 7 G.8+ Voice-Pfad live, SW BS-TCH/S Codec, **Phase E2 Soft-Decisions** (2026-05-18, commit `cae5108`): BFI im Median 6 % → 3 % im Air-Test, im 320-Burst Sustained-Sample 7× besser (1 % vs 7 %). MER/SNR-Proxy ~17 dB bei klarem Signal. |
+| **M4** | Einzelrufe + Paging | 🟡 Individual-Call-Routing in `tetra_call_fsm` integriert (group_gssi vs target_issi), on-air noch nicht systematisch verifiziert |
 
-**M2 erreicht (2026-04-25 12:18):** Bit-exakte Replik des D-LOCATION-UPDATE-ACCEPT MM-Body aus dem 2026-04-25 Gold-Reference-Capture einer fremden BS bei 392.9875 MHz (`docs/references/captures_external_bs_2026-04-25/`) hat den Re-Demand-Loop gebrochen. Schlüssel-Fixes (Build `26191b4`):
-- 102-bit MM body: `p_ssi=0`, `p_ae=0`, `p_sc=0`, `p_esi=1` (ESI=StayAlive), Type-3 GroupIdentityLocationAccept (id=5, length=58) mit der bit-exakten Gold-Ref-GILA (GSSI=0x2F4D61, attach_lifetime=1, class_of_usage=4)
-- `random_access_flag=0` im SCH/F Accept (Pre-Reply behält RA=1)
+**Aktueller Bitstream:** `cae5108` (Phase E2). Slice 98.10 %, WNS +0.114 ns, BFI median ~3 % (Soft-Pfad).
 
-Counter-Beweis nach Deploy: `0x190 = 0x0001_0001` (1 Demand → 1 Accept, 1:1), `0x198 = 0x0000_0002` (Pre-Reply + Accept on-air), keine Drops, kein erneutes Demand. Vorher: 72 Demands → 53 Accepts → endlose Retries.
+**WebUI** auf `http://192.168.2.90/` mit drei Tabs:
+- **Cell Config** — Form mit allen SYSINFO/Cell-Params, editierbare Duplex-Spacing-Tabelle (MS-Codeplug-spezifisch), persistent in `/root/tetra_cell.conf`
+- **Live Status** — Auto-Refresh-Dashboard mit RSSI, BFI Soft/Hard, MER-Proxy, NUB-Counter
+- **Subscribers** — DB-Management (Sessions / Entities / Policy)
 
-Details in `docs/PROTOCOL.md §9` und `docs/references/captures_external_bs_2026-04-25/README.md`.
+Details: `docs/IST.md` (Stand-Übersicht), `docs/OPERATIONS.md` (Deploy + Test + WebUI), `docs/ARCHITECTURE.md` (Module + Phasen).
 
 ---
 
@@ -39,64 +40,82 @@ Details in `docs/PROTOCOL.md §9` und `docs/references/captures_external_bs_2026
 |-----------|------|
 | FPGA | Xilinx Zynq-7020 (XC7Z020-CLG484) |
 | RF | Analog Devices AD9363 (AD9361-kompatibel) |
-| Board | LibreSDR Rev.5 (192.168.2.180, OpenWiFi-Kernel) |
+| Board | LibreSDR Rev.5 (192.168.2.90, OpenWiFi-Kernel) |
 | Toolchain | Vivado 2022.2, iverilog + vvp, `arm-linux-gnueabihf-gcc` |
-| HF-Band | 400 MHz (Band 4), DL 438.25 MHz / UL 428.25 MHz (10 MHz Duplex) |
+| HF-Band | 400 MHz (Band 4), DL 438.25 MHz / UL je nach Duplex-Spacing-ID (editierbar in WebUI; Default `0 = -10 MHz` → UL 428.25 MHz) |
 | Test-MS | Motorola MTP3550 |
 
-## Architektur-Entscheidung (2026-04-22)
+## Architektur-Entscheidung (2026-05-03 — verbindlich)
 
-**FPGA-heavy Stack:** MAC/MLE/CMCE-Logik läuft als RTL-FSMs im PL, nicht auf ARM. Response-Latenz deterministisch innerhalb 1 TDMA-Slot (14.17 ms). ARM hält nur Subscriber-/Group-DB + Admin. Details in `docs/ARCHITECTURE.md`.
+**FPGA Thin-Signaling:** Sample-rate-Pfad + TDMA-Timing + Voice-Bit-Pipe in
+RTL; Call-Control, Subscriber-Management, CMCE-PDU-Building, Voice-Codec
+SW-resident im ARM (`tetra_attach_daemon`, `tetra_sysinfo`, `tetra_ul_mon`,
+`tetra_call_fsm`, `tetra_voice_pipe`, `tetra_bs_tch_s` etc.). Ursprünglich
+geplanter FPGA-heavy-Stack (2026-04-22) wurde aufgrund Slice-Pressure (>97 %)
+wieder revidiert — siehe `docs/ARCHITECTURE.md §2.5`.
 
 ## Repository-Struktur
 
 ```
 tetra-zynq-phy/
-├── rtl/                         # Verilog-2001 RTL
-│   ├── infra/                   # Clock/Reset, AXI-Lite, DMA
-│   ├── rx/                      # RX: Frontend, Demod, Sync, Timing, UL-RA-Chain
-│   ├── tx/                      # TX: Mod, RRC, Burst-Builder, SDB/NDB-Encoder
-│   ├── lmac/                    # LMAC: Coding, MLE-FSM, MAC-RESOURCE-Builder, Session-Table
-│   ├── tetra_ad9361_axis_adapter.v
-│   ├── tetra_system_top.v       # PS+PL-Integration (Vivado BD)
-│   └── tetra_zynq_top.v         # PL-Top
-├── tb/                          # Testbenches (iverilog + Vivado xsim)
-│   ├── sim_models/              # Xilinx-Primitive-Sim-Modelle
-│   └── vectors/                 # Python-generierte Test-Vektoren
-├── sw/                          # ARM-SW (Cross-Compile)
-│   ├── tetra_hal.c/.h           # AXI-HAL, SYSINFO, Gold-Schedule
-│   ├── tetra_sysinfo.c          # DL-Daemon (SYSINFO/BNCH/MCCH/NDB-Filler)
-│   ├── tetra_ul_mon.c           # UL-MAC-ACCESS-Monitor-Daemon
-│   └── tetra_db_mgr.c           # Subscriber-DB (geplant)
-├── scripts/                     # Build, Deploy, Decode, Test
-│   ├── deploy.sh                # Build → Convert → Compile → Upload → [Init]
-│   ├── tetra_ctrl.sh            # Board-Control (full_init, rf_loopback, monitor)
-│   ├── ad9361_init.sh           # AD9361-Init (wird von full_init gerufen)
-│   ├── decode_dl.py             # Voll-DL-Decoder (MAC/LLC/MLE/MM)
-│   ├── decode_ul.py             # UL-RA-Decoder
-│   ├── decode_ul_raw.py         # Raw-92-Bit-Parser für tetra_ul_mon.log
-│   ├── gold_schedule.py         # TX-Schedule-Generator
-│   └── run_all_tests.sh         # iverilog-TB-Runner
-├── constraints/                 # Vivado XDC
-├── docs/                        # Konsolidierte Doku (5 Dateien)
-│   ├── ARCHITECTURE.md          # RTL/SW-Stack, Modul-Status, Ressourcen, Meilensteine
-│   ├── HARDWARE.md              # Plattform, AD9361, AXI-Regs, CDC, Timing
-│   ├── PROTOCOL.md              # TETRA-Protokoll, ETSI, bluestation/osmo/SDRSharp-Analyse
-│   └── OPERATIONS.md            # Deploy, Test, Debugging, Troubleshooting
-├── adi-hdl/                     # Analog Devices HDL-Bibliothek (git submodule)
-└── .ralph/                      # Kevin ↔ Ralph Arbeits-Kanal (separat)
+├── rtl/ # Verilog-2001 RTL
+│ ├── infra/ # Clock/Reset, AXI-Lite, DMA
+│ ├── rx/ # RX: Frontend, Demod, Sync, Timing, UL-RA-Chain
+│ ├── tx/ # TX: Mod, RRC, Burst-Builder, SDB/NDB-Encoder
+│ ├── lmac/ # LMAC: Coding, MLE-FSM, MAC-RESOURCE-Builder, Session-Table
+│ ├── tetra_ad9361_axis_adapter.v
+│ ├── tetra_system_top.v # PS+PL-Integration (Vivado BD)
+│ └── tetra_zynq_top.v # PL-Top
+├── tb/ # Testbenches (iverilog + Vivado xsim)
+│ ├── sim_models/ # Xilinx-Primitive-Sim-Modelle
+│ └── vectors/ # Python-generierte Test-Vektoren
+├── sw/ # ARM-SW (Cross-Compile)
+│ ├── tetra_hal.c/.h # AXI-HAL, SYSINFO, Schedule-Init
+│ ├── tetra_sysinfo.c # DL-Daemon (SYSINFO/BNCH/MCCH/NDB-Filler)
+│ ├── tetra_ul_mon.c # UL-MAC-ACCESS-Monitor-Daemon
+│ ├── tetra_attach_daemon.c # Subscriber-Registration + Call-Control
+│ ├── tetra_call_fsm.c # CMCE Call-State-Machine (D-SETUP / D-CONNECT / ...)
+│ ├── tetra_voice_pipe.c # UL-NUB → SW-TCH/S-Codec → DL-Voice-Filler
+│ ├── tetra_bs_tch_s.c # SW BS TCH/S Channel-Codec (BlueStation-Port)
+│ ├── etsi_codec/ # ETSI ACELP-Codec-Sources
+│ ├── web/ # WebUI Frontend (HTML + CGIs)
+│ └── tetra_db_mgr.c # Subscriber-DB CLI
+├── board_autostart/ # systemd-Autostart: tetra_autostart.sh + tetra_cell.conf
+├── scripts/ # Build, Deploy, Decode, Test
+│ ├── deploy.sh # Build → Convert → Compile → Upload → [Init]
+│ ├── tetra_ctrl.sh # Board-Control (full_init, rf_loopback, monitor)
+│ ├── ad9361_init.sh # AD9361-Init (wird von full_init gerufen)
+│ ├── decode_dl.py # Voll-DL-Decoder (MAC/LLC/MLE/MM)
+│ ├── decode_ul.py # UL-RA-Decoder
+│ ├── decode_ul_raw.py # Raw-92-Bit-Parser für tetra_ul_mon.log
+│ ├── schedule.py # TX-Schedule-Generator
+│ └── run_all_tests.sh # iverilog-TB-Runner
+├── constraints/ # Vivado XDC
+├── docs/ # Konsolidierte Doku
+│ ├── IST.md # Code-Stand zum aktuellen Datum (Source-of-Truth)
+│ ├── ARCHITECTURE.md # RTL/SW-Stack, Modul-Status, Ressourcen, Meilensteine
+│ ├── HARDWARE.md # Plattform, AD9361, AXI-Regs, CDC, Timing
+│ ├── PROTOCOL.md # TETRA-Protokoll, ETSI, bluestation/osmo/SDRSharp-Analyse
+│ ├── OPERATIONS.md # Deploy, Test, Debugging, WebUI, Troubleshooting
+│ ├── PLAN_voice_channel.md # Phase C + E2 Soft-Decision Plan + Status
+│ └── ist/ # Kapitel-Details (RX/TX/LMAC/Mailboxen/AXI-Map/SW-Stack)
+├── adi-hdl/, tetra-bluestation/, tetra-kit/ # Externe Submodule (BSD/Apache-Lizenzen)
+└──.ralph/ # Kevin ↔ Ralph Arbeits-Kanal (separat)
 ```
 
 ## Doku-Navigation
 
-Alle inhaltliche Doku in 4 konsolidierten Dateien unter `docs/`:
+Inhaltliche Doku in `docs/`:
 
 | Dokument | Inhalt |
 |----------|--------|
-| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | RTL/SW-Stack, Modulbaum, Meilensteine M1-M4, TDMA-Timebase-Plan, Modul-Status, Ressourcen, Bug-Historie |
-| **[docs/HARDWARE.md](docs/HARDWARE.md)** | LibreSDR, AD9361, `axi_ad9361`-IP-Integration, Board-Init, kritische HW-Findings, CDC, Timing, AXI-Register-Map |
+| **[docs/IST.md](docs/IST.md)** | **Stand-Übersicht zum aktuellen Datum** — Commits-Tabelle, Vivado-Bilanz, Kapitel-Index. Erster Anlaufpunkt für "wo stehen wir gerade?" |
+| **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** | RTL/SW-Stack, Modulbaum, Meilensteine M1-M4, Architektur-Entscheidung Thin-Signaling, Modul-Status, Ressourcen, Bug-Historie |
+| **[docs/HARDWARE.md](docs/HARDWARE.md)** | LibreSDR, AD9361, `axi_ad9361`-IP-Integration, Board-Init, kritische HW-Findings, CDC, Timing |
 | **[docs/PROTOCOL.md](docs/PROTOCOL.md)** | TETRA-Protokoll-Layer, ETSI-Ref, SDRSharp-Plugin-Reverse-Engineering, osmo-tetra, bluestation-Audit, Registration-Blocker-Analyse |
-| **[docs/OPERATIONS.md](docs/OPERATIONS.md)** | Deploy-Pipeline (`deploy.sh`), RF-Loopback, Test-Strategie, Live-Debugging, Troubleshooting |
+| **[docs/OPERATIONS.md](docs/OPERATIONS.md)** | Deploy-Pipeline (`deploy.sh`), WebUI, RF-Loopback, Test-Strategie, Live-Debugging, Troubleshooting |
+| **[docs/PLAN_voice_channel.md](docs/PLAN_voice_channel.md)** | Voice-Pfad Plan (Phase C) + Phase E2 Soft-Decisions — Plan-vs-Realität |
+| **[docs/ist/](docs/ist/)** | Per-Kapitel-Tiefe: 03 RX-Datapath, 05 TX, 06 LMAC-FSMs, 07 Mailboxen, 08 AXI-Reg-Map, 09 SW-Stack, 10 Scripts, 11 Build, 12 Operational State |
 
 Der Kevin↔Ralph-Arbeits-Kanal liegt separat in `.ralph/` (chat, fix_plan, AGENT-Config) — nicht Teil der öffentlichen Doku.
 
@@ -138,16 +157,19 @@ python3 scripts/decode_dl.py --sr 250000 --offset -96625 <capture.wav> --max-bur
 
 Details: `docs/OPERATIONS.md`.
 
-## Ressourcen-Utilization (Zynq-7020, Stand 2026-04-25)
+## Ressourcen-Utilization (Zynq-7020, Stand 2026-05-19 nach Phase E2)
 
 | Resource | Genutzt | % |
 |----------|---------|---|
-| LUT | ~12,000 | ~23% |
-| FF | ~25,000 | ~24% |
-| DSP48E1 | ~10 | ~5% |
-| BRAM18k | ~5 | ~2% |
+| LUT | 38,098 | 71.6 % |
+| FF | 46,401 | 43.6 % |
+| **Slice** | **13,047** | **98.10 %** (sehr eng — siehe `docs/IST.md`) |
+| DSP48E1 | 38 | ~17 % |
+| BRAM18k+36k | 9 | ~6 % |
 
-Headroom für M3 (Gruppenruf) + M4 (Paging).
+**WNS Setup:** +0.114 ns (positiv, knapp) — Phase E2 hat das Soft-Decision-Pipeline-FF-Volumen
+(+2940 FF) gegen Slice-Pressure eingetauscht. Weitere RTL-Erweiterungen erfordern
+Slice-Cleanup zuerst (siehe Memory `project_fpga_slice_bottleneck`).
 
 ## Architektur-Inspiration + Referenzen
 

@@ -3,7 +3,7 @@
 #
 # Slot 0: MTP3550 ISSI (0x282F91 = 2 633 617), Profile 0 (M2 default).
 # Slot 1: Default-Group GSSI (0x2F4D61 = 3 100 001), Profile 0 (M2 default).
-# Together these reproduce the gold-ref D-LOC-UPDATE-ACCEPT GILA bit pattern
+# Together these reproduce the ref D-LOC-UPDATE-ACCEPT GILA bit pattern
 # when the MS attaches with a Profile-0 binding.
 #
 # Profile 0 reset-default (32-bit record 0x0000_088F):

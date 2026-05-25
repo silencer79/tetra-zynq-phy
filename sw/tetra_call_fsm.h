@@ -1,0 +1,122 @@
+/*
+ * tetra_call_fsm.h — Phase 7 G.5 Group-Call State Machine (per-SSI)
+ *
+ * Drives the BS-side response to MS-initiated CMCE PDUs:
+ * IDLE ──U-SETUP────────▶ CONNECTING (D-CONNECT staged)
+ * CONNECTING ─(MS-acks)──────▶ CONNECTED
+ * CONNECTED ──U-TX-DEMAND───▶ TALKER (D-TX-GRANTED staged)
+ * TALKER ──U-TX-CEASED──▶ CONNECTED
+ * * ──U-RELEASE────▶ RELEASING (D-RELEASE staged) → IDLE
+ *
+ * License: GPL v2
+ */
+#ifndef TETRA_CALL_FSM_H
+#define TETRA_CALL_FSM_H
+
+#include <stdint.h>
+#include "tetra_hal.h"
+#include "tetra_cmce_parser.h"
+
+#define CALL_FSM_MAX_CALLS 8
+
+/* Watchdog thresholds (milliseconds, monotonic).
+ * - VOICE_QUIET_MS: REG_VOICE_NUB_RX_CNT zählt seit N ms nicht hoch
+ *   → mask=0. Mit REG_VOICE_NUB_SYNC_THRESH=10 hat der UL-NUB
+ *   keine False-Positives im Idle (gemessen 2026-05-16: 0 bumps/s
+ *   vs. 48 bumps/s bei default thresh=8). Echte UL-TCH/S-Bursts
+ *   kommen ~16-18 /s während aktiver PTT (inter-burst ~60 ms).
+ *   300 ms quiet ⇒ Channel dicht (mask=0). Toleriert ~5 verlorene
+ *   Bursts in Folge — 2026-05-17 mit thresh=11 zeigten sich Mid-Call-
+ *   Cuts bei nub_quiet=203 ms (knapp über 3-Burst-Grenze), Audio in
+ *   OpenEAR aber bereits sauber. 300 ms entfernt die Mid-Call-Cuts
+ *   ohne nennenswerten Post-Release-Latenz-Zuwachs (kein 2. MS Müll-
+ *   empfindlich im Setup).
+ * - CALL_STALE_MS: kein NUB-Burst seit N s ⇒ Slot freigeben (MS
+ *   power-cycle / RF-Drop ohne U-RELEASE). Lang genug, dass
+ *   PTT-Pause + Re-Key ohne neuen U-SETUP-Roundtrip möglich ist —
+ *   Reservation bleibt, nur der Kanal geht aus. */
+/* 300 ms bewusst gewählt — getestet 1000 ms (commit-WIP 2026-05-25):
+ * User-Feedback "war vorher besser". Höhere Schwellen lassen die AACH-mask
+ * 1s länger "active" stehen obwohl UL-Voice schon stillgestanden ist; MS-FW
+ * sieht Channel-Busy zu lange → langsamere PTT-Reaktion. 300 ms = optimal
+ * trade-off zwischen Mid-Call-Flicker und Post-Release-Latency. */
+#define CALL_FSM_VOICE_QUIET_MS 300u
+/* 2026-05-24 — 5s→30s. 5s war zu kurz: nach Voice-Ende wartete MS-FW
+ * typisch 2-7s vor U-DISCONNECT. Wenn WATCHDOG zuerst freed, läuft
+ * U-DISCONNECT in find_slot()==NULL → Handler silent dropped → MS
+ * retried 7×. */
+#define CALL_FSM_CALL_STALE_MS 30000u
+
+typedef enum {
+ CALL_STATE_IDLE = 0,
+ CALL_STATE_CONNECTING = 1,
+ CALL_STATE_CONNECTED = 2,
+ CALL_STATE_TALKER = 3,
+ CALL_STATE_RELEASING = 4,
+} call_state_t;
+
+typedef struct {
+ uint32_t ssi; /* MS-ISSI initiator (0 = slot empty) */
+ uint32_t group_gssi; /* Target GSSI (group call, mutually
+                                          *   exclusive with target_issi) */
+ uint32_t target_issi; /* Target ISSI (individual call) */
+ uint16_t call_id; /* 14-bit, allocated by BS */
+ uint8_t umt;        /* 2026-05-24 — Traffic Usage Marker per Call
+                                          * (ETSI EN 300 392-2 §21.4.7.2). Range 4..63,
+                                          * 0 = nicht allokiert. */
+ /* ETSI EN 300 392-2 §9.3 — Timeslot-Index 1..4 (kein TS0). TS1 ist
+  * mcch (Control), TS2/TS3/TS4 sind Voice-Traffic. 0 = nicht allokiert. */
+ uint8_t voice_ts;
+ call_state_t state;
+ uint8_t ns; /* LLC stop-and-wait per call slot */
+ uint8_t nr;
+ uint8_t hook_method; /* echoed from U-SETUP (Phase 7 G.7+) */
+ uint8_t simplex_duplex; /* echoed from U-SETUP */
+ uint32_t last_activity_poll_cnt; /* for stale-call eviction */
+ /* Non-blocking U-SETUP-Antwortsequenz (2026-05-17 Quick-Fix-Revert):
+  *   0 = nothing pending
+  *   1 = D-CONNECT[1] already staged, wait then stage D-CONNECT[2]
+  *   2 = D-CONNECT[2] done, wait then stage D-CONNECT[3] + D-SETUP
+  * tetra_call_fsm_tick triggert die Folgestufen wenn setup_next_ms ≤ now.
+  * Statt usleep(113) blockierend im Mainloop. */
+ uint8_t setup_stage;
+ uint32_t setup_next_ms;
+ /* Setup-Timing-Diagnose (2026-05-20):
+  *   t_setup_arrived_ms = mono_ms_lo() bei U-SETUP-Empfang
+  *   t_first_nub_ms     = mono_ms_lo() bei erstem NUB-Burst nach Setup (=
+  *                        MS hat Voice-TX gestartet)
+  *   t_ceased_ms        = mono_ms_lo() bei U-TX-CEASED-Empfang
+  *   t_first_nub_logged = 1× pro Call setzen, damit Latenz nur 1× geloggt */
+ uint32_t t_setup_arrived_ms;
+ uint32_t t_first_nub_ms;
+ uint32_t t_ceased_ms;
+ uint8_t  t_first_nub_logged;
+} call_slot_t;
+
+/* Dispatch one parsed UL CMCE PDU into the FSM. Stages the appropriate
+ * DL reply (if any) via tetra_tx_submit(). Returns:
+ * 0 = handled, reply staged (or no reply needed)
+ * -1 = no free call slot
+ * -2 = unknown/unsupported pdu_type
+ */
+int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
+ const cmce_pdu_t *p);
+
+/* Watchdog tick — must be called from the daemon's poll loop.
+ * - clears REG_VOICE_ACTIVE_MASK if no slot is in TALKER state (MER-fix:
+ *   AACH advertises voice only while voice actually flows)
+ * - force-evicts TALKER slots that went silent (MS dropped RF)
+ * - frees any slot abandoned > CALL_FSM_CALL_STALE_MS (no U-RELEASE) */
+void tetra_call_fsm_tick(tetra_hal_t *hal);
+
+/* Diagnostic: print all active slots. */
+void tetra_call_fsm_dump(void);
+
+/* Setup-Timing-Hook (2026-05-20):
+ * Wird vom voice_pipe_tick beim ERSTEN dekodierten NUB-Burst innerhalb
+ * eines aktiven Call-Slots aufgerufen. Loggt einmalig die Latenz von
+ * U-SETUP-Empfang bis erster Voice-Burst — typisch erwartet 100-200 ms,
+ * "langsame" Setups zeigen sich hier als 500+ ms. */
+void tetra_call_fsm_notify_first_nub(uint32_t now_ms);
+
+#endif /* TETRA_CALL_FSM_H */

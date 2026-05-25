@@ -71,8 +71,8 @@ td.num { text-align: right; }
 
 <div class="tabs">
   <div class="tab active" id="tab-cfg"      onclick="showTab('cfg')">Cell Config</div>
+  <div class="tab"        id="tab-live"     onclick="showTab('live')">Live Status</div>
   <div class="tab"        id="tab-subs"     onclick="showTab('subs')">Subscribers</div>
-  <div class="tab"        id="tab-profiles" onclick="showTab('profiles')">Profiles</div>
 </div>
 
 <!-- ========================= CELL CONFIG TAB ========================= -->
@@ -116,16 +116,16 @@ td.num { text-align: right; }
 
 <h2>SYSINFO (BNCH)</h2>
 <div class="grid">
-  <label>Duplex Spacing <span>3 bits</span>
-    <select name="duplex_spacing">
-      <option value="0">0 = reserved</option>
-      <option value="1" selected>1 = -7.6 MHz</option>
-      <option value="2">2 = reserved</option>
-      <option value="3">3 = -10 MHz</option>
-      <option value="4">4 = +10 MHz</option>
-      <option value="5">5 = reserved</option>
-      <option value="6">6 = reserved</option>
-      <option value="7">7 = simplex</option>
+  <label>Duplex Spacing ID <span>0-7 — Mapping editierbar in der Tabelle unten</span>
+    <select name="duplex_spacing" id="duplex_spacing_sel">
+      <option value="0" selected>0</option>
+      <option value="1">1</option>
+      <option value="2">2 (DMO)</option>
+      <option value="3">3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+      <option value="6">6</option>
+      <option value="7">7</option>
     </select>
   </label>
   <label>MS TXPwr Max Cell <span>3 bits (0-7)</span>
@@ -140,8 +140,176 @@ td.num { text-align: right; }
   <label>Radio DL Timeout <span>4 bits (0-15)</span>
     <input name="radio_dl_timeout" type="number" value="5" min="0" max="15">
   </label>
-  <label>Optional Field Value <span>20 bits</span>
-    <input name="opt_field" type="number" value="1011456" min="0" max="1048575">
+</div>
+
+<!-- ===================== Optional Field (alle 4 Selectoren) ===================== -->
+<fieldset style="margin-top:1em;padding:0.8em 1em;border:1px solid #ccc;border-radius:4px">
+  <legend style="padding:0 0.5em;font-weight:bold">Optional Field <span style="font-weight:normal;font-size:0.85em;color:#888">ETSI EN 300 392-2 §21.4.4.1 — Selector (2 bit) + Value (20 bit)</span></legend>
+  <div class="grid" style="grid-template-columns: 2fr 1fr">
+    <label>Selector
+      <select name="opt_sel" id="opt_sel" onchange="onOptSelChange()">
+        <option value="0">0 = TS_COMMON_FRAMES (Even Multiframe)</option>
+        <option value="1">1 = TS_COMMON_FRAMES (Odd Multiframe)</option>
+        <option value="2" selected>2 = Default Access Code A</option>
+        <option value="3">3 = Extended Services Broadcast</option>
+      </select>
+    </label>
+    <label>aktueller Wert (hex / dec)
+      <input id="opt_field_display" type="text" value="" readonly
+             style="background:#f0f0f0;font-family:monospace;font-size:0.9em">
+    </label>
+  </div>
+
+  <!-- Sel 0/1: TS_COMMON_FRAMES — 18 bool flags f1..f18 (+ 2 reserved) -->
+  <div id="opt_block_ts" class="opt_block" style="display:none;margin-top:0.6em">
+    <div style="font-size:0.85em;color:#666;margin-bottom:0.3em">
+      Flag pro Frame (f1..f18) — gesetzt = Common-Frame, sonst Assigned-Slot.
+      Bits f19/f20 sind reserved (=0).
+    </div>
+    <div class="grid" id="opt_ts_flags"
+         style="grid-template-columns: repeat(9, 1fr); gap: 0.3em;font-size:0.85em"></div>
+  </div>
+
+  <!-- Sel 2: Default Access Code A — IMM/WT/NU/FLF/TSP/MinPri = 20 bit -->
+  <div id="opt_block_acc" class="opt_block" style="margin-top:0.6em">
+    <div class="grid">
+      <label>IMM <span>4 bit — 0=randomize, 15=immediate</span>
+        <input id="opt_imm" type="number" value="15" min="0" max="15" onchange="packOptField()">
+      </label>
+      <label>WT <span>4 bit — wait time</span>
+        <input id="opt_wt" type="number" value="6" min="0" max="15" onchange="packOptField()">
+      </label>
+      <label>NU <span>4 bit — access attempts</span>
+        <input id="opt_nu" type="number" value="15" min="0" max="15" onchange="packOptField()">
+      </label>
+      <label>FLF <span>1 bit — frame-len factor</span>
+        <select id="opt_flf" onchange="packOptField()">
+          <option value="0" selected>0 = normal</option>
+          <option value="1">1 = ×4</option>
+        </select>
+      </label>
+      <label>TS-Ptr <span>4 bit — timeslot pointer</span>
+        <input id="opt_tsp" type="number" value="0" min="0" max="15" onchange="packOptField()">
+      </label>
+      <label>MinPri <span>3 bit — min priority</span>
+        <input id="opt_minpri" type="number" value="0" min="0" max="7" onchange="packOptField()">
+      </label>
+    </div>
+  </div>
+
+  <!-- Sel 3: ExtServices — komplex, conditional. Erstmal Roh-Hex-Edit. -->
+  <div id="opt_block_ext" class="opt_block" style="display:none;margin-top:0.6em">
+    <div style="font-size:0.85em;color:#666;margin-bottom:0.3em">
+      Extended Services Broadcast (Table 21.67) — 3 bit Security-Class + 5 bit DCK/SCK + 12 bit SDS-Info.
+      Komplex-bedingte Sub-Felder — hier als 20-bit Hex direkt editierbar.
+    </div>
+    <div class="grid" style="grid-template-columns: 1fr">
+      <label>Value (5-stelliges Hex)
+        <input id="opt_ext_hex" type="text" value="40C10" pattern="[0-9A-Fa-f]{1,5}"
+               style="font-family:monospace" onchange="packOptField()">
+      </label>
+    </div>
+  </div>
+
+  <!-- Hidden — apply.cgi liest opt_field per name -->
+  <input type="hidden" name="opt_field" id="opt_field" value="1011456">
+</fieldset>
+
+<script>
+/* TS-Flags Generator (f1..f18) — einmal beim Load */
+(function() {
+  var box = document.getElementById('opt_ts_flags');
+  for (var i = 1; i <= 18; i++) {
+    var l = document.createElement('label');
+    l.style.display = 'flex'; l.style.flexDirection = 'column'; l.style.alignItems = 'center';
+    l.style.padding = '0.2em'; l.style.fontWeight = 'normal';
+    l.innerHTML = 'f' + i + ' <input type="checkbox" id="opt_ts_f' + i + '" onchange="packOptField()">';
+    box.appendChild(l);
+  }
+})();
+
+function onOptSelChange() {
+  var sel = parseInt(document.getElementById('opt_sel').value);
+  document.getElementById('opt_block_ts').style.display  = (sel === 0 || sel === 1) ? '' : 'none';
+  document.getElementById('opt_block_acc').style.display = (sel === 2) ? '' : 'none';
+  document.getElementById('opt_block_ext').style.display = (sel === 3) ? '' : 'none';
+  packOptField();
+}
+
+function packOptField() {
+  var sel = parseInt(document.getElementById('opt_sel').value);
+  var val = 0;
+  if (sel === 0 || sel === 1) {
+    /* 18 flags f1..f18 in bits[19:2], bits[1:0] reserved=0 */
+    for (var i = 1; i <= 18; i++) {
+      if (document.getElementById('opt_ts_f' + i).checked) val |= (1 << (20 - i));
+    }
+  } else if (sel === 2) {
+    var imm    = parseInt(document.getElementById('opt_imm').value)    || 0;
+    var wt     = parseInt(document.getElementById('opt_wt').value)     || 0;
+    var nu     = parseInt(document.getElementById('opt_nu').value)     || 0;
+    var flf    = parseInt(document.getElementById('opt_flf').value)    || 0;
+    var tsp    = parseInt(document.getElementById('opt_tsp').value)    || 0;
+    var minpri = parseInt(document.getElementById('opt_minpri').value) || 0;
+    val = (imm<<16) | (wt<<12) | (nu<<8) | (flf<<7) | (tsp<<3) | minpri;
+  } else if (sel === 3) {
+    val = parseInt(document.getElementById('opt_ext_hex').value, 16) || 0;
+  }
+  val = val & 0xFFFFF;
+  document.getElementById('opt_field').value = val;
+  document.getElementById('opt_field_display').value =
+    '0x' + val.toString(16).toUpperCase().padStart(5, '0') + '  (' + val + ')';
+}
+
+function unpackOptField(val) {
+  /* Bei conf-Load nur die Sub-Felder für aktuell selektierten Selector setzen. */
+  var sel = parseInt(document.getElementById('opt_sel').value);
+  if (sel === 0 || sel === 1) {
+    for (var i = 1; i <= 18; i++) {
+      document.getElementById('opt_ts_f' + i).checked = !!((val >> (20 - i)) & 1);
+    }
+  } else if (sel === 2) {
+    document.getElementById('opt_imm').value    = (val >> 16) & 0xF;
+    document.getElementById('opt_wt').value     = (val >> 12) & 0xF;
+    document.getElementById('opt_nu').value     = (val >> 8)  & 0xF;
+    document.getElementById('opt_flf').value    = (val >> 7)  & 0x1;
+    document.getElementById('opt_tsp').value    = (val >> 3)  & 0xF;
+    document.getElementById('opt_minpri').value = val & 0x7;
+  } else if (sel === 3) {
+    document.getElementById('opt_ext_hex').value =
+      val.toString(16).toUpperCase().padStart(5, '0');
+  }
+  packOptField();
+}
+
+window.addEventListener('load', function() { onOptSelChange(); });
+</script>
+
+<h2>Duplex-Spacing-Tabelle <span style="font-weight:normal;font-size:0.85em;color:#888">Offset pro Duplex-ID in MHz (negativ = UL unter DL). Editierbar pro MS-Codeplug.</span></h2>
+<div class="grid" style="grid-template-columns: repeat(8, 1fr); gap: 0.4em">
+  <label style="font-size:0.9em">ID 0 (MHz)
+    <input name="dx0_mhz" id="dx0_mhz" type="number" step="0.1" value="-10">
+  </label>
+  <label style="font-size:0.9em">ID 1 (MHz)
+    <input name="dx1_mhz" id="dx1_mhz" type="number" step="0.1" value="-45">
+  </label>
+  <label style="font-size:0.9em">ID 2 (MHz)
+    <input name="dx2_mhz" id="dx2_mhz" type="number" step="0.1" value="0">
+  </label>
+  <label style="font-size:0.9em">ID 3 (MHz)
+    <input name="dx3_mhz" id="dx3_mhz" type="number" step="0.1" value="-10">
+  </label>
+  <label style="font-size:0.9em">ID 4 (MHz)
+    <input name="dx4_mhz" id="dx4_mhz" type="number" step="0.1" value="-10">
+  </label>
+  <label style="font-size:0.9em">ID 5 (MHz)
+    <input name="dx5_mhz" id="dx5_mhz" type="number" step="0.1" value="-10">
+  </label>
+  <label style="font-size:0.9em">ID 6 (MHz)
+    <input name="dx6_mhz" id="dx6_mhz" type="number" step="0.1" value="-10">
+  </label>
+  <label style="font-size:0.9em">ID 7 (MHz)
+    <input name="dx7_mhz" id="dx7_mhz" type="number" step="0.1" value="-7.6">
   </label>
 </div>
 
@@ -173,34 +341,136 @@ td.num { text-align: right; }
 
 </div><!-- /view-cfg -->
 
+<!-- ========================= LIVE STATUS TAB ========================= -->
+<div class="view" id="view-live">
+
+<h2>Live Status <span style="font-weight:normal;font-size:0.85em;color:#888">Auto-Refresh alle 2 s</span></h2>
+
+<div class="grid" style="grid-template-columns: repeat(4, 1fr); gap: 0.6em">
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">tetra_sysinfo</div>
+    <div id="m-si" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">attach_daemon</div>
+    <div id="m-ad" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">Uptime</div>
+    <div id="m-up" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">NUB-RX Bursts (RTL)</div>
+    <div id="m-nub" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+</div>
+
+<h3 style="margin-top: 1em">RSSI (AD9361)</h3>
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.6em">
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">RX Channel 0</div>
+    <div id="m-rssi0" style="font-size: 1.4em; font-weight: bold">— dB</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">RX Channel 1</div>
+    <div id="m-rssi1" style="font-size: 1.4em; font-weight: bold">— dB</div>
+  </div>
+</div>
+
+<h3 style="margin-top: 1em">Voice-Pipe Statistik <span style="font-weight:normal;font-size:0.8em;color:#888">letztes voice_pipe-Log-Sample (= aktiver UL-Stream / letzter Burst)</span></h3>
+<div class="grid" style="grid-template-columns: repeat(4, 1fr); gap: 0.6em">
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">Bursts decodiert</div>
+    <div id="m-vp-n" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a3a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #aaa">BFI (Soft)</div>
+    <div id="m-vp-soft" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #3a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #aaa">BFI (Hard)</div>
+    <div id="m-vp-hard" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">Raw BER diff_avg</div>
+    <div id="m-vp-diff" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+</div>
+<div style="margin-top: 0.4em; color: #888; font-size: 0.85em">
+  Raw BER ≈ diff_avg / 432 × 100 % &mdash; <span id="m-vp-ber-pct">—</span> %
+  · Worst-Burst-Diff: <span id="m-vp-max">—</span> bits
+</div>
+
+<h3 style="margin-top: 1em">Signal-Qualität <span style="font-weight:normal;font-size:0.8em;color:#888">aus Soft-Magnituden (E2-Pfad) abgeleitet — kein echter MER, Proxy</span></h3>
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: 0.6em">
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">Mean |Soft| <span style="color:#666">(0..7)</span></div>
+    <div id="m-vp-mag" style="font-size: 1.4em; font-weight: bold">—</div>
+  </div>
+  <div style="padding: 0.6em; background: #1a1a1a; border-radius: 4px">
+    <div style="font-size: 0.85em; color: #888">MER/SNR-Proxy <span style="color:#666">(grob)</span></div>
+    <div id="m-vp-mer" style="font-size: 1.4em; font-weight: bold">— dB</div>
+  </div>
+</div>
+<div style="margin-top: 0.4em; color: #888; font-size: 0.8em">
+  &gt;20 dB sehr stark · 10-20 dB ok · &lt;6 dB grenzwertig.
+  Berechnung: <code>20·log10( mean(|s|) / (8 − mean(|s|)) )</code> über alle 432 Burst-Coded-Bits.
+  Soft-Wert ∈ [−8,+7] (4-bit signed aus E2-Pfad); clipping bei ±7/−8 = max-Signal.
+</div>
+
+</div><!-- /view-live -->
+
 <!-- ========================= SUBSCRIBERS TAB ========================= -->
 <div class="view" id="view-subs">
 
 <h2>Active Sessions</h2>
 <table id="cnt-tbl">
   <thead><tr>
-    <th>ul_req</th><th>accept</th><th>drop</th><th>detach</th>
-    <th>evict</th><th>sig_override</th><th>clear</th>
+    <th>ul_req</th><th>accept</th><th>drop</th>
+    <th>sig_override</th><th>clear</th>
+    <th>nwrk_push</th><th>demand_drop</th>
   </tr></thead>
   <tbody><tr id="cnt-row">
-    <td class="num">-</td><td class="num">-</td><td class="num">-</td><td class="num">-</td>
     <td class="num">-</td><td class="num">-</td><td class="num">-</td>
+    <td class="num">-</td><td class="num">-</td>
+    <td class="num">-</td><td class="num">-</td>
   </tr></tbody>
 </table>
 <div class="kv">Last ISSI: <b id="li-dec">-</b> (<b id="li-hex">-</b>)
-  &nbsp;&middot;&nbsp; TTL MFs: <b id="ttl-mfs">-</b>
   &nbsp;&middot;&nbsp; busy_sticky=<b id="busy-st">-</b>
 </div>
-<div class="kv" style="margin-top:6px">
-  Access policy:
-  <b id="pol-mode">-</b>
-  (accept_unknown=<b id="pol-acc">-</b>)
-  &nbsp;<button id="pol-btn" type="button" onclick="togglePolicy()">Toggle</button>
+
+<h2>DB Status (sw/db.tsv)</h2>
+<div class="kv">
+  ISSI entries: <b id="db-issi">-</b>
+  &nbsp;&middot;&nbsp; GSSI entries: <b id="db-gssi">-</b>
+  &nbsp;&middot;&nbsp; Total: <b id="db-total">-</b>
+</div>
+
+<h2>Mailbox Status (Phase X.1+X.2+H.7)</h2>
+<div class="kv">
+  demand_pending=<b id="mb-pending">-</b>
+  &nbsp;&middot;&nbsp; reply_use_sw=<b id="mb-usesw">-</b>
+  &nbsp;&middot;&nbsp; nwrk_push_cnt=<b id="mb-nwrk">-</b>
+</div>
+
+<h2>Access Policy (REG_DB_POLICY @ 0x1AC)</h2>
+<div class="kv">
+  Accept unknown ISSI:
+  <b id="pol-issi">-</b>
+  &nbsp;<button id="pol-issi-btn" type="button" onclick="togglePolicyBit('issi')">Toggle</button>
+  &nbsp;&middot;&nbsp;
+  Accept unknown GSSI:
+  <b id="pol-gssi">-</b>
+  &nbsp;<button id="pol-gssi-btn" type="button" onclick="togglePolicyBit('gssi')">Toggle</button>
   <span id="pol-msg" style="margin-left:8px;color:#888"></span>
 </div>
+
 <div id="mon-pre">(no log)</div>
 
-<h2>Registered Entities (EntityTable §9.2)</h2>
+<h2>Registered Entities (sw/db.tsv §9.2)
+  <button type="button" class="btn-status" onclick="refreshEntities()" style="float:right;font-size:0.8em;padding:4px 10px;">Reload DB</button>
+</h2>
 <table id="ent-tbl">
   <thead><tr>
     <th>Slot</th><th>Entity ID</th><th>Type</th><th>Profile</th><th></th>
@@ -213,8 +483,8 @@ td.num { text-align: right; }
 <h2>Add Entity</h2>
 <form id="add-form" class="add-form" onsubmit="return addSub(event)">
   <div class="grid">
-    <label>Slot <span>0-255</span>
-      <input name="slot" type="number" value="1" min="0" max="255" required>
+    <label>Slot <span>0-255 — leer = auto-find</span>
+      <input name="slot" type="number" value="" min="0" max="255">
     </label>
     <label>Entity ID <span>24-bit (ISSI or GSSI)</span>
       <input name="entity_id" type="number" value="0" min="0" max="16777215" required>
@@ -244,105 +514,136 @@ td.num { text-align: right; }
 
 </div><!-- /view-subs -->
 
-<!-- ========================= PROFILES TAB ========================= -->
-<div class="view" id="view-profiles">
-<h2>Profile Table (§9.2 — 6 slots × 32 bit)</h2>
-<table id="prof-tbl">
-  <thead><tr>
-    <th>Slot</th><th>data (hex)</th>
-    <th>max_call_dur</th><th>hangtime</th><th>priority</th>
-    <th>gila_class</th><th>gila_lifetime</th>
-    <th>V</th><th>D</th><th>R</th><th>valid</th>
-    <th></th>
-  </tr></thead>
-  <tbody id="prof-tbody">
-    <tr><td colspan="12">(loading)</td></tr>
-  </tbody>
-</table>
-
-<h2>Edit Profile</h2>
-<div id="prof-warn" style="display:none; background:#3d2510; color:#f0c060; padding:8px 12px; border-radius:4px; font-family:monospace; font-size:0.85em; margin-bottom:8px;">
-  ⚠ Slot 0 ist M2-Default. <code>gila_class=4, gila_lifetime=1, permits=1, valid=1</code> NICHT ändern — sonst bricht der MTP3550-Attach. Falls wirklich nötig: Force-Override per <code>curl ... -d "force=1&amp;..."</code>.
-</div>
-<form id="prof-form" class="add-form" onsubmit="return setProfile(event)">
-  <div class="grid">
-    <label>Slot <span>0..5</span>
-      <select name="slot" onchange="onProfSlotChange()">
-        <option value="0" selected>0 (M2 default = 0x0000088F)</option>
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-      </select>
-    </label>
-    <label>max_call_duration <span>0..255 sec, 0=unlimited</span>
-      <input name="max" type="number" value="0" min="0" max="255">
-    </label>
-    <label>hangtime <span>0..255 (×100 ms)</span>
-      <input name="hangtime" type="number" value="0" min="0" max="255">
-    </label>
-    <label>priority <span>0..15</span>
-      <input name="priority" type="number" value="0" min="0" max="15">
-    </label>
-    <label>gila_class <span>0..7 (M2=4)</span>
-      <input name="gila_class" type="number" value="4" min="0" max="7">
-    </label>
-    <label>gila_lifetime <span>0..3 (M2=1)</span>
-      <input name="gila_lifetime" type="number" value="1" min="0" max="3">
-    </label>
-  </div>
-  <div class="checks">
-    <label><input name="permit_voice" type="checkbox" value="1" checked> permit_voice</label>
-    <label><input name="permit_data"  type="checkbox" value="1" checked> permit_data</label>
-    <label><input name="permit_reg"   type="checkbox" value="1" checked> permit_reg</label>
-    <label><input name="valid"        type="checkbox" value="1" checked> valid</label>
-  </div>
-  <div class="actions">
-    <button class="btn-add" type="submit">Apply</button>
-  </div>
-</form>
-<div id="prof-msg" class="subs-msg"></div>
-
-</div><!-- /view-profiles -->
-
 <script>
 function qs(s) { return document.querySelector(s); }
 function showStatus(txt) { var el = qs('#status'); el.style.display = 'block'; el.textContent = txt; }
 
 /* -------- Tab switching -------- */
-var pollSessId = 0, pollEntId = 0, pollProfId = 0;
+var pollSessId = 0;
+var pollMetricsId = 0;
 function showTab(name) {
-  var ids = ['cfg', 'subs', 'profiles'];
+  var ids = ['cfg', 'live', 'subs'];
   for (var i = 0; i < ids.length; i++) {
     var v = document.getElementById('view-' + ids[i]);
     var t = document.getElementById('tab-' + ids[i]);
     if (ids[i] === name) { v.classList.add('active'); t.classList.add('active'); }
     else                 { v.classList.remove('active'); t.classList.remove('active'); }
   }
-  // Stop all polls; restart whichever the active tab needs.
-  if (pollSessId) { clearInterval(pollSessId); pollSessId = 0; }
-  if (pollEntId)  { clearInterval(pollEntId);  pollEntId  = 0; }
-  if (pollProfId) { clearInterval(pollProfId); pollProfId = 0; }
+  /* Stop all polling; restart only the active tab's poller. */
+  if (pollSessId)    { clearInterval(pollSessId);    pollSessId = 0; }
+  if (pollMetricsId) { clearInterval(pollMetricsId); pollMetricsId = 0; }
   if (name === 'subs') {
     refreshSessions(); refreshEntities();
     pollSessId = setInterval(refreshSessions, 2000);
-    pollEntId  = setInterval(refreshEntities, 5000);
-  } else if (name === 'profiles') {
-    refreshProfiles();
-    pollProfId = setInterval(refreshProfiles, 5000);
   }
+  if (name === 'live') {
+    refreshMetrics();
+    pollMetricsId = setInterval(refreshMetrics, 2000);
+  }
+}
+
+/* -------- Live Status polling -------- */
+function fmtUptime(s) {
+  var d = Math.floor(s / 86400); s -= d*86400;
+  var h = Math.floor(s / 3600);  s -= h*3600;
+  var m = Math.floor(s / 60);    s -= m*60;
+  if (d > 0) return d + 'd ' + h + 'h';
+  if (h > 0) return h + 'h ' + m + 'm';
+  return m + 'm ' + s + 's';
+}
+function bfiBadge(pct) {
+  if (pct < 5)  return pct + ' %';
+  if (pct < 15) return pct + ' %';
+  return pct + ' %';
+}
+function refreshMetrics() {
+  fetch('/cgi-bin/metrics.cgi')
+    .then(function(r) { return r.json(); })
+    .then(function(m) {
+      qs('#m-si').textContent  = m.tetra_sysinfo_running   ? '● RUN' : '○ STOP';
+      qs('#m-si').style.color  = m.tetra_sysinfo_running   ? '#4caf50' : '#f44336';
+      qs('#m-ad').textContent  = m.attach_daemon_running   ? '● RUN' : '○ STOP';
+      qs('#m-ad').style.color  = m.attach_daemon_running   ? '#4caf50' : '#f44336';
+      qs('#m-up').textContent  = fmtUptime(m.uptime_s);
+      qs('#m-nub').textContent = m.nub_rx_cnt.toLocaleString();
+
+      qs('#m-rssi0').textContent = (m.rssi_rx0_db === null) ? '— dB' : m.rssi_rx0_db.toFixed(2) + ' dB';
+      qs('#m-rssi1').textContent = (m.rssi_rx1_db === null) ? '— dB' : m.rssi_rx1_db.toFixed(2) + ' dB';
+
+      var v = m.voice_pipe;
+      qs('#m-vp-n').textContent    = v.bursts.toLocaleString();
+      qs('#m-vp-soft').textContent = bfiBadge(v.soft_pct) + ' (' + v.soft_bfi + '/' + v.bursts + ')';
+      qs('#m-vp-hard').textContent = bfiBadge(v.hard_pct) + ' (' + v.hard_bfi + '/' + v.bursts + ')';
+      qs('#m-vp-diff').textContent = v.diff_avg + ' bits/burst';
+      qs('#m-vp-ber-pct').textContent = (v.diff_avg / 432 * 100).toFixed(2);
+      qs('#m-vp-max').textContent = v.max_diff;
+      var mag = (v.soft_mag_x100 || 0) / 100;
+      qs('#m-vp-mag').textContent = mag.toFixed(2);
+      qs('#m-vp-mer').textContent = (v.mer_db !== undefined ? v.mer_db.toFixed(1) : '—') + ' dB';
+      /* Color-coding: green ≥ 20 dB, amber 10-20 dB, red < 6 dB */
+      var merBox = qs('#m-vp-mer');
+      if      (v.mer_db >= 20) merBox.style.color = '#4caf50';
+      else if (v.mer_db >= 10) merBox.style.color = '#ff9800';
+      else                     merBox.style.color = '#f44336';
+    })
+    .catch(function(e) { console.warn('metrics.cgi failed:', e); });
 }
 
 /* -------- Cell Config (existing flow) -------- */
 function apply() {
   var sp = qs('#sp'); sp.classList.add('active');
   var fd = new FormData(qs('#cfg'));
+  /* Convert duplex-table MHz inputs to Hz for the backend (dx0..dx7). */
+  for (var i = 0; i < 8; i++) {
+    var mhzEl = qs('#dx' + i + '_mhz');
+    if (mhzEl && mhzEl.value !== '') {
+      var hz = Math.round(parseFloat(mhzEl.value) * 1e6);
+      fd.set('dx' + i, hz);
+    }
+    fd.delete('dx' + i + '_mhz');  /* don't send the *_mhz alias */
+  }
   var params = new URLSearchParams(fd).toString();
   fetch('/cgi-bin/apply.cgi?' + params)
     .then(function(r) { return r.text(); })
     .then(function(t) { showStatus(t); sp.classList.remove('active'); getState(); })
     .catch(function(e) { showStatus('Error: ' + e); sp.classList.remove('active'); });
+}
+
+/* -------- Pre-fill form on page load from /root/tetra_cell.conf -------- */
+function loadConfig() {
+  fetch('/cgi-bin/config.cgi')
+    .then(function(r) { return r.json(); })
+    .then(function(c) {
+      /* Scalar fields */
+      var scalars = ['freq','mcc','mnc','la','cc','tx_atten','system_code',
+                     'duplex_spacing','ms_txpwr','rxlevel_min','access_param',
+                     'radio_dl_timeout','opt_sel','priority_cell','migration',
+                     'ncb','csl'];
+      scalars.forEach(function(k) {
+        var el = document.querySelector('[name="' + k + '"]');
+        if (el && c[k] !== undefined) el.value = c[k];
+      });
+      /* opt_sel ändert die sichtbaren Sub-Felder; danach opt_field
+       * in den Sub-Feldern (für den aktiven Selector) anzeigen. */
+      if (typeof onOptSelChange === 'function') onOptSelChange();
+      if (c.opt_field !== undefined && typeof unpackOptField === 'function') {
+        unpackOptField(parseInt(c.opt_field));
+      }
+      /* Duplex table: Hz → MHz for display */
+      if (Array.isArray(c.duplex_offsets)) {
+        c.duplex_offsets.forEach(function(hz, i) {
+          var el = qs('#dx' + i + '_mhz');
+          if (el) el.value = (hz / 1e6).toFixed(4).replace(/\.?0+$/,'');
+        });
+      }
+    })
+    .catch(function(e) { console.warn('config.cgi load failed:', e); });
+}
+/* Trigger on DOM ready */
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadConfig);
+} else {
+  loadConfig();
 }
 
 function getStatus() {
@@ -371,6 +672,11 @@ function getState() {
 }
 
 /* -------- Subscribers tab: sessions polling -------- */
+function fmtBit(v, onTxt, offTxt, el) {
+  if (v == null)         { el.textContent = '-'; el.style.color = ''; }
+  else if (v == 1)       { el.textContent = onTxt;  el.style.color = '#1a7f37'; }
+  else                   { el.textContent = offTxt; el.style.color = '#b41c1c'; }
+}
 function refreshSessions() {
   fetch('/cgi-bin/sessions.cgi')
     .then(function(r) { return r.json(); })
@@ -382,27 +688,30 @@ function refreshSessions() {
         cells[0].textContent = c.ul_req       == null ? '-' : c.ul_req;
         cells[1].textContent = c.accept       == null ? '-' : c.accept;
         cells[2].textContent = c.drop         == null ? '-' : c.drop;
-        cells[3].textContent = c.detach       == null ? '-' : c.detach;
-        cells[4].textContent = c.evict        == null ? '-' : c.evict;
-        cells[5].textContent = c.sig_override == null ? '-' : c.sig_override;
-        cells[6].textContent = c.clear        == null ? '-' : c.clear;
+        cells[3].textContent = c.sig_override == null ? '-' : c.sig_override;
+        cells[4].textContent = c.clear        == null ? '-' : c.clear;
+        cells[5].textContent = c.nwrk_push_cnt   == null ? '-' : c.nwrk_push_cnt;
+        cells[6].textContent = c.demand_drop_cnt == null ? '-' : c.demand_drop_cnt;
       }
       qs('#li-dec').textContent  = j.last_issi == null ? '-' : j.last_issi;
       qs('#li-hex').textContent  = j.last_issi_hex || '-';
-      qs('#ttl-mfs').textContent = j.ttl_mfs   == null ? '-' : j.ttl_mfs;
-      qs('#pol-acc').textContent = j.policy_accept_unknown == null ? '-' : j.policy_accept_unknown;
-      var mode = qs('#pol-mode');
-      if (j.policy_accept_unknown == null) {
-        mode.textContent = '-';
-        mode.style.color = '';
-      } else if (j.policy_accept_unknown == 1) {
-        mode.textContent = 'OPEN (accept unknown ISSIs)';
-        mode.style.color = '#1a7f37';
-      } else {
-        mode.textContent = 'RESTRICTED (DB permit only)';
-        mode.style.color = '#b41c1c';
-      }
       qs('#busy-st').textContent = (c && c.busy_sticky != null) ? c.busy_sticky : '-';
+
+      // DB stats
+      var db = j.db || {};
+      qs('#db-issi').textContent  = db.issi_cnt == null ? '-' : db.issi_cnt;
+      qs('#db-gssi').textContent  = db.gssi_cnt == null ? '-' : db.gssi_cnt;
+      qs('#db-total').textContent = db.total    == null ? '-' : db.total;
+
+      // Mailbox status
+      qs('#mb-pending').textContent = j.demand_pending == null ? '-' : j.demand_pending;
+      qs('#mb-usesw').textContent   = j.reply_use_sw   == null ? '-' : j.reply_use_sw;
+      qs('#mb-nwrk').textContent    = c.nwrk_push_cnt  == null ? '-' : c.nwrk_push_cnt;
+
+      // Two policy bits
+      fmtBit(j.policy_accept_unknown_issi, 'an (1)', 'aus (0)', qs('#pol-issi'));
+      fmtBit(j.policy_accept_unknown_gssi, 'an (1)', 'aus (0)', qs('#pol-gssi'));
+
       var mon = qs('#mon-pre');
       if (j.recent_ul_mon && j.recent_ul_mon.length) {
         mon.textContent = j.recent_ul_mon.join('\n');
@@ -416,17 +725,22 @@ function refreshSessions() {
     });
 }
 
-/* -------- Subscribers tab: access policy toggle -------- */
-function togglePolicy() {
-  var cur = qs('#pol-acc').textContent;
-  var next = (cur === '1') ? '0' : '1';
+/* -------- Subscribers tab: access policy toggles (Bit 0 / Bit 1) -------- */
+function togglePolicyBit(which) {
+  // which = 'issi' | 'gssi'
+  var elId  = (which === 'gssi') ? '#pol-gssi' : '#pol-issi';
+  var field = (which === 'gssi') ? 'accept_unknown_gssi' : 'accept_unknown_issi';
+  var curTxt = qs(elId).textContent || '';
+  // Cur "an (1)" -> 1, "aus (0)" -> 0, anything else -> assume 0.
+  var cur = (curTxt.indexOf('1') >= 0) ? 1 : 0;
+  var next = cur ? 0 : 1;
   var msg = qs('#pol-msg');
   msg.textContent = 'switching…';
   msg.style.color = '#888';
   fetch('/cgi-bin/policy.cgi', {
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: 'op=set&accept_unknown=' + next
+    body: 'op=set&' + field + '=' + next
   })
     .then(function(r) { return r.json(); })
     .then(function(j) {
@@ -490,112 +804,6 @@ function refreshEntities() {
     });
 }
 
-/* -------- Profiles tab: poll + edit -------- */
-function refreshProfiles() {
-  fetch('/cgi-bin/profiles.cgi')
-    .then(function(r) { return r.json(); })
-    .then(function(arr) {
-      var tb = qs('#prof-tbody');
-      if (!tb) return;
-      while (tb.firstChild) tb.removeChild(tb.firstChild);
-      for (var i = 0; i < arr.length; i++) {
-        var p = arr[i];
-        var tr = document.createElement('tr');
-        var cell = function(v, num) {
-          var td = document.createElement('td');
-          if (num) td.className = 'num';
-          td.textContent = v;
-          return td;
-        };
-        tr.appendChild(cell(p.slot, true));
-        tr.appendChild(cell(p.data, false));
-        tr.appendChild(cell(p.max, true));
-        tr.appendChild(cell(p.hangtime, true));
-        tr.appendChild(cell(p.priority, true));
-        tr.appendChild(cell(p.gila_class, true));
-        tr.appendChild(cell(p.gila_lifetime, true));
-        tr.appendChild(cell(p.permit_voice ? '1' : '0', true));
-        tr.appendChild(cell(p.permit_data ? '1' : '0', true));
-        tr.appendChild(cell(p.permit_reg ? '1' : '0', true));
-        tr.appendChild(cell(p.valid ? '1' : '0', true));
-        var c12 = document.createElement('td');
-        var btn = document.createElement('button');
-        btn.type = 'button'; btn.textContent = 'Load';
-        (function(pp) {
-          btn.onclick = function() { loadProfileForm(pp); };
-        })(p);
-        c12.appendChild(btn);
-        tr.appendChild(c12);
-        tb.appendChild(tr);
-      }
-    })
-    .catch(function(e) {
-      var tb = qs('#prof-tbody');
-      if (!tb) return;
-      while (tb.firstChild) tb.removeChild(tb.firstChild);
-      var tr = document.createElement('tr');
-      var td = document.createElement('td');
-      td.colSpan = 12; td.textContent = 'profiles.cgi error: ' + e;
-      tr.appendChild(td); tb.appendChild(tr);
-    });
-}
-
-function loadProfileForm(p) {
-  var f = qs('#prof-form');
-  f.slot.value          = p.slot;
-  f.max.value           = p.max;
-  f.hangtime.value      = p.hangtime;
-  f.priority.value      = p.priority;
-  f.gila_class.value    = p.gila_class;
-  f.gila_lifetime.value = p.gila_lifetime;
-  f.permit_voice.checked = !!p.permit_voice;
-  f.permit_data.checked  = !!p.permit_data;
-  f.permit_reg.checked   = !!p.permit_reg;
-  f.valid.checked        = !!p.valid;
-  onProfSlotChange();
-}
-
-function onProfSlotChange() {
-  var f = qs('#prof-form');
-  var w = qs('#prof-warn');
-  if (!f || !w) return;
-  w.style.display = (f.slot.value === '0') ? 'block' : 'none';
-}
-
-function showProfMsg(ok, txt) {
-  var m = qs('#prof-msg');
-  m.textContent = txt;
-  m.className = 'subs-msg ' + (ok ? 'ok' : 'err');
-  setTimeout(function() { m.className = 'subs-msg'; }, 4000);
-}
-
-function setProfile(ev) {
-  ev.preventDefault();
-  var f = qs('#prof-form');
-  var body = 'op=set'
-    + '&slot='          + encodeURIComponent(f.slot.value)
-    + '&max='           + encodeURIComponent(f.max.value)
-    + '&hangtime='      + encodeURIComponent(f.hangtime.value)
-    + '&priority='      + encodeURIComponent(f.priority.value)
-    + '&gila_class='    + encodeURIComponent(f.gila_class.value)
-    + '&gila_lifetime=' + encodeURIComponent(f.gila_lifetime.value)
-    + '&permit_voice='  + (f.permit_voice.checked ? 1 : 0)
-    + '&permit_data='   + (f.permit_data.checked  ? 1 : 0)
-    + '&permit_reg='    + (f.permit_reg.checked   ? 1 : 0)
-    + '&valid='         + (f.valid.checked        ? 1 : 0);
-  fetch('/cgi-bin/profiles.cgi', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body
-  }).then(function(r) { return r.json(); })
-    .then(function(j) {
-      if (j && j.ok) { showProfMsg(true, 'OK — slot ' + j.slot + ' = ' + j.data); refreshProfiles(); }
-      else           { showProfMsg(false, 'ERR: ' + (j && j.err ? j.err : 'unknown')); }
-    })
-    .catch(function(e) { showProfMsg(false, 'fetch error: ' + e); });
-  return false;
-}
-
 function showSubsMsg(ok, txt) {
   var m = qs('#subs-msg');
   m.textContent = txt;
@@ -614,19 +822,27 @@ function postEntities(body) {
 function addSub(ev) {
   ev.preventDefault();
   var f = qs('#add-form');
-  var slot       = f.slot.value;
+  var slot       = (f.slot.value || '').trim();
   var entity_id  = f.entity_id.value;
   var entity_type= f.entity_type.value;
   var profile_id = f.profile_id.value;
   var body = 'op=add'
-    + '&slot='        + encodeURIComponent(slot)
     + '&entity_id='   + encodeURIComponent(entity_id)
     + '&entity_type=' + encodeURIComponent(entity_type)
     + '&profile_id='  + encodeURIComponent(profile_id);
+  // Only send slot if user filled it; empty = let server auto-find.
+  if (slot.length > 0) body += '&slot=' + encodeURIComponent(slot);
   postEntities(body)
     .then(function(j) {
-      if (j && j.ok) { showSubsMsg(true, 'OK — added/updated slot ' + slot); refreshEntities(); }
-      else           { showSubsMsg(false, 'ERR: ' + (j && j.err ? j.err : 'unknown')); }
+      if (j && j.ok) {
+        var msg = (slot.length > 0)
+          ? ('OK — added slot ' + slot)
+          : ('OK — auto-assigned slot ' + j.slot);
+        showSubsMsg(true, msg);
+        refreshEntities();
+      } else {
+        showSubsMsg(false, 'ERR: ' + (j && j.err ? j.err : 'unknown'));
+      }
     })
     .catch(function(e) { showSubsMsg(false, 'fetch error: ' + e); });
   return false;
