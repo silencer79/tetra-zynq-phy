@@ -79,6 +79,12 @@ module tetra_dl_pdu_builder (
  input wire req_ns,
  input wire req_nr,
 
+ /* 2026-05-25 Multi-Group — dynamische TS-Allocation. 4-bit Bitmap MSB-first
+  * [TS1,TS2,TS3,TS4]: 0b1000=TS1, 0b0100=TS2, 0b0010=TS3, 0b0001=TS4.
+  * Wird nur für CMCE (mle_pd=3'b010) in chan_alloc_element gepackt.
+  * 0b0000 (legacy / nicht alloziert) → Fallback auf TS2 (=0b0100). */
+ input wire [3:0] req_chan_alloc_ts_bitmap,
+
  // 1-cycle pulse on transition into S_DONE; `coded_bits` valid this cycle
  // and stays latched until the next request completes.
  output reg done,
@@ -102,6 +108,7 @@ module tetra_dl_pdu_builder (
  reg [31:0] lat_scramble_init;
  reg lat_ns;
  reg lat_nr;
+ reg [3:0] lat_chan_alloc_ts_bitmap;
 
  // -------------------------------------------------------------------------
  // Stage A — basic slot-grant element (capacity_allocation=0, granting_delay=0).
@@ -154,17 +161,28 @@ module tetra_dl_pdu_builder (
 .slot_granting_element (slotgrant_packed_w),
  /* ChanAlloc — bit-exact #5887/#5895/#5903 (2026-05-14):
  * alloc_type=00 (Replace)
- * ts_assigned=0100 (bitmap value 4 — decoder TS=4)
+ * ts_assigned=<dynamisch> per Bitmap MSB-first [TS1,TS2,TS3,TS4]
+ *             0b0000 (legacy / nicht alloziert) → Fallback TS2 = 0b0100
  * ul_dl=11 (Both)
  * clch=1 ( setzt clch_permission)
  * cell_chg=0
  * carrier_num=0x5FA=1530 (UNSERE Zelle — hat 3719, cell-spezifisch)
  * ext_flag=0
  * mon_pattern=11 (=3, )
- * = {00, 0100, 11, 1, 0, 010111111010, 0, 11}
- * = 25 bits MSB-first: 0001001110010111111010011 = 0x272FD3 right-aligned. */
+ * Layout = {alloc_type[1:0], ts_assigned[3:0], ul_dl[1:0], clch, cell_chg,
+ *           carrier[11:0], ext_flag, mon_pattern[1:0]} = 25 bits MSB-first */
 .chan_alloc_flag ((lat_mle_pd == 3'b010) ? 1'b1: 1'b0),
-.chan_alloc_element ((lat_mle_pd == 3'b010) ? 32'h0027_2FD3
+.chan_alloc_element ((lat_mle_pd == 3'b010) ?
+ {7'd0,
+  2'b00,
+  (lat_chan_alloc_ts_bitmap != 4'b0000)
+      ? lat_chan_alloc_ts_bitmap : 4'b0100,
+  2'b11,
+  1'b1,
+  1'b0,
+  12'h5FA,
+  1'b0,
+  2'b11}
 : 32'd0),
 .chan_alloc_element_len ((lat_mle_pd == 3'b010) ? 5'd25: 5'd0),
 .second_pdu_valid (1'b0),
@@ -233,6 +251,7 @@ module tetra_dl_pdu_builder (
  lat_scramble_init <= 32'd0;
  lat_ns <= 1'b0;
  lat_nr <= 1'b0;
+ lat_chan_alloc_ts_bitmap <= 4'b0000;
  lat_info_bits <= 268'd0;
  builder_start <= 1'b0;
  encode_start <= 1'b0;
@@ -259,6 +278,7 @@ module tetra_dl_pdu_builder (
  lat_scramble_init <= req_scramble_init;
  lat_ns <= req_ns;
  lat_nr <= req_nr;
+ lat_chan_alloc_ts_bitmap <= req_chan_alloc_ts_bitmap;
  builder_start <= 1'b1;
  state <= S_BUILD;
  end

@@ -99,6 +99,10 @@ module tetra_mle_registration_fsm (
  // (SsiAndUsageMarker addr_type=6). Wird zusammen mit ssi/addr_type
  // beim GO-Puls gelatcht und an den DL-PDU-Builder weitergereicht.
  input wire [5:0] mb_usage_marker,
+ /* 2026-05-25 Multi-Group — ts_assigned-Bitmap aus W2[12:9]. Wird
+  * zusammen mit usage_marker / addr_type beim GO-Puls gelatcht und
+  * an den DL-PDU-Builder weitergereicht. */
+ input wire [3:0] mb_chan_alloc_ts_bitmap,
  input wire [1:0] mb_result,
  // Bug-001 fix — SW echoes MS's location_update_type from U-LOC-UPD-DEMAND
  // through the Reply-Pull-Mailbox so the D-LOC-UPDATE-ACCEPT mirrors it
@@ -152,6 +156,7 @@ module tetra_mle_registration_fsm (
  // Klasse 2 (2026-05-24) — UsageMarker für DL-PDU-Builder (ersetzt das
  // bisher hardcodierte 6'd11 in der mac_resource-Instanz).
  output wire [5:0] accept_build_usage_marker,
+ output wire [3:0] accept_build_chan_alloc_ts_bitmap,
  output wire [3:0] accept_build_llc_pdu_type,
  output wire accept_build_random_access_flag,
  output wire [127:0] accept_build_mm_pdu_bits,
@@ -217,6 +222,7 @@ module tetra_mle_registration_fsm (
  // -------------------------------------------------------------------------
  reg [2:0] lat_addr_type;
  reg [5:0] lat_usage_marker;
+ reg [3:0] lat_chan_alloc_ts_bitmap;
  reg [23:0] lat_ssi;
 
  reg [23:0] lat_detach_ssi;
@@ -306,6 +312,8 @@ module tetra_mle_registration_fsm (
   * lat_usage_marker beim GO-Puls). Nur für CMCE-Pfad relevant;
   * mm=2/mm=11 ignoriert den Wert im DL-PDU-Builder. */
  assign accept_build_usage_marker = lat_usage_marker;
+ /* 2026-05-25 Multi-Group — Bitmap aus W2[12:9]. Nur für CMCE relevant. */
+ assign accept_build_chan_alloc_ts_bitmap = lat_chan_alloc_ts_bitmap;
  assign accept_build_llc_pdu_type = cmce_path_w
  ? `PDUC_CMCE_D_CONNECT_LLC
 : `PDUC_FINAL_LU_ACCEPT_LLC;
@@ -348,6 +356,7 @@ module tetra_mle_registration_fsm (
  state <= S_IDLE;
  lat_addr_type <= 3'd0;
  lat_usage_marker <= 6'd0;
+ lat_chan_alloc_ts_bitmap <= 4'b0000;
  lat_ssi <= 24'd0;
  lat_detach_ssi <= 24'd0;
  lat_raw_mode_flag <= 1'b0;
@@ -393,6 +402,7 @@ module tetra_mle_registration_fsm (
  lat_ssi <= mb_ssi;
  lat_addr_type <= mb_addr_type;
  lat_usage_marker <= mb_usage_marker;
+ lat_chan_alloc_ts_bitmap <= mb_chan_alloc_ts_bitmap;
  lat_raw_mode_flag <= mb_raw_mode_flag;
  lat_raw_mm_bits <= mb_raw_mm_bits;
  lat_raw_mle_pd <= (mb_raw_mle_pd == 3'b000) ? 3'b001

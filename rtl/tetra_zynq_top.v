@@ -484,6 +484,9 @@ wire [23:0] mle_accept_build_ssi_w;
 wire [2:0] mle_accept_build_addr_type_w;
 // Klasse 2 (2026-05-24) — UMt 4..63 (0=unallocated) für CMCE-PDUs.
 wire [5:0] mle_accept_build_usage_marker_w;
+// 2026-05-25 Multi-Group — ts_assigned-Bitmap MSB-first [TS1,TS2,TS3,TS4]
+wire [3:0] mle_accept_build_chan_alloc_ts_bitmap_w;
+wire [3:0] mb_chan_alloc_ts_bitmap_sys_w;
 wire [3:0] mle_accept_build_llc_pdu_type_w;
 wire mle_accept_build_random_access_flag_w;
 wire [127:0] mle_accept_build_mm_pdu_bits_w;
@@ -2409,6 +2412,7 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
 .mb_addr_type (mb_addr_type_sys_w),
  // Klasse 2 (2026-05-24) — UMt aus Reply-Mailbox W2[8:3].
 .mb_usage_marker (mb_usage_marker_sys_w),
+.mb_chan_alloc_ts_bitmap (mb_chan_alloc_ts_bitmap_sys_w),
 .mb_result (mb_result_sys_w),
  // Bug-001 fix — Reply-Pull-Mailbox W3[4:2] carries MS demand
  // location_update_type echoed by SW. Encoder consumes via mb_loc_acc_type.
@@ -2434,6 +2438,7 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
 .accept_build_addr_type (mle_accept_build_addr_type_w),
  // Klasse 2 (2026-05-24) — UMt → arbiter → dl_pdu_builder.req_usage_marker.
 .accept_build_usage_marker (mle_accept_build_usage_marker_w),
+.accept_build_chan_alloc_ts_bitmap (mle_accept_build_chan_alloc_ts_bitmap_w),
 .accept_build_llc_pdu_type (mle_accept_build_llc_pdu_type_w),
 .accept_build_random_access_flag (mle_accept_build_random_access_flag_w),
 .accept_build_mm_pdu_bits (mle_accept_build_mm_pdu_bits_w),
@@ -2979,6 +2984,7 @@ tetra_dl_pdu_builder u_dl_pdu_builder (
 .req_addr_type (mle_accept_build_addr_type_w),
  // Klasse 2 (2026-05-24) — per-Call UMt aus Reply-Mailbox.
 .req_usage_marker (mle_accept_build_usage_marker_w),
+.req_chan_alloc_ts_bitmap (mle_accept_build_chan_alloc_ts_bitmap_w),
 .req_llc_pdu_type (mle_accept_build_llc_pdu_type_w),
 .req_random_access_flag (mle_accept_build_random_access_flag_w),
 .req_mm_pdu_bits (mle_accept_build_mm_pdu_bits_w),
@@ -3297,6 +3303,7 @@ tetra_reply_mailbox u_reply_mailbox (
 .mb_la_sys (mb_la_sys_w),
 .mb_addr_type_sys (mb_addr_type_sys_w),
 .mb_usage_marker_sys (mb_usage_marker_sys_w),
+.mb_chan_alloc_ts_bitmap_sys (mb_chan_alloc_ts_bitmap_sys_w),
 .mb_result_sys (mb_result_sys_w),
 .mb_loc_acc_type_sys (mb_loc_acc_type_sys_w),
 .mb_gila_gssi_sys (mb_gila_gssi_sys_w),

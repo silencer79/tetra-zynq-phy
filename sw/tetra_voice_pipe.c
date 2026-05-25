@@ -28,6 +28,41 @@ static uint32_t mono_ms_lo_vp(void)
  return (uint32_t)((uint64_t)ts.tv_sec * 1000u + (uint64_t)ts.tv_nsec / 1000000u);
 }
 
+/* 2026-05-25 — TS-Identifier aus dem hardware-gemessenen TS1→UL Air-Anchor.
+ *
+ * Bei jedem UL-Burst latched die FPGA-Stopuhr in REG_TS1_STOPWATCH_DELTA die
+ * Cycles vom letzten DL-TS1-Modulator-Output bis zum UL nub-sync. Dieser
+ * Wert ist deterministisch und hängt nur davon ab, in welchem UL-Timeslot
+ * der MS gesendet hat (jeder UL-TS hat 14.17 ms Distanz zum nächsten):
+ *
+ *   UL TS1 → DELTA ≈ 50.84 ms  (DL-TS1-first-dibit + 3.59 TS Anchor)
+ *   UL TS2 → DELTA ≈  9.0 ms   (50.84 - 56.67 + 14.17 = -27.5, wraps + 56.67)
+ *
+ * Im 56.67-ms TDMA-Frame nach jedem TS1-Puls landen die 4 UL-TS-Arrival-
+ * Zeitpunkte bei modulo-56.67ms-Werten:
+ *
+ *   UL paired with DL TS1: DELTA ≈ 50.84 ms
+ *   UL paired with DL TS2: DELTA ≈  8.50 ms   (50.84 + 14.17 - 56.67)
+ *   UL paired with DL TS3: DELTA ≈ 22.67 ms
+ *   UL paired with DL TS4: DELTA ≈ 36.84 ms
+ *
+ * Bei stabilem Bitstream-Pfad (cycles_per_ts und base_offset konstant)
+ * mappen wir mit einem nearest-Center-Match. Tolerance ±7.1 ms = ±0.5 TS. */
+#define CYCLES_PER_TS         1416667u   /* 14.166666 ms @ 100 MHz */
+/* Gemessen 2026-05-25 @ voice_ts=TS2: TS1-Puls → UL-Burst nub-sync = 50.837 ms.
+ * Daraus abgeleitet TS1-Puls → UL-TS1-Burst-Arrival = 50.837 − 14.167 = 36.670 ms.
+ * Alle weiteren UL-TS um je +14.167 ms versetzt. */
+#define TS1_TO_UL_TS1_OFFSET  3667032u   /* 36.670 ms — UL TS1 air-arrival */
+
+static uint8_t compute_ul_air_ts(uint32_t delta_cycles)
+{
+ const uint32_t frame = 4u * CYCLES_PER_TS;   /* 5,666,668 cyc = 56.6667 ms */
+ uint32_t rel = (delta_cycles + frame - (TS1_TO_UL_TS1_OFFSET % frame)) % frame;
+ uint32_t ts_idx = (rel + CYCLES_PER_TS / 2u) / CYCLES_PER_TS;
+ if (ts_idx >= 4u) ts_idx = 0u;
+ return (uint8_t)(ts_idx + 1u); /* ETSI 1-based TS1..TS4 */
+}
+
 #define SCHF_CODED_BITS 432
 
 /* Phase E2 (2026-05-18): mailbox now holds 432 × 4-bit signed soft-values
@@ -112,6 +147,24 @@ int tetra_voice_pipe_tick(tetra_hal_t *hal, uint32_t target_ssi)
 
  if ((tetra_reg_read(hal, REG_VOICE_NUB_READ_STATUS) & 0x1u) == 0u)
  return 0; /* No burst pending */
+
+ /* Phase A (2026-05-25): UL air-TS-Identifikation aus Hardware-Stopuhr.
+  * SW liest race-frei den FPGA-berechneten DELTA + Event-Count und mappt
+  * auf ETSI TS1..TS4. Bei Single-TS-Call (voice_ts=TS2) sollte hier
+  * konstant TS2 stehen — Sanity-Check für die Math vor Phase B. */
+ static uint32_t s_last_evt_cnt = 0u;
+ uint32_t evt_cnt = tetra_reg_read(hal, REG_TS1_STOPWATCH_EVT);
+ if (evt_cnt != s_last_evt_cnt) {
+ uint32_t delta = tetra_reg_read(hal, REG_TS1_STOPWATCH_DELTA);
+ uint8_t ul_air_ts = compute_ul_air_ts(delta);
+ static uint32_t s_log_div = 0u;
+ if ((s_log_div++ & 0xF) == 0u) {
+ fprintf(stderr,
+ "voice_pipe: UL-air-TS=TS%u (DELTA=%u cyc = %.3f ms, evt_cnt=%u)\n",
+ ul_air_ts, delta, (double)delta / 100000.0, evt_cnt);
+ }
+ s_last_evt_cnt = evt_cnt;
+ }
 
  /* ETSI EN 300 395-2 §8.5 — full TCH/S decode + re-encode on BS:
   *   UL air → descramble → block-deinterleave → RCPC-decode → ACELP-274

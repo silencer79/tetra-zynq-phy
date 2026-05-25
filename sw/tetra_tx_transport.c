@@ -153,7 +153,8 @@ static int stage_raw_mm(tetra_hal_t *hal,
  uint8_t ns,
  uint8_t nr,
  uint8_t mle_pd,
- uint8_t umt)
+ uint8_t umt,
+ uint8_t chan_alloc_ts_bitmap)
 {
  if (mm_len <= 0 || mm_len > 128) return -1;
 
@@ -177,12 +178,17 @@ static int stage_raw_mm(tetra_hal_t *hal,
  | ((uint32_t) mm_len & 0xFFu);
  if (reply_wait_idle(hal) < 0) return -2;
 
- /* W2 layout: [2:0] addr_type, [8:3] usage_marker (UMt, 0=unallocated)
+ /* W2 layout: [2:0] addr_type, [8:3] usage_marker (UMt, 0=unallocated),
+  *            [12:9] chan_alloc_ts_bitmap (Multi-Group 2026-05-25,
+  *            MSB-first [TS1,TS2,TS3,TS4]; 0b0000 = legacy → Builder TS2).
   * Für CMCE-PDUs (mle_pd=010) erzwingt die RTL eh addr_type=6 (SsiAndUsage)
   * via PDUC_CMCE_D_CONNECT_ADDRTYPE; W2[2:0]=1 hier ist also nur ein
   * verständlicher Default für mm=2/mm=11. Die 6 Bit UMt aus W2[8:3]
-  * werden direkt in den 30-Bit SsiAndUsageMarker-Adress-Slot gepackt. */
- uint32_t w2 = 0x1u | ((uint32_t)(umt & 0x3Fu) << 3);
+  * werden direkt in den 30-Bit SsiAndUsageMarker-Adress-Slot gepackt.
+  * Die 4 Bit chan_alloc_ts_bitmap werden NUR im CMCE-Pfad genutzt. */
+ uint32_t w2 = 0x1u
+             | ((uint32_t)(umt & 0x3Fu) << 3)
+             | ((uint32_t)(chan_alloc_ts_bitmap & 0xFu) << 9);
 
  reply_write(hal, 0, target_ssi & 0x00FFFFFFu);
  reply_write(hal, 1, 0u);
@@ -226,7 +232,7 @@ static int submit_grp_ack(tetra_hal_t *hal, const tx_pdu_meta_t *m)
  if (mm_len <= 0) return -1;
 
  return stage_raw_mm(hal, m->target_ssi, mm_bytes, mm_len,
- m->ns, m->nr, MLE_PD_MM, 0u);
+ m->ns, m->nr, MLE_PD_MM, 0u, 0u);
 }
 
 /* CMCE submit-Helpers — Phase 7 G.4. Jeder Helper baut den Body via den
@@ -242,7 +248,8 @@ static int submit_cmce_pdu(tetra_hal_t *hal,
  int mm_len = builder(&m->cmce, mm_bytes);
  if (mm_len <= 0) return -1;
  return stage_raw_mm(hal, m->target_ssi, mm_bytes, mm_len,
- m->ns, m->nr, MLE_PD_CMCE, m->umt);
+ m->ns, m->nr, MLE_PD_CMCE, m->umt,
+ m->chan_alloc_ts_bitmap);
 }
 
 int tetra_tx_submit(tetra_hal_t *hal, tx_pdu_class_t cls,

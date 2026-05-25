@@ -96,6 +96,16 @@ typedef struct {
   * Voice-Slot (REG_SLOT_AACH_N=AACH_VOICE_UMT(umt)) passen, sonst
   * verwirft MS den Call. */
  uint8_t umt;
+
+ /* 2026-05-25 Multi-Group — ts_assigned-Bitmap für ChanAlloc-Element
+  * in CMCE D-CONNECT/D-SETUP. MSB-first [TS1,TS2,TS3,TS4]:
+  *   0b1000 = TS1 (nicht für Voice — mcch)
+  *   0b0100 = TS2 (Default Voice Slot)
+  *   0b0010 = TS3
+  *   0b0001 = TS4
+  *   0b0000 = legacy / unset → RTL Fallback TS2
+  * SW Helper: chan_alloc_ts_bitmap = 1u << (4 - voice_ts). */
+ uint8_t chan_alloc_ts_bitmap;
 } tx_pdu_meta_t;
 
 /* Stage the PDU in the appropriate AXI reply mailbox and pulse GO.

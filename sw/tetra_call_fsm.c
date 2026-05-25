@@ -47,6 +47,23 @@ static void mask_write_cached(tetra_hal_t *hal, uint32_t v)
  g_mask_cached = v;
 }
 
+/* Multi-Group 2026-05-25 — Mask aus den belegten voice_ts aller aktiven
+ * Calls aggregieren (OR der bit (ts-1) Positionen). 0 = kein aktiver
+ * Voice-Slot, sonst per-TS bit gesetzt. */
+static uint32_t compute_voice_mask(void)
+{
+ uint32_t m = 0u;
+ for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
+ if (g_slots[i].ssi != 0u
+ && g_slots[i].voice_ts >= 1u && g_slots[i].voice_ts <= 4u
+ && g_slots[i].state != CALL_STATE_IDLE
+ && g_slots[i].state != CALL_STATE_RELEASING) {
+ m |= (1u << (g_slots[i].voice_ts - 1u));
+ }
+ }
+ return m;
+}
+
 static call_slot_t *find_slot(uint32_t ssi)
 {
  for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
@@ -114,14 +131,38 @@ static void aach_write(tetra_hal_t *hal, unsigned ts, uint16_t info)
  tetra_reg_write(hal, REGS[ts - 1u], (uint32_t)(info & 0x3FFFu));
 }
 
-/* Voice-TS für neuen Call (MVP single-call): TS=2 (ETSI 1-based).
- * TS1 ist mcch (Control), TS2 ist erster Voice-Traffic-Slot.
- * MUSS zu VOICE_ACTIVE_MASK passen — Mask-Bit-Position = (ts-1),
- * also TS=2 → mask=0x02 = bit1. Wenn die Konstante geändert wird,
- * muss VOICE_ACTIVE_MASK in U-SETUP / U-TX-DEMAND Handlern (aktuell
- * mask_write_cached(hal, 0x02)) mit angepasst werden, sonst zeigt
- * der AACH-Encoder slot_aach_sys[falscher_Index] = Idle on-air. */
-#define VOICE_TS_DEFAULT 2u
+/* Voice-TS Bereich: TS1 ist mcch (Control), TS2/TS3/TS4 sind Voice.
+ * Multi-Group 2026-05-25 — round-robin Allocation über {2,3,4} mit
+ * Kollisions-Check. Mask-Bit-Position = (ts-1): TS2→0x02, TS3→0x04,
+ * TS4→0x08. ChanAlloc-Bitmap MSB-first [TS1,TS2,TS3,TS4]: TS2→0b0100. */
+#define VOICE_TS_MIN     2u
+#define VOICE_TS_MAX     4u
+
+static uint8_t g_next_voice_ts = VOICE_TS_MIN;
+
+static uint8_t alloc_voice_ts(void)
+{
+ for (unsigned tries = 0; tries < (VOICE_TS_MAX - VOICE_TS_MIN + 1u); tries++) {
+ uint8_t cand = g_next_voice_ts;
+ g_next_voice_ts++;
+ if (g_next_voice_ts > VOICE_TS_MAX) g_next_voice_ts = VOICE_TS_MIN;
+ int collision = 0;
+ for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
+ if (g_slots[i].ssi != 0u && g_slots[i].voice_ts == cand) {
+ collision = 1; break;
+ }
+ }
+ if (!collision) return cand;
+ }
+ return 0u;
+}
+
+/* ETSI ChanAlloc ts_assigned bitmap MSB-first [TS1,TS2,TS3,TS4]. */
+static uint8_t voice_ts_to_bitmap(uint8_t voice_ts)
+{
+ if (voice_ts < 1u || voice_ts > 4u) return 0u;
+ return (uint8_t)(1u << (4u - voice_ts));
+}
 
 static call_slot_t *alloc_slot(tetra_hal_t *hal, uint32_t ssi)
 {
@@ -138,7 +179,15 @@ static call_slot_t *alloc_slot(tetra_hal_t *hal, uint32_t ssi)
  g_slots[i].ns = 0u;
  g_slots[i].nr = 1u;
  g_slots[i].umt = alloc_umt();
- g_slots[i].voice_ts = VOICE_TS_DEFAULT;
+ g_slots[i].voice_ts = alloc_voice_ts();
+ if (g_slots[i].voice_ts == 0u) {
+ /* Alle Voice-TS belegt — Slot freigeben, Caller bekommt -1. */
+ fprintf(stderr,
+ "tetra_call_fsm: alloc_slot ssi=0x%06X — keine freie voice_ts "
+ "(alle TS2..TS4 belegt)\n", ssi);
+ memset(&g_slots[i], 0, sizeof(g_slots[i]));
+ return NULL;
+ }
  /* AACH für Voice-Slot direkt scharfstellen — MS sieht
   * {Header=11, UMt, UMt} = "Traffic, UMt=N für DL+UL". */
  aach_write(hal, g_slots[i].voice_ts,
@@ -184,6 +233,7 @@ static int stage_d_call_proceeding(tetra_hal_t *hal, call_slot_t *s)
  m.ns = s->ns;
  m.nr = s->nr;
  m.umt = s->umt;
+ m.chan_alloc_ts_bitmap = voice_ts_to_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  return tetra_tx_submit(hal, TX_D_CALL_PROCEEDING, &m);
 }
@@ -204,6 +254,7 @@ static int stage_d_setup(tetra_hal_t *hal, call_slot_t *s)
  m.ns = s->ns;
  m.nr = s->nr;
  m.umt = s->umt;
+ m.chan_alloc_ts_bitmap = voice_ts_to_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.call_time_out = 7; /* T5m per bluestation */
  m.cmce.transmission_grant = 3; /* GrantedToOtherUser */
@@ -229,6 +280,7 @@ static int stage_d_connect(tetra_hal_t *hal, call_slot_t *s)
  m.ns = s->ns;
  m.nr = s->nr;
  m.umt = s->umt;
+ m.chan_alloc_ts_bitmap = voice_ts_to_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  /* verifizierte Werte (#5887 bit-exact, 2026-05-14): */
  m.cmce.call_time_out = 0; /*: Infinite (war 7 T5m) */
@@ -249,6 +301,7 @@ static int stage_d_tx_granted(tetra_hal_t *hal, call_slot_t *s)
  m.ns = s->ns;
  m.nr = s->nr;
  m.umt = s->umt;
+ m.chan_alloc_ts_bitmap = voice_ts_to_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.transmission_grant = CMCE_TG_GRANTED; /* 0 = Granted */
  m.cmce.encryption_control = 0;
@@ -263,6 +316,7 @@ static int stage_d_release(tetra_hal_t *hal, call_slot_t *s, uint8_t cause)
  m.ns = s->ns;
  m.nr = s->nr;
  m.umt = s->umt;
+ m.chan_alloc_ts_bitmap = voice_ts_to_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.disconnect_cause = cause;
  return tetra_tx_submit(hal, TX_D_RELEASE, &m);
@@ -363,11 +417,11 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  /* MER-Fix (2026-05-16 rev2): mask MUSS ab U-SETUP scharf sein —
   * unsere D-CONNECT-Antwort trägt transmission_grant=Granted, die
   * MS überspringt damit U-TX-DEMAND und sendet sofort UL-Voice.
-  * Erwartet voice-busy AACH (0x32CB) auf voice-slot. Ohne mask=0x02
-  * sieht MS idle-AACH → "PTT abgewiesen". */
- mask_write_cached(hal, 0x02u);
+  * Erwartet voice-busy AACH (0x32CB) auf voice-slot. Ohne Bit
+  * voice_ts-1 in der Mask sieht MS idle-AACH → "PTT abgewiesen". */
  s->last_activity_poll_cnt = mono_ms_lo();
  s->state = CALL_STATE_CONNECTED;
+ mask_write_cached(hal, compute_voice_mask());
  /* G.8-Filler entfernt (2026-05-16): die statische MAC-RESOURCE-NULL-
   *   PDU produzierte auf TS2 NDB1-Bursts mit SCH/F-CRC-FAIL und blockierte
   *   die MS am Voice-TX. Voice-Slot bleibt jetzt leer (filler-Mailbox
@@ -375,9 +429,9 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
   *   relayt. */
  tetra_voice_filler_clear(hal);
  fprintf(stderr,
- "tetra_call_fsm: VOICE_ACTIVE_MASK=0x02 (U-SETUP → call_id=%u, "
- "filler cleared — voice-slot wartet auf UL-NUB)\n",
- s->call_id);
+ "tetra_call_fsm: VOICE_ACTIVE_MASK=0x%02X (U-SETUP → call_id=%u "
+ "voice_ts=TS%u, filler cleared — voice-slot wartet auf UL-NUB)\n",
+ g_mask_cached, s->call_id, s->voice_ts);
  return rc;
  }
 
@@ -409,13 +463,14 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  int rc = stage_d_tx_granted(hal, s);
  s->state = CALL_STATE_TALKER;
  s->last_activity_poll_cnt = mono_ms_lo();
- /* Re-Key während Call: mask wieder scharf, falls Watchdog sie nach
-  * Idle-Phase auf 0 gesetzt hatte. */
- mask_write_cached(hal, 0x02u);
+ /* Re-Key während Call: mask wieder scharf für ALLE aktiven Calls
+  * (Multi-Group: bit voice_ts-1 pro Slot). */
+ uint32_t newmask = compute_voice_mask();
+ mask_write_cached(hal, newmask);
  fprintf(stderr,
  "tetra_call_fsm: U-TX-DEMAND ssi=0x%06X → D-TX-GRANTED "
- "call_id=%u ns=%u nr=%u rc=%d VOICE_ACTIVE_MASK=0x02\n",
- ssi, s->call_id, s->ns, s->nr, rc);
+ "call_id=%u ns=%u nr=%u rc=%d VOICE_ACTIVE_MASK=0x%02X\n",
+ ssi, s->call_id, s->ns, s->nr, rc, newmask);
  return rc;
  }
 
@@ -446,6 +501,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  memset(&m, 0, sizeof(m));
  m.target_ssi = s->group_gssi ? s->group_gssi: s->ssi;
  m.umt = s->umt;
+ m.chan_alloc_ts_bitmap = voice_ts_to_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.transmission_request_permission = 0; /* 0 = "allowed to request" per bluestation */
  /* 2026-05-24 — beim ERSTEN U-TX-CEASED 3× D-TX-CEASED stagen (gleiche
@@ -474,9 +530,9 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  "call_id=%u rc=%d\n",
  ssi, p->disconnect_cause, s->call_id, rc);
  /* Phase Y.4.1 — Call beendet, voice-slot zurück zu idle. */
- mask_write_cached(hal, 0x00u);
- tetra_voice_filler_clear(hal);
  free_slot(hal, s);
+ mask_write_cached(hal, compute_voice_mask());
+ if (compute_voice_mask() == 0u) tetra_voice_filler_clear(hal);
  return rc;
  }
 
@@ -494,9 +550,9 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  "tetra_call_fsm: U-DISCONNECT ssi=0x%06X cause=%u → D-RELEASE "
  "call_id=%u rc=%d\n",
  ssi, p->disconnect_cause, s->call_id, rc);
- mask_write_cached(hal, 0x00u);
- tetra_voice_filler_clear(hal);
  free_slot(hal, s);
+ mask_write_cached(hal, compute_voice_mask());
+ if (compute_voice_mask() == 0u) tetra_voice_filler_clear(hal);
  return rc;
  }
 
