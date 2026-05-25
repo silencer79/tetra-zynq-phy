@@ -101,22 +101,27 @@ static uint8_t alloc_umt(void)
  return v;
 }
 
-/* Per-TN AACH-Wert ans RTL schreiben. tn=0..3 = TN_sys (BS-intern, 0-indexed).
- * SLOT_AACH_N wird vom aach_encoder ausgelesen wenn voice_active_mask[N]=1. */
-static void aach_write(tetra_hal_t *hal, unsigned tn, uint16_t info)
+/* Per-TS AACH-Wert ans RTL schreiben. ts=1..4 = ETSI Timeslot-Index
+ * (ETSI EN 300 392-2 §9.3, kein TS0). Intern auf REG_SLOT_AACH_(ts-1)
+ * gemappt — RTL bleibt 0-based weil ETSI SYNC-PDU dort 2-bit-Feld
+ * 0..3 vorgibt (§21.5.1). SLOT_AACH_(ts-1) wird vom aach_encoder
+ * ausgelesen wenn voice_active_mask[ts-1]=1. */
+static void aach_write(tetra_hal_t *hal, unsigned ts, uint16_t info)
 {
- static const uint32_t REGS[4] = {REG_SLOT_AACH_0, REG_SLOT_AACH_1,
-                                  REG_SLOT_AACH_2, REG_SLOT_AACH_3};
- if (hal == NULL || tn >= 4u) return;
- tetra_reg_write(hal, REGS[tn], (uint32_t)(info & 0x3FFFu));
+ static const uint32_t REGS[4] = {REG_SLOT_AACH_TS1, REG_SLOT_AACH_TS2,
+                                  REG_SLOT_AACH_TS3, REG_SLOT_AACH_TS4};
+ if (hal == NULL || ts == 0u || ts > 4u) return;
+ tetra_reg_write(hal, REGS[ts - 1u], (uint32_t)(info & 0x3FFFu));
 }
 
-/* Voice-TN für neuen Call (MVP single-call): TN=1 (BS-intern, 0-indexed).
- * MUSS zu VOICE_ACTIVE_MASK passen (aktuell hardcoded 0x02 = bit1 = TN=1).
- * Wenn diese Konstante geändert wird, muss VOICE_ACTIVE_MASK in U-SETUP /
- * U-TX-DEMAND Handlern (mask_write_cached(hal, 0x02)) mit angepasst werden,
- * sonst zeigt der AACH-Encoder slot_aach_sys[falscher_TN] = Idle on-air. */
-#define VOICE_TN_DEFAULT 1u
+/* Voice-TS für neuen Call (MVP single-call): TS=2 (ETSI 1-based).
+ * TS1 ist mcch (Control), TS2 ist erster Voice-Traffic-Slot.
+ * MUSS zu VOICE_ACTIVE_MASK passen — Mask-Bit-Position = (ts-1),
+ * also TS=2 → mask=0x02 = bit1. Wenn die Konstante geändert wird,
+ * muss VOICE_ACTIVE_MASK in U-SETUP / U-TX-DEMAND Handlern (aktuell
+ * mask_write_cached(hal, 0x02)) mit angepasst werden, sonst zeigt
+ * der AACH-Encoder slot_aach_sys[falscher_Index] = Idle on-air. */
+#define VOICE_TS_DEFAULT 2u
 
 static call_slot_t *alloc_slot(tetra_hal_t *hal, uint32_t ssi)
 {
@@ -133,15 +138,15 @@ static call_slot_t *alloc_slot(tetra_hal_t *hal, uint32_t ssi)
  g_slots[i].ns = 0u;
  g_slots[i].nr = 1u;
  g_slots[i].umt = alloc_umt();
- g_slots[i].voice_tn = VOICE_TN_DEFAULT;
+ g_slots[i].voice_ts = VOICE_TS_DEFAULT;
  /* AACH für Voice-Slot direkt scharfstellen — MS sieht
   * {Header=11, UMt, UMt} = "Traffic, UMt=N für DL+UL". */
- aach_write(hal, g_slots[i].voice_tn,
+ aach_write(hal, g_slots[i].voice_ts,
             (uint16_t)AACH_VOICE_UMT(g_slots[i].umt));
  fprintf(stderr,
  "tetra_call_fsm: alloc_slot ssi=0x%06X → call_id=%u UMt=%u "
- "voice_tn=%u AACH=0x%04X\n",
- ssi, g_slots[i].call_id, g_slots[i].umt, g_slots[i].voice_tn,
+ "voice_ts=TS%u AACH=0x%04X\n",
+ ssi, g_slots[i].call_id, g_slots[i].umt, g_slots[i].voice_ts,
  (unsigned)AACH_VOICE_UMT(g_slots[i].umt));
  return &g_slots[i];
  }
@@ -152,7 +157,8 @@ static call_slot_t *alloc_slot(tetra_hal_t *hal, uint32_t ssi)
 static void free_slot(tetra_hal_t *hal, call_slot_t *s)
 {
  /* AACH zurück auf Idle bevor Slot-Daten verloren gehen. */
- if (s->voice_tn < 4u) aach_write(hal, s->voice_tn, AACH_IDLE);
+ if (s->voice_ts >= 1u && s->voice_ts <= 4u)
+ aach_write(hal, s->voice_ts, AACH_IDLE);
  fprintf(stderr,
  "tetra_call_fsm: free_slot ssi=0x%06X call_id=%u UMt=%u → AACH=0x3000 idle\n",
  s->ssi, s->call_id, s->umt);
@@ -295,7 +301,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  /* 2026-05-25 — Multi-MS Floor-Transfer via U-SETUP (MTP3550-FW
   * sendet U-SETUP statt U-TX-DEMAND wenn anderes Group-Member PTT
   * drückt). Wenn schon ein Group-Call für dieselbe GSSI läuft:
-  * KEIN neuer Slot, Floor an B transferieren, gleiche UMt/voice_tn
+  * KEIN neuer Slot, Floor an B transferieren, gleiche UMt/voice_ts
   * behalten. Sonst kollidiert SLOT_AACH_N zwischen A's und B's Call. */
  if (s == NULL && cp_is_group) {
  call_slot_t *group_slot = find_slot_by_gssi(cp_ssi);
@@ -303,9 +309,9 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  fprintf(stderr,
  "tetra_call_fsm: U-SETUP floor-transfer ssi=0x%06X "
  "gssi=0x%06X → call_id=%u (alter Talker=0x%06X, "
- "UMt=%u/voice_tn=%u behalten)\n",
+ "UMt=%u/voice_ts=TS%u behalten)\n",
  ssi, cp_ssi, group_slot->call_id, group_slot->ssi,
- group_slot->umt, group_slot->voice_tn);
+ group_slot->umt, group_slot->voice_ts);
  group_slot->ssi = ssi;
  group_slot->ns = 0u;
  group_slot->nr = 0u;
@@ -363,7 +369,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  s->last_activity_poll_cnt = mono_ms_lo();
  s->state = CALL_STATE_CONNECTED;
  /* G.8-Filler entfernt (2026-05-16): die statische MAC-RESOURCE-NULL-
-  *   PDU produzierte auf TN=2 NDB1-Bursts mit SCH/F-CRC-FAIL und blockierte
+  *   PDU produzierte auf TS2 NDB1-Bursts mit SCH/F-CRC-FAIL und blockierte
   *   die MS am Voice-TX. Voice-Slot bleibt jetzt leer (filler-Mailbox
   *   cleared) bis tetra_voice_pipe_tick einen echten UL-NUB-Burst
   *   relayt. */
@@ -379,7 +385,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  /* 2026-05-25 — Floor-Wechsel im Group-Call: MS-B (≠ Caller) drückt
   * PTT während A spricht. B hat keinen eigenen Call-Slot — wir finden
   * den existing Group-Slot via call_id, übernehmen Floor an B.
-  * Gold-Standard verifiziert (Decode 04-20): UMt+voice_tn+SLOT_AACH
+  * Gold-Standard verifiziert (Decode 04-20): UMt+voice_ts+SLOT_AACH
   * bleiben konstant über Floor-Wechsel, nur s->ssi (= aktueller Talker)
   * wechselt. */
  if (s == NULL) {

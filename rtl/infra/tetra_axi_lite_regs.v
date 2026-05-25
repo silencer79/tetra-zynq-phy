@@ -853,11 +853,13 @@ localparam [6:0] REG_VOICE_NUB_SYNC_THRESH = 7'h1A; // 0x268 R/W [4:0] corr thre
 // 2026-05-24 RX IQ peak monitor
 localparam [6:0] REG_RX_IQ_PEAK_I = 7'h24; // 0x290 RO [15:0] max-|I| 100ms window
 localparam [6:0] REG_RX_IQ_PEAK_Q = 7'h25; // 0x294 RO [15:0] max-|Q| 100ms window
-// 2026-05-24 — Per-TN AACH (Klasse 2 dynamische Steuerung)
-localparam [6:0] REG_SLOT_AACH_0 = 7'h28; // 0x2A0 R/W [13:0] AACH-info TN_sys=0
-localparam [6:0] REG_SLOT_AACH_1 = 7'h29; // 0x2A4 R/W [13:0] AACH-info TN_sys=1
-localparam [6:0] REG_SLOT_AACH_2 = 7'h2A; // 0x2A8 R/W [13:0] AACH-info TN_sys=2
-localparam [6:0] REG_SLOT_AACH_3 = 7'h2B; // 0x2AC R/W [13:0] AACH-info TN_sys=3
+// 2026-05-24 — Per-TS AACH (Klasse 2 dynamische Steuerung), ETSI 1-based TS1..TS4
+// (§9.3, kein TS0). RTL-interner Slot-Index ist 0-based per SYNC-PDU 2-bit-Feld
+// (§21.5.1) → slot_aach_axi[15:0]=TS1, [31:16]=TS2, [47:32]=TS3, [63:48]=TS4.
+localparam [6:0] REG_SLOT_AACH_TS1 = 7'h28; // 0x2A0 R/W [13:0] AACH-info ETSI TS1 (mcch)
+localparam [6:0] REG_SLOT_AACH_TS2 = 7'h29; // 0x2A4 R/W [13:0] AACH-info ETSI TS2 (voice)
+localparam [6:0] REG_SLOT_AACH_TS3 = 7'h2A; // 0x2A8 R/W [13:0] AACH-info ETSI TS3
+localparam [6:0] REG_SLOT_AACH_TS4 = 7'h2B; // 0x2AC R/W [13:0] AACH-info ETSI TS4
 // Phase 7 G.8 — Voice-Slot Filler-Mailbox (0x270..0x27C, Bank-1)
 localparam [6:0] REG_VOICE_FILLER_INDEX = 7'h1C; // 0x270 R/W [3:0] word selector
 localparam [6:0] REG_VOICE_FILLER_DATA = 7'h1D; // 0x274 R/W [31:0] indirect via INDEX
@@ -1254,10 +1256,10 @@ always @(*) begin
  REG_VOICE_NUB_SYNC_THRESH: rdata_mux_axi = voice_nub_sync_thresh_axi;
  REG_RX_IQ_PEAK_I: rdata_mux_axi = {16'd0, rx_iq_peak_i_axi};
  REG_RX_IQ_PEAK_Q: rdata_mux_axi = {16'd0, rx_iq_peak_q_axi};
- REG_SLOT_AACH_0: rdata_mux_axi = {16'd0, slot_aach_axi[15:0]};
- REG_SLOT_AACH_1: rdata_mux_axi = {16'd0, slot_aach_axi[31:16]};
- REG_SLOT_AACH_2: rdata_mux_axi = {16'd0, slot_aach_axi[47:32]};
- REG_SLOT_AACH_3: rdata_mux_axi = {16'd0, slot_aach_axi[63:48]};
+ REG_SLOT_AACH_TS1: rdata_mux_axi = {16'd0, slot_aach_axi[15:0]};
+ REG_SLOT_AACH_TS2: rdata_mux_axi = {16'd0, slot_aach_axi[31:16]};
+ REG_SLOT_AACH_TS3: rdata_mux_axi = {16'd0, slot_aach_axi[47:32]};
+ REG_SLOT_AACH_TS4: rdata_mux_axi = {16'd0, slot_aach_axi[63:48]};
  // Phase 7 G.8 — Voice-Filler mailbox
  REG_VOICE_FILLER_INDEX: rdata_mux_axi = {28'd0, vfill_index_axi};
  REG_VOICE_FILLER_DATA: rdata_mux_axi = vfill_rdata_axi_i;
@@ -1489,26 +1491,27 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
  end
 end
 
-// ---- REG_SLOT_AACH_0..3 (0x2A0..0x2AC) — 2026-05-24 Klasse 2 ----
-// 4× 16-bit, untere 14 bit = AACH-info per TN. Default 0x3000 (UMx/UMx).
+// ---- REG_SLOT_AACH_TS1..TS4 (0x2A0..0x2AC) — 2026-05-24 Klasse 2 ----
+// 4× 16-bit, untere 14 bit = AACH-info per ETSI-TS. Default 0x3000 (UMx/UMx).
 // SW (call_fsm) schreibt 0x33CF/0x3555/0x2049 je Call-Phase. RTL passthrough.
+// ETSI 1-based TS1..TS4 → slot_aach_axi[15:0]=TS1, [31:16]=TS2 etc.
 always @(posedge clk_axi or negedge rst_n_axi) begin
  if (!rst_n_axi)
- slot_aach_axi <= {4{16'h3000}}; // 0x3000_3000_3000_3000 = idle alle TN
+ slot_aach_axi <= {4{16'h3000}}; // 0x3000_3000_3000_3000 = idle alle TS
  else begin
- if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_AACH_0)) begin
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_AACH_TS1)) begin
  if (wr_strb_axi[0]) slot_aach_axi[ 7: 0] <= wr_data_axi[ 7: 0];
  if (wr_strb_axi[1]) slot_aach_axi[15: 8] <= wr_data_axi[15: 8];
  end
- if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_AACH_1)) begin
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_AACH_TS2)) begin
  if (wr_strb_axi[0]) slot_aach_axi[23:16] <= wr_data_axi[ 7: 0];
  if (wr_strb_axi[1]) slot_aach_axi[31:24] <= wr_data_axi[15: 8];
  end
- if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_AACH_2)) begin
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_AACH_TS3)) begin
  if (wr_strb_axi[0]) slot_aach_axi[39:32] <= wr_data_axi[ 7: 0];
  if (wr_strb_axi[1]) slot_aach_axi[47:40] <= wr_data_axi[15: 8];
  end
- if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_AACH_3)) begin
+ if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_SLOT_AACH_TS4)) begin
  if (wr_strb_axi[0]) slot_aach_axi[55:48] <= wr_data_axi[ 7: 0];
  if (wr_strb_axi[1]) slot_aach_axi[63:56] <= wr_data_axi[15: 8];
  end

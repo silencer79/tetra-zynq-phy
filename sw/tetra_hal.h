@@ -328,14 +328,22 @@
 #define REG_RX_IQ_PEAK_I 0x290 /* RO [15:0] max-|I| 100ms */
 #define REG_RX_IQ_PEAK_Q 0x294 /* RO [15:0] max-|Q| 100ms */
 
-/* 2026-05-24 Klasse 2 — Per-TN AACH-Wert, SW-kontrolliert. Untere 14 bit
+/* 2026-05-24 Klasse 2 — Per-TS AACH-Wert, SW-kontrolliert. Untere 14 bit
  * jedes Slots = AACH-info (vor RM(30,14)-Encoding). Default 0x3000 (idle).
  * SW (call_fsm) setzt 0x33CF/0x3555/0x2049 je Call-Phase.
- * ETSI EN 300 392-2 §21.4.7.2 Tab. 21.82. */
-#define REG_SLOT_AACH_0 0x2A0 /* R/W [13:0] AACH-info für TN_sys=0 */
-#define REG_SLOT_AACH_1 0x2A4 /* R/W [13:0] AACH-info für TN_sys=1 */
-#define REG_SLOT_AACH_2 0x2A8 /* R/W [13:0] AACH-info für TN_sys=2 */
-#define REG_SLOT_AACH_3 0x2AC /* R/W [13:0] AACH-info für TN_sys=3 */
+ * ETSI EN 300 392-2 §21.4.7.2 Tab. 21.82.
+ *
+ * Naming-Konvention (2026-05-25): Symbol-Suffix folgt ETSI-Timeslot-
+ * Nummerierung TS1..TS4 (§9.3, kein TS0). RTL-Interner Index ist 0-based
+ * (tx_tdma_state_tn_sys ∈ 0..3 per SYNC-PDU 2-bit-Feld §21.5.1), Mapping:
+ *   REG_SLOT_AACH_TS1 (0x2A0) ↔ RTL slot_aach_sys[0]  (ETSI TS1 = mcch)
+ *   REG_SLOT_AACH_TS2 (0x2A4) ↔ RTL slot_aach_sys[1]  (ETSI TS2 = voice)
+ *   REG_SLOT_AACH_TS3 (0x2A8) ↔ RTL slot_aach_sys[2]  (ETSI TS3)
+ *   REG_SLOT_AACH_TS4 (0x2AC) ↔ RTL slot_aach_sys[3]  (ETSI TS4) */
+#define REG_SLOT_AACH_TS1 0x2A0 /* R/W [13:0] AACH-info für ETSI TS1 (mcch) */
+#define REG_SLOT_AACH_TS2 0x2A4 /* R/W [13:0] AACH-info für ETSI TS2 (voice) */
+#define REG_SLOT_AACH_TS3 0x2A8 /* R/W [13:0] AACH-info für ETSI TS3 */
+#define REG_SLOT_AACH_TS4 0x2AC /* R/W [13:0] AACH-info für ETSI TS4 */
 
 /* Hilfs-Konstanten für SW: AACH-info-Werte je Call-Phase */
 #define AACH_IDLE             0x3000  /* Header=11 UMx/UMx — Slot frei */

@@ -64,7 +64,9 @@ typedef struct {
  uint8_t umt;        /* 2026-05-24 — Traffic Usage Marker per Call
                                           * (ETSI EN 300 392-2 §21.4.7.2). Range 4..63,
                                           * 0 = nicht allokiert. */
- uint8_t voice_tn;   /* TDMA-Slot für Voice (1..3, 0 = nicht allokiert) */
+ /* ETSI EN 300 392-2 §9.3 — Timeslot-Index 1..4 (kein TS0). TS1 ist
+  * mcch (Control), TS2/TS3/TS4 sind Voice-Traffic. 0 = nicht allokiert. */
+ uint8_t voice_ts;
  call_state_t state;
  uint8_t ns; /* LLC stop-and-wait per call slot */
  uint8_t nr;
