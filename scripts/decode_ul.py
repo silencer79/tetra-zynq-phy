@@ -415,10 +415,28 @@ def parse_ul_mle(bits, pos):
         'mle_disc_name': UL_MLE_PDU_NAMES.get(disc, '?'),
     }
     if disc == 1 and pos + 4 <= len(bits):  # MM
-        mm_type = extract_bits(bits, pos, 4); pos += 4
+        mm_type = extract_bits(bits, pos, 4)
         r['mm_type'] = mm_type
         r['mm_name'] = UL_MM_NAMES.get(mm_type, f'Unknown({mm_type})')
+        # Phase-2 — full field-level MM PDU parse
+        try:
+            from tetra_mm import parse_mm_ul as _mm_ul
+            r['mm_full'] = _mm_ul(bits, pos)
+        except ImportError:
+            pass
+        pos += 4
         r['mm'] = parse_ul_mm(bits, pos, mm_type)
+    elif disc == 2 and pos + 5 <= len(bits):  # CMCE
+        cmce_type = extract_bits(bits, pos, 5)
+        r['cmce_type'] = cmce_type
+        # Phase-1 — full field-level CMCE PDU parse
+        try:
+            from tetra_cmce import parse_cmce_ul, CMCE_UL as _CMCE_UL
+            r['cmce_name'] = _CMCE_UL.get(cmce_type, f'Unknown({cmce_type})')
+            r['cmce'] = parse_cmce_ul(bits, pos)
+        except ImportError:
+            pass
+        pos += 5
     r['payload_start'] = pos
     return r
 
@@ -428,9 +446,16 @@ def parse_ul_direct_mm(bits, pos):
     r = {}
     if pos + 4 > len(bits):
         return r
-    mm_type = extract_bits(bits, pos, 4); pos += 4
+    mm_type = extract_bits(bits, pos, 4)
     r['mm_type'] = mm_type
     r['mm_name'] = UL_MM_NAMES.get(mm_type, f'Unknown({mm_type})')
+    # Phase-2 — full field-level MM PDU parse
+    try:
+        from tetra_mm import parse_mm_ul as _mm_ul
+        r['mm_full'] = _mm_ul(bits, pos)
+    except ImportError:
+        pass
+    pos += 4
     r['mm'] = parse_ul_mm(bits, pos, mm_type)
     r['payload_start'] = pos
     return r
@@ -555,17 +580,125 @@ def format_parsed_mac_access(parsed):
                 mm = mle.get('mm', {})
                 if 'location_update_type_name' in mm:
                     seg += f"/{mm['location_update_type_name']}"
+            if 'cmce_name' in mle:
+                seg += f"/{mle['cmce_name']}"
             parts.append(f"MLE={seg}")
-        direct_mm = parsed.get('direct_mm')
-        if direct_mm:
-            seg = direct_mm.get('mm_name', '?')
-            mm = direct_mm.get('mm', {})
-            if 'location_update_type_name' in mm:
-                seg += f"/{mm['location_update_type_name']}"
-            parts.append(f"DirectMM={seg}")
+            # Phase-1 — full field-level CMCE PDU
+            cmce = mle.get('cmce')
+            if cmce:
+                try:
+                    from tetra_cmce import format_cmce
+                    parts.append(f"CMCE=[{format_cmce(cmce)}]")
+                except ImportError:
+                    pass
+            # Phase-2 — full field-level MM PDU
+            mm_full = mle.get('mm_full')
+            if mm_full:
+                try:
+                    from tetra_mm import format_mm
+                    parts.append(f"MM=[{format_mm(mm_full)}]")
+                except ImportError:
+                    pass
+        # Only print DirectMM if it's the chosen decode mode — otherwise it's
+        # a stale alt-interpretation that gets confusing alongside MLE/CMCE.
+        if parsed.get('decoded_mode') == 'direct_mm':
+            direct_mm = parsed.get('direct_mm')
+            if direct_mm:
+                seg = direct_mm.get('mm_name', '?')
+                mm = direct_mm.get('mm', {})
+                if 'location_update_type_name' in mm:
+                    seg += f"/{mm['location_update_type_name']}"
+                parts.append(f"DirectMM={seg}")
+                # Phase-2 — full field-level direct-MM PDU
+                mm_full = direct_mm.get('mm_full')
+                if mm_full:
+                    try:
+                        from tetra_mm import format_mm
+                        parts.append(f"MM=[{format_mm(mm_full)}]")
+                    except ImportError:
+                        pass
         if 'decoded_mode' in parsed:
             parts.append(f"mode={parsed['decoded_mode']}")
     return ' '.join(parts)
+
+
+def _decode_one_burst(args):
+    """Worker for multiprocessing.Pool.map — decodes one UL burst.
+    args = (i, s, l, w_start, iq_win, sps, sr_dec, scramb_init)
+    Returns dict with decode results (info_bits, type5_hard, t5_onair, etc).
+    """
+    i, s, l, w_start, iq_win, sps, sr_dec, scramb_init = args
+    # Translate global sample position to window-local
+    s_loc = s - w_start
+    coarse_search_start = s_loc
+    coarse_search_end   = s_loc + l - int(15 * sps)
+    best_c = 0.0
+    best_pos = s_loc + int(42 * sps)
+    step = max(1, int(round(sps / 4)))
+    for pos in range(coarse_search_start, coarse_search_end, step):
+        c = _correlate_at(iq_win, pos, sps, X_DIBITS, X_DIFF_REF)
+        if c > best_c:
+            best_c = c
+            best_pos = pos
+    x_pos, x_corr = refine_x_position(iq_win, sps, best_pos, search_syms=2)
+
+    if x_corr < 0.5:
+        return {'i': i, 's': s, 'x_corr': x_corr, 'skip': True}
+
+    cfo_A0, _ = estimate_burst_cfo(iq_win, sps, x_pos, linear=False)
+    cfo_offsets = [0.0]
+    for d in range(1, 41):
+        cfo_offsets.append(-0.01 * d)
+        cfo_offsets.append(+0.01 * d)
+    tim_offsets = [0.0]
+    for d in range(1, 6):
+        tim_offsets.append(-0.1 * d)
+        tim_offsets.append(+0.1 * d)
+
+    result = (False, None, None, None)
+    cfo_A = cfo_A0
+    blk1_final, blk2_final = None, None
+    for tim_off in tim_offsets:
+        x_pos_try = x_pos + tim_off
+        cfo_A0t, _ = estimate_burst_cfo(iq_win, sps, x_pos_try, linear=False)
+        for cfo_off in cfo_offsets:
+            cfo_try = cfo_A0t + cfo_off
+            blk1_cb, blk2_cb = sample_half_soft_bits(iq_win, sps, x_pos_try, RA_CB_SYMS, cfo_try, 0.0)
+            r = try_channel_decode(blk1_cb, blk2_cb, scramb_init, 'schhu')
+            if r[0]:
+                result = r; cfo_A = cfo_try
+                blk1_final, blk2_final = blk1_cb, blk2_cb
+                break
+            if result[1] is None:
+                result = r; cfo_A = cfo_try
+                blk1_final, blk2_final = blk1_cb, blk2_cb
+        if result[0]:
+            break
+    # NUB fallback
+    if not result[0]:
+        blk1_nub, blk2_nub = sample_half_soft_bits(iq_win, sps, x_pos, RA_NUB_SYMS, cfo_A0, 0.0)
+        r2 = try_channel_decode(blk1_nub, blk2_nub, scramb_init, 'schhd')
+        if r2[0]:
+            result = r2
+            blk1_final, blk2_final = blk1_nub, blk2_nub
+        else:
+            r3 = try_channel_decode(blk1_nub, blk2_nub, scramb_init, 'schf')
+            if r3[0]:
+                result = r3
+                blk1_final, blk2_final = blk1_nub, blk2_nub
+
+    crc_ok, info_bits, type5_hard = result[0], result[1], result[2]
+    variant = result[3] if len(result) > 3 and result[3] else ''
+    t5_onair = None
+    if blk1_final is not None and blk2_final is not None:
+        soft = np.concatenate([blk1_final, blk2_final])
+        t5_onair = (soft < 0).astype(np.int32)
+    return {
+        'i': i, 's': s, 'x_corr': x_corr, 'cfo_A': cfo_A,
+        'crc_ok': crc_ok, 'info_bits': info_bits,
+        'type5_hard': type5_hard, 'variant': variant,
+        't5_onair': t5_onair,
+    }
 
 
 def main():
@@ -631,88 +764,46 @@ def main():
     type5_patterns = []
 
     print(f'  {"#":>3} {"time_s":>8} {"corrX":>6} {"A_mrad":>9} {"B_mrad":>9} {"CRC":>4}  {"PDU bytes[0:6]":>20}')
-    for i, (s, l) in enumerate(bursts[:args.max_bursts]):
-        coarse_search_start = s
-        coarse_search_end   = s + l - int(15 * sps)
-        best_c = 0
-        best_pos = s + int(42 * sps)  # expect x near cb1-end
-        step = max(1, int(round(sps / 4)))
-        for pos in range(coarse_search_start, coarse_search_end, step):
-            c = _correlate_at(iq, pos, sps, X_DIBITS, X_DIFF_REF)
-            if c > best_c:
-                best_c = c
-                best_pos = pos
-        x_pos, x_corr = refine_x_position(iq, sps, best_pos, search_syms=2)
 
-        if x_corr < 0.5:
+    # Multiprocessing: per-burst decode is embarrassingly parallel.
+    # Each worker receives only the local IQ window (~5000 samples), keeps
+    # pickle cost low. numba-JIT'd inner loops re-use cached compilation.
+    import multiprocessing as mp
+    burst_args = []
+    for i, (s, l) in enumerate(bursts[:args.max_bursts]):
+        # Window: s..s+l. Add margin for refine_x_position (±2 syms) and
+        # NUB-layout fallback (needs ~108 syms after x_pos).
+        w_start = max(0, s - int(8 * sps))
+        w_end   = min(len(iq), s + l + int(64 * sps))
+        iq_win = iq[w_start:w_end].copy()
+        burst_args.append((i, s, l, w_start, iq_win, sps, sr_dec, scramb_init))
+
+    n_workers = min(mp.cpu_count(), len(burst_args)) or 1
+    if n_workers > 1:
+        with mp.Pool(n_workers) as pool:
+            results = pool.map(_decode_one_burst, burst_args)
+    else:
+        results = [_decode_one_burst(a) for a in burst_args]
+
+    # Sequential aggregation + print (preserves order).
+    for res in results:
+        i = res['i']
+        x_corr = res['x_corr']
+        s = res['s']
+        if res.get('skip'):
             print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f}  SKIP (weak x)', flush=True)
             continue
-
-        # Per-burst CFO via x-seq pilot (constant fit). Linear-chirp fit was
-        # tried but B variance on 14 points extrapolates catastrophically at
-        # n=-43..56. Instead: joint grid search over (CFO, fine_timing) around
-        # x-seq estimate.
-        cfo_A0, _ = estimate_burst_cfo(iq, sps, x_pos, linear=False)
-
-        # CFO grid: ±400 mrad/sym, step 10 mrad (center-out)
-        cfo_offsets = [0.0]
-        for d in range(1, 41):
-            cfo_offsets.append(-0.01 * d)
-            cfo_offsets.append(+0.01 * d)
-        # Timing grid: ±0.5 sample, step 0.1 sample (center-out)
-        tim_offsets = [0.0]
-        for d in range(1, 6):
-            tim_offsets.append(-0.1 * d)
-            tim_offsets.append(+0.1 * d)
-
-        result = (False, None, None, None)
-        cfo_A = cfo_A0
-        blk1_final, blk2_final = None, None
-        for tim_off in tim_offsets:
-            x_pos_try = x_pos + tim_off
-            cfo_A0t, _ = estimate_burst_cfo(iq, sps, x_pos_try, linear=False)
-            for cfo_off in cfo_offsets:
-                cfo_try = cfo_A0t + cfo_off
-                blk1_cb, blk2_cb = sample_half_soft_bits(iq, sps, x_pos_try, RA_CB_SYMS, cfo_try, 0.0)
-                r = try_channel_decode(blk1_cb, blk2_cb, scramb_init, 'schhu')
-                if r[0]:
-                    result = r; cfo_A = cfo_try
-                    blk1_final, blk2_final = blk1_cb, blk2_cb
-                    break
-                if result[1] is None:
-                    result = r; cfo_A = cfo_try
-                    blk1_final, blk2_final = blk1_cb, blk2_cb
-            if result[0]:
-                break
-        cfo_B = 0.0
-        # Fallback: NUB layout (54-sym half-blocks → SCH/HD 216 or SCH/F 432)
-        if not result[0]:
-            blk1_nub, blk2_nub = sample_half_soft_bits(iq, sps, x_pos, RA_NUB_SYMS, cfo_A0, 0.0)
-            r2 = try_channel_decode(blk1_nub, blk2_nub, scramb_init, 'schhd')
-            if r2[0]:
-                result = r2
-                blk1_final, blk2_final = blk1_nub, blk2_nub
-            else:
-                r3 = try_channel_decode(blk1_nub, blk2_nub, scramb_init, 'schf')
-                if r3[0]:
-                    result = r3
-                    blk1_final, blk2_final = blk1_nub, blk2_nub
-        crc_ok, info_bits, type5_hard = result[0], result[1], result[2]
-        variant = result[3] if len(result) > 3 and result[3] else ''
+        type5_hard = res['type5_hard']
         type5_patterns.append(type5_hard if type5_hard is not None else np.zeros(168, dtype=np.int8))
-
-        tag = 'OK' if crc_ok else '-'
+        tag = 'OK' if res['crc_ok'] else '-'
+        info_bits = res['info_bits']
         pdu_hex = bits_to_hex(info_bits[:48])[:23] if info_bits is not None else ''
-        print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f} {cfo_A*1000:+9.2f} {cfo_B*1000:+9.2f} {tag:>4} {variant:>14}  {pdu_hex}', flush=True)
-
-        # ROUNDTRIP_DUMP — per-burst bit dump so parse_reference_decode.py can
-        # show every channel-coding layer in ul_full.md. Emit even for CRC FAIL
-        # bursts (= TCH/S voice payload — bits are not signaling but ARE the
-        # over-air sample.)
-        if blk1_final is not None and blk2_final is not None:
-            soft = np.concatenate([blk1_final, blk2_final])
-            t5_onair = (soft < 0).astype(np.int32)
-            t5_str = ''.join(str(int(b)) for b in t5_onair)
+        variant = res['variant']
+        cfo_A = res['cfo_A']
+        print(f'  {i:3d} {s/sr_dec:8.3f} {x_corr:6.3f} {cfo_A*1000:+9.2f} {0.0:+9.2f} {tag:>4} {variant:>14}  {pdu_hex}', flush=True)
+        # ROUNDTRIP_DUMP — per-burst bit dump
+        if res['t5_onair'] is not None:
+            t5_str = ''.join(str(int(b)) for b in res['t5_onair'])
             print(f'  ROUNDTRIP_DUMP_HU type5_onair={t5_str}', flush=True)
             print(f'  ROUNDTRIP_DUMP_HU scramb_code=0x{scramb_init:08x}', flush=True)
             print(f'  ROUNDTRIP_DUMP_HU variant={variant}', flush=True)
@@ -722,7 +813,7 @@ def main():
             if info_bits is not None:
                 info_str = ''.join(str(int(b)) for b in info_bits)
                 print(f'  ROUNDTRIP_DUMP_HU info={info_str}', flush=True)
-        if crc_ok:
+        if res['crc_ok']:
             crc_hits += 1
             decoded_pdus.append(info_bits)
 
