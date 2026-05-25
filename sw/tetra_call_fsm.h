@@ -41,8 +41,10 @@
  * sieht Channel-Busy zu lange → langsamere PTT-Reaktion. 300 ms = optimal
  * trade-off zwischen Mid-Call-Flicker und Post-Release-Latency. */
 #define CALL_FSM_VOICE_QUIET_MS 300u
-/* 2026-05-25 — temporär 5s für Mess-Tests (war 30s wegen U-DISCONNECT-
- * Race; wenn beim Test ok, dann zurück auf 30s für stabilen Betrieb). */
+/* 2026-05-25 — 5s. Per-TS Quiet-Detection (CALL_FSM_VOICE_QUIET_MS=300ms)
+ * dropt das Audio innerhalb 300ms nach PTT-Release; danach noch 5s bis
+ * Slot freed wird. Wenn U-DISCONNECT zu spät kommt (>5s nach Voice-Ende):
+ * MS retried U-DISCONNECT — kein Schaden im Multi-Group-Betrieb. */
 #define CALL_FSM_CALL_STALE_MS 5000u
 
 typedef enum {
@@ -116,5 +118,12 @@ void tetra_call_fsm_dump(void);
  * U-SETUP-Empfang bis erster Voice-Burst — typisch erwartet 100-200 ms,
  * "langsame" Setups zeigen sich hier als 500+ ms. */
 void tetra_call_fsm_notify_first_nub(uint32_t now_ms);
+
+/* Multi-Group 2026-05-25 — per-TS Aktivitäts-Hook. voice_pipe identifiziert
+ * über REG_TS1_STOPWATCH_DELTA + tetra_delta_to_etsi_ts() den UL-air-TS
+ * eines Bursts und ruft diese Funktion auf. call_fsm matched auf den
+ * call_slot mit voice_ts==ul_air_ts und refresht dessen last_activity.
+ * Watchdog kann dann per-Slot stale-detect machen statt global. */
+void tetra_call_fsm_notify_ul_burst(uint8_t ul_air_ts, uint32_t now_ms);
 
 #endif /* TETRA_CALL_FSM_H */

@@ -49,16 +49,25 @@ static void mask_write_cached(tetra_hal_t *hal, uint32_t v)
 }
 
 /* Multi-Group 2026-05-25 — Aggregierte voice_active_mask: OR der bit-Positionen
- * aller aktiven Calls (per-TS bit via tetra_ts_to_voice_mask_bit()). */
+ * aller aktiven Calls die in den letzten CALL_FSM_VOICE_QUIET_MS einen UL-Burst
+ * hatten (per-Slot age-Check). Damit dropt das Mask-Bit für eine MS sofort
+ * wenn sie aufhört zu senden — auch wenn andere MS auf anderem TS weiter
+ * sendet. */
 static uint32_t compute_voice_mask(void)
 {
+ uint32_t now = mono_ms_lo();
  uint32_t m = 0u;
  for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
- if (g_slots[i].ssi != 0u
- && g_slots[i].state != CALL_STATE_IDLE
- && g_slots[i].state != CALL_STATE_RELEASING) {
+ if (g_slots[i].ssi == 0u) continue;
+ if (g_slots[i].state == CALL_STATE_IDLE) continue;
+ if (g_slots[i].state == CALL_STATE_RELEASING) continue;
+ /* Saturating subtract — notify_ul_burst() kann last_activity_poll_cnt
+  * minimal in die Zukunft schreiben (≤ paar ms voice_pipe-Latenz). */
+ uint32_t age = (g_slots[i].last_activity_poll_cnt > now)
+              ? 0u
+              : (now - g_slots[i].last_activity_poll_cnt);
+ if (age > CALL_FSM_VOICE_QUIET_MS) continue;
  m |= tetra_ts_to_voice_mask_bit(g_slots[i].voice_ts);
- }
  }
  return m;
 }
@@ -127,18 +136,13 @@ static void aach_write(tetra_hal_t *hal, unsigned ts, uint16_t info)
  tetra_reg_write(hal, reg, (uint32_t)(info & 0x3FFFu));
 }
 
-/* Voice-Slot-Allocator: round-robin über TETRA_VOICE_TS_MIN..MAX mit
- * Kollisions-Check gegen aktive Calls. TS1 ist mcch (Control). */
-static uint8_t g_next_voice_ts = TETRA_VOICE_TS_MIN;
-
+/* Voice-Slot-Allocator: nimmt IMMER den niedrigsten freien Voice-TS.
+ * TS1 ist mcch (Control). Ohne aktive Calls → TS2. Mit TS2 belegt → TS3.
+ * Mit TS2+TS3 belegt → TS4. Alle 3 belegt → 0 (Fehler, kein freier Slot).
+ * Kein round-robin state — deterministisch und neu-startbar. */
 static uint8_t alloc_voice_ts(void)
 {
- const unsigned span = TETRA_VOICE_TS_MAX - TETRA_VOICE_TS_MIN + 1u;
- for (unsigned tries = 0; tries < span; tries++) {
- uint8_t cand = g_next_voice_ts;
- g_next_voice_ts++;
- if (g_next_voice_ts > TETRA_VOICE_TS_MAX)
- g_next_voice_ts = TETRA_VOICE_TS_MIN;
+ for (uint8_t cand = TETRA_VOICE_TS_MIN; cand <= TETRA_VOICE_TS_MAX; cand++) {
  int collision = 0;
  for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
  if (g_slots[i].ssi != 0u && g_slots[i].voice_ts == cand) {
@@ -575,13 +579,16 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  s_last_hb_ms = now;
  for (unsigned j = 0; j < CALL_FSM_MAX_CALLS; j++) {
  if (g_slots[j].ssi == 0u) continue;
+ uint32_t hb_age = (g_slots[j].last_activity_poll_cnt > now)
+                 ? 0u
+                 : (now - g_slots[j].last_activity_poll_cnt);
  fprintf(stderr,
- "HB: slot=%u ssi=0x%06X state=%d mask=0x%02X "
+ "HB: slot=%u ssi=0x%06X state=%d voice_ts=TS%u mask=0x%02X "
  "nub_cnt=%u nub_quiet_ms=%u age_ms=%u\n",
  j, g_slots[j].ssi, (int)g_slots[j].state,
+ g_slots[j].voice_ts,
  (unsigned)g_mask_cached,
- (unsigned)s_last_nub_cnt, nub_quiet_ms,
- now - g_slots[j].last_activity_poll_cnt);
+ (unsigned)s_last_nub_cnt, nub_quiet_ms, hb_age);
  break;
  }
  }
@@ -625,54 +632,47 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  }
  }
 
- /* NUB-Burst gesehen → Slot-last_activity refresh (verhindert
-  * Stale-Free während aktiver PTT). */
- if (nub_quiet_ms == 0) s->last_activity_poll_cnt = now;
-
- uint32_t age = now - s->last_activity_poll_cnt;
+ /* Per-Slot stale-Detection (Multi-Group 2026-05-25):
+  * last_activity_poll_cnt wird via tetra_call_fsm_notify_ul_burst()
+  * vom voice_pipe je passendem voice_ts gesetzt. Saturating subtract
+  * weil voice_pipe (in vorigem Loop-Iteration) last_activity auf
+  * mono_ms_lo() Wert SETZEN kann der größer als der äußere `now` ist. */
+ uint32_t age = (s->last_activity_poll_cnt > now)
+              ? 0u
+              : (now - s->last_activity_poll_cnt);
  if (s->state != CALL_STATE_IDLE &&
  age > CALL_FSM_CALL_STALE_MS) {
  fprintf(stderr,
- "tetra_call_fsm: WATCHDOG ssi=0x%06X call_id=%u idle for "
- "%ums → freeing slot\n",
- s->ssi, s->call_id, age);
- tetra_voice_filler_clear(hal);
+ "tetra_call_fsm: WATCHDOG ssi=0x%06X call_id=%u voice_ts=TS%u "
+ "idle for %ums → freeing slot\n",
+ s->ssi, s->call_id, s->voice_ts, age);
+ if (s->voice_ts >= 1u && s->voice_ts <= 4u)
+ tetra_voice_filler_clear_ts(hal, s->voice_ts);
  free_slot(hal, s);
  continue;
+ }
+ /* Per-TS Voice-Quiet: wenn dieser Slot seit >VOICE_QUIET_MS keinen
+  * UL-Burst hatte → seinen DL-Filler-Bank clearen + Mask-Bit löschen.
+  * Slot bleibt CONNECTED (kein Free), nur DL-Audio stoppt. */
+ if (age > CALL_FSM_VOICE_QUIET_MS && s->voice_ts >= 1u && s->voice_ts <= 4u) {
+ tetra_voice_filler_clear_ts(hal, s->voice_ts);
  }
  active++;
  /* Phase B — UL→DL Voice-Pipeline. Wenn ein Burst in der UL-NUB-
   *   Read-Mailbox steht: dekodieren, SSI auf Call-Target patchen,
-  *   re-encodieren und in DL-Filler-Mailbox schieben. Bei CRC-Fail
-  *   (TCH/S Voice-ACELP ohne MAC-Header) → 1:1 weitergegeben. */
+  *   re-encodieren und in DL-Filler-Mailbox schieben. */
  uint32_t voice_tgt = s->group_gssi ? s->group_gssi : s->target_issi;
  if (voice_tgt != 0u)
  (void)tetra_voice_pipe_tick(hal, voice_tgt);
  }
 
- /* Mask-Lifecycle:
-  * - Kein aktiver Slot → mask=0.
-  * - Aktiver Slot + NUB seit > VOICE_QUIET_MS still → mask=0
-  *   (AACH wird wieder idle, MER bleibt 0 %). Re-Key über neuen
-  *   U-SETUP / U-TX-DEMAND setzt mask=0x02 wieder. */
- if (active == 0) {
- if (g_mask_cached != 0u) {
- fprintf(stderr,
- "WATCHDOG: mask→0 reason=active==0 nub_cnt=%u "
- "nub_quiet_ms=%u nub_seen=%d\n",
- (unsigned)s_last_nub_cnt, nub_quiet_ms, s_nub_seen);
- }
- mask_write_cached(hal, 0x00u);
- } else if (s_nub_seen && nub_quiet_ms > CALL_FSM_VOICE_QUIET_MS) {
- if (g_mask_cached != 0u) {
- fprintf(stderr,
- "WATCHDOG: mask→0 reason=nub_quiet>%ums active=%u "
- "nub_cnt=%u nub_quiet_ms=%u\n",
- (unsigned)CALL_FSM_VOICE_QUIET_MS, active,
- (unsigned)s_last_nub_cnt, nub_quiet_ms);
- }
- mask_write_cached(hal, 0x00u);
- }
+ /* Globale Mask jetzt = OR aller TALKER-Slots deren UL noch frisch ist.
+  * compute_voice_mask() iteriert alle aktiven Slots — per-TS quiet wird
+  * implizit über age==CONNECTED handled (mask-bit ist gesetzt solange
+  * state==TALKER/CONNECTED und voice_ts gültig). Mask-Bit dropt erst
+  * wenn der Call selbst freed wird (über stale-Watchdog oder U-RELEASE). */
+ uint32_t target_mask = compute_voice_mask();
+ mask_write_cached(hal, target_mask);
 }
 
 void tetra_call_fsm_dump(void)
@@ -707,6 +707,21 @@ void tetra_call_fsm_notify_first_nub(uint32_t now_ms)
  "tetra_call_fsm: [TIMING] first NUB-burst — t0→voice = %u ms "
  "(call_id=%u ssi=0x%06X)\n",
  age, s->call_id, s->ssi);
+ break;
+ }
+}
+
+/* Multi-Group 2026-05-25 — per-TS Aktivitäts-Hook für voice_pipe.
+ * Findet den call_slot mit voice_ts==ul_air_ts und refresht dessen
+ * last_activity_poll_cnt. Watchdog cleart per-Slot mask-bit + filler-bank
+ * wenn dieser Wert für CALL_FSM_VOICE_QUIET_MS nicht refresht wurde. */
+void tetra_call_fsm_notify_ul_burst(uint8_t ul_air_ts, uint32_t now_ms)
+{
+ if (ul_air_ts < 1u || ul_air_ts > 4u) return;
+ for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
+ if (g_slots[i].ssi == 0u) continue;
+ if (g_slots[i].voice_ts != ul_air_ts) continue;
+ g_slots[i].last_activity_poll_cnt = now_ms;
  break;
  }
 }

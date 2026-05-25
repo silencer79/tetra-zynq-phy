@@ -94,6 +94,12 @@ int tetra_voice_pipe_tick(tetra_hal_t *hal, uint32_t target_ssi)
   * Burst-Read gelesen damit DELTA atomar zur Burst-Erkennung paßt. */
  uint32_t delta = tetra_reg_read(hal, REG_TS1_STOPWATCH_DELTA);
  uint8_t ul_air_ts = compute_ul_air_ts(delta);
+ uint32_t now_ms = mono_ms_lo_vp();
+
+ /* Per-TS Aktivitäts-Hook: refresht last_activity in dem call_slot mit
+  * voice_ts==ul_air_ts. Watchdog cleart per-Slot mask-bit + filler-bank
+  * wenn dieser Wert für CALL_FSM_VOICE_QUIET_MS nicht refresht wurde. */
+ tetra_call_fsm_notify_ul_burst(ul_air_ts, now_ms);
 
  /* Periodisches Logging (jeder 16. Burst). */
  static uint32_t s_log_div = 0u;
