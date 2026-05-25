@@ -35,6 +35,11 @@
  *   power-cycle / RF-Drop ohne U-RELEASE). Lang genug, dass
  *   PTT-Pause + Re-Key ohne neuen U-SETUP-Roundtrip möglich ist —
  *   Reservation bleibt, nur der Kanal geht aus. */
+/* 300 ms bewusst gewählt — getestet 1000 ms (commit-WIP 2026-05-25):
+ * User-Feedback "war vorher besser". Höhere Schwellen lassen die AACH-mask
+ * 1s länger "active" stehen obwohl UL-Voice schon stillgestanden ist; MS-FW
+ * sieht Channel-Busy zu lange → langsamere PTT-Reaktion. 300 ms = optimal
+ * trade-off zwischen Mid-Call-Flicker und Post-Release-Latency. */
 #define CALL_FSM_VOICE_QUIET_MS 300u
 /* 2026-05-24 — 5s→30s. 5s war zu kurz: nach Voice-Ende wartete MS-FW
  * typisch 2-7s vor U-DISCONNECT. Wenn WATCHDOG zuerst freed, läuft
