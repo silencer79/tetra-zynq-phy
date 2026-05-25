@@ -63,7 +63,12 @@ module tetra_burst_builder #(
  output reg [1:0] tx_dibit_sys,
  output reg tx_dibit_valid_sys,
  output reg tx_done_sys, // 1-cycle pulse on last symbol
- output reg tx_busy_sys // HIGH while burst in progress
+ output reg tx_busy_sys, // HIGH while burst in progress
+ // 2026-05-25 Mess-Infra: 1-cycle Puls am ersten Dibit der Burst.
+ // Kombinatorisch aus FSM-State (keine zusätzliche Latency).
+ // Verwendet im tx_chain als TS1-Stopuhr-Start-Anker nach AND
+ // mit current_burst_is_ts1_r aus dem dispatcher.
+ output wire first_dibit_sys
 );
 
 // =============================================================================
@@ -288,6 +293,14 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  else
  tx_dibit_valid_sys <= sym_en_w && (state_sys == S_SHIFT);
 end
+
+// 2026-05-25 Mess-Infra: first_dibit_sys — kombinatorisch, identisch zur
+// Bedingung die tx_dibit_valid_sys auf den Wert "1 cycle later" treibt,
+// aber zusätzlich sym_cnt==0. Damit hat first_dibit_sys denselben Cycle-
+// Bezug wie tx_dibit_valid_sys (also = "der nächste Cycle ist der erste
+// gültige Dibit"). Wird im tx_chain mit current_burst_is_ts1_r gegated.
+assign first_dibit_sys = sym_en_w && (state_sys == S_SHIFT)
+                       && (sym_cnt_sys == 8'd0);
 
 // =============================================================================
 // R1: tx_done_sys — 1-cycle pulse on last output symbol

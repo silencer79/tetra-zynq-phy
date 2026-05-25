@@ -345,6 +345,18 @@
 #define REG_SLOT_AACH_TS3 0x2A8 /* R/W [13:0] AACH-info für ETSI TS3 */
 #define REG_SLOT_AACH_TS4 0x2AC /* R/W [13:0] AACH-info für ETSI TS4 */
 
+/* 2026-05-25 — TS1-Stopuhr Mess-Infra (Read-only).
+ * counter @ clk_sys (100 MHz, 32-bit free-running, wrap nach ~43 s).
+ * SW liest: delta_cycles = REG_TS1_STOPWATCH_UL − REG_TS1_STOPWATCH_TS1
+ * (mod-32). Erwartet ~2 TS = 2*14.167ms = 28.33ms = 2.833M cycles bei
+ * stabiler Air-Lock-Kette. REG_TS1_STOPWATCH_EVT inkrementiert pro UL-
+ * Latch — SW pollt diesen Counter um neue Werte zu erkennen. */
+#define REG_TS1_STOPWATCH_TS1 0x2B0 /* RO counter @ letztem TS1-Puls */
+#define REG_TS1_STOPWATCH_UL  0x2B4 /* RO counter @ letztem UL sync_found */
+#define REG_TS1_STOPWATCH_EVT   0x2B8 /* RO UL-Event-Counter (32-bit) */
+#define REG_TS1_STOPWATCH_DELTA 0x2BC /* RO atomar berechneter delta-Cycles
+                                         (counter@UL − ts1_latch), Race-frei */
+
 /* Hilfs-Konstanten für SW: AACH-info-Werte je Call-Phase */
 #define AACH_IDLE             0x3000  /* Header=11 UMx/UMx — Slot frei */
 #define AACH_VOICE_DEFAULT    0x33CF  /* Header=11 UMt=15/15 — Gold-default */

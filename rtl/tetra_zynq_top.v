@@ -1250,6 +1250,8 @@ tetra_burst_dispatcher #(
  ^dbg_sched_entry2_sys_w ^
  ^dbg_sched_entry3_sys_w;
 
+wire tx_first_dibit_sys_w;
+
 tetra_tx_chain #(
 .IQ_WIDTH (IQ_WIDTH),
 .BLOCK_BITS(BLOCK_BITS),
@@ -1278,8 +1280,59 @@ tetra_tx_chain #(
 .tx_q_lvds (tx_q_lvds),
 .tx_valid_lvds (tx_valid_lvds),
  // Status — feeds back to dispatcher (reserved future use)
-.tx_busy_sys (disp_tx_busy_sys_w)
+.tx_busy_sys (disp_tx_busy_sys_w),
+ // Mess-Infra (2026-05-25): 1-cycle Puls am ersten Dibit jeder Burst
+.first_dibit_sys (tx_first_dibit_sys_w)
  );
+
+// =============================================================================
+// 2026-05-25 Mess-Infra — TS1-Stopuhr (clk_sys, AXI nur read-only)
+// =============================================================================
+// 1) current_burst_is_ts1_r: gelatcht bei build_req_sys & tx_slot_num==0
+// 2) ts1_pulse_sys = tx_first_dibit_sys_w & current_burst_is_ts1_r
+// 3) free-running counter, latch A bei ts1_pulse, latch B bei ul_sync_found
+// 4) Event-Counter inkrementiert bei jedem UL-Latch
+// =============================================================================
+reg current_burst_is_ts1_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys)
+ current_burst_is_ts1_sys <= 1'b0;
+ else if (disp_build_req_sys_w)
+ current_burst_is_ts1_sys <= (tx_tdma_state_tn_sys == 2'd0);
+end
+
+wire ts1_pulse_sys = tx_first_dibit_sys_w & current_burst_is_ts1_sys;
+
+reg [31:0] sw_counter_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) sw_counter_sys <= 32'd0;
+ else            sw_counter_sys <= sw_counter_sys + 32'd1;
+end
+
+reg [31:0] sw_ts1_latch_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) sw_ts1_latch_sys <= 32'd0;
+ else if (ts1_pulse_sys) sw_ts1_latch_sys <= sw_counter_sys;
+end
+
+reg [31:0] sw_ul_latch_sys;
+reg [31:0] sw_ul_evt_cnt_sys;
+// 2026-05-25: Race-Fix — delta wird ATOMAR bei jedem UL-Event berechnet.
+// sw_counter_sys (UL-Zeit) − sw_ts1_latch_sys (jüngster vorausgegangener TS1)
+// = exakte Zykluszahl vom letzten TS1-Puls vor diesem UL-Burst. SW liest nur
+// sw_delta_latch_sys + sw_ul_evt_cnt_sys, kein SW-seitiger Race mehr.
+reg [31:0] sw_delta_latch_sys;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ sw_ul_latch_sys    <= 32'd0;
+ sw_ul_evt_cnt_sys  <= 32'd0;
+ sw_delta_latch_sys <= 32'd0;
+ end else if (ul_sync_found_sys) begin
+ sw_ul_latch_sys    <= sw_counter_sys;
+ sw_ul_evt_cnt_sys  <= sw_ul_evt_cnt_sys + 32'd1;
+ sw_delta_latch_sys <= sw_counter_sys - sw_ts1_latch_sys;
+ end
+end
 
 // =============================================================================
 // 2-FF synchronizers: clk_sys → s_axi_aclk domain
@@ -1888,6 +1941,54 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
 end
 
 // =============================================================================
+// 2026-05-25 Mess-Infra: 2-FF Sync clk_sys → s_axi_aclk (same-source Annahme
+// wie alle anderen Status-Regs hier).
+// =============================================================================
+(* ASYNC_REG = "TRUE" *) reg [31:0] sw_ts1_latch_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] sw_ts1_latch_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) sw_ts1_latch_axi_r0 <= 32'd0;
+ else            sw_ts1_latch_axi_r0 <= sw_ts1_latch_sys;
+end
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) sw_ts1_latch_axi_r1 <= 32'd0;
+ else            sw_ts1_latch_axi_r1 <= sw_ts1_latch_axi_r0;
+end
+
+(* ASYNC_REG = "TRUE" *) reg [31:0] sw_ul_latch_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] sw_ul_latch_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) sw_ul_latch_axi_r0 <= 32'd0;
+ else            sw_ul_latch_axi_r0 <= sw_ul_latch_sys;
+end
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) sw_ul_latch_axi_r1 <= 32'd0;
+ else            sw_ul_latch_axi_r1 <= sw_ul_latch_axi_r0;
+end
+
+(* ASYNC_REG = "TRUE" *) reg [31:0] sw_ul_evt_cnt_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] sw_ul_evt_cnt_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) sw_ul_evt_cnt_axi_r0 <= 32'd0;
+ else            sw_ul_evt_cnt_axi_r0 <= sw_ul_evt_cnt_sys;
+end
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) sw_ul_evt_cnt_axi_r1 <= 32'd0;
+ else            sw_ul_evt_cnt_axi_r1 <= sw_ul_evt_cnt_axi_r0;
+end
+
+(* ASYNC_REG = "TRUE" *) reg [31:0] sw_delta_latch_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] sw_delta_latch_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) sw_delta_latch_axi_r0 <= 32'd0;
+ else            sw_delta_latch_axi_r0 <= sw_delta_latch_sys;
+end
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) sw_delta_latch_axi_r1 <= 32'd0;
+ else            sw_delta_latch_axi_r1 <= sw_delta_latch_axi_r0;
+end
+
+// =============================================================================
 // AXI4-Lite Register Bank
 // =============================================================================
 
@@ -2030,6 +2131,12 @@ tetra_axi_lite_regs u_axi_regs (
 .db_policy_axi (db_policy_axi_w),
 .voice_active_mask_axi (voice_active_mask_axi_w),
 .slot_aach_axi (slot_aach_axi_w),
+
+ // 2026-05-25 Mess-Infra: TS1-Stopuhr (Latches + atomar berechneter delta)
+.sw_ts1_latch_axi    (sw_ts1_latch_axi_r1),
+.sw_ul_latch_axi     (sw_ul_latch_axi_r1),
+.sw_ul_evt_cnt_axi   (sw_ul_evt_cnt_axi_r1),
+.sw_delta_latch_axi  (sw_delta_latch_axi_r1),
 .voice_nub_rx_cnt_axi (voice_nub_rx_cnt_axi_r1),
 .voice_relay_cnt_axi (voice_relay_cnt_axi_r1),
 .voice_nub_sync_thresh_axi (voice_nub_sync_thresh_axi_w),

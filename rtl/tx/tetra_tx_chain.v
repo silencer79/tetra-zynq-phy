@@ -69,7 +69,14 @@ module tetra_tx_chain #(
  // -------------------------------------------------------------------------
  // Status outputs (to AXI-Lite register bank)
  // -------------------------------------------------------------------------
- output wire tx_busy_sys
+ output wire tx_busy_sys,
+
+ // -------------------------------------------------------------------------
+ // 2026-05-25 Mess-Infra: 1-cycle Puls am ersten Dibit jeder Burst aus
+ // dem burst_builder. Wird im zynq_top mit current_burst_is_ts1_r AND-
+ // verknüpft → TS1-Stopuhr-Start-Puls. Keine RRC/CIC-Pipeline involved.
+ // -------------------------------------------------------------------------
+ output wire first_dibit_sys
 );
 
 // =============================================================================
@@ -117,7 +124,8 @@ tetra_burst_builder #(
 .tx_dibit_sys (builder_dibit_sys),
 .tx_dibit_valid_sys(builder_dibit_valid_sys),
 .tx_done_sys (builder_done_sys),
-.tx_busy_sys (builder_busy_sys)
+.tx_busy_sys (builder_busy_sys),
+.first_dibit_sys (first_dibit_sys)
 );
 
 // =============================================================================

@@ -553,6 +553,19 @@ module tetra_axi_lite_regs (
   * je Call-Phase. Ersetzt das hardcoded 14'h32CB im aach_encoder.v. */
  output reg [63:0] slot_aach_axi,
 
+ /* 2026-05-25 — TS1-Stopuhr (Mess-Infra). Read-only von SW. RTL-Latches
+  * im zynq_top, hier nur read-Pfad.
+  *   REG_TS1_STOPWATCH_TS1   @ 0x2B0 = counter-Wert bei letztem TS1-Puls
+  *   REG_TS1_STOPWATCH_UL    @ 0x2B4 = counter-Wert bei letztem UL sync_found
+  *   REG_TS1_STOPWATCH_EVT   @ 0x2B8 = UL-Event-Counter (32-bit)
+  *   REG_TS1_STOPWATCH_DELTA @ 0x2BC = atomar bei UL berechnetes delta-Cycles
+  *                                     = sw_counter(@UL) − sw_ts1_latch
+  *                                     (Race-frei, kein SW-Recompute nötig) */
+ input wire [31:0] sw_ts1_latch_axi,
+ input wire [31:0] sw_ul_latch_axi,
+ input wire [31:0] sw_ul_evt_cnt_axi,
+ input wire [31:0] sw_delta_latch_axi,
+
  // ------------------------------------------------------------------
  // Schedule-BRAM AXI Window (Plan Stufe 3) — 0x400..0x63F
  // 144 words, each word packs TWO 16-bit schedule entries.
@@ -860,6 +873,11 @@ localparam [6:0] REG_SLOT_AACH_TS1 = 7'h28; // 0x2A0 R/W [13:0] AACH-info ETSI T
 localparam [6:0] REG_SLOT_AACH_TS2 = 7'h29; // 0x2A4 R/W [13:0] AACH-info ETSI TS2 (voice)
 localparam [6:0] REG_SLOT_AACH_TS3 = 7'h2A; // 0x2A8 R/W [13:0] AACH-info ETSI TS3
 localparam [6:0] REG_SLOT_AACH_TS4 = 7'h2B; // 0x2AC R/W [13:0] AACH-info ETSI TS4
+// 2026-05-25 — TS1-Stopuhr Mess-Infra (Read-only)
+localparam [6:0] REG_TS1_STOPWATCH_TS1 = 7'h2C; // 0x2B0 RO counter @ TS1-Puls
+localparam [6:0] REG_TS1_STOPWATCH_UL  = 7'h2D; // 0x2B4 RO counter @ UL sync_found
+localparam [6:0] REG_TS1_STOPWATCH_EVT   = 7'h2E; // 0x2B8 RO UL-Event-Count (32-bit)
+localparam [6:0] REG_TS1_STOPWATCH_DELTA = 7'h2F; // 0x2BC RO atomar berechneter delta
 // Phase 7 G.8 — Voice-Slot Filler-Mailbox (0x270..0x27C, Bank-1)
 localparam [6:0] REG_VOICE_FILLER_INDEX = 7'h1C; // 0x270 R/W [3:0] word selector
 localparam [6:0] REG_VOICE_FILLER_DATA = 7'h1D; // 0x274 R/W [31:0] indirect via INDEX
@@ -1260,6 +1278,10 @@ always @(*) begin
  REG_SLOT_AACH_TS2: rdata_mux_axi = {16'd0, slot_aach_axi[31:16]};
  REG_SLOT_AACH_TS3: rdata_mux_axi = {16'd0, slot_aach_axi[47:32]};
  REG_SLOT_AACH_TS4: rdata_mux_axi = {16'd0, slot_aach_axi[63:48]};
+ REG_TS1_STOPWATCH_TS1:   rdata_mux_axi = sw_ts1_latch_axi;
+ REG_TS1_STOPWATCH_UL:    rdata_mux_axi = sw_ul_latch_axi;
+ REG_TS1_STOPWATCH_EVT:   rdata_mux_axi = sw_ul_evt_cnt_axi;
+ REG_TS1_STOPWATCH_DELTA: rdata_mux_axi = sw_delta_latch_axi;
  // Phase 7 G.8 — Voice-Filler mailbox
  REG_VOICE_FILLER_INDEX: rdata_mux_axi = {28'd0, vfill_index_axi};
  REG_VOICE_FILLER_DATA: rdata_mux_axi = vfill_rdata_axi_i;
