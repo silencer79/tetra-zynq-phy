@@ -299,6 +299,21 @@ UL_MLE_PDU_NAMES = {
     4: 'SNDCP', 5: 'MLE', 6: 'TETRA-Mgmt', 7: 'Testing',
 }
 
+# UL CMCE PDU type names (ETSI EN 300 392-2 §14.7.1.4 Tab. 14.45).
+# Lokaler Fallback, falls das (optional importierte) tetra_cmce-Modul fehlt.
+UL_CMCE_NAMES = {
+    0:  'U-ALERT',
+    2:  'U-CONNECT',
+    4:  'U-DISCONNECT',
+    5:  'U-INFO',
+    6:  'U-RELEASE',
+    7:  'U-SETUP',
+    8:  'U-STATUS',
+    9:  'U-TX-CEASED',
+    10: 'U-TX-DEMAND',
+    11: 'U-CALL-RESTORE',
+}
+
 UL_MM_NAMES = {
     0:  'U-AUTHENTICATION',
     1:  'U-ITSI-DETACH',
@@ -429,10 +444,12 @@ def parse_ul_mle(bits, pos):
     elif disc == 2 and pos + 5 <= len(bits):  # CMCE
         cmce_type = extract_bits(bits, pos, 5)
         r['cmce_type'] = cmce_type
-        # Phase-1 — full field-level CMCE PDU parse
+        # Lokaler Fallback-Name immer setzen; full field-level parse via
+        # optionalem tetra_cmce-Modul (überschreibt cmce_name falls Modul da).
+        r['cmce_name'] = UL_CMCE_NAMES.get(cmce_type, f'Unknown({cmce_type})')
         try:
             from tetra_cmce import parse_cmce_ul, CMCE_UL as _CMCE_UL
-            r['cmce_name'] = _CMCE_UL.get(cmce_type, f'Unknown({cmce_type})')
+            r['cmce_name'] = _CMCE_UL.get(cmce_type, r['cmce_name'])
             r['cmce'] = parse_cmce_ul(bits, pos)
         except ImportError:
             pass
@@ -839,7 +856,10 @@ def main():
             if args.dump_bits:
                 print(f'      bits92={"".join(str(int(b)) for b in pdu)}')
             print(f'      {format_parsed_mac_access(parsed)}')
-            print(f'      parsed={parsed}')
+            # raw-dict-Dump nur bei --dump-bits (sonst verwirrt er — z.B. zeigt
+            # direct_mm.mm_name auch wenn decoded_mode=llc_mle dominiert).
+            if args.dump_bits:
+                print(f'      parsed={parsed}')
 
     return 0
 
