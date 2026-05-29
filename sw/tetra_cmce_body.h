@@ -85,5 +85,8 @@ int tetra_cmce_build_d_connect (const cmce_meta_t *m, uint8_t *out);
 int tetra_cmce_build_d_tx_granted (const cmce_meta_t *m, uint8_t *out);
 int tetra_cmce_build_d_tx_ceased (const cmce_meta_t *m, uint8_t *out);
 int tetra_cmce_build_d_release (const cmce_meta_t *m, uint8_t *out);
+/* Einzelruf-Handshake (2026-05-25) */
+int tetra_cmce_build_d_connect_ack (const cmce_meta_t *m, uint8_t *out);
+int tetra_cmce_build_d_alert (const cmce_meta_t *m, uint8_t *out);
 
 #endif /* TETRA_CMCE_BODY_H */

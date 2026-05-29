@@ -34,6 +34,9 @@ typedef enum {
  TX_D_TX_GRANTED = 6, /* CMCE pdu=21, talker-grant */
  TX_D_RELEASE = 7, /* CMCE pdu=10, end-of-call */
  TX_D_TX_CEASED = 8, /* CMCE pdu=9, ack MS U-TX-CEASED */
+ /* Einzelruf-Handshake (2026-05-25) */
+ TX_D_CONNECT_ACK = 9, /* CMCE pdu=3, through-connect Befehl an Callee */
+ TX_D_ALERT = 10, /* CMCE pdu=0, "calling..." Status an Caller */
 } tx_pdu_class_t;
 
 /* Slot-class hint (Z.2+). 0 = legacy (RTL chooses default per existing

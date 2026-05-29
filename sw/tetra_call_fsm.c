@@ -298,6 +298,27 @@ static int stage_d_tx_granted(tetra_hal_t *hal, call_slot_t *s)
  return tetra_tx_submit(hal, TX_D_TX_GRANTED, &m);
 }
 
+/* D-CONNECT-ACK an die CALLED MS — Einzelruf-Handshake nach U-CONNECT.
+ * Target = ssi des Slots (= Caller bei Group-Floor-Transfer-Mechanik,
+ * oder = aktueller Talker bei Einzelruf). Bei Individual-Call ist das
+ * was wir an MS-B (callee) schicken müssen — also explicit s->target_issi
+ * verwenden falls vorhanden, sonst s->ssi. */
+static int stage_d_connect_ack(tetra_hal_t *hal, call_slot_t *s)
+{
+ tx_pdu_meta_t m;
+ memset(&m, 0, sizeof(m));
+ m.target_ssi = s->target_issi ? s->target_issi : s->ssi;
+ m.ns = s->ns;
+ m.nr = s->nr;
+ m.umt = s->umt;
+ m.chan_alloc_ts_bitmap = tetra_ts_to_chan_alloc_bitmap(s->voice_ts);
+ m.cmce.call_identifier = s->call_id & 0x3FFFu;
+ m.cmce.call_time_out = 0; /* Infinite */
+ m.cmce.transmission_grant = CMCE_TG_GRANTED;
+ m.cmce.transmission_request_permission = 0;
+ return tetra_tx_submit(hal, TX_D_CONNECT_ACK, &m);
+}
+
 static int stage_d_release(tetra_hal_t *hal, call_slot_t *s, uint8_t cause)
 {
  tx_pdu_meta_t m;
@@ -509,6 +530,43 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  "call_id=%u reps=%u rc=%d\n",
  ssi, m.target_ssi, s->call_id, reps, rc);
  return rc;
+ }
+
+ case CMCE_U_CONNECT: {
+ /* Einzelruf-Handshake — Callee bestätigt incoming Call.
+  * Slot wurde beim U-SETUP vom Caller angelegt (find via call_id, weil
+  * Callee's ssi NICHT in g_slots ist). Wir antworten mit D-CONNECT-ACK
+  * und markieren den Slot als TALKER (Voice kann fließen). */
+ if (s == NULL) {
+ s = find_slot_by_call_id(p->call_identifier);
+ if (s != NULL) {
+ fprintf(stderr,
+ "tetra_call_fsm: U-CONNECT callee-side ssi=0x%06X "
+ "→ call_id=%u (caller=0x%06X target_issi=0x%06X)\n",
+ ssi, s->call_id, s->ssi, s->target_issi);
+ }
+ }
+ if (s == NULL) return -1;
+ int rc = stage_d_connect_ack(hal, s);
+ s->state = CALL_STATE_TALKER;
+ s->last_activity_poll_cnt = mono_ms_lo();
+ mask_write_cached(hal, compute_voice_mask());
+ fprintf(stderr,
+ "tetra_call_fsm: U-CONNECT ssi=0x%06X → D-CONNECT-ACK "
+ "call_id=%u rc=%d\n",
+ ssi, s->call_id, rc);
+ return rc;
+ }
+
+ case CMCE_U_ALERT: {
+ /* Callee klingelt — informational. Keine DL-Antwort nötig.
+  * (Per ETSI §14.7.2.1 "Response expected: -") */
+ if (s == NULL) s = find_slot_by_call_id(p->call_identifier);
+ if (s == NULL) return -1;
+ fprintf(stderr,
+ "tetra_call_fsm: U-ALERT ssi=0x%06X call_id=%u (callee ringing)\n",
+ ssi, s->call_id);
+ return 0;
  }
 
  case CMCE_U_RELEASE: {

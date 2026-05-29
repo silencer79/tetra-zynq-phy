@@ -276,6 +276,10 @@ int tetra_tx_submit(tetra_hal_t *hal, tx_pdu_class_t cls,
  return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_tx_ceased);
  case TX_D_RELEASE:
  return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_release);
+ case TX_D_CONNECT_ACK:
+ return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_connect_ack);
+ case TX_D_ALERT:
+ return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_alert);
  default:
  return -1;
  }

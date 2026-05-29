@@ -26,8 +26,10 @@
 #include <string.h>
 
 /* PDU type codes (5 bit, ETSI §14.8.28). */
+#define D_ALERT 0u
 #define D_CALL_PROCEEDING 1u
 #define D_CONNECT 2u
+#define D_CONNECT_ACK 3u
 #define D_RELEASE 6u
 #define D_SETUP 7u
 #define D_TX_CEASED 9u
@@ -79,9 +81,29 @@ int tetra_cmce_build_d_setup(const cmce_meta_t *m, uint8_t *out)
  put_bits(out, &pos, m->transmission_request_permission & 0x01u, 1);
  put_bits(out, &pos, m->call_priority & 0x0Fu, 4);
 
- /* o-bit = 0 — bluestation returns early without trailing m-bit. */
+ /* Einzelruf 2026-05-25 — calling_party_ssi als Type-2 IE damit MS-B
+  * (Empfänger) den Caller-Namen ausm Codeplug auflösen kann. Sonst:
+  * "Einzelruf unbekannt" → reject.
+  * Layout per ETSI §14.7.1.12:
+  *   o-bit=1 (Type-2 folgt)
+  *   p_notification_indicator(1)=0
+  *   p_temporary_address(1)=0
+  *   p_calling_party_type_identifier(1)=1 (present) + 2 bit value=1 (SSI)
+  *   calling_party_address_ssi (24 bit)
+  *   m-bit(1)=0 (kein Type-3) */
+ if (m->calling_party_ssi != 0u) {
+ put_bits(out, &pos, 1u, 1); /* o-bit = 1, Type-2 follows */
+ put_bits(out, &pos, 0u, 1); /* p_notification_indicator absent */
+ put_bits(out, &pos, 0u, 1); /* p_temporary_address absent */
+ put_bits(out, &pos, 1u, 1); /* p_calling_party_type_identifier present */
+ put_bits(out, &pos, 1u, 2); /* CPTI = 1 (SSI only) */
+ put_bits(out, &pos, m->calling_party_ssi & 0x00FFFFFFu, 24);
+ put_bits(out, &pos, 0u, 1); /* m-bit = 0, kein Type-3 */
+ } else {
+ /* Group-Call ohne Caller-Info — wie vorher, früh terminieren. */
  put_bits(out, &pos, 0u, 1);
- return pos; /* expected = 5+14+4+1+1+8+2+1+4+1 = 41 bits */
+ }
+ return pos;
 }
 
 int tetra_cmce_build_d_call_proceeding(const cmce_meta_t *m, uint8_t *out)
@@ -204,4 +226,49 @@ int tetra_cmce_build_d_release(const cmce_meta_t *m, uint8_t *out)
  /* o-bit = 0 — bluestation returns early without trailing m-bit. */
  put_bits(out, &pos, 0u, 1);
  return pos; /* expected = 5+14+5+1 = 25 bits */
+}
+
+/* D-CONNECT-ACK (ETSI §14.7.1.5, BlueStation d_connect_acknowledge.rs):
+ * Antwort an die CALLED MS auf U-CONNECT. "Through-connect"-Befehl.
+ * Type-1 mandatories:
+ *   pdu_type(5) + call_identifier(14) + call_time_out(4) +
+ *   transmission_grant(2) + transmission_request_permission(1) + o-bit(1)
+ * = 27 bits ohne Type-2/3 IEs. */
+int tetra_cmce_build_d_connect_ack(const cmce_meta_t *m, uint8_t *out)
+{
+ if (m == NULL || out == NULL) return 0;
+ memset(out, 0, TETRA_CMCE_MAX_BYTES);
+ int pos = 0;
+
+ put_bits(out, &pos, D_CONNECT_ACK, 5);
+ put_bits(out, &pos, m->call_identifier & 0x3FFFu, 14);
+ put_bits(out, &pos, m->call_time_out & 0x0Fu, 4);
+ put_bits(out, &pos, m->transmission_grant & 0x03u, 2);
+ put_bits(out, &pos, m->transmission_request_permission & 0x01u, 1);
+ put_bits(out, &pos, 0u, 1); /* o-bit = 0, keine IEs */
+ return pos; /* 27 bits */
+}
+
+/* D-ALERT (ETSI §14.7.1.1, BlueStation d_alert.rs):
+ * "Call is proceeding and the connecting party has been alerted" —
+ * Antwort an die CALLING MS auf U-SETUP für individual calls (NICHT
+ * D-CALL-PROCEEDING; D-ALERT bedeutet Klingelphase beim Callee).
+ * Type-1 mandatories:
+ *   pdu_type(5) + call_identifier(14) + call_time_out_setup_phase(3) +
+ *   reserved(1)=1 + simplex_duplex(1) + call_queued(1) + o-bit(1)
+ * = 26 bits ohne Type-2/3 IEs. */
+int tetra_cmce_build_d_alert(const cmce_meta_t *m, uint8_t *out)
+{
+ if (m == NULL || out == NULL) return 0;
+ memset(out, 0, TETRA_CMCE_MAX_BYTES);
+ int pos = 0;
+
+ put_bits(out, &pos, D_ALERT, 5);
+ put_bits(out, &pos, m->call_identifier & 0x3FFFu, 14);
+ put_bits(out, &pos, m->call_time_out_setup_phase & 0x07u, 3);
+ put_bits(out, &pos, 1u, 1); /* reserved = 1 per BlueStation note */
+ put_bits(out, &pos, m->simplex_duplex_selection & 0x01u, 1);
+ put_bits(out, &pos, 0u, 1); /* call_queued = 0 */
+ put_bits(out, &pos, 0u, 1); /* o-bit = 0 */
+ return pos; /* 26 bits */
 }
