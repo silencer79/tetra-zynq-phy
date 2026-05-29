@@ -94,7 +94,11 @@ reg first_s1_sys;
 reg last_s1_sys;
 reg half_s1_sys;
 
-always @(posedge clk_sys or negedge rst_n_sys) begin
+// Synchronous reset (not async): lets Vivado absorb these product registers
+// into the DSP48 MREG stage (DSP48E1 reg only supports sync reset) — fixes
+// DRC DPOP-2/DPOR-1, frees fabric FF. Bit-identical in operation (rst_n is a
+// power-on/global reset, deasserted once).
+always @(posedge clk_sys) begin
  if (!rst_n_sys) begin
  mul_ii_s1 <= {(2*IQ_WIDTH){1'b0}};
  mul_qq_s1 <= {(2*IQ_WIDTH){1'b0}};
@@ -125,7 +129,9 @@ reg first_s2_sys;
 reg last_s2_sys;
 reg half_s2_sys;
 
-always @(posedge clk_sys or negedge rst_n_sys) begin
+// Synchronous reset — same rationale as the stage-1 product registers above
+// (DSP48 PREG/adder absorption). Bit-identical in operation.
+always @(posedge clk_sys) begin
  if (!rst_n_sys) begin
  re_z_s2 <= {(2*IQ_WIDTH+1){1'b0}};
  im_z_s2 <= {(2*IQ_WIDTH+1){1'b0}};
