@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1450" font-family="Helvetica,Arial,sans-serif" font-size="12">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#333"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#c00"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#06c"/>
+    </marker>
+    <style>
+      .blk { stroke:#444; stroke-width:1.2; }
+      .lvds { fill:#cce5ff; }
+      .sys  { fill:#d4edda; }
+      .axi  { fill:#fff3cd; }
+      .ext  { fill:#e2d5e8; }
+      .sw   { fill:#fce4d6; }
+      .mb   { fill:#f5f5f5; stroke-dasharray:4,2; }
+      .lbl  { font-weight:bold; }
+      .small { font-size:10px; }
+      .arr  { stroke:#333; stroke-width:1.4; fill:none; }
+      .arr-red { stroke:#c00; stroke-width:1.6; fill:none; }
+      .arr-blue { stroke:#06c; stroke-width:1.6; fill:none; }
+      .dom  { fill:none; stroke-dasharray:6,4; stroke-width:2; }
+      .dom-lvds { stroke:#06c; }
+      .dom-sys  { stroke:#080; }
+      .dom-axi  { stroke:#a80; }
+    </style>
+  </defs>
+
+  <!-- Title -->
+  <text x="900" y="28" text-anchor="middle" font-size="20" class="lbl">TETRA-BS FPGA-Architektur (Stand 02e3214, 2026-05-24)</text>
+  <text x="900" y="48" text-anchor="middle" font-size="11" fill="#666">Zynq-7020 (LibreSDR), Bitstream tetra_zynq_phy.bit</text>
+
+  <!-- Legend -->
+  <g transform="translate(20,60)">
+    <text x="0" y="0" class="lbl">Clock-Domains:</text>
+    <rect x="0" y="8" width="22" height="14" class="blk lvds"/><text x="28" y="20">clk_lvds (~30.72 MHz, AD9361 DATA_CLK)</text>
+    <rect x="290" y="8" width="22" height="14" class="blk sys"/><text x="318" y="20">clk_sys (100 MHz, PL fabric)</text>
+    <rect x="560" y="8" width="22" height="14" class="blk axi"/><text x="588" y="20">clk_axi (100 MHz, PS AXI4-Lite)</text>
+    <rect x="820" y="8" width="22" height="14" class="blk ext"/><text x="848" y="20">extern (AD9361, Antenne)</text>
+    <rect x="980" y="8" width="22" height="14" class="blk sw"/><text x="1008" y="20">ARM-SW (sysinfo, attach_daemon, ul_mon)</text>
+    <rect x="1290" y="8" width="22" height="14" class="blk mb"/><text x="1318" y="20">Mailbox (indirect INDEX/DATA/GO)</text>
+  </g>
+
+  <!-- ======================== TOP ANTENNA + AD9361 ======================== -->
+  <g transform="translate(0,100)">
+    <text x="900" y="0" text-anchor="middle" class="lbl" font-size="14">Antenne (RX 430.65 MHz, TX 438.25 MHz)</text>
+    <line x1="900" y1="6" x2="900" y2="22" class="arr"/>
+    <rect x="700" y="22" width="400" height="50" rx="6" class="blk ext"/>
+    <text x="900" y="42" text-anchor="middle" class="lbl">AD9361 (extern, SPI + LVDS)</text>
+    <text x="900" y="58" text-anchor="middle" class="small">RX-LO + RX-AGC + TX-LO + TX-Atten</text>
+  </g>
+
+  <!-- ======================== RX PATH (LINKS) ======================== -->
+  <g transform="translate(0,200)">
+    <rect class="dom dom-lvds" x="20" y="0" width="700" height="50"/>
+    <text x="40" y="20" class="small" fill="#06c">clk_lvds Domain</text>
+
+    <rect class="blk lvds" x="180" y="60" width="380" height="36" rx="4"/>
+    <text x="370" y="78" text-anchor="middle" class="lbl">axi_ad9361 (Vendor IP)</text>
+    <text x="370" y="92" text-anchor="middle" class="small">12-bit I/Q stream @ ~30.72 MSps</text>
+
+    <line x1="370" y1="96" x2="370" y2="120" class="arr" marker-end="url(#arrow)"/>
+
+    <rect class="blk lvds" x="120" y="120" width="500" height="50" rx="4"/>
+    <text x="370" y="140" text-anchor="middle" class="lbl">tetra_rx_frontend</text>
+    <text x="370" y="156" text-anchor="middle" class="small">CIC ×64 decim → 480 kSps → RRC matched filter → CDC lvds→sys → 72 kSps</text>
+  </g>
+
+  <!-- ======================== RX PATH CLK_SYS ======================== -->
+  <g transform="translate(0,400)">
+    <rect class="dom dom-sys" x="20" y="0" width="700" height="800"/>
+    <text x="40" y="20" class="small" fill="#080">clk_sys Domain (RX-Decoder)</text>
+
+    <line x1="370" y1="-30" x2="370" y2="50" class="arr" marker-end="url(#arrow)"/>
+    <text x="380" y="20" class="small" fill="#080">fe_i_sys, fe_q_sys [16-bit signed, 72 kSps]</text>
+
+    <!-- IQ-Peak monitor (heute neu) -->
+    <rect class="blk sys" x="540" y="50" width="170" height="46" rx="4"/>
+    <text x="625" y="68" text-anchor="middle" class="lbl">iq_peak_tracker</text>
+    <text x="625" y="82" text-anchor="middle" class="small">100ms sliding-window</text>
+    <text x="625" y="94" text-anchor="middle" class="small">max-|I|/|Q| → AXI</text>
+
+    <line x1="370" y1="50" x2="540" y2="73" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- Drei sync_detect parallel auf fe_i_sys/fe_q_sys -->
+    <rect class="blk sys" x="40" y="120" width="170" height="60" rx="4"/>
+    <text x="125" y="138" text-anchor="middle" class="lbl">sync_detect</text>
+    <text x="125" y="152" text-anchor="middle" class="small">DL SB1-Pattern</text>
+    <text x="125" y="166" text-anchor="middle" class="small">(self-sync)</text>
+
+    <rect class="blk sys" x="225" y="120" width="170" height="60" rx="4"/>
+    <text x="310" y="138" text-anchor="middle" class="lbl">ul_sync_detect_os4 #1</text>
+    <text x="310" y="152" text-anchor="middle" class="small">RA-burst Sync-Pattern</text>
+    <text x="310" y="166" text-anchor="middle" class="small">(MS-Einbuchung)</text>
+
+    <rect class="blk sys" x="410" y="120" width="190" height="60" rx="4"/>
+    <text x="505" y="138" text-anchor="middle" class="lbl">ul_sync_detect_os4 #2</text>
+    <text x="505" y="152" text-anchor="middle" class="small">NTS1-Pattern (TCH-NUB)</text>
+    <text x="505" y="166" text-anchor="middle" class="small">THRESH @0x268 [SW-tunable]</text>
+
+    <line x1="370" y1="96" x2="125" y2="120" class="arr" marker-end="url(#arrow)"/>
+    <line x1="370" y1="96" x2="310" y2="120" class="arr" marker-end="url(#arrow)"/>
+    <line x1="370" y1="96" x2="505" y2="120" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- Frame counter aus DL-Sync -->
+    <rect class="blk sys" x="40" y="210" width="170" height="46" rx="4"/>
+    <text x="125" y="228" text-anchor="middle" class="lbl">frame_counter</text>
+    <text x="125" y="242" text-anchor="middle" class="small">TN/FN/MN/HN tracking</text>
+    <line x1="125" y1="180" x2="125" y2="210" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- RA-Burst-Capture chain -->
+    <rect class="blk sys" x="225" y="210" width="170" height="46" rx="4"/>
+    <text x="310" y="228" text-anchor="middle" class="lbl">ul_burst_capture</text>
+    <text x="310" y="242" text-anchor="middle" class="small">RA-burst sample-store</text>
+    <line x1="310" y1="180" x2="310" y2="210" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- NUB-Capture -->
+    <rect class="blk sys" x="410" y="210" width="190" height="46" rx="4"/>
+    <text x="505" y="228" text-anchor="middle" class="lbl">ul_nub_capture</text>
+    <text x="505" y="242" text-anchor="middle" class="small">TCH-NUB 432×4bit soft</text>
+    <line x1="505" y1="180" x2="505" y2="210" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- Decoder chain UL -->
+    <rect class="blk sys" x="225" y="290" width="170" height="46" rx="4"/>
+    <text x="310" y="308" text-anchor="middle" class="lbl">ul_pi4dqpsk_demod</text>
+    <text x="310" y="322" text-anchor="middle" class="small">π/4-DQPSK → soft dibits</text>
+    <line x1="310" y1="256" x2="310" y2="290" class="arr" marker-end="url(#arrow)"/>
+
+    <rect class="blk sys" x="225" y="350" width="170" height="46" rx="4"/>
+    <text x="310" y="368" text-anchor="middle" class="lbl">ul_viterbi_r14</text>
+    <text x="310" y="382" text-anchor="middle" class="small">FEC rate 1/4 soft Viterbi</text>
+    <line x1="310" y1="336" x2="310" y2="350" class="arr" marker-end="url(#arrow)"/>
+
+    <rect class="blk sys" x="225" y="410" width="170" height="46" rx="4"/>
+    <text x="310" y="428" text-anchor="middle" class="lbl">ul_sch_hu_decoder</text>
+    <text x="310" y="442" text-anchor="middle" class="small">descramble + deinterleave + CRC-16</text>
+    <line x1="310" y1="396" x2="310" y2="410" class="arr" marker-end="url(#arrow)"/>
+
+    <rect class="blk sys" x="225" y="470" width="170" height="46" rx="4"/>
+    <text x="310" y="488" text-anchor="middle" class="lbl">mac_access_parser</text>
+    <text x="310" y="502" text-anchor="middle" class="small">92-bit MAC-PDU extract</text>
+    <line x1="310" y1="456" x2="310" y2="470" class="arr" marker-end="url(#arrow)"/>
+
+    <rect class="blk sys" x="225" y="530" width="170" height="56" rx="4"/>
+    <text x="310" y="548" text-anchor="middle" class="lbl">ul_demand_reassembly</text>
+    <text x="310" y="562" text-anchor="middle" class="small">2-burst → 129-bit MM-Body</text>
+    <text x="310" y="576" text-anchor="middle" class="small">(MM-attach demand)</text>
+    <line x1="310" y1="516" x2="310" y2="530" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- NUB-Read Mailbox -->
+    <rect class="blk mb" x="410" y="290" width="190" height="60" rx="4"/>
+    <text x="505" y="308" text-anchor="middle" class="lbl">voice_nub_read_mailbox</text>
+    <text x="505" y="322" text-anchor="middle" class="small">54×32-bit (1728-bit soft)</text>
+    <text x="505" y="336" text-anchor="middle" class="small">REG 0x280..0x28C</text>
+    <line x1="505" y1="256" x2="505" y2="290" class="arr-blue" marker-end="url(#arrow-blue)"/>
+  </g>
+
+  <!-- ======================== TX PATH (RECHTS) ======================== -->
+  <g transform="translate(720,200)">
+    <text x="380" y="-10" text-anchor="middle" class="lbl" font-size="14">TX-Pfad</text>
+
+    <rect class="dom dom-sys" x="20" y="0" width="700" height="950"/>
+    <text x="40" y="20" class="small" fill="#080">clk_sys Domain (TX-Encoder)</text>
+
+    <!-- TDMA Timebase -->
+    <rect class="blk sys" x="280" y="50" width="180" height="46" rx="4"/>
+    <text x="370" y="68" text-anchor="middle" class="lbl">tdma_timebase</text>
+    <text x="370" y="82" text-anchor="middle" class="small">tx_slot_pulse + FN/MN/HN</text>
+
+    <!-- Schedule -->
+    <rect class="blk sys" x="60" y="130" width="280" height="60" rx="4"/>
+    <text x="200" y="148" text-anchor="middle" class="lbl">slot_schedule + slot_content_mux</text>
+    <text x="200" y="162" text-anchor="middle" class="small">Schedule-BRAM Lookup</text>
+    <text x="200" y="176" text-anchor="middle" class="small">(TN × FN → PDU-Quelle)</text>
+
+    <!-- Static PDU mailboxes -->
+    <rect class="blk mb" x="60" y="210" width="140" height="60" rx="4"/>
+    <text x="130" y="228" text-anchor="middle" class="lbl small">REG_NDB_*</text>
+    <text x="130" y="242" text-anchor="middle" class="small">REG_MCCH_*</text>
+    <text x="130" y="256" text-anchor="middle" class="small">REG_BNCH_*</text>
+
+    <!-- DL-PDU-Builder + sub-encoders -->
+    <rect class="blk sys" x="220" y="210" width="280" height="120" rx="4"/>
+    <text x="360" y="228" text-anchor="middle" class="lbl">dl_pdu_builder + Encoders</text>
+    <text x="360" y="244" text-anchor="middle" class="small">d_location_update_encoder</text>
+    <text x="360" y="258" text-anchor="middle" class="small">d_location_update_reject_encoder</text>
+    <text x="360" y="272" text-anchor="middle" class="small">mle_registration_fsm</text>
+    <text x="360" y="286" text-anchor="middle" class="small">chan_alloc_encoder</text>
+    <text x="360" y="300" text-anchor="middle" class="small">dl_signal_queue / scheduler</text>
+    <text x="360" y="314" text-anchor="middle" class="small">mac_resource_dl/bl_ack_builder</text>
+
+    <line x1="200" y1="190" x2="360" y2="210" class="arr" marker-end="url(#arrow)"/>
+    <line x1="130" y1="270" x2="200" y2="190" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- Channel coding stack -->
+    <rect class="blk sys" x="220" y="350" width="280" height="80" rx="4"/>
+    <text x="360" y="368" text-anchor="middle" class="lbl">Channel-Coding-Stack</text>
+    <text x="360" y="384" text-anchor="middle" class="small">crc16 (16-bit Polynom)</text>
+    <text x="360" y="398" text-anchor="middle" class="small">rcpc_encoder (K=5, rate 1/3) + depuncture R=2/3</text>
+    <text x="360" y="412" text-anchor="middle" class="small">interleaver + scrambler (cell-init)</text>
+    <text x="360" y="426" text-anchor="middle" class="small">432-bit type-5 (SCH/F) | 216 type-5 (SCH/HD)</text>
+    <line x1="360" y1="330" x2="360" y2="350" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- Voice filler mailbox -->
+    <rect class="blk mb" x="520" y="350" width="180" height="80" rx="4"/>
+    <text x="610" y="368" text-anchor="middle" class="lbl">voice_filler_mailbox</text>
+    <text x="610" y="382" text-anchor="middle" class="small">432-bit TCH-burst von SW</text>
+    <text x="610" y="396" text-anchor="middle" class="small">(re-encoded UL-Voice oder</text>
+    <text x="610" y="410" text-anchor="middle" class="small">Comfort-Noise)</text>
+    <text x="610" y="424" text-anchor="middle" class="small">REG 0x270..0x27C</text>
+
+    <!-- AACH encoder -->
+    <rect class="blk sys" x="60" y="460" width="220" height="60" rx="4"/>
+    <text x="170" y="478" text-anchor="middle" class="lbl">aach_encoder</text>
+    <text x="170" y="492" text-anchor="middle" class="small">14-bit AACH per TN/FN</text>
+    <text x="170" y="506" text-anchor="middle" class="small">(998bdb3: hardcoded 0x32CB Voice)</text>
+
+    <!-- AACH RM (reed muller) -->
+    <rect class="blk sys" x="60" y="540" width="220" height="46" rx="4"/>
+    <text x="170" y="558" text-anchor="middle" class="lbl">aach_rm_encoder</text>
+    <text x="170" y="572" text-anchor="middle" class="small">Reed-Muller(30,14) → 30-bit</text>
+    <line x1="170" y1="520" x2="170" y2="540" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- Burst dispatcher -->
+    <rect class="blk sys" x="320" y="460" width="380" height="60" rx="4"/>
+    <text x="510" y="478" text-anchor="middle" class="lbl">burst_dispatcher</text>
+    <text x="510" y="492" text-anchor="middle" class="small">selects per TN: voice-filler vs scheduler vs queue</text>
+    <text x="510" y="506" text-anchor="middle" class="small">REG_VOICE_ACTIVE_MASK @0x1EC</text>
+    <line x1="360" y1="430" x2="510" y2="460" class="arr" marker-end="url(#arrow)"/>
+    <line x1="610" y1="430" x2="510" y2="460" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- Burst builder -->
+    <rect class="blk sys" x="60" y="620" width="640" height="80" rx="4"/>
+    <text x="380" y="638" text-anchor="middle" class="lbl">burst_builder</text>
+    <text x="380" y="654" text-anchor="middle" class="small">NDB: TAIL+HA+blk1[216]+bb1+NTS1/2[11sym]+bb2+blk2[216]+HA+TAIL = 510 sym</text>
+    <text x="380" y="670" text-anchor="middle" class="small">SDB / SB: andere Burst-Layouts</text>
+    <text x="380" y="686" text-anchor="middle" class="small">AACH-30bit (RM) wird IN den Burst eingebaut</text>
+    <line x1="170" y1="586" x2="380" y2="620" class="arr" marker-end="url(#arrow)"/>
+    <line x1="510" y1="520" x2="380" y2="620" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- pi4dqpsk_mod -->
+    <rect class="blk sys" x="220" y="730" width="280" height="46" rx="4"/>
+    <text x="360" y="748" text-anchor="middle" class="lbl">pi4dqpsk_mod</text>
+    <text x="360" y="762" text-anchor="middle" class="small">bits → I/Q symbol points</text>
+    <line x1="380" y1="700" x2="360" y2="730" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- RRC + TX frontend -->
+    <rect class="blk sys" x="220" y="800" width="280" height="60" rx="4"/>
+    <text x="360" y="818" text-anchor="middle" class="lbl">rrc_filter + tx_frontend</text>
+    <text x="360" y="832" text-anchor="middle" class="small">RRC interp + CDC sys→lvds</text>
+    <text x="360" y="846" text-anchor="middle" class="small">72 kSps → ~30.72 MSps</text>
+    <line x1="360" y1="776" x2="360" y2="800" class="arr" marker-end="url(#arrow)"/>
+
+    <!-- back to AD9361 -->
+    <line x1="360" y1="860" x2="360" y2="900" class="arr" marker-end="url(#arrow)"/>
+    <rect class="blk lvds" x="180" y="900" width="380" height="36" rx="4"/>
+    <text x="370" y="918" text-anchor="middle" class="lbl">axi_ad9361 DDS-LPC IP (clk_lvds)</text>
+    <text x="370" y="932" text-anchor="middle" class="small">→ AD9361 → Antenna</text>
+  </g>
+
+  <!-- ======================== SW SIDE (right) ======================== -->
+  <g transform="translate(1480,200)">
+    <text x="160" y="-10" text-anchor="middle" class="lbl" font-size="14">ARM-SW</text>
+
+    <rect class="blk sw" x="0" y="0" width="280" height="80" rx="4"/>
+    <text x="140" y="20" text-anchor="middle" class="lbl">tetra_sysinfo</text>
+    <text x="140" y="36" text-anchor="middle" class="small">Cell-Identity + SYSINFO PDU build</text>
+    <text x="140" y="50" text-anchor="middle" class="small">CLI: --freq --mcc --mnc --la --cc</text>
+    <text x="140" y="64" text-anchor="middle" class="small">--optfield --optsel --duplex ...</text>
+
+    <rect class="blk sw" x="0" y="100" width="280" height="120" rx="4"/>
+    <text x="140" y="118" text-anchor="middle" class="lbl">tetra_attach_daemon</text>
+    <text x="140" y="134" text-anchor="middle" class="small">MM-Demand walker → D-LOC-UPD-ACCEPT</text>
+    <text x="140" y="148" text-anchor="middle" class="small">CMCE-Dispatch (W1C-race-fix v2)</text>
+    <text x="140" y="162" text-anchor="middle" class="small">tetra_call_fsm (per-SSI state machine)</text>
+    <text x="140" y="176" text-anchor="middle" class="small">tetra_voice_pipe (ACELP + re-encode)</text>
+    <text x="140" y="190" text-anchor="middle" class="small">tetra_db (subscriber lookup, db.tsv)</text>
+    <text x="140" y="204" text-anchor="middle" class="small">tetra_tx_transport (DL-PDU staging)</text>
+
+    <rect class="blk sw" x="0" y="240" width="280" height="60" rx="4"/>
+    <text x="140" y="258" text-anchor="middle" class="lbl">tetra_ul_mon</text>
+    <text x="140" y="272" text-anchor="middle" class="small">poll REG_UL_PDU_*, decode MAC-ACCESS</text>
+    <text x="140" y="286" text-anchor="middle" class="small">log RA-bursts (CMCE/MM/MLE PDU types)</text>
+
+    <rect class="blk sw" x="0" y="320" width="280" height="60" rx="4"/>
+    <text x="140" y="338" text-anchor="middle" class="lbl">WebUI (busybox httpd :80)</text>
+    <text x="140" y="352" text-anchor="middle" class="small">/www/index.html, *.cgi</text>
+    <text x="140" y="366" text-anchor="middle" class="small">apply.cgi schreibt /root/tetra_cell.conf</text>
+  </g>
+
+  <!-- ======================== AXI BUS BAND ======================== -->
+  <g transform="translate(0,1250)">
+    <rect class="dom dom-axi" x="20" y="0" width="1760" height="180"/>
+    <text x="40" y="20" class="small" fill="#a80">clk_axi (AXI4-Lite)</text>
+
+    <rect class="blk axi" x="60" y="36" width="1680" height="140" rx="4"/>
+    <text x="900" y="56" text-anchor="middle" class="lbl">tetra_axi_lite_regs — Register-Bank (~2300 Zeilen, &gt;100 Reg-Slots)</text>
+
+    <g font-family="monospace" font-size="11">
+      <text x="80" y="80">Status:          0x000-0x07F   STATUS, COLOUR_CODE, MCC/MNC, FN_TN_LIVE</text>
+      <text x="80" y="96">Static PDUs:     0x080-0x10F   NDB/MCCH/BNCH BLK1/BLK2 (je 7 words)</text>
+      <text x="80" y="112">UL-PDU:          0x164-0x178   STATUS+SSI+RAW_0..2+CTRL  (MAC-ACCESS view, W1C)</text>
+      <text x="80" y="128">Sub-DB:          0x180-0x18C   SHADOW INDEX/DATA_HI/LO/CTRL</text>
+      <text x="80" y="144">Demand-Push:     0x200-0x20C   UL-Demand-Mailbox</text>
+      <text x="80" y="160">Reply-Pull:      0x220-0x230   DL-Reply-Mailbox</text>
+
+      <text x="900" y="80">Voice-Telem:    0x260-0x268    NUB_RX_CNT, RELAY_CNT, NUB_SYNC_THRESH</text>
+      <text x="900" y="96">Voice-Filler:   0x270-0x27C    INDEX/DATA/GO/STATUS (mailbox)</text>
+      <text x="900" y="112">Voice-NUB-Read: 0x280-0x28C   INDEX/DATA/STATUS/ACK (1728-bit soft)</text>
+      <text x="900" y="128" fill="#a00">RX-IQ-Peak:     0x290/0x294    max-|I|/|Q| 100ms sliding (NEU 2026-05-24)</text>
+      <text x="900" y="144">Schedule-BRAM:  0x400-0x63F    144 words (slot-schedule LUT)</text>
+      <text x="900" y="160">CDC: alle sys↔axi durch 2-FF ASYNC_REG, W1C-Sticky für Edge-Events</text>
+    </g>
+  </g>
+
+  <!-- ======================== ARROWS RX → AXI (right side) ======================== -->
+  <g>
+    <!-- RX-UL-PDU → AXI -->
+    <line x1="310" y1="990" x2="310" y2="1250" class="arr-blue" marker-end="url(#arrow-blue)"/>
+    <text x="318" y="1140" class="small" fill="#06c">REG_UL_PDU_*</text>
+
+    <!-- NUB-Read-Mailbox → AXI -->
+    <line x1="505" y1="750" x2="505" y2="1250" class="arr-blue" marker-end="url(#arrow-blue)"/>
+    <text x="513" y="1100" class="small" fill="#06c">REG_VOICE_NUB_READ_*</text>
+
+    <!-- IQ-Peak → AXI -->
+    <line x1="625" y1="500" x2="625" y2="1250" class="arr-blue" marker-end="url(#arrow-blue)"/>
+    <text x="633" y="900" class="small" fill="#06c">REG_RX_IQ_PEAK_I/Q</text>
+
+    <!-- AXI → TX (SW pushes DL) -->
+    <line x1="1130" y1="1250" x2="1130" y2="980" class="arr-red" marker-end="url(#arrow-red)"/>
+    <text x="1140" y="1120" class="small" fill="#c00">REG_DL_RAW_PDU + Mailboxes</text>
+
+    <line x1="1330" y1="1250" x2="1330" y2="780" class="arr-red" marker-end="url(#arrow-red)"/>
+    <text x="1340" y="1000" class="small" fill="#c00">REG_VOICE_FILLER_*</text>
+
+    <!-- AXI → SW daemon (right) -->
+    <line x1="1620" y1="1250" x2="1620" y2="600" class="arr-red" marker-end="url(#arrow-red)"/>
+    <text x="1628" y="900" class="small" fill="#c00">SW reads/writes regs</text>
+  </g>
+
+  <!-- ======================== FOOTER NOTES ======================== -->
+  <g transform="translate(20,1440)" font-size="10" fill="#666">
+    <text x="0" y="0">Stand: branch refactor/phase-7-groupcall @ 02e3214. Phase-3.4 (UMt+FACCH-Stealing) ist NICHT in diesem Bitstream (revertiert wegen NUB-Capture-Bug aus zusätzlicher NTS2-Sync-Instanz).</text>
+  </g>
+</svg>
