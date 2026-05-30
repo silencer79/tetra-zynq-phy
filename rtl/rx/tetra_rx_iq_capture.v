@@ -49,7 +49,7 @@ module tetra_rx_iq_capture #(
  // freeze: clk_axi -> clk_sys (2-FF synchroniser)
  // ---------------------------------------------------------------------------
  (* ASYNC_REG = "true" *) reg freeze_meta_sys, freeze_sync_sys;
- always @(posedge clk_sys or negedge rst_n_sys) begin
+ always @(posedge clk_sys) begin   // sync reset (BRAM-adjacent, REQP-1839)
   if (!rst_n_sys) begin
    freeze_meta_sys <= 1'b0;
    freeze_sync_sys <= 1'b0;
@@ -65,7 +65,7 @@ module tetra_rx_iq_capture #(
  reg [ADDR_W-1:0] wr_addr_sys;
  wire             wr_en_sys = valid_in_sys & ~freeze_sync_sys;
 
- always @(posedge clk_sys or negedge rst_n_sys) begin
+ always @(posedge clk_sys) begin   // sync reset — drives BRAM addr (REQP-1839)
   if (!rst_n_sys)
    wr_addr_sys <= {ADDR_W{1'b0}};
   else if (wr_en_sys)

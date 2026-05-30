@@ -1090,6 +1090,10 @@ reg vfill_go_trigger_r; // W1S GO trigger, HW-clr on go_consume
 reg [5:0] vnub_index_axi; // 6-bit indirect-window word selector
 reg vnub_ack_trigger_r; // W1S ACK trigger, HW-clr on ack_consume
 
+// IQ-capture control register — declared BEFORE first use (read mux + output
+// assigns) to avoid implicit-net forward references (Synth 8-6901).
+reg [31:0] iqcap_ctrl_reg_axi;
+
 reg [31:0] rdata_mux_axi;
 always @(*) begin
  case (rd_addr_axi[8:2])
@@ -1519,7 +1523,7 @@ end
 
 // ---- REG_IQCAP_CTRL (0x138) — raw RX IQ capture control ----
 // [0]=freeze (1=stop capture), [28:16]=rd_addr (13-bit BRAM read address).
-reg [31:0] iqcap_ctrl_reg_axi;
+// (reg declared near the read mux to avoid forward-reference implicit nets.)
 always @(posedge clk_axi or negedge rst_n_axi) begin
  if (!rst_n_axi)
  iqcap_ctrl_reg_axi <= 32'h0;

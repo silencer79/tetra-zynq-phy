@@ -25,25 +25,24 @@ echo "=== freeze + drain $DEPTH samples from board $HOST ==="
 RAW=$($SSH '
   CTRL=0x43C00138; DATA=0x43C0013C; STAT=0x43C001FC
   busybox devmem $CTRL 32 0x1            # freeze
-  WP=$(busybox devmem $STAT 32)
-  echo "WRPTR $WP"
+  echo "WRPTR $(( $(busybox devmem $STAT 32) ))"   # emit decimal
   a=0
   while [ $a -lt '"$DEPTH"' ]; do
     busybox devmem $CTRL 32 $(( (a<<16) | 1 ))   # set rd_addr, keep freeze
-    echo "$a $(busybox devmem $DATA 32)"
+    echo "$a $(( $(busybox devmem $DATA 32) ))"   # emit decimal
     a=$((a+1))
   done
   busybox devmem $CTRL 32 0x0            # un-freeze (resume capture)
 ')
 
 # wr_ptr = newest+1; chronological order starts there and wraps.
-WRPTR=$(echo "$RAW" | awk '/^WRPTR/{print strtonum($2)}')
+WRPTR=$(echo "$RAW" | awk '/^WRPTR/{print $2}')   # already decimal
 echo "wr_ptr = $WRPTR"
 
-# Parse "addr hexval" → array[addr]=value, then emit oldest→newest as I,Q int16
+# Parse "addr decval" → array[addr]=value, then emit oldest→newest as I,Q int16
 echo "$RAW" | awk -v wp="$WRPTR" -v depth="$DEPTH" '
   /^WRPTR/ {next}
-  NF==2 { v[strtonum($1)] = strtonum($2) }
+  NF==2 { v[$1+0] = $2+0 }
   END {
     for (k=0; k<depth; k++) {
       a = (wp + k) % depth
