@@ -1260,6 +1260,10 @@ always @(*) begin
  REG_NWRK_BCAST_TRIGGER: rdata_mux_axi = {31'b0, nwrk_bcast_trigger_r};
  REG_NWRK_BCAST_CNT: rdata_mux_axi = {16'b0, nwrk_bcast_cnt_axi};
  REG_NWRK_BCAST_PERIOD_MF: rdata_mux_axi = {27'b0, nwrk_bcast_period_mf_axi};
+ // Raw RX IQ capture (bank-0 addresses 0x138/0x13C/0x1FC)
+ REG_IQCAP_CTRL:   rdata_mux_axi = iqcap_ctrl_reg_axi;
+ REG_IQCAP_DATA:   rdata_mux_axi = iqcap_rd_data_axi;
+ REG_IQCAP_STATUS: rdata_mux_axi = {19'd0, iqcap_wr_ptr_axi};
  default: rdata_mux_axi = 32'b0;
  endcase
 
@@ -1290,9 +1294,6 @@ always @(*) begin
  REG_VOICE_NUB_SYNC_THRESH: rdata_mux_axi = voice_nub_sync_thresh_axi;
  REG_RX_IQ_PEAK_I: rdata_mux_axi = {16'd0, rx_iq_peak_i_axi};
  REG_RX_IQ_PEAK_Q: rdata_mux_axi = {16'd0, rx_iq_peak_q_axi};
- REG_IQCAP_CTRL:   rdata_mux_axi = iqcap_ctrl_reg_axi;
- REG_IQCAP_DATA:   rdata_mux_axi = iqcap_rd_data_axi;
- REG_IQCAP_STATUS: rdata_mux_axi = {19'd0, iqcap_wr_ptr_axi};
  REG_SLOT_AACH_TS1: rdata_mux_axi = {16'd0, slot_aach_axi[15:0]};
  REG_SLOT_AACH_TS2: rdata_mux_axi = {16'd0, slot_aach_axi[31:16]};
  REG_SLOT_AACH_TS3: rdata_mux_axi = {16'd0, slot_aach_axi[47:32]};
