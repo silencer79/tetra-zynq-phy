@@ -132,7 +132,9 @@ localparam CIC_TRUNC = CIC_BITS - IQ_WIDTH; // = 30
 // CIC_GAIN_SHF=6 multiplies amplitude 512 → 32768, matching the digital-
 // loopback operating point. For digital loopback (amplitude 32767), the
 // 64× product saturates back to 32767, so existing behaviour is unchanged.
-localparam CIC_GAIN_SHF = 6;
+localparam CIC_GAIN_SHF = 4;   // ×16 (war ×64): feste Skalierung gesenkt, damit die
+                               // AD9361-AGC (höheres Ziel, runtime) den Pegel nah+fern
+                               // allein regelt ohne Clipping; TED-Amplitude via AGC-Ziel.
 localparam CIC_WIDE_BITS = IQ_WIDTH + CIC_GAIN_SHF; // 22
 localparam CIC_OUT_LOW = CIC_TRUNC - CIC_GAIN_SHF; // 24 (new LSB of output slice)
 
