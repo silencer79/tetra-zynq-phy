@@ -108,6 +108,7 @@ add_files -norecurse [list \
 # RX Chain
 add_files -norecurse [list \
  $PROJ_DIR/rtl/rx/tetra_rx_chain.v \
+ $PROJ_DIR/rtl/rx/tetra_rx_iq_capture.v \
  $PROJ_DIR/rtl/rx/tetra_rx_frontend.v \
  $PROJ_DIR/rtl/rx/tetra_pi4dqpsk_demod.v \
  $PROJ_DIR/rtl/rx/tetra_timing_recovery.v \
