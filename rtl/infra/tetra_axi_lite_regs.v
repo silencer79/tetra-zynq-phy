@@ -547,6 +547,15 @@ module tetra_axi_lite_regs (
  input wire [15:0] rx_iq_peak_i_axi,
  input wire [15:0] rx_iq_peak_q_axi,
 
+ /* Raw RX IQ capture buffer (measurement): tetra_rx_iq_capture.
+  * REG_IQCAP_CTRL   @ 0x138 R/W [0]=freeze, [28:16]=rd_addr (13-bit)
+  * REG_IQCAP_DATA   @ 0x13C RO  {I[31:16], Q[15:0]} at rd_addr
+  * REG_IQCAP_STATUS @ 0x1FC RO  {19'd0, wr_ptr[12:0]} (valid when frozen) */
+ output wire        iqcap_freeze_axi,
+ output wire [12:0] iqcap_rd_addr_axi,
+ input  wire [31:0] iqcap_rd_data_axi,
+ input  wire [12:0] iqcap_wr_ptr_axi,
+
  /* 2026-05-24 — Per-TN AACH-Wert, SW-kontrolliert (Klasse 2).
   * 4× 16-bit Reg @ 0x2A0..0x2AC. Untere 14 bit jedes Slots = AACH-info.
   * Default 0x3000 (UMx/UMx idle). SW (call_fsm) setzt 0x33CF/0x3555/0x2049
@@ -866,6 +875,9 @@ localparam [6:0] REG_VOICE_NUB_SYNC_THRESH = 7'h1A; // 0x268 R/W [4:0] corr thre
 // 2026-05-24 RX IQ peak monitor
 localparam [6:0] REG_RX_IQ_PEAK_I = 7'h24; // 0x290 RO [15:0] max-|I| 100ms window
 localparam [6:0] REG_RX_IQ_PEAK_Q = 7'h25; // 0x294 RO [15:0] max-|Q| 100ms window
+localparam [6:0] REG_IQCAP_CTRL    = 7'h4E; // 0x138 R/W [0]=freeze, [28:16]=rd_addr
+localparam [6:0] REG_IQCAP_DATA    = 7'h4F; // 0x13C RO  {I[31:16], Q[15:0]} @ rd_addr
+localparam [6:0] REG_IQCAP_STATUS  = 7'h7F; // 0x1FC RO  {19'd0, wr_ptr[12:0]}
 // 2026-05-24 — Per-TS AACH (Klasse 2 dynamische Steuerung), ETSI 1-based TS1..TS4
 // (§9.3, kein TS0). RTL-interner Slot-Index ist 0-based per SYNC-PDU 2-bit-Feld
 // (§21.5.1) → slot_aach_axi[15:0]=TS1, [31:16]=TS2, [47:32]=TS3, [63:48]=TS4.
@@ -1274,6 +1286,9 @@ always @(*) begin
  REG_VOICE_NUB_SYNC_THRESH: rdata_mux_axi = voice_nub_sync_thresh_axi;
  REG_RX_IQ_PEAK_I: rdata_mux_axi = {16'd0, rx_iq_peak_i_axi};
  REG_RX_IQ_PEAK_Q: rdata_mux_axi = {16'd0, rx_iq_peak_q_axi};
+ REG_IQCAP_CTRL:   rdata_mux_axi = iqcap_ctrl_reg_axi;
+ REG_IQCAP_DATA:   rdata_mux_axi = iqcap_rd_data_axi;
+ REG_IQCAP_STATUS: rdata_mux_axi = {19'd0, iqcap_wr_ptr_axi};
  REG_SLOT_AACH_TS1: rdata_mux_axi = {16'd0, slot_aach_axi[15:0]};
  REG_SLOT_AACH_TS2: rdata_mux_axi = {16'd0, slot_aach_axi[31:16]};
  REG_SLOT_AACH_TS3: rdata_mux_axi = {16'd0, slot_aach_axi[47:32]};
@@ -1374,6 +1389,8 @@ end
 assign ctrl_rx_enable_axi = ctrl_reg_axi[0];
 assign ctrl_tx_enable_axi = ctrl_reg_axi[1];
 assign ctrl_loopback_en_axi = ctrl_reg_axi[2];
+assign iqcap_freeze_axi  = iqcap_ctrl_reg_axi[0];
+assign iqcap_rd_addr_axi = iqcap_ctrl_reg_axi[28:16];
 assign ctrl_reset_counters_axi = ctrl_reg_axi[3];
 
 // ---- SYNC_THRESH register (0x0C) ----
@@ -1497,6 +1514,20 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
  if (wr_strb_axi[1]) voice_active_mask_axi[15: 8] <= wr_data_axi[15: 8];
  if (wr_strb_axi[2]) voice_active_mask_axi[23:16] <= wr_data_axi[23:16];
  if (wr_strb_axi[3]) voice_active_mask_axi[31:24] <= wr_data_axi[31:24];
+ end
+end
+
+// ---- REG_IQCAP_CTRL (0x138) — raw RX IQ capture control ----
+// [0]=freeze (1=stop capture), [28:16]=rd_addr (13-bit BRAM read address).
+reg [31:0] iqcap_ctrl_reg_axi;
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ iqcap_ctrl_reg_axi <= 32'h0;
+ else if (wr_en_axi & (wr_addr_axi[8:2] == REG_IQCAP_CTRL)) begin
+ if (wr_strb_axi[0]) iqcap_ctrl_reg_axi[ 7: 0] <= wr_data_axi[ 7: 0];
+ if (wr_strb_axi[1]) iqcap_ctrl_reg_axi[15: 8] <= wr_data_axi[15: 8];
+ if (wr_strb_axi[2]) iqcap_ctrl_reg_axi[23:16] <= wr_data_axi[23:16];
+ if (wr_strb_axi[3]) iqcap_ctrl_reg_axi[31:24] <= wr_data_axi[31:24];
  end
 end
 

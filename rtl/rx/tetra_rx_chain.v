@@ -195,7 +195,14 @@ module tetra_rx_chain #(
  // -------------------------------------------------------------------------
  output wire dbg_fe_valid_sys,
  output wire dbg_tr_valid_sys,
- output wire dbg_demod_valid_sys
+ output wire dbg_demod_valid_sys,
+
+ // -------------------------------------------------------------------------
+ // Post-CIC/RRC IQ tap (72 kHz) for the raw RX IQ capture buffer (measurement)
+ // -------------------------------------------------------------------------
+ output wire signed [IQ_WIDTH-1:0] rx_fe_i_sys,
+ output wire signed [IQ_WIDTH-1:0] rx_fe_q_sys,
+ output wire rx_fe_valid_sys
 );
 
 // =============================================================================
@@ -206,6 +213,11 @@ module tetra_rx_chain #(
 wire signed [IQ_WIDTH-1:0] fe_i_sys;
 wire signed [IQ_WIDTH-1:0] fe_q_sys;
 wire fe_valid_sys;
+
+// Expose post-RRC IQ for the top-level capture buffer
+assign rx_fe_i_sys     = fe_i_sys;
+assign rx_fe_q_sys     = fe_q_sys;
+assign rx_fe_valid_sys = fe_valid_sys;
 
 // timing_recovery → pi4dqpsk_demod (on-time samples at 18 kHz)
 wire signed [IQ_WIDTH-1:0] tr_i_sys;

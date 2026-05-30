@@ -641,7 +641,37 @@ tetra_rx_chain #(
 .voice_nub_rx_cnt_sys (voice_nub_rx_cnt_sys_w),
 // 2026-05-24 RX IQ peak monitor
 .rx_iq_peak_i_sys (rx_iq_peak_i_sys_w),
-.rx_iq_peak_q_sys (rx_iq_peak_q_sys_w)
+.rx_iq_peak_q_sys (rx_iq_peak_q_sys_w),
+ // Post-RRC IQ tap → raw RX IQ capture buffer
+.rx_fe_i_sys (rx_fe_i_sys_w),
+.rx_fe_q_sys (rx_fe_q_sys_w),
+.rx_fe_valid_sys (rx_fe_valid_sys_w)
+);
+
+// =============================================================================
+// Raw RX IQ capture buffer (post-RRC @72 kHz) — write clk_sys / read clk_axi.
+// Measurement infra: freeze via REG_IQCAP_CTRL[0], drain via rd_addr/rd_data.
+// =============================================================================
+wire signed [15:0] rx_fe_i_sys_w;
+wire signed [15:0] rx_fe_q_sys_w;
+wire               rx_fe_valid_sys_w;
+wire               iqcap_freeze_w;
+wire [12:0]        iqcap_rd_addr_w;
+wire [31:0]        iqcap_rd_data_w;
+wire [12:0]        iqcap_wr_ptr_w;
+
+tetra_rx_iq_capture #(.IQ_WIDTH(16), .DEPTH(8192), .ADDR_W(13)) u_rx_iq_capture (
+.clk_sys (clk_sys),
+.rst_n_sys (rst_n_sys),
+.i_in_sys (rx_fe_i_sys_w),
+.q_in_sys (rx_fe_q_sys_w),
+.valid_in_sys (rx_fe_valid_sys_w),
+.clk_axi (s_axi_aclk),
+.rst_n_axi (rst_n_axi),
+.freeze_axi (iqcap_freeze_w),
+.rd_addr_axi (iqcap_rd_addr_w),
+.rd_data_axi (iqcap_rd_data_w),
+.wr_ptr_axi (iqcap_wr_ptr_w)
 );
 
 // =============================================================================
@@ -2151,6 +2181,10 @@ tetra_axi_lite_regs u_axi_regs (
 // 2026-05-24 RX IQ peak monitor
 .rx_iq_peak_i_axi (rx_iq_peak_i_axi_r1),
 .rx_iq_peak_q_axi (rx_iq_peak_q_axi_r1),
+.iqcap_freeze_axi (iqcap_freeze_w),
+.iqcap_rd_addr_axi (iqcap_rd_addr_w),
+.iqcap_rd_data_axi (iqcap_rd_data_w),
+.iqcap_wr_ptr_axi (iqcap_wr_ptr_w),
  // Phase X.4 — ast_ttl_multiframes_axi/ast_ttl_evict_cnt_axi removed (AST in SW)
  // Phase 7 F.3 — UL-Demand reassembly counters + T0 config
 .reass_reassembled_cnt_axi (reass_reassembled_cnt_axi_r1),
