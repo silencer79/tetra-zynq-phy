@@ -24,7 +24,8 @@ module tb_ul_demod_sch_hu;
 
 localparam integer IQ_WIDTH = 16;
 localparam integer SOFT_WIDTH = 8;
-localparam integer N_BURSTS = 4;
+parameter integer N_BURSTS = 4;
+parameter integer NORM_TGT  = 5;
 localparam integer SYMS_HALF = 43;
 localparam integer SYMS_BURST = 2 * SYMS_HALF; // 86
 localparam integer IQ_PER_BURST = SYMS_BURST * 2; // I,Q per symbol
@@ -56,7 +57,8 @@ wire [15:0] decodes_ok;
 // -------------------------------------------------------------------------
 tetra_ul_pi4dqpsk_demod #(
 .IQ_WIDTH (IQ_WIDTH),
-.SOFT_WIDTH(SOFT_WIDTH)
+.SOFT_WIDTH(SOFT_WIDTH),
+.NORM_TGT (NORM_TGT)
 ) u_demod (
 .clk_sys (clk),
 .rst_n_sys (rst_n),

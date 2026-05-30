@@ -14,19 +14,21 @@
 // dibit[1] = sign(Im(z)) (soft = Im(z))
 // Sign convention matches tetra_ul_sync_detect_os4 and scripts/decode_ul.py.
 //
-// Pipeline (3-stage, DSP-friendly):
+// Pipeline (4-stage, DSP-friendly):
 // S0 (input): latch IQ, update prev, set has_prev_sys / pending_first_sys
 // S1 (multiply): register four IQ*IQ products (inferred DSP48)
 // S2 (combine): register Re(z)=ii+qq and Im(z)=qi-iq
-// S3 (output): MSB-slice to SOFT_WIDTH, register outputs + metadata
+// S2b (normalise): leading-one of |z|₁=|re|+|im| → power-of-two shift amount
+// S3 (output): arith-shift normalise + saturate to SOFT_WIDTH, register
 //
-// Pipeline latency iq_valid_sys → soft_valid_sys: 3 sys_clk cycles.
+// Pipeline latency iq_valid_sys → soft_valid_sys: 4 sys_clk cycles.
 //
-// Soft quantization:
-// re_z / im_z span 2*IQ_WIDTH+1 bits signed (33 bit @ IQ_WIDTH=16). We
-// slice MSB-aligned bits [2*IQ_WIDTH -: SOFT_WIDTH] — signals well below
-// full-scale yield small soft magnitudes, strong signals yield large ones
-// (relative scale is what the Viterbi branch-metric unit needs).
+// Soft quantization (amplitude-normalised — see NORM_TGT + stage 2b/3 below):
+// re_z / im_z = |r(k)|·|r(k-1)|·{cos,sin}(Δφ) span 2*IQ_WIDTH+1 bits signed
+// (33 bit @ IQ16), scaled by the PRODUCT of the two sample magnitudes. A fixed
+// MSB-slice collapses to erasure once amplitude drops below ~50 % FS, so we
+// normalise by the L1 magnitude |z|₁ (power-of-two, no divider) → soft becomes
+// ≈ {cos,sin}(Δφ), amplitude-free — the relative scale the Viterbi BMU needs.
 //
 // Resource estimate (Zynq-7020):
 // LUT ≈ 180 FF ≈ 220 DSP48 = 4 BRAM = 0
@@ -37,7 +39,13 @@
 
 module tetra_ul_pi4dqpsk_demod #(
  parameter IQ_WIDTH = 16,
- parameter SOFT_WIDTH = 8
+ parameter SOFT_WIDTH = 8,
+ // Amplitude-normalisation target: the L1 magnitude |re_z|+|im_z| of the
+ // differential product is shifted so its leading-one lands at this bit.
+ // A clean data symbol (Δφ = ±π/4 / ±3π/4) then lands near ±2^(NORM_TGT)
+ // — chosen so it saturates to_vit_soft's "strong" region while weak/noisy
+ // symbols grade below it.  Makes the soft ≈ {cos,sin}(Δφ), amplitude-free.
+ parameter NORM_TGT = 5
 )(
  input wire clk_sys,
  input wire rst_n_sys,
@@ -152,8 +160,82 @@ always @(posedge clk_sys) begin
 end
 
 // ---------------------------------------------------------------------------
-// Stage 3 — MSB-slice to SOFT_WIDTH-bit signed + register outputs
+// Stage 2b — amplitude normalisation of the soft decision.
+//
+// re_z/im_z are |r(k)|·|r(k-1)|·{cos,sin}(Δφ): the differential phase scaled
+// by the PRODUCT of the two sample magnitudes.  A fixed MSB-slice of that
+// (old stage 3) collapses to erasure once the burst amplitude drops — measured
+// in tb_ul_demod_sch_hu: a *clean* signal already fails below ~50 % FS, and
+// TETRA reception at range lives well below that.
+//
+// Normalise by an L1 magnitude estimate |z|₁ = |re_z| + |im_z| so the soft
+// becomes ≈ {cos,sin}(Δφ), amplitude-independent — the same soft model as the
+// proven Python reference decoder (scripts/decode_ul.py uses sin/cos of the
+// phase difference).  No divider: align the slice window to the leading-one of
+// |z|₁ (power-of-two normalisation) via a priority encoder + arithmetic shift.
 // ---------------------------------------------------------------------------
+localparam integer ZW = 2*IQ_WIDTH + 1; // re_z/im_z width (33 @ IQ16)
+
+reg signed [ZW-1:0] re_z_s2b, im_z_s2b;
+reg [5:0] norm_sh_s2b;
+reg valid_s2b_sys, first_s2b_sys, last_s2b_sys, half_s2b_sys;
+
+wire signed [ZW-1:0] re_abs_s2 = re_z_s2[ZW-1] ? -re_z_s2 : re_z_s2;
+wire signed [ZW-1:0] im_abs_s2 = im_z_s2[ZW-1] ? -im_z_s2 : im_z_s2;
+wire [ZW:0] mag_l1_s2 = {re_abs_s2[ZW-1], re_abs_s2}
+ + {im_abs_s2[ZW-1], im_abs_s2}; // ≥0
+
+// leading-one position of |z|₁ (0 when magnitude is zero)
+integer mi;
+reg [5:0] msb_pos_s2;
+always @* begin
+ msb_pos_s2 = 6'd0;
+ for (mi = 0; mi <= ZW; mi = mi + 1)
+ if (mag_l1_s2[mi]) msb_pos_s2 = mi[5:0];
+end
+// Shift so the magnitude's leading-one lands at bit NORM_TGT.  Small-signal
+// guard: never shift left of 0 (would amplify pure noise into false strongs).
+wire [5:0] norm_sh_w = (msb_pos_s2 > NORM_TGT)
+ ? (msb_pos_s2 - NORM_TGT[5:0]) : 6'd0;
+
+always @(posedge clk_sys) begin
+ if (!rst_n_sys) begin
+ re_z_s2b <= {ZW{1'b0}};
+ im_z_s2b <= {ZW{1'b0}};
+ norm_sh_s2b <= 6'd0;
+ valid_s2b_sys <= 1'b0;
+ first_s2b_sys <= 1'b0;
+ last_s2b_sys <= 1'b0;
+ half_s2b_sys <= 1'b0;
+ end else begin
+ re_z_s2b <= re_z_s2;
+ im_z_s2b <= im_z_s2;
+ norm_sh_s2b <= norm_sh_w;
+ valid_s2b_sys <= valid_s2_sys;
+ first_s2b_sys <= first_s2_sys;
+ last_s2b_sys <= last_s2_sys;
+ half_s2b_sys <= half_s2_sys;
+ end
+end
+
+// ---------------------------------------------------------------------------
+// Stage 3 — arithmetic-shift normalise + saturate to SOFT_WIDTH-bit signed
+// ---------------------------------------------------------------------------
+wire signed [ZW-1:0] re_norm_s3 = re_z_s2b >>> norm_sh_s2b;
+wire signed [ZW-1:0] im_norm_s3 = im_z_s2b >>> norm_sh_s2b;
+
+localparam signed [ZW-1:0] SOFT_MAX = (1 <<< (SOFT_WIDTH-1)) - 1; // +127
+localparam signed [ZW-1:0] SOFT_MIN = -(1 <<< (SOFT_WIDTH-1)); // -128
+
+function signed [SOFT_WIDTH-1:0] sat_soft;
+ input signed [ZW-1:0] v;
+ begin
+ if (v > SOFT_MAX) sat_soft = SOFT_MAX[SOFT_WIDTH-1:0];
+ else if (v < SOFT_MIN) sat_soft = SOFT_MIN[SOFT_WIDTH-1:0];
+ else sat_soft = v[SOFT_WIDTH-1:0];
+ end
+endfunction
+
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys) begin
  soft_bit0_sys <= {SOFT_WIDTH{1'b0}};
@@ -163,12 +245,12 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  soft_last_sys <= 1'b0;
  soft_half_sys <= 1'b0;
  end else begin
- soft_bit0_sys <= re_z_s2[2*IQ_WIDTH -: SOFT_WIDTH];
- soft_bit1_sys <= im_z_s2[2*IQ_WIDTH -: SOFT_WIDTH];
- soft_valid_sys <= valid_s2_sys;
- soft_first_sys <= first_s2_sys;
- soft_last_sys <= last_s2_sys;
- soft_half_sys <= half_s2_sys;
+ soft_bit0_sys <= sat_soft(re_norm_s3);
+ soft_bit1_sys <= sat_soft(im_norm_s3);
+ soft_valid_sys <= valid_s2b_sys;
+ soft_first_sys <= first_s2b_sys;
+ soft_last_sys <= last_s2b_sys;
+ soft_half_sys <= half_s2b_sys;
  end
 end
 

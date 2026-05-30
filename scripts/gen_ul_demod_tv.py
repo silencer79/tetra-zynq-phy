@@ -128,6 +128,7 @@ def modulate_burst(type5_bits):
 
 
 def main():
+    global AMPLITUDE
     import argparse
     ap = argparse.ArgumentParser()
     ap.add_argument('--cc',  type=int, default=49)
@@ -135,14 +136,22 @@ def main():
     ap.add_argument('--mnc', type=int, default=9998)
     ap.add_argument('--out-dir',   default='sim_out')
     ap.add_argument('--n-bursts',  type=int, default=4)
+    ap.add_argument('--amplitude', type=int, default=AMPLITUDE,
+                    help='symbol amplitude in LSB (default 30000 ~92%% FS)')
+    ap.add_argument('--noise',     type=float, default=0.0,
+                    help='added Gaussian noise std-dev (LSB) on I and Q')
+    ap.add_argument('--seed',      type=lambda x: int(x, 0), default=0xDEADBEEF)
     args = ap.parse_args()
+
+    AMPLITUDE = args.amplitude
 
     os.makedirs(args.out_dir, exist_ok=True)
 
     scramb_init = make_scramb_code(args.mcc, args.mnc, args.cc)
     print(f'scramb_init = 0x{scramb_init:08X}')
 
-    rng = np.random.default_rng(0xDEADBEEF)
+    rng = np.random.default_rng(args.seed)
+    noise_rng = np.random.default_rng((args.seed ^ 0x5A5A5A5A) & 0xFFFFFFFF)
     info_patterns = []
     for b in range(args.n_bursts):
         info = rng.integers(0, 2, size=INFO, dtype=np.int8).tolist()
@@ -159,6 +168,11 @@ def main():
 
         # --- mode (a) 86-symbol IQ (demod+sch_hu TB) -----------------------
         I, Q = modulate_burst(type5)
+        if args.noise > 0.0:
+            I = np.clip(I + noise_rng.normal(0.0, args.noise, I.shape),
+                        -32768, 32767).astype(np.int16)
+            Q = np.clip(Q + noise_rng.normal(0.0, args.noise, Q.shape),
+                        -32768, 32767).astype(np.int16)
         for k in range(SYMS_BURST):
             iq_lines.append(f"{I[k] & 0xFFFF:04X}")
             iq_lines.append(f"{Q[k] & 0xFFFF:04X}")
