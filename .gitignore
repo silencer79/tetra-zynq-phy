@@ -143,3 +143,6 @@ sw/test_cmce_body
 .claude/commands/refresh.md
 .claude/commands/show.md
 .claude/commands/explain.md
+
+# tetra-kit — externes Referenz-Repo (eigenes .git), kein Projekt-Source
+/tetra-kit
