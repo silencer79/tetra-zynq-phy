@@ -47,6 +47,7 @@ static cmce_pdu_type_t map_pdu_type(uint32_t raw)
  case 8: return CMCE_U_STATUS;
  case 9: return CMCE_U_TX_CEASED;
  case 10: return CMCE_U_TX_DEMAND;
+ case 15: return CMCE_U_SDS_DATA;
  default: return CMCE_UNSUPPORTED;
  }
 }
@@ -143,6 +144,57 @@ int tetra_cmce_parse(const uint8_t *body_bits_msb_first,
  if (pos + 1 <= n_bits) {
  out->o_bit = (uint8_t)get_bits(body_bits_msb_first, &pos, 1);
  }
+ return 0;
+ }
+
+ case CMCE_U_SDS_DATA: {
+ /* U-SDS-DATA (ETSI EN 300 392-2 §14.7.2.8): area_sel(4) CPTI(2)
+ * [addr] SDTI(2) [user data] o-bit(1). SDS PDUs are routinely
+ * MAC-fragmented; decode as far as the buffer reaches and flag
+ * sds_truncated when the user data spills into later fragments. */
+ if (pos + 4 + 2 > n_bits) return -1;
+ out->area_selection = (uint8_t)get_bits(body_bits_msb_first, &pos, 4);
+ out->called_party_type_identifier = (uint8_t)get_bits(body_bits_msb_first, &pos, 2);
+ switch (out->called_party_type_identifier) {
+ case CMCE_CPTI_SNA:
+ if (pos + 8 > n_bits) { out->sds_truncated = 1; return 0; }
+ out->called_party_sna = (uint8_t)get_bits(body_bits_msb_first, &pos, 8);
+ break;
+ case CMCE_CPTI_SSI:
+ if (pos + 24 > n_bits) { out->sds_truncated = 1; return 0; }
+ out->called_party_ssi = get_bits(body_bits_msb_first, &pos, 24);
+ break;
+ case CMCE_CPTI_TSI:
+ if (pos + 48 > n_bits) { out->sds_truncated = 1; return 0; }
+ out->called_party_ssi = get_bits(body_bits_msb_first, &pos, 24);
+ out->called_party_extension = get_bits(body_bits_msb_first, &pos, 24);
+ break;
+ default:
+ break;
+ }
+ if (pos + 2 > n_bits) { out->sds_truncated = 1; return 0; }
+ out->short_data_type_identifier = (uint8_t)get_bits(body_bits_msb_first, &pos, 2);
+ if (out->short_data_type_identifier == 3) {
+ /* UDD-4: 11-bit length indicator + variable data; 1st octet is
+ * the SDS protocol identifier. Text spans further fragments. */
+ if (pos + 11 > n_bits) { out->sds_truncated = 1; return 0; }
+ out->sds_length_indicator = (uint16_t)get_bits(body_bits_msb_first, &pos, 11);
+ if (pos + 8 <= n_bits)
+ out->sds_protocol_id = (uint8_t)get_bits(body_bits_msb_first, &pos, 8);
+ out->sds_truncated = 1;
+ return 0;
+ } else {
+ /* UDD-1/2/3: fixed 16/32/64-bit user data; read what fits. */
+ int want = (out->short_data_type_identifier == 0) ? 16 :
+ (out->short_data_type_identifier == 1) ? 32 : 64;
+ int avail = n_bits - pos;
+ int take = avail < want ? avail : want;
+ if (take > 32) take = 32; /* get_bits caps at 32 bit */
+ if (take > 0) out->sds_user_data = get_bits(body_bits_msb_first, &pos, take);
+ out->sds_user_data_bits = (uint8_t)(take > 0 ? take : 0);
+ if (take < want) out->sds_truncated = 1;
+ }
+ if (pos + 1 <= n_bits) out->o_bit = (uint8_t)get_bits(body_bits_msb_first, &pos, 1);
  return 0;
  }
 

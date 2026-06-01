@@ -165,6 +165,51 @@ static void react_mm7_grpid(tetra_hal_t *hal,
  * Parser-Ausgabe via die parsed-Snapshot-Mailboxen. Bei Bit-Equivalenz
  * (= alle Felder identisch über ≥10 PTT-Cycles + Group-Attaches) wird
  * Phase 1E den RTL-Parser entfernen. */
+/* ---- Stage 2 — decode a reassembled CMCE U-SDS-DATA from the 0x250 body ----
+ * Reassembly starts at block-bit 48, the CMCE pdu_type at block-bit 44, so
+ * body[0] = CMCE-bit 4. Body-coord layout: area(1..4) cpti(5..6) addr sdti li
+ * udd. The RTL mis-tags SDS with an MM pdu_type, so we try SDS first and only
+ * fall back to the MM walker if the body is not a plausible U-SDS-DATA. */
+static int sds_gbit(const uint8_t *b, int p) { return (b[p>>3] >> (7-(p&7))) & 1; }
+static uint32_t sds_gbits(const uint8_t *b, int pos, int n)
+{
+ uint32_t v = 0; int i;
+ for (i = 0; i < n; i++) v = (v << 1) | (uint32_t)sds_gbit(b, pos + i);
+ return v;
+}
+static int decode_sds_reassembled(const uint8_t *body, int nbits,
+ uint32_t *dest_ssi, uint8_t *proto, uint16_t *li, char *text, int tcap)
+{
+ uint8_t cpti = (uint8_t)sds_gbits(body, 5, 2);
+ int pos;
+ if (cpti == 1 || cpti == 2) { *dest_ssi = sds_gbits(body, 7, 24); pos = 31; }
+ else if (cpti == 0) { *dest_ssi = sds_gbits(body, 7, 8); pos = 15; }
+ else return 0;
+ if (cpti == 2) pos += 24; /* TSI extension */
+ uint8_t sdti = (uint8_t)sds_gbits(body, pos, 2); pos += 2;
+ if (sdti != 3) return 0; /* only SDTI=3 (UDD-4 / text) for now */
+ *li = (uint16_t)sds_gbits(body, pos, 11); pos += 11;
+ if (*li < 8 || *li > 2047) return 0;
+ if (pos + 8 > nbits) return 0;
+ *proto = (uint8_t)sds_gbits(body, pos, 8);
+ /* gate on a known SDS protocol id so a real MM body isn't mis-read as SDS */
+ if (!(*proto==2 || *proto==3 || *proto==9 || *proto==10 ||
+ *proto==130 || *proto==131 || *proto==137 || *proto==138)) return 0;
+ /* extract printable 8-bit text from the UDD, trimming leading/trailing
+  * non-printable SDS-TL header octets. */
+ int tstart = pos + 8, n_oct = (*li - 8) / 8, ti = 0, started = 0, k;
+ for (k = 0; k < n_oct && ti < tcap-1 && (tstart + k*8 + 8) <= nbits; k++) {
+ int c = (int)sds_gbits(body, tstart + k*8, 8);
+ int pr = (c >= 32 && c < 127);
+ if (!started && !pr) continue;
+ started = 1;
+ text[ti++] = pr ? (char)c : '.';
+ }
+ while (ti > 0 && text[ti-1] == '.') ti--;
+ text[ti] = 0;
+ return 1;
+}
+
 static void service_uldbod(tetra_hal_t *hal)
 {
  uint32_t w0 = uldbod_read(hal, 0);  /* magic + mm_type + body[128] */
@@ -179,6 +224,22 @@ static void service_uldbod(tetra_hal_t *hal)
  uint32_t pdu_ssi;
  tetra_mm_demand_parser_unpack_mailbox(w0, w1, w2, w3, w4, w5,
                                         body, &mm_type, &pdu_ssi);
+
+ /* Stage 2 — a reassembled CMCE U-SDS-DATA lands here too; the RTL
+  * mis-tags it with an MM pdu_type. Decode as SDS first; only fall
+  * through to the MM walker when it is not a plausible U-SDS-DATA. */
+ {
+ uint32_t sds_dest = 0; uint8_t sds_proto = 0; uint16_t sds_li = 0;
+ char sds_text[64];
+ if (decode_sds_reassembled(body, TETRA_MM_DEMAND_BODY_BYTES * 8,
+ &sds_dest, &sds_proto, &sds_li, sds_text, (int)sizeof(sds_text))) {
+ printf("SDS-TEXT from=0x%06X to=0x%06X proto=%u len=%ubit: \"%s\"\n",
+ pdu_ssi, sds_dest, sds_proto, sds_li, sds_text);
+ fflush(stdout);
+ tetra_reg_write(hal, REG_UL_DEMAND_BODY_ACK, 0x1u);
+ return;
+ }
+ }
 
  tetra_mm_demand_parsed_t p;
  int rc = tetra_mm_demand_parser_parse(body, mm_type, pdu_ssi, &p);
@@ -620,7 +681,24 @@ int main(int argc, char **argv)
  cmce_pdu_t p;
  memset(&p, 0, sizeof(p));
  int rc = tetra_cmce_parse(body, cmce_bits, &p);
- if (rc == 0) {
+ if (rc == 0 && p.pdu_type == CMCE_U_SDS_DATA) {
+ /* SDS — surface it; do NOT feed the call-control FSM. When
+ * sds_truncated=1 the user data spills into further MAC
+ * fragments; full text decode lands with the reassembled-body
+ * path (Stage 2). */
+ printf("SDS: U-SDS-DATA from=0x%06X area=%u cpti=%u dest=0x%06X "
+ "SDTI=%u", cmce_ssi, p.area_selection,
+ p.called_party_type_identifier, p.called_party_ssi,
+ p.short_data_type_identifier);
+ if (p.short_data_type_identifier == 3)
+ printf(" len=%ubit proto=%u", p.sds_length_indicator,
+ p.sds_protocol_id);
+ else if (p.sds_user_data_bits)
+ printf(" udd=0x%X(%ubit)", p.sds_user_data,
+ p.sds_user_data_bits);
+ printf("%s\n", p.sds_truncated ? " [truncated/fragmented]" : "");
+ fflush(stdout);
+ } else if (rc == 0) {
  (void)tetra_call_fsm_handle(&hal, cmce_ssi, &p);
  } else {
  fprintf(stderr,

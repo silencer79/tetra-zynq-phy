@@ -32,6 +32,7 @@ typedef enum {
  CMCE_U_STATUS = 0x08, /* pdu_type = 8 */
  CMCE_U_TX_CEASED = 0x09, /* pdu_type = 9 */
  CMCE_U_TX_DEMAND = 0x0A, /* pdu_type = 10 */
+ CMCE_U_SDS_DATA = 0x0F, /* pdu_type = 15 */
  CMCE_UNSUPPORTED = 0xFF,
 } cmce_pdu_type_t;
 
@@ -77,6 +78,19 @@ typedef struct {
 
  /* U-RELEASE / U-DISCONNECT fields ---------------------------------- */
  uint8_t disconnect_cause; /* 5 bit */
+
+ /* U-SDS-DATA fields (pdu_type 15) ---------------------------------- */
+ /* Address re-uses called_party_type_identifier + called_party_ssi/ */
+ /* sna/extension above. SDS PDUs are routinely MAC-fragmented; when */
+ /* only the first fragment is visible we decode as far as the buffer */
+ /* allows and set sds_truncated. */
+ uint8_t short_data_type_identifier; /* 2 bit: 0=UDD-1(16) 1=UDD-2(32) */
+ /* 2=UDD-3(64) 3=UDD-4(LI+var) */
+ uint16_t sds_length_indicator; /* 11 bit, valid iff SDTI==3 */
+ uint8_t sds_protocol_id; /* 8 bit, 1st octet of UDD (SDS PID) */
+ uint32_t sds_user_data; /* user-data bits seen, MSB-aligned */
+ uint8_t sds_user_data_bits; /* # user-data bits actually present */
+ uint8_t sds_truncated; /* 1 = PDU continues past this fragment */
 
  /* O-bit: 1 iff any Type-2/Type-3 fields followed. We do NOT parse the
  * type-2/3 IE chain — callers that need IE-level detail must do their
