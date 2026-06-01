@@ -37,6 +37,8 @@ typedef enum {
  /* Einzelruf-Handshake (2026-05-25) */
  TX_D_CONNECT_ACK = 9, /* CMCE pdu=3, through-connect Befehl an Callee */
  TX_D_ALERT = 10, /* CMCE pdu=0, "calling..." Status an Caller */
+ /* Operator-getriggerte Kurznachricht (2026-06-01) */
+ TX_D_SDS_DATA = 11, /* CMCE pdu=15, BS→MS SDS (raw_mode CMCE) */
 } tx_pdu_class_t;
 
 /* Slot-class hint (Z.2+). 0 = legacy (RTL chooses default per existing

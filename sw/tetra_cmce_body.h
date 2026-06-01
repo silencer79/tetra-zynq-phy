@@ -75,6 +75,10 @@ typedef struct {
  uint8_t bsi_communication_type; /* 2 bit */
  uint8_t bsi_speech_service; /* 2 bit (if TchS) */
  uint8_t bsi_slots_per_frame; /* 2 bit (if NOT TchS) */
+
+ /* D-SDS-DATA (pdu_type 15). calling_party_ssi above = sender SSI. */
+ uint8_t sds_udd[32]; /* UDD-4 payload: PID + SDS-TL header + 8-bit text */
+ uint16_t sds_udd_len; /* payload length in BYTES (0 = not an SDS) */
 } cmce_meta_t;
 
 /* All return total bit length, 0 on parameter error. out is zeroed
@@ -88,5 +92,6 @@ int tetra_cmce_build_d_release (const cmce_meta_t *m, uint8_t *out);
 /* Einzelruf-Handshake (2026-05-25) */
 int tetra_cmce_build_d_connect_ack (const cmce_meta_t *m, uint8_t *out);
 int tetra_cmce_build_d_alert (const cmce_meta_t *m, uint8_t *out);
+int tetra_cmce_build_d_sds_data (const cmce_meta_t *m, uint8_t *out);
 
 #endif /* TETRA_CMCE_BODY_H */

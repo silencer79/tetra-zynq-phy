@@ -34,6 +34,7 @@
 #define D_SETUP 7u
 #define D_TX_CEASED 9u
 #define D_TX_GRANTED 11u
+#define D_SDS_DATA 15u
 
 static void put_bits(uint8_t *dst, int *pos, uint32_t value, int nbits)
 {
@@ -271,4 +272,27 @@ int tetra_cmce_build_d_alert(const cmce_meta_t *m, uint8_t *out)
  put_bits(out, &pos, 0u, 1); /* call_queued = 0 */
  put_bits(out, &pos, 0u, 1); /* o-bit = 0 */
  return pos; /* 26 bits */
+}
+
+/* D-SDS-DATA (ETSI §14.7.1.10, BlueStation d_sds_data.rs): forward a short
+ * data message to the addressed MS. CPTI=SSI (calling_party_ssi = sender),
+ * SDTI=3 (UDD-4); user data = caller-supplied PID + SDS-TL header + 8-bit
+ * text. Length bounded so 45 header bits + udd*8 + o-bit fit the 32-byte
+ * mm_bytes staging buffer (≤ 256 bit). */
+int tetra_cmce_build_d_sds_data(const cmce_meta_t *m, uint8_t *out)
+{
+ if (m == NULL || out == NULL || m->sds_udd_len == 0u ||
+ m->sds_udd_len > 24u) return 0;
+ memset(out, 0, TETRA_CMCE_MAX_BYTES);
+ int pos = 0;
+ put_bits(out, &pos, D_SDS_DATA, 5);
+ put_bits(out, &pos, 1u, 2); /* CPTI = 1 (SSI) */
+ put_bits(out, &pos, m->calling_party_ssi & 0x00FFFFFFu, 24);
+ put_bits(out, &pos, 3u, 2); /* SDTI = 3 (UDD-4 = length + data) */
+ put_bits(out, &pos, (uint32_t)(m->sds_udd_len * 8u) & 0x7FFu, 11); /* LI bits */
+ int i;
+ for (i = 0; i < (int)m->sds_udd_len; i++)
+ put_bits(out, &pos, m->sds_udd[i], 8);
+ put_bits(out, &pos, 0u, 1); /* o-bit = 0 (no Type-2/3 IEs) */
+ return pos;
 }

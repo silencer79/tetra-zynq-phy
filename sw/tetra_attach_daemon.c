@@ -178,7 +178,8 @@ static uint32_t sds_gbits(const uint8_t *b, int pos, int n)
  return v;
 }
 static int decode_sds_reassembled(const uint8_t *body, int nbits,
- uint32_t *dest_ssi, uint8_t *proto, uint16_t *li, char *text, int tcap)
+ uint32_t *dest_ssi, uint8_t *proto, uint16_t *li, char *text, int tcap,
+ uint8_t *raw_udd, int raw_udd_cap, int *raw_udd_len)
 {
  uint8_t cpti = (uint8_t)sds_gbits(body, 5, 2);
  int pos;
@@ -195,6 +196,13 @@ static int decode_sds_reassembled(const uint8_t *body, int nbits,
  /* gate on a known SDS protocol id so a real MM body isn't mis-read as SDS */
  if (!(*proto==2 || *proto==3 || *proto==9 || *proto==10 ||
  *proto==130 || *proto==131 || *proto==137 || *proto==138)) return 0;
+ /* raw UDD-4 octets (PID + SDS-TL header + text) for 1:1 relay forwarding */
+ if (raw_udd != NULL && raw_udd_len != NULL) {
+ int u_oct = (int)(*li) / 8, ri = 0, j;
+ for (j = 0; j < u_oct && ri < raw_udd_cap && (pos + j*8 + 8) <= nbits; j++)
+ raw_udd[ri++] = (uint8_t)sds_gbits(body, pos + j*8, 8);
+ *raw_udd_len = ri;
+ }
  /* extract printable 8-bit text from the UDD, trimming leading/trailing
   * non-printable SDS-TL header octets. */
  int tstart = pos + 8, n_oct = (*li - 8) / 8, ti = 0, started = 0, k;
@@ -208,6 +216,51 @@ static int decode_sds_reassembled(const uint8_t *body, int nbits,
  while (ti > 0 && text[ti-1] == '.') ti--;
  text[ti] = 0;
  return 1;
+}
+
+/* Operator-getriggertes DL-SDS: pollt /tmp/sds_out (eine Zeile
+ * "<dest_ssi> <from_ssi> <text>"; SSI dezimal oder 0xhex), baut eine
+ * D-SDS-DATA (SDS-TL Text, PID 0x82) und sendet sie an die Ziel-MS. Datei
+ * wird nach dem Lesen entfernt. Trigger z.B.:
+ *   ssh root@board "echo '0x282F91 0x282FF4 Hallo' > /tmp/sds_out" */
+static void service_sds_outbox(tetra_hal_t *hal)
+{
+ static uint8_t sds_ref = 1;
+ FILE *f = fopen("/tmp/sds_out", "r");
+ if (f == NULL) return;
+ char line[256];
+ char *got = fgets(line, sizeof(line), f);
+ fclose(f);
+ remove("/tmp/sds_out");
+ if (got == NULL) return;
+ long dest = 0, from = 0; int adv = 0;
+ if (sscanf(line, "%li %li %n", &dest, &from, &adv) < 2 || adv == 0) {
+ fprintf(stderr, "tetra_attach_daemon: SDS-OUT parse error\n");
+ return;
+ }
+ char *text = line + adv;
+ size_t tl = strlen(text);
+ while (tl > 0 && (text[tl-1] == '\n' || text[tl-1] == '\r')) text[--tl] = 0;
+ if (tl == 0 || tl > 20) {
+ fprintf(stderr, "tetra_attach_daemon: SDS-OUT bad text len %zu (1..20)\n", tl);
+ return;
+ }
+ tx_pdu_meta_t meta;
+ memset(&meta, 0, sizeof(meta));
+ meta.target_ssi = (uint32_t)dest;
+ meta.cmce.calling_party_ssi = (uint32_t)from;
+ /* UDD-4: PID 0x82 (SDS-TL text) + SDS-TL header (msg-type/flags + ref,
+  * spiegelt das beobachtete MS-Format) + 8-bit Text. */
+ meta.cmce.sds_udd[0] = 0x82;
+ meta.cmce.sds_udd[1] = 0x04;
+ meta.cmce.sds_udd[2] = 0x04;
+ meta.cmce.sds_udd[3] = sds_ref++;
+ memcpy(&meta.cmce.sds_udd[4], text, tl);
+ meta.cmce.sds_udd_len = (uint16_t)(4 + tl);
+ int rc = tetra_tx_submit(hal, TX_D_SDS_DATA, &meta);
+ printf("SDS-OUT: to=0x%06lX from=0x%06lX rc=%d text=\"%s\"\n",
+ (unsigned long)dest, (unsigned long)from, rc, text);
+ fflush(stdout);
 }
 
 static void service_uldbod(tetra_hal_t *hal)
@@ -231,10 +284,33 @@ static void service_uldbod(tetra_hal_t *hal)
  {
  uint32_t sds_dest = 0; uint8_t sds_proto = 0; uint16_t sds_li = 0;
  char sds_text[64];
+ uint8_t sds_udd[48]; int sds_udd_len = 0;
  if (decode_sds_reassembled(body, TETRA_MM_DEMAND_BODY_BYTES * 8,
- &sds_dest, &sds_proto, &sds_li, sds_text, (int)sizeof(sds_text))) {
- printf("SDS-TEXT from=0x%06X to=0x%06X proto=%u len=%ubit: \"%s\"\n",
- pdu_ssi, sds_dest, sds_proto, sds_li, sds_text);
+ &sds_dest, &sds_proto, &sds_li, sds_text, (int)sizeof(sds_text),
+ sds_udd, (int)sizeof(sds_udd), &sds_udd_len)) {
+ printf("SDS-TEXT from=0x%06X to=0x%06X proto=%u len=%ubit udd=",
+ pdu_ssi, sds_dest, sds_proto, sds_li);
+ { int z; for (z = 0; z < sds_udd_len; z++) printf("%02X", sds_udd[z]); }
+ printf(" text=\"%s\"\n", sds_text);
+ /* SDS-Relay (BlueStation route_rf_deliver): an die Ziel-MS
+  * weiterleiten, wenn lokal als ISSI registriert. UDD (Text bzw.
+  * SDS-TL-Report von der Gegenseite) wird 1:1 in eine D-SDS-DATA
+  * verpackt → Zustellung + Quittungsfluss laufen über die BS. */
+ if (sds_udd_len > 0 && sds_udd_len <= 24 &&
+ tetra_db_lookup(sds_dest, 0u, NULL)) {
+ tx_pdu_meta_t rm;
+ memset(&rm, 0, sizeof(rm));
+ rm.target_ssi = sds_dest;
+ rm.cmce.calling_party_ssi = pdu_ssi;
+ memcpy(rm.cmce.sds_udd, sds_udd, (size_t)sds_udd_len);
+ rm.cmce.sds_udd_len = (uint16_t)sds_udd_len;
+ int rrc = tetra_tx_submit(hal, TX_D_SDS_DATA, &rm);
+ printf("SDS-RELAY: 0x%06X -> 0x%06X (%d oct) rc=%d\n",
+ pdu_ssi, sds_dest, sds_udd_len, rrc);
+ } else {
+ printf("SDS-RELAY: skip dest=0x%06X (registered=%d udd=%d oct)\n",
+ sds_dest, tetra_db_lookup(sds_dest, 0u, NULL), sds_udd_len);
+ }
  fflush(stdout);
  tetra_reg_write(hal, REG_UL_DEMAND_BODY_ACK, 0x1u);
  return;
@@ -628,6 +704,9 @@ int main(int argc, char **argv)
  if (uldbod_status & 0x1u) {
  service_uldbod(&hal);
  }
+
+ /* Operator-getriggertes DL-SDS aus /tmp/sds_out */
+ service_sds_outbox(&hal);
 
  /* Phase 1E-B (2026-05-20) — RTL-parsed group-demand Mailbox entfernt.
   * Reaktion auf mm=7 läuft komplett aus dem SW-Walker-Pfad
