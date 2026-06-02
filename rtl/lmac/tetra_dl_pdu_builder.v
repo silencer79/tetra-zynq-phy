@@ -132,6 +132,11 @@ module tetra_dl_pdu_builder (
  wire [267:0] builder_pdu_w;
  wire builder_valid_w;
 
+ // BL-ACK (SDS delivery, llc_pdu_type=3): pure LLC ack — suppress the
+ // mle_pd-derived slot-grant / chan-alloc / power-control header flags so
+ // the on-air PDU is just MAC-RESOURCE(40) + LLC BL-ACK(5) = LengthInd 6.
+ wire blk_bl_ack_w = (lat_llc_pdu_type == 4'd3);
+
  tetra_mac_resource_dl_builder #(
 .PDU_BITS(268),
 .LLC_BUF_BITS(144) // BL-ADATA + MLE-PD + 100-bit MM body fits
@@ -157,7 +162,7 @@ module tetra_dl_pdu_builder (
  * sg_flag = 0 ( #5887 hat kein slot_grant in D-CONNECT)
  * ca_flag = 1 mit -Style ChanAlloc-Bits.
  * mm=2/mm=11 (lat_mle_pd != 010): legacy sg_flag=1 (bit-identisch). */
-.slot_granting_flag ((lat_mle_pd == 3'b010) ? 1'b0: 1'b1),
+.slot_granting_flag ((blk_bl_ack_w || (lat_mle_pd == 3'b010)) ? 1'b0: 1'b1),
 .slot_granting_element (slotgrant_packed_w),
  /* ChanAlloc — bit-exact #5887/#5895/#5903 (2026-05-14):
  * alloc_type=00 (Replace)
@@ -171,8 +176,8 @@ module tetra_dl_pdu_builder (
  * mon_pattern=11 (=3, )
  * Layout = {alloc_type[1:0], ts_assigned[3:0], ul_dl[1:0], clch, cell_chg,
  *           carrier[11:0], ext_flag, mon_pattern[1:0]} = 25 bits MSB-first */
-.chan_alloc_flag ((lat_mle_pd == 3'b010) ? 1'b1: 1'b0),
-.chan_alloc_element ((lat_mle_pd == 3'b010) ?
+.chan_alloc_flag ((!blk_bl_ack_w && (lat_mle_pd == 3'b010)) ? 1'b1: 1'b0),
+.chan_alloc_element ((!blk_bl_ack_w && (lat_mle_pd == 3'b010)) ?
  {7'd0,
   2'b00,
   (lat_chan_alloc_ts_bitmap != 4'b0000)
@@ -184,7 +189,7 @@ module tetra_dl_pdu_builder (
   1'b0,
   2'b11}
 : 32'd0),
-.chan_alloc_element_len ((lat_mle_pd == 3'b010) ? 5'd25: 5'd0),
+.chan_alloc_element_len ((!blk_bl_ack_w && (lat_mle_pd == 3'b010)) ? 5'd25: 5'd0),
 .second_pdu_valid (1'b0),
 .second_pdu_length_ind (6'd0),
 .second_pdu_random_access_flag(1'b0),

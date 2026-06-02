@@ -98,6 +98,29 @@ static uint32_t uldbod_read(tetra_hal_t *hal, uint32_t idx)
  return tetra_reg_read(hal, REG_UL_DEMAND_BODY_DATA);
 }
 
+/* Unpack the Phase-G.x 0x250 mailbox layout: W0=meta[12:0], W1=ssi,
+ * W2..W6=body[146:0] (147-bit TM-SDU, MSB-first, on-air position 0 = the
+ * first LLC-header bit = block-bit 30). W2=[146:115] W3=[114:83] W4=[82:51]
+ * W5=[50:19] W6[18:0]=[18:0]; on-air position p = body[146-p]. */
+static void uldbod_unpack(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3,
+ uint32_t w4, uint32_t w5, uint32_t w6,
+ uint8_t body[19], uint16_t *meta, uint32_t *ssi)
+{
+ int p;
+ *meta = (uint16_t)(w0 & 0x1FFFu);
+ *ssi = w1 & 0x00FFFFFFu;
+ memset(body, 0, 19);
+ for (p = 0; p < 147; p++) {
+ uint32_t w; int bi;
+ if (p < 32) { w = w2; bi = 31 - p; }
+ else if (p < 64) { w = w3; bi = 63 - p; }
+ else if (p < 96) { w = w4; bi = 95 - p; }
+ else if (p < 128) { w = w5; bi = 127 - p; }
+ else { w = w6; bi = 146 - p; } /* 18..0 */
+ if ((w >> bi) & 1u) body[p >> 3] |= (uint8_t)(0x80u >> (p & 7));
+ }
+}
+
 /* Phase 1E-A — service-counter shared between react_mm2_locupd() (called
  * from service_uldbod()) and the legacy main-loop demand branch (drain-
  * only after Phase 1E-A). */
@@ -166,10 +189,11 @@ static void react_mm7_grpid(tetra_hal_t *hal,
  * (= alle Felder identisch über ≥10 PTT-Cycles + Group-Attaches) wird
  * Phase 1E den RTL-Parser entfernen. */
 /* ---- Stage 2 — decode a reassembled CMCE U-SDS-DATA from the 0x250 body ----
- * Reassembly starts at block-bit 48, the CMCE pdu_type at block-bit 44, so
- * body[0] = CMCE-bit 4. Body-coord layout: area(1..4) cpti(5..6) addr sdti li
- * udd. The RTL mis-tags SDS with an MM pdu_type, so we try SDS first and only
- * fall back to the MM walker if the body is not a plausible U-SDS-DATA. */
+ * The body now starts at the LLC header (block-bit 30 = tl_sdu_start) and the
+ * 0x250 mailbox carries a 13-bit meta bundle. We derive the CMCE PDU offset
+ * (cmce_start = (opt?6:0) + llc_hdr_len + MLE-PD(3)) from meta and parse the
+ * exact U-SDS-DATA layout (pdu_type=15, area_selection(4), cpti, addr, sdti,
+ * li, udd) per bluestation u_sds_data.rs — no fixed-offset guessing. */
 static int sds_gbit(const uint8_t *b, int p) { return (b[p>>3] >> (7-(p&7))) & 1; }
 static uint32_t sds_gbits(const uint8_t *b, int pos, int n)
 {
@@ -177,14 +201,24 @@ static uint32_t sds_gbits(const uint8_t *b, int pos, int n)
  for (i = 0; i < n; i++) v = (v << 1) | (uint32_t)sds_gbit(b, pos + i);
  return v;
 }
-static int decode_sds_reassembled(const uint8_t *body, int nbits,
+static int decode_sds_reassembled(const uint8_t *body, int nbits, uint16_t meta,
  uint32_t *dest_ssi, uint8_t *proto, uint16_t *li, char *text, int tcap,
  uint8_t *raw_udd, int raw_udd_cap, int *raw_udd_len)
 {
- uint8_t cpti = (uint8_t)sds_gbits(body, 5, 2);
- int pos;
- if (cpti == 1 || cpti == 2) { *dest_ssi = sds_gbits(body, 7, 24); pos = 31; }
- else if (cpti == 0) { *dest_ssi = sds_gbits(body, 7, 8); pos = 15; }
+ /* meta[12:0]: [12:9]mm_type [8:6]mle_disc [5:2]llc_pdu_type [1]ns [0]opt. */
+ uint8_t mle_disc = (uint8_t)((meta >> 6) & 0x7);
+ uint8_t llc_pt = (uint8_t)((meta >> 2) & 0xF);
+ uint8_t opt = (uint8_t)(meta & 0x1);
+ if (mle_disc != 2u) return 0; /* only CMCE (MLE-PD=2) carries SDS */
+ /* LLC header length: BL-ADATA(0)=6, BL-DATA(1)=5, BL-UDATA(2)=4 bits. */
+ int llc_hdr = (llc_pt == 0) ? 6 : (llc_pt == 1) ? 5 : (llc_pt == 2) ? 4 : 5;
+ int pos = (opt ? 6 : 0) + llc_hdr + 3; /* LLC + MLE-PD(3) → CMCE PDU start */
+ if (pos + 9 > nbits) return 0;
+ if (sds_gbits(body, pos, 5) != 15u) return 0; /* CMCE pdu_type = U-SDS-DATA */
+ pos += 5 + 4; /* pdu_type(5) + area_selection(4) */
+ uint8_t cpti = (uint8_t)sds_gbits(body, pos, 2); pos += 2;
+ if (cpti == 1 || cpti == 2) { *dest_ssi = sds_gbits(body, pos, 24); pos += 24; }
+ else if (cpti == 0) { *dest_ssi = sds_gbits(body, pos, 8); pos += 8; }
  else return 0;
  if (cpti == 2) pos += 24; /* TSI extension */
  uint8_t sdti = (uint8_t)sds_gbits(body, pos, 2); pos += 2;
@@ -265,18 +299,19 @@ static void service_sds_outbox(tetra_hal_t *hal)
 
 static void service_uldbod(tetra_hal_t *hal)
 {
- uint32_t w0 = uldbod_read(hal, 0);  /* magic + mm_type + body[128] */
+ uint32_t w0 = uldbod_read(hal, 0);  /* magic + meta[12:0] */
  uint32_t w1 = uldbod_read(hal, 1);  /* ssi */
- uint32_t w2 = uldbod_read(hal, 2);  /* body[127:96] */
- uint32_t w3 = uldbod_read(hal, 3);  /* body[95:64] */
- uint32_t w4 = uldbod_read(hal, 4);  /* body[63:32] */
- uint32_t w5 = uldbod_read(hal, 5);  /* body[31:0] */
+ uint32_t w2 = uldbod_read(hal, 2);  /* body[146:115] */
+ uint32_t w3 = uldbod_read(hal, 3);  /* body[114:83] */
+ uint32_t w4 = uldbod_read(hal, 4);  /* body[82:51] */
+ uint32_t w5 = uldbod_read(hal, 5);  /* body[50:19] */
+ uint32_t w6 = uldbod_read(hal, 6);  /* body[18:0] */
 
- uint8_t body[TETRA_MM_DEMAND_BODY_BYTES];
- uint8_t mm_type;
+ uint8_t nbody[19];          /* 147-bit TM-SDU, on-air pos 0 = LLC header */
+ uint16_t meta;
  uint32_t pdu_ssi;
- tetra_mm_demand_parser_unpack_mailbox(w0, w1, w2, w3, w4, w5,
-                                        body, &mm_type, &pdu_ssi);
+ uldbod_unpack(w0, w1, w2, w3, w4, w5, w6, nbody, &meta, &pdu_ssi);
+ uint8_t mm_type = (uint8_t)((meta >> 9) & 0xF);
 
  /* Stage 2 — a reassembled CMCE U-SDS-DATA lands here too; the RTL
   * mis-tags it with an MM pdu_type. Decode as SDS first; only fall
@@ -285,13 +320,24 @@ static void service_uldbod(tetra_hal_t *hal)
  uint32_t sds_dest = 0; uint8_t sds_proto = 0; uint16_t sds_li = 0;
  char sds_text[64];
  uint8_t sds_udd[48]; int sds_udd_len = 0;
- if (decode_sds_reassembled(body, TETRA_MM_DEMAND_BODY_BYTES * 8,
+ if (decode_sds_reassembled(nbody, 147, meta,
  &sds_dest, &sds_proto, &sds_li, sds_text, (int)sizeof(sds_text),
  sds_udd, (int)sizeof(sds_udd), &sds_udd_len)) {
  printf("SDS-TEXT from=0x%06X to=0x%06X proto=%u len=%ubit udd=",
  pdu_ssi, sds_dest, sds_proto, sds_li);
  { int z; for (z = 0; z < sds_udd_len; z++) printf("%02X", sds_udd[z]); }
  printf(" text=\"%s\"\n", sds_text);
+ /* LLC-Zustellquittung an den SDS-Absender — Gold DL #425 sendet die
+  * BL-ACK VOR dem Relay. NR = empfangene LLC-NS (meta[1]). Ohne diese
+  * Schicht-2-Quittung retransmittiert das Sende-MS → Fehlermeldung. */
+ {
+ tx_pdu_meta_t ack;
+ memset(&ack, 0, sizeof(ack));
+ ack.target_ssi = pdu_ssi;
+ ack.nr = (uint8_t)((meta >> 1) & 1u); /* NR = received NS */
+ int ack_rc = tetra_tx_submit(hal, TX_BL_ACK, &ack);
+ printf("SDS-BL-ACK: -> 0x%06X nr=%u rc=%d\n", pdu_ssi, ack.nr, ack_rc);
+ }
  /* SDS-Relay (BlueStation route_rf_deliver): an die Ziel-MS
   * weiterleiten, wenn lokal als ISSI registriert. UDD (Text bzw.
   * SDS-TL-Report von der Gegenseite) wird 1:1 in eine D-SDS-DATA
@@ -317,8 +363,16 @@ static void service_uldbod(tetra_hal_t *hal)
  }
  }
 
+ /* MM walker: feed it the old block-bit-48 MM-body start, which now sits at
+  * on-air position 18 of the LLC-aligned body — bit-identical to pre-G.x. */
+ uint8_t mmbody[TETRA_MM_DEMAND_BODY_BYTES];
+ { int i; memset(mmbody, 0, sizeof(mmbody));
+ for (i = 0; i < TETRA_MM_DEMAND_BODY_BYTES * 8 && (18 + i) < 147; i++)
+ if (sds_gbit(nbody, 18 + i))
+ mmbody[i >> 3] |= (uint8_t)(0x80u >> (i & 7));
+ }
  tetra_mm_demand_parsed_t p;
- int rc = tetra_mm_demand_parser_parse(body, mm_type, pdu_ssi, &p);
+ int rc = tetra_mm_demand_parser_parse(mmbody, mm_type, pdu_ssi, &p);
 
  if (rc == 0 && p.parse_ok && mm_type == 2) {
  fprintf(stderr,

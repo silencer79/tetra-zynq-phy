@@ -138,6 +138,10 @@ module tetra_mle_registration_fsm (
  * (D-CONNECT/D-TX-GRANTED/...). Sampled on GO pulse together with the
  * rest of the raw-mode fields. Mailbox encodes 0b000 ↔ default-MM. */
  input wire [2:0] mb_raw_mle_pd,
+ /* SDS BL-ACK delivery (W9[13]). 1 = emit a pure LLC BL-ACK (no MLE-PD,
+  * no TM-SDU body) to the SDS sender instead of mle_pd-derived BL-data.
+  * nr carries the received SDS NS (BL-ACK echoes NR=NS). */
+ input wire mb_raw_llc_bl_ack,
 
  // -----------------------------------------------------------------
  // Phase X.6 — Build-request to shared tetra_dl_pdu_builder.
@@ -241,6 +245,7 @@ module tetra_mle_registration_fsm (
  reg [7:0] lat_raw_mm_len;
  reg lat_raw_ns;
  reg lat_raw_nr;
+ reg lat_raw_llc_bl_ack;
 
  // -------------------------------------------------------------------------
  // D-LOCATION-UPDATE encoder — X.7 cleanup: drives the MM body straight
@@ -302,10 +307,16 @@ module tetra_mle_registration_fsm (
  * aach_pattern = IDLE 0x0249 (no UL-slot grant)
  * ATTACH/grpack paths (raw_mle_pd != CMCE) keep the legacy LU_ACCEPT
  * fields → bit-identity preserved. */
- wire cmce_path_w = lat_raw_mode_flag && (lat_raw_mle_pd == 3'b010);
+ // SDS BL-ACK delivery: pure LLC BL-ACK (no MLE-PD / no TM-SDU body) to the
+ // SDS sender. SSI-addressed, signalling AACH (falls through to the legacy
+ // path since it is not the CMCE path). Mutually exclusive with cmce_path_w.
+ wire bl_ack_path_w = lat_raw_mode_flag && lat_raw_llc_bl_ack;
+ wire cmce_path_w = lat_raw_mode_flag && (lat_raw_mle_pd == 3'b010)
+ && !lat_raw_llc_bl_ack;
 
  assign accept_build_ssi = lat_ssi;
- assign accept_build_addr_type = cmce_path_w
+ assign accept_build_addr_type = bl_ack_path_w ? 3'd1 /* SSI */
+: cmce_path_w
  ? `PDUC_CMCE_D_CONNECT_ADDRTYPE
 : lat_addr_type;
  /* Klasse 2 (2026-05-24) — UMt aus W2[8:3] (über mb_usage_marker →
@@ -314,7 +325,8 @@ module tetra_mle_registration_fsm (
  assign accept_build_usage_marker = lat_usage_marker;
  /* 2026-05-25 Multi-Group — Bitmap aus W2[12:9]. Nur für CMCE relevant. */
  assign accept_build_chan_alloc_ts_bitmap = lat_chan_alloc_ts_bitmap;
- assign accept_build_llc_pdu_type = cmce_path_w
+ assign accept_build_llc_pdu_type = bl_ack_path_w ? 4'd3 /* {00,BL-ACK=11} */
+: cmce_path_w
  ? `PDUC_CMCE_D_CONNECT_LLC
 : `PDUC_FINAL_LU_ACCEPT_LLC;
  assign accept_build_random_access_flag = `PDUC_FINAL_LU_ACCEPT_RA;
@@ -328,7 +340,8 @@ module tetra_mle_registration_fsm (
  assign accept_build_mle_pd =
  lat_raw_mode_flag ? lat_raw_mle_pd: 3'b001;
  assign accept_build_mm_pdu_len_bits =
- lat_raw_mode_flag ? lat_raw_mm_len: dloc_mm_len_w;
+ bl_ack_path_w ? 8'd0 /* BL-ACK has no TM-SDU body */
+: lat_raw_mode_flag ? lat_raw_mm_len: dloc_mm_len_w;
  assign accept_build_scramble_init = cfg_scramble_init;
  assign accept_build_ns =
  lat_raw_mode_flag ? lat_raw_ns: 1'b0;
@@ -365,6 +378,7 @@ module tetra_mle_registration_fsm (
  lat_raw_mm_len <= 8'd0;
  lat_raw_ns <= 1'b0;
  lat_raw_nr <= 1'b0;
+ lat_raw_llc_bl_ack <= 1'b0;
  accept_build_req <= 1'b0;
  req_valid <= 1'b0;
  req_coded_bits <= 432'd0;
@@ -410,6 +424,7 @@ module tetra_mle_registration_fsm (
  lat_raw_mm_len <= mb_raw_mm_len;
  lat_raw_ns <= mb_raw_ns;
  lat_raw_nr <= mb_raw_nr;
+ lat_raw_llc_bl_ack <= mb_raw_llc_bl_ack;
  busy <= 1'b1;
  state <= S_BUILD_ACCEPT_REQ;
  end

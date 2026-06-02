@@ -39,6 +39,8 @@ typedef enum {
  TX_D_ALERT = 10, /* CMCE pdu=0, "calling..." Status an Caller */
  /* Operator-getriggerte Kurznachricht (2026-06-01) */
  TX_D_SDS_DATA = 11, /* CMCE pdu=15, BS→MS SDS (raw_mode CMCE) */
+ /* SDS-Zustellquittung (2026-06-02) */
+ TX_BL_ACK = 12, /* reine LLC BL-ACK an SDS-Absender, nr=empfangene NS */
 } tx_pdu_class_t;
 
 /* Slot-class hint (Z.2+). 0 = legacy (RTL chooses default per existing

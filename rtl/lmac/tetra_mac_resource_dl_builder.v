@@ -213,6 +213,7 @@ module tetra_mac_resource_dl_builder #(
  localparam [1:0] LLC_PDUT_BL_ADATA = 2'b00;
  localparam [1:0] LLC_PDUT_BL_DATA = 2'b01;
  localparam [1:0] LLC_PDUT_BL_UDATA = 2'b10;
+ localparam [1:0] LLC_PDUT_BL_ACK = 2'b11;
  localparam [3:0] LLC_PDUT_AL_SETUP = 4'd8;
  localparam [3:0] LLC_PDUT_L2SIG = 4'd14;
 
@@ -331,6 +332,13 @@ module tetra_mac_resource_dl_builder #(
  * uses BL-UDATA for CMCE D-CONNECT (Phase 7 G.7). */
  tl_sdu_len_c = MLE_PD_BITS + {1'b0, lat_mm_len};
  llc_hdr_bits_c = 4;
+ end else if (lat_llc_pdu_type == {2'b00, LLC_PDUT_BL_ACK}) begin
+ /* BL-ACK — link(1)+fcs(1)+pdu_type(2=11)+nr(1) = 5-bit header.
+ * No MLE-PD, no TM-SDU body — pure LLC stop-and-wait ack (SDS
+ * delivery). LengthInd = ceil((40 MAC hdr + 5)/8) = 6 octets,
+ * matches gold DL #425. */
+ tl_sdu_len_c = 9'd0;
+ llc_hdr_bits_c = 5;
  end else begin
  tl_sdu_len_c = MLE_PD_BITS + {1'b0, lat_mm_len};
  llc_hdr_bits_c = 5;
@@ -615,6 +623,14 @@ module tetra_mac_resource_dl_builder #(
  lat_mle_pd, // 3
  lat_mm_bits, // 128
  9'd0}; // pad
+ end else if (lat_llc_pdu_type == {2'b00, LLC_PDUT_BL_ACK}) begin
+ // BL-ACK: 1+1+2+1 = 5-bit header, no MLE-PD/body. nr = lat_nr.
+ // llc_cov_len=5 → S_MAC_HEAD shifter takes the top 5 bits only.
+ llc_buf <= {LLC_LINK_TYPE_BL, // 1
+ LLC_HAS_FCS_OFF, // 1
+ LLC_PDUT_BL_ACK, // 2
+ lat_nr, // 1
+ {(LLC_BUF_BITS - 5){1'b0}} }; // pad
  end else begin
  // BL-DATA: 1+1+2+1 + 3 + 128 = 136, pad 8 → 144
  llc_buf <= {LLC_LINK_TYPE_BL, // 1

@@ -154,9 +154,10 @@ static int stage_raw_mm(tetra_hal_t *hal,
  uint8_t nr,
  uint8_t mle_pd,
  uint8_t umt,
- uint8_t chan_alloc_ts_bitmap)
+ uint8_t chan_alloc_ts_bitmap,
+ uint8_t bl_ack)
 {
- if (mm_len <= 0 || mm_len > 128) return -1;
+ if (mm_len < 0 || mm_len > 128) return -1; /* mm_len==0 ok for BL-ACK */
 
  uint32_t w_raw[4] = { 0u, 0u, 0u, 0u };
  for (int i = 0; i < mm_len; i++) {
@@ -172,6 +173,7 @@ static int stage_raw_mm(tetra_hal_t *hal,
  }
 
  uint32_t w9 = (1u << 31)
+ | ((uint32_t)(bl_ack & 0x1u) << 13)
  | ((uint32_t)(mle_pd & 0x7u) << 10)
  | ((uint32_t)(nr & 0x1u) << 9)
  | ((uint32_t)(ns & 0x1u) << 8)
@@ -232,7 +234,7 @@ static int submit_grp_ack(tetra_hal_t *hal, const tx_pdu_meta_t *m)
  if (mm_len <= 0) return -1;
 
  return stage_raw_mm(hal, m->target_ssi, mm_bytes, mm_len,
- m->ns, m->nr, MLE_PD_MM, 0u, 0u);
+ m->ns, m->nr, MLE_PD_MM, 0u, 0u, 0u);
 }
 
 /* CMCE submit-Helpers — Phase 7 G.4. Jeder Helper baut den Body via den
@@ -249,7 +251,18 @@ static int submit_cmce_pdu(tetra_hal_t *hal,
  if (mm_len <= 0) return -1;
  return stage_raw_mm(hal, m->target_ssi, mm_bytes, mm_len,
  m->ns, m->nr, MLE_PD_CMCE, m->umt,
- m->chan_alloc_ts_bitmap);
+ m->chan_alloc_ts_bitmap, 0u);
+}
+
+/* SDS delivery acknowledgement — pure LLC BL-ACK to the SDS sender. No
+ * MM/CMCE body; nr carries the received SDS NS (BL-ACK echoes NR=NS, per
+ * gold DL #425 + bluestation llc_bs_ms.rs:99). W9[13]=1 routes the MLE-FSM
+ * / DL-PDU-builder to the BL-ACK path (MAC-RESOURCE + LLC BL-ACK, LI=6). */
+static int submit_bl_ack(tetra_hal_t *hal, const tx_pdu_meta_t *m)
+{
+ uint8_t dummy[1] = { 0 };
+ return stage_raw_mm(hal, m->target_ssi, dummy, 0,
+ 0u, m->nr, MLE_PD_MM, 0u, 0u, 1u /* bl_ack */);
 }
 
 int tetra_tx_submit(tetra_hal_t *hal, tx_pdu_class_t cls,
@@ -282,6 +295,8 @@ int tetra_tx_submit(tetra_hal_t *hal, tx_pdu_class_t cls,
  return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_alert);
  case TX_D_SDS_DATA:
  return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_sds_data);
+ case TX_BL_ACK:
+ return submit_bl_ack(hal, meta);
  default:
  return -1;
  }

@@ -28,7 +28,8 @@
 // W6 [31: 1] 31'd0 [ 0] gila_present
 // W7 [31: 2] 30'd0 [ 1: 0] encryption[1:0] (Reserved)
 // W8 [31: 2] 30'd0 [ 1: 0] auth_result[1:0] (Reserved)
-// W9 [31] raw_mode_flag [30:13] 18'd0
+// W9 [31] raw_mode_flag [30:14] 17'd0
+// [13] raw_llc_bl_ack (1 = pure LLC BL-ACK, SDS delivery)
 // [12:10] raw_mle_pd (Phase 7 G.4: 0=defaultMM, 1=MM, 2=CMCE)
 // [9] raw_nr [8] raw_ns
 // [7: 0] raw_mm_len[7:0] (Phase Y.2)
@@ -105,7 +106,10 @@ module tetra_reply_mailbox (
  * 0b000 = default MM (legacy / grpack)
  * 0b001 = MM
  * 0b010 = CMCE (D-CONNECT / D-TX-GRANTED / D-RELEASE / …) */
- output wire [2:0] mb_raw_mle_pd_sys
+ output wire [2:0] mb_raw_mle_pd_sys,
+ /* SDS BL-ACK delivery — W9[13]. 1 = build a pure LLC BL-ACK (no MLE-PD,
+  * no TM-SDU body) instead of the mle_pd-derived BL-ADATA/BL-UDATA. */
+ output wire mb_raw_llc_bl_ack_sys
 );
 
  // -----------------------------------------------------------------------
@@ -173,6 +177,7 @@ module tetra_reply_mailbox (
  assign mb_raw_mm_len_sys = w9_w[7:0];
  assign mb_raw_mm_bits_sys = { w13_w, w12_w, w11_w, w10_w };
  assign mb_raw_mle_pd_sys = w9_w[12:10];
+ assign mb_raw_llc_bl_ack_sys = w9_w[13];
 
 endmodule
 

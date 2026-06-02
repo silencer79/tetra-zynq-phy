@@ -430,7 +430,7 @@ wire [15:0] ul_continuation_count_sys;
 wire [15:0] schhu_attempted_sys;
 wire [15:0] schhu_ok_sys;
 wire reass_valid_sys;
-wire [128:0] reass_body_sys;
+wire [146:0] reass_body_sys;
 wire [23:0] reass_ssi_sys;
 wire [15:0] reass_cnt_sys;
 wire [15:0] reass_drop_cnt_sys;
@@ -697,16 +697,17 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
 end
 
 // MAC-ACCESS frag=1 trigger. We pulse on the same cycle the parser fires
-// pdu_valid_sys with frag_flag_sys=1 AND addr_type ∈ {0,2,3}. The 44-bit
-// fragment-1 bus is sliced from ul_raw_info_bits_sys[48..91], MSB-first
-// into the bus (bus[43] = info[48], bus[0] = info[91]).
+// pdu_valid_sys with frag_flag_sys=1 AND addr_type ∈ {0,2,3}. The 62-bit
+// fragment-1 bus is sliced from ul_raw_info_bits_sys[30..91] (TM-SDU start
+// for opt=0; opt=1 leaves a 6-bit MAC-header lead-in that SW skips via the
+// opt_flag meta bit), MSB-first (bus[61] = info[30], bus[0] = info[91]).
 wire frag1_pulse_w = ul_pdu_valid_sys & ul_frag_flag_sys &
  (ul_addr_type_sys != 2'b01);
-wire [43:0] frag1_bits_w;
+wire [61:0] frag1_bits_w;
 genvar gfb;
 generate
- for (gfb = 0; gfb < 44; gfb = gfb + 1) begin: g_frag1_bits
- assign frag1_bits_w[43 - gfb] = ul_raw_info_bits_sys[48 + gfb];
+ for (gfb = 0; gfb < 62; gfb = gfb + 1) begin: g_frag1_bits
+ assign frag1_bits_w[61 - gfb] = ul_raw_info_bits_sys[30 + gfb];
  end
 endgenerate
 
@@ -727,12 +728,20 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
 end
 wire [3:0] reass_t0_frames_axi_sys = reass_t0_frames_sys_r1;
 
-// Phase Y.1.a' — mm_type for the frag-1 LLC-wrapped path. Sourced from
-// the MAC-ACCESS parser's `ul_llc_mm_pdu_type_w` (decoded inside rx_chain
-// LLC walker) — that is the bluestation-aligned mm_pdu_type, not the
-// direct one which is for unfragmented MAC-ACCESS.
-wire [3:0] frag1_mm_type_w = ul_llc_mm_pdu_type_w;
-wire [3:0] reass_mm_type_sys;
+// Phase 7 G.x — frag-1 metadata bundle for generic (MM + CMCE) reassembly.
+// [8:6]=mle_disc, [5:2]=llc_pdu_type, [1]=llc_ns, [0]=opt_flag. All sourced
+// from the MAC-ACCESS parser, valid on the frag1_pulse cycle. Replaces the
+// MM-only mm_pdu_type tag so SW parses LLC->MLE->CMCE/MM without guessing.
+wire [3:0] frag1_mm_type_w = ul_llc_mm_pdu_type_w; // MM-subtype (Pre-Reply filter)
+wire [12:0] frag1_meta_w = {frag1_mm_type_w,             /* [12:9] mm_pdu_type */
+                            ul_mle_disc_sys,             /* [8:6]  mle_disc */
+                            ul_llc_pdu_type_sys,         /* [5:2]  llc_pdu_type */
+                            ul_llc_ns_w,                 /* [1]    llc_ns */
+                            ul_optional_field_flag_sys}; /* [0]    opt_flag */
+wire [12:0] reass_meta_sys;
+// MM-subtype re-derived from the reassembled meta bundle for the RTL Pre-Reply
+// BL-ACK trigger (mm∈{2,7}); SW reads the rest of meta via the 0x250 mailbox.
+wire [3:0] reass_mm_type_sys = reass_meta_sys[12:9];
 
 tetra_ul_demand_reassembly #(
 .T0_FRAMES_DEFAULT(2)
@@ -744,14 +753,14 @@ tetra_ul_demand_reassembly #(
 .frag1_pulse_sys (frag1_pulse_w),
 .frag1_ssi_sys (ul_issi_sys),
 .frag1_bits_sys (frag1_bits_w),
-.frag1_mm_type_sys (frag1_mm_type_w),
+.frag1_meta_sys (frag1_meta_w),
 .end_hu_pulse_sys (ul_continuation_valid_sys),
 .end_hu_ssi_sys (ul_continuation_ssi_sys),
 .end_hu_bits_sys (ul_continuation_bits_sys),
 .reassembled_valid_sys(reass_valid_sys),
 .reassembled_body_sys (reass_body_sys),
 .reassembled_ssi_sys (reass_ssi_sys),
-.reassembled_mm_type_sys(reass_mm_type_sys),
+.reassembled_meta_sys (reass_meta_sys),
 .reassembled_cnt_sys (reass_cnt_sys),
 .drop_cnt_sys (reass_drop_cnt_sys),
 .busy_slots_sys (reass_busy_slots_sys)
@@ -2471,6 +2480,7 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
 .mb_raw_ns (mb_raw_ns_sys_w),
 .mb_raw_nr (mb_raw_nr_sys_w),
 .mb_raw_mle_pd (mb_raw_mle_pd_sys_w),
+.mb_raw_llc_bl_ack (mb_raw_llc_bl_ack_sys_w),
  // Phase X.6 — Build-request to shared tetra_dl_pdu_builder via arbiter.
 .accept_build_req (mle_accept_build_req_w),
 .accept_build_ssi (mle_accept_build_ssi_w),
@@ -2898,7 +2908,11 @@ tetra_pre_reply_blck u_pre_reply_blck (
  // (= Frag-2-Done), nicht mehr auf den entfernten IE-Parser. Effekt
  // ist identisch — Parser brauchte nur ein paar Takte, beide Pfade
  // landen im gleichen Frame.
-.trigger_valid (reass_valid_sys & ((reass_mm_type_sys == 4'd2) |
+ // mle_disc==MM(001)-Guard: CMCE U-SDS-DATA (pdu 15 = 01111) wird vom
+ // LLC-Walker als mm=7 fehl-getaggt und würde diesen MM-Attach-BL-ACK
+ // sonst fälschlich auslösen. SDS-Quittung macht SW (TX_BL_ACK, SCH/F).
+.trigger_valid (reass_valid_sys & (reass_meta_sys[8:6] == 3'b001) &
+                                   ((reass_mm_type_sys == 4'd2) |
                                     (reass_mm_type_sys == 4'd7))),
 .ul_ssi (ul_issi_sys),
  // Target TN = MCCH slot (where the MS expects the BL-ACK).
@@ -3168,7 +3182,7 @@ tetra_ul_demand_body_mailbox u_ul_demand_body_mailbox (
 .push_valid_sys         (reass_valid_sys),
 .body_sys               (reass_body_sys),
 .ssi_sys                (reass_ssi_sys),
-.mm_pdu_type_sys        (reass_mm_type_sys),
+.meta_sys               (reass_meta_sys),
 .ack_consumed_pulse_sys (uldbod_ack_pulse_sys_w),
 .index_sys              (uldbod_index_sys_r1),
 .data_word_sys          (uldbod_data_word_sys_w),
@@ -3329,6 +3343,7 @@ wire [7:0] mb_raw_mm_len_sys_w;
 wire mb_raw_ns_sys_w;
 wire mb_raw_nr_sys_w;
 wire [2:0] mb_raw_mle_pd_sys_w; /* Phase 7 G.4 — MLE-PD selector */
+wire mb_raw_llc_bl_ack_sys_w; /* SDS BL-ACK delivery (W9[13]) */
 
 tetra_reply_mailbox u_reply_mailbox (
 .clk_sys (clk_sys),
@@ -3358,7 +3373,8 @@ tetra_reply_mailbox u_reply_mailbox (
 .mb_raw_mm_len_sys (mb_raw_mm_len_sys_w),
 .mb_raw_ns_sys (mb_raw_ns_sys_w),
 .mb_raw_nr_sys (mb_raw_nr_sys_w),
-.mb_raw_mle_pd_sys (mb_raw_mle_pd_sys_w)
+.mb_raw_mle_pd_sys (mb_raw_mle_pd_sys_w),
+.mb_raw_llc_bl_ack_sys (mb_raw_llc_bl_ack_sys_w)
 );
 
 // CDC: rdata + busy clk_sys → clk_axi (busy is the OR of FSM busy-state).
