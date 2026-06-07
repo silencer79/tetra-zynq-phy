@@ -191,6 +191,57 @@ def estimate_burst_cfo(iq, sps, x_start_pos, linear=True):
     return float(A), float(B)
 
 
+# ---- NUB / SCH-F-UL support (Normal Uplink Burst on reserved full slots) ----
+# Long UL bursts (~236 sym) carry SCH/F via the Normal Uplink Burst:
+#   tail + BKN1(216b=108sym) + NTS(22b=11sym) + BKN2(216b=108sym) + tail.
+# Unlike the Control burst it has no X-sequence; sync is the Normal Training Seq.
+from decode_dl import (NTS1_DIBITS as _NTS1_DIBITS, NTS1_DIFF_REF as _NTS1_DREF,
+                       NTS2_DIBITS as _NTS2_DIBITS, NTS2_DIFF_REF as _NTS2_DREF)
+NUB_HALF_SYMS = 108      # BKN1 / BKN2 = 216 type-5 bits each (SCH/F = 432)
+NTS_SYMS      = 11       # normal training sequence length (symbols)
+_NTS1_DPHI = np.array([_DIBIT_PHASE[d] for d in _NTS1_DIBITS])
+_NTS2_DPHI = np.array([_DIBIT_PHASE[d] for d in _NTS2_DIBITS])
+
+
+def estimate_nub_cfo(iq, sps, nts_pos, nts_dphi):
+    """Per-burst residual CFO from the NTS pilot (constant Δφ/sym)."""
+    n = len(nts_dphi)
+    idx = np.round(nts_pos + np.arange(n) * sps).astype(int)
+    if idx[0] < 0 or idx[-1] >= len(iq):
+        return 0.0
+    syms = iq[idx]
+    obs = np.angle(syms[1:] * np.conj(syms[:-1]))
+    err = np.angle(np.exp(1j * (obs - nts_dphi[1:])))
+    return float(np.median(err))
+
+
+def sample_nub_blocks(iq, sps, nts_pos, cfo_A=0.0):
+    """Sample BKN1 (before NTS) + BKN2 (after NTS), each with one differential
+    reference symbol. nts_pos = sample position where the NTS begins."""
+    def derot(syms, k):
+        return syms * np.exp(-1j * cfo_A * k)
+    k1 = np.arange(-NUB_HALF_SYMS - 1, 0, dtype=np.float64)
+    i1 = np.clip(np.round(nts_pos + k1 * sps).astype(int), 0, len(iq) - 1)
+    b1 = demod_pi4dqpsk_soft_etsi(derot(iq[i1], k1))
+    k2 = np.arange(NTS_SYMS - 1, NTS_SYMS + NUB_HALF_SYMS, dtype=np.float64)
+    i2 = np.clip(np.round(nts_pos + k2 * sps).astype(int), 0, len(iq) - 1)
+    b2 = demod_pi4dqpsk_soft_etsi(derot(iq[i2], k2))
+    return b1, b2
+
+
+def find_nub_nts(iq, sps, search_start, search_end, step):
+    """Correlate NTS1/NTS2 over [search_start, search_end).
+    Returns (pos, corr, dphi) of the best match."""
+    best = (None, 0.0, None)
+    for pos in range(int(search_start), int(search_end), max(1, step)):
+        for dib, dref, dphi in ((_NTS1_DIBITS, _NTS1_DREF, _NTS1_DPHI),
+                                (_NTS2_DIBITS, _NTS2_DREF, _NTS2_DPHI)):
+            c = _correlate_at(iq, pos, sps, dib, dref)
+            if c > best[1]:
+                best = (pos, c, dphi)
+    return best
+
+
 def sample_half_soft_bits(iq, sps, x_start_pos, half_syms, cfo_A=0.0, cfo_B=0.0):
     """Sample soft-demod bits for blk1+blk2 surrounding the x-sequence.
     x_start_pos = sample position where x-sequence begins.
@@ -691,18 +742,28 @@ def _decode_one_burst(args):
                 blk1_final, blk2_final = blk1_cb, blk2_cb
         if result[0]:
             break
-    # NUB fallback
-    if not result[0]:
-        blk1_nub, blk2_nub = sample_half_soft_bits(iq_win, sps, x_pos, RA_NUB_SYMS, cfo_A0, 0.0)
-        r2 = try_channel_decode(blk1_nub, blk2_nub, scramb_init, 'schhd')
-        if r2[0]:
-            result = r2
-            blk1_final, blk2_final = blk1_nub, blk2_nub
-        else:
-            r3 = try_channel_decode(blk1_nub, blk2_nub, scramb_init, 'schf')
-            if r3[0]:
-                result = r3
-                blk1_final, blk2_final = blk1_nub, blk2_nub
+    # NUB / SCH-F-UL path — long full-slot bursts (~236 sym) on reserved slots.
+    # Normal Uplink Burst: tail + BKN1(108sym) + NTS(11sym) + BKN2(108sym) + tail.
+    # Sync on the Normal Training Sequence (no X-sequence), then channel-decode SCH/F.
+    if not result[0] and (l / sps) > 150:
+        ns = s_loc + int(90 * sps)
+        ne = min(s_loc + int(140 * sps), len(iq_win) - 1)
+        nts_pos, nts_c, nts_dphi = find_nub_nts(iq_win, sps, ns, ne,
+                                                max(1, int(round(sps / 4))))
+        if nts_pos is not None and nts_c > 0.45:
+            fstep = max(1.0, sps / 16.0)            # sub-symbol NTS refine ±3 sym
+            for j in range(-48, 49):
+                rp = nts_pos + j * fstep
+                cc = max(_correlate_at(iq_win, rp, sps, d, r) for d, r in
+                         ((_NTS1_DIBITS, _NTS1_DREF), (_NTS2_DIBITS, _NTS2_DREF)))
+                if cc > nts_c:
+                    nts_c = cc; nts_pos = rp
+            cfo_nub = estimate_nub_cfo(iq_win, sps, nts_pos, nts_dphi)
+            b1, b2 = sample_nub_blocks(iq_win, sps, nts_pos, cfo_nub)
+            rf = try_channel_decode(b1, b2, scramb_init, 'schf')
+            if rf[0] or result[1] is None:
+                result = rf
+                blk1_final, blk2_final = b1, b2
 
     crc_ok, info_bits, type5_hard = result[0], result[1], result[2]
     variant = result[3] if len(result) > 3 and result[3] else ''
@@ -836,6 +897,57 @@ def main():
 
     print()
     print(f'=== SCH/HU CRC-pass: {crc_hits} / {len(type5_patterns)} ===')
+
+    # ---- Lange SDS: Reassembly MAC-ACCESS(frag=1)[SCH/HU] + N×MAC-FRAG + MAC-END[SCH/F] ----
+    def _schf_frag(info):
+        """SCH/F MAC-FRAG (type=01,sub=0) / MAC-END (type=01,sub=1).→(kind,tm_sdu_bits)."""
+        if info is None or len(info) < 11 or (info[0] * 2 + info[1]) != 1:
+            return None
+        return ('FRAG', list(info[4:])) if info[2] == 0 else ('END', list(info[10:]))
+
+    def _bits_to_bytes(bits):
+        return bytes(int(''.join(str(int(x) & 1) for x in bits[i:i+8]), 2)
+                     for i in range(0, len(bits) - 7, 8))
+
+    def _gsm7(bits):  # 7-bit LSB-first packed septets
+        out = []
+        for i in range(0, len(bits) - 6, 7):
+            v = sum((int(bits[i+k]) & 1) << k for k in range(7))
+            out.append(chr(v) if 32 <= v < 127 else '.')
+        return ''.join(out)
+
+    chains, cur = [], None
+    for res in results:
+        if res.get('skip') or not res.get('crc_ok'):
+            continue
+        var = res.get('variant') or ''
+        info = res.get('info_bits')
+        if info is None:
+            continue
+        if var.startswith('schhu'):
+            p = parse_mac_access(info)
+            if p and p.get('frag_flag') == 1:           # Start einer Fragment-Kette
+                if cur:
+                    chains.append(cur)
+                cur = {'ssi': p.get('ssi'), 'tm': list(info[p.get('payload_start', 0):]), 'nf': 0}
+        elif var.startswith('schf') and cur is not None:
+            r = _schf_frag(info)
+            if r:
+                cur['tm'] += r[1]; cur['nf'] += 1
+                if r[0] == 'END':
+                    chains.append(cur); cur = None
+    if cur:
+        chains.append(cur)
+
+    if chains:
+        print()
+        print(f'=== Lange SDS — {len(chains)} reassemblierte Kette(n) (SCH/HU-Start + SCH/F-FRAG/END) ===')
+        for ci, ch in enumerate(chains):
+            tm = ch['tm']; bb = _bits_to_bytes(tm)
+            print(f'  Kette {ci}: SSI={ch["ssi"]}  Fragmente={ch["nf"]}  TM-SDU={len(tm)} bit ({len(bb)} B)')
+            print(f'    hex : {bb.hex()[:120]}')
+            print(f'    l1  : {"".join(chr(c) if 32 <= c < 127 else "." for c in bb)[:90]}')
+            print(f'    gsm7: {_gsm7(tm)[:90]}')
 
     if type5_patterns:
         arr = np.array(type5_patterns, dtype=np.int8)
