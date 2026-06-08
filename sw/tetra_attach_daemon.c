@@ -29,6 +29,7 @@
 #include "tetra_hal.h"
 #include "tetra_db.h"
 #include "tetra_tx_transport.h"
+#include "tetra_ul_long_sds.h"
 #include "tetra_cmce_parser.h"
 #include "tetra_call_fsm.h"
 #include "tetra_mm_demand_parser.h"
@@ -679,6 +680,75 @@ static void usage(const char *a0)
  a0, TETRA_DB_DEFAULT_PATH);
 }
 
+/* ---- Lange SDS (Multi-Fragment, SCH/F) — komplementär zum Voice-Pfad ----
+ * (a) MAC-ACCESS(frag=1) auf 0x164 startet eine Kette (TM-SDU-Anfang).
+ * (b) SCH/F-NUBs (nur wenn kein aktiver Voice-Call → kein Mailbox-Konflikt)
+ *     werden kanaldecodiert + angehängt; bei MAC-END → reassembliert + Relay.
+ * NUB-Soft-Konvention ist im FPGA invers zu ETSI → beide Vorzeichen probieren. */
+static lsds_chain_t g_lsds;
+
+static void service_long_sds(tetra_hal_t *hal)
+{
+ uint32_t st = tetra_reg_read(hal, REG_UL_PDU_STATUS);
+ if (UL_STATUS_VALID(st) && UL_STATUS_PDU_TYPE(st) == 0u && UL_STATUS_FRAG_FLAG(st)) {
+ uint32_t r0 = tetra_reg_read(hal, REG_UL_PDU_RAW_0);
+ uint32_t r1 = tetra_reg_read(hal, REG_UL_PDU_RAW_1);
+ uint32_t r2 = tetra_reg_read(hal, REG_UL_PDU_RAW_2);
+ uint8_t raw[92]; int i;
+ for (i = 0; i < 32; i++) raw[i] = (uint8_t)((r0 >> (31 - i)) & 1u);
+ for (i = 0; i < 32; i++) raw[32 + i] = (uint8_t)((r1 >> (31 - i)) & 1u);
+ for (i = 0; i < 28; i++) raw[64 + i] = (uint8_t)((r2 >> (31 - i)) & 1u);
+ uint32_t ssi = tetra_reg_read(hal, REG_UL_PDU_SSI) & 0xFFFFFFu;
+ /* payload_start (parse_mac_access): 5 + ssi24 + opt1 + lindcap1 + frag1 + resreq4 = 36 */
+ tetra_lsds_start(&g_lsds, ssi, raw + 36, 92 - 36);
+ tetra_reg_write(hal, REG_UL_PDU_CTRL, 1u); /* clear valid sticky */
+ fprintf(stderr, "LONG-SDS: chain start ssi=0x%06X res_req=%u\n",
+ ssi, UL_STATUS_RES_REQ(st));
+ }
+
+ if (tetra_reg_read(hal, REG_VOICE_ACTIVE_MASK) != 0u) return; /* Voice-Call: NUB gehört voice_pipe */
+ if ((tetra_reg_read(hal, REG_VOICE_NUB_READ_STATUS) & 0x1u) == 0u) return;
+
+ int8_t softs[432]; uint8_t hard[432]; int w, n, i, rc;
+ for (w = 0; w < 54; w++) {
+ tetra_reg_write(hal, REG_VOICE_NUB_READ_INDEX, (uint32_t)w);
+ uint32_t word = tetra_reg_read(hal, REG_VOICE_NUB_READ_DATA);
+ for (n = 0; n < 8; n++) {
+ uint32_t nib = (word >> (n * 4)) & 0xFu;
+ int8_t s = (int8_t)((nib & 0x8) ? (int8_t)(nib | 0xF0) : (int8_t)nib);
+ int ci = w * 8 + n;
+ if (ci < 432) softs[431 - ci] = s;
+ }
+ }
+ tetra_reg_write(hal, REG_VOICE_NUB_READ_ACK, 1u); /* ack + arm next */
+
+ uint8_t cc = (uint8_t)(tetra_reg_read(hal, REG_COLOUR_CODE) & 0x3Fu);
+ uint32_t cfg1 = tetra_reg_read(hal, REG_CELL_CFG_1);
+ uint16_t mcc = (uint16_t)(cfg1 & 0x3FFu);
+ uint16_t mnc = (uint16_t)((cfg1 >> 10) & 0x3FFFu);
+
+ for (i = 0; i < 432; i++) hard[i] = (softs[i] > 0) ? 1u : 0u; /* FPGA-Konvention */
+ rc = tetra_lsds_feed_schf(&g_lsds, hard, cc, 3, mcc, mnc);
+ if (rc == 0) { /* CRC-Fail → inverse Vorzeichen-Konvention (ETSI) */
+ for (i = 0; i < 432; i++) hard[i] = (softs[i] < 0) ? 1u : 0u;
+ rc = tetra_lsds_feed_schf(&g_lsds, hard, cc, 3, mcc, mnc);
+ }
+ if (rc == 2) { /* Kette komplett → SDS reassembliert */
+ uint16_t meta = (uint16_t)((2u << 6) | (1u << 2)); /* mle_disc=CMCE, llc_pt=BL-DATA */
+ uint32_t dest = 0; uint8_t proto = 0; uint16_t li = 0;
+ char text[256]; uint8_t udd[200]; int udd_len = 0;
+ if (decode_sds_reassembled(g_lsds.tm, g_lsds.nbits, meta,
+ &dest, &proto, &li, text, (int)sizeof(text),
+ udd, (int)sizeof(udd), &udd_len)) {
+ printf("LONG-SDS from=0x%06X to=0x%06X proto=%u %dbit/%dfrag text=\"%s\"\n",
+ g_lsds.ssi, dest, proto, g_lsds.nbits, g_lsds.nfrag, text);
+ } else {
+ fprintf(stderr, "LONG-SDS: %dfrag %dbit reassembliert, SDS-Decode meta=0x%X fehlgeschlagen\n",
+ g_lsds.nfrag, g_lsds.nbits, meta);
+ }
+ }
+}
+
 int main(int argc, char **argv)
 {
  const char *db_path = TETRA_DB_DEFAULT_PATH;
@@ -759,6 +829,9 @@ int main(int argc, char **argv)
  service_uldbod(&hal);
  }
 
+ /* Lange SDS (Multi-Fragment, SCH/F) — MAC-ACCESS-Start + NUB-Fragmente. */
+ service_long_sds(&hal);
+
  /* Operator-getriggertes DL-SDS aus /tmp/sds_out */
  service_sds_outbox(&hal);
 
@@ -830,6 +903,23 @@ int main(int argc, char **argv)
  printf(" udd=0x%X(%ubit)", p.sds_user_data,
  p.sds_user_data_bits);
  printf("%s\n", p.sds_truncated ? " [truncated/fragmented]" : "");
+ fflush(stdout);
+ } else if (rc == 0 && p.pdu_type == CMCE_U_STATUS) {
+ /* Status-Message (precoded status) — wie SDS an die adressierte MS
+ * als D-STATUS relayen, wenn lokal als ISSI registriert. */
+ printf("STATUS: U-STATUS from=0x%06X cpti=%u dest=0x%06X status=0x%04X\n",
+ cmce_ssi, p.called_party_type_identifier, p.called_party_ssi,
+ p.pre_coded_status);
+ if (tetra_db_lookup(p.called_party_ssi, 0u, NULL)) {
+ tx_pdu_meta_t sm;
+ memset(&sm, 0, sizeof(sm));
+ sm.target_ssi = p.called_party_ssi;
+ sm.cmce.calling_party_ssi = cmce_ssi;
+ sm.cmce.pre_coded_status = p.pre_coded_status;
+ int src = tetra_tx_submit(&hal, TX_D_STATUS, &sm);
+ printf("STATUS-RELAY: 0x%06X -> 0x%06X status=0x%04X rc=%d\n",
+ cmce_ssi, p.called_party_ssi, p.pre_coded_status, src);
+ }
  fflush(stdout);
  } else if (rc == 0) {
  (void)tetra_call_fsm_handle(&hal, cmce_ssi, &p);
