@@ -122,6 +122,9 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/rx/tetra_burst_demux.v \
  $PROJ_DIR/rtl/rx/tetra_frame_counter.v \
  $PROJ_DIR/rtl/rx/tetra_ul_demand_reassembly.v \
+ $PROJ_DIR/rtl/rx/tetra_ul_sch_f_decoder.v \
+ $PROJ_DIR/rtl/rx/tetra_ul_nub_to_schf.v \
+ $PROJ_DIR/rtl/rx/tetra_ul_schf_reassembly.v \
 ]
 
 # TX Chain

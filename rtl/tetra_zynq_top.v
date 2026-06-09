@@ -767,6 +767,101 @@ tetra_ul_demand_reassembly #(
 );
 
 // =============================================================================
+// Long-SDS SCH/F multi-fragment receive path (parallel tap off the NUB capture)
+// =============================================================================
+// Sim-verified (decoder GATE / adapter+chain / accumulator+word-mailbox).
+// Self-filtering: only crc_ok SCH/F MAC-FRAG/END is accepted → feeding every
+// captured NUB is safe (voice bursts crc-fail → ignored), and the voice path
+// is untouched. SCH/F decode + multi-fragment reassembly run fully in FPGA;
+// SW reads the finished TM-SDU via the AXI word mailbox (REG_LSDS_READ_*).
+wire [8:0] lsds_index_axi_w;             // from axi_regs (index reg)
+
+wire signed [7:0] schf_b0_w, schf_b1_w;
+wire schf_sv_w, schf_sf_w, schf_sl_w, schf_busy_w;
+tetra_ul_nub_to_schf #(.NUB_SOFT_W(4), .OUT_W(8), .NBITS(432)) u_nub_to_schf (
+.clk_sys (clk_sys),
+.rst_n_sys (rst_n_sys),
+.nub_coded_valid_sys (voice_nub_coded_valid_sys_w),
+.nub_coded_softs_sys (voice_nub_coded_softs_sys_w),
+.soft_bit0_sys (schf_b0_w),
+.soft_bit1_sys (schf_b1_w),
+.soft_valid_sys (schf_sv_w),
+.soft_first_sys (schf_sf_w),
+.soft_last_sys (schf_sl_w),
+.busy_sys (schf_busy_w)
+);
+
+wire [267:0] schf_info_w;
+wire schf_info_valid_w, schf_crc_ok_w;
+wire [15:0] schf_dec_att_w, schf_dec_ok_w;
+tetra_ul_sch_f_decoder #(.SOFT_IN_WIDTH(8)) u_ul_sch_f_decoder (
+.clk_sys (clk_sys),
+.rst_n_sys (rst_n_sys),
+.scramb_init_sys (ul_scramb_init_sys),
+.soft_bit0_sys (schf_b0_w),
+.soft_bit1_sys (schf_b1_w),
+.soft_valid_sys (schf_sv_w),
+.soft_first_sys (schf_sf_w),
+.soft_last_sys (schf_sl_w),
+.info_bits_sys (schf_info_w),
+.info_valid_sys (schf_info_valid_w),
+.crc_ok_sys (schf_crc_ok_w),
+.decodes_attempted_sys (schf_dec_att_w),
+.decodes_ok_sys (schf_dec_ok_w)
+);
+
+// AXI word-mailbox index CDC (clk_axi → clk_sys, 9-bit, slow R/W)
+(* ASYNC_REG = "TRUE" *) reg [8:0] lsds_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [8:0] lsds_index_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) begin
+ lsds_index_sys_r0 <= 9'd0;
+ lsds_index_sys_r1 <= 9'd0;
+ end else begin
+ lsds_index_sys_r0 <= lsds_index_axi_w;
+ lsds_index_sys_r1 <= lsds_index_sys_r0;
+ end
+end
+
+wire lsds_reass_pulse_w;
+wire [15:0] lsds_cnt_w, lsds_drop_w;
+wire [31:0] lsds_rdata_sys_w;
+wire lsds_valid_sys_w;
+tetra_ul_schf_reassembly u_ul_schf_reassembly (
+.clk_sys (clk_sys),
+.rst_n_sys (rst_n_sys),
+.t0_frames_sys (reass_t0_frames_axi_sys),
+.frame_tick_sys (frame_tick_sys),
+.frag1_pulse_sys (frag1_pulse_w),
+.frag1_ssi_sys (ul_issi_sys),
+.frag1_bits_sys (frag1_bits_w),
+.frag1_opt_flag_sys (frag1_meta_w[0]),
+.schf_valid_sys (schf_info_valid_w),
+.schf_crc_ok_sys (schf_crc_ok_w),
+.schf_info_sys (schf_info_w),
+.reass_valid_pulse_sys (lsds_reass_pulse_w),
+.reass_cnt_sys (lsds_cnt_w),
+.drop_cnt_sys (lsds_drop_w),
+.index_sys (lsds_index_sys_r1),
+.rdata_sys (lsds_rdata_sys_w),
+.valid_sys (lsds_valid_sys_w),
+.ack_pulse_sys (1'b0)
+);
+
+// AXI word-mailbox rdata CDC (clk_sys → clk_axi)
+(* ASYNC_REG = "TRUE" *) reg [31:0] lsds_rdata_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [31:0] lsds_rdata_axi_r1;
+always @(posedge s_axi_aclk or negedge rst_n_axi) begin
+ if (!rst_n_axi) begin
+ lsds_rdata_axi_r0 <= 32'd0;
+ lsds_rdata_axi_r1 <= 32'd0;
+ end else begin
+ lsds_rdata_axi_r0 <= lsds_rdata_sys_w;
+ lsds_rdata_axi_r1 <= lsds_rdata_axi_r0;
+ end
+end
+
+// =============================================================================
 // Phase 7 F.2 — UL-Demand-IE-Parser
 // =============================================================================
 // Walks the 129-bit reassembled MM body to extract the Type-1/2 fields
@@ -2255,6 +2350,8 @@ tetra_axi_lite_regs u_axi_regs (
 .vnub_ack_consume_axi (vnub_ack_consume_axi_r1),
 .vnub_rdata_axi_i (vnub_rdata_axi_r1),
 .vnub_valid_axi_i (vnub_valid_axi_r1),
+.lsds_index_axi_o (lsds_index_axi_w),
+.lsds_rdata_axi_i (lsds_rdata_axi_r1),
  // Schedule-BRAM AXI window (Plan Stufe 3 — 0x400..0x63F)
 .schedule_axi_we (schedule_axi_we_w),
 .schedule_axi_re (schedule_axi_re_w),

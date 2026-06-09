@@ -390,6 +390,19 @@
 #define REG_VOICE_NUB_READ_STATUS 0x288 /* RO [0] valid (burst pending) */
 #define REG_VOICE_NUB_READ_ACK 0x28C /* W1S [0] clear + arm next */
 
+/* Long-SDS SCH/F multi-fragment reassembly word-mailbox (Bank-1 0x298..0x29C).
+ * FPGA reassembles MAC-ACCESS(frag=1)[SCH/HU] + N×MAC-FRAG + MAC-END[SCH/F] into
+ * the TM-SDU body; SW reads it via INDEX/DATA (32-bit words, MSB-first within
+ * a word: body bit b = word[b/32] bit (31-(b%32))). No ACK — SW detects a new
+ * body via the reass_cnt change (index LSDS_IDX_CNT). */
+#define REG_LSDS_READ_INDEX 0x298 /* R/W [8:0] word/status selector */
+#define REG_LSDS_READ_DATA  0x29C /* RO  [31:0] indirect via INDEX */
+#define LSDS_NWORDS     256
+#define LSDS_IDX_VALID  (LSDS_NWORDS + 0) /* [0] body available */
+#define LSDS_IDX_SSI    (LSDS_NWORDS + 1) /* [23:0] sender SSI */
+#define LSDS_IDX_LENOPT (LSDS_NWORDS + 2) /* [15:0] len bits, [16] opt_flag */
+#define LSDS_IDX_CNT    (LSDS_NWORDS + 3) /* [15:0] completed-chain counter */
+
 /* Phase H.6.3 — AACH UL-Slot-Grant override (single-shot pulse) */
 #define REG_AACH_GRANT_HINT 0x1F4 /* R/W [31] pending, [13:0] info14 */
 

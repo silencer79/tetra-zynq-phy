@@ -477,6 +477,9 @@ module tetra_axi_lite_regs (
  input wire vnub_ack_consume_axi,
  input wire [31:0] vnub_rdata_axi_i,
  input wire vnub_valid_axi_i,
+ // Long-SDS SCH/F reassembly word-mailbox (REG_LSDS_READ_*)
+ output wire [8:0] lsds_index_axi_o,
+ input wire [31:0] lsds_rdata_axi_i,
 
  // ------------------------------------------------------------------
  // Phase H.7 — D-NWRK-BROADCAST periodic push.
@@ -900,6 +903,9 @@ localparam [6:0] REG_VOICE_NUB_READ_INDEX  = 7'h20; // 0x280 R/W [3:0] word sele
 localparam [6:0] REG_VOICE_NUB_READ_DATA   = 7'h21; // 0x284 RO  [31:0] indirect via INDEX
 localparam [6:0] REG_VOICE_NUB_READ_STATUS = 7'h22; // 0x288 RO  [0] valid mirror
 localparam [6:0] REG_VOICE_NUB_READ_ACK    = 7'h23; // 0x28C W1S [0] ack — clear valid
+// Long-SDS SCH/F reassembly word-mailbox (0x298..0x29C, Bank-1)
+localparam [6:0] REG_LSDS_READ_INDEX = 7'h26; // 0x298 R/W [8:0] word/status selector
+localparam [6:0] REG_LSDS_READ_DATA  = 7'h27; // 0x29C RO  [31:0] indirect via INDEX
 
 // ---------------------------------------------------------------------------
 // AXI Write Machine — handshake registers
@@ -1089,6 +1095,7 @@ reg vfill_go_trigger_r; // W1S GO trigger, HW-clr on go_consume
 // for soft-output (54 words instead of 14).
 reg [5:0] vnub_index_axi; // 6-bit indirect-window word selector
 reg vnub_ack_trigger_r; // W1S ACK trigger, HW-clr on ack_consume
+reg [8:0] lsds_index_axi; // 9-bit indirect-window selector (body words + status)
 
 // IQ-capture control register — declared BEFORE first use (read mux + output
 // assigns) to avoid implicit-net forward references (Synth 8-6901).
@@ -1312,6 +1319,8 @@ always @(*) begin
  REG_VOICE_NUB_READ_DATA: rdata_mux_axi = vnub_rdata_axi_i;
  REG_VOICE_NUB_READ_STATUS: rdata_mux_axi = {31'd0, vnub_valid_axi_i};
  REG_VOICE_NUB_READ_ACK: rdata_mux_axi = {31'd0, vnub_ack_trigger_r};
+ REG_LSDS_READ_INDEX: rdata_mux_axi = {23'd0, lsds_index_axi};
+ REG_LSDS_READ_DATA: rdata_mux_axi = lsds_rdata_axi_i;
  default: rdata_mux_axi = 32'd0;
  endcase
  end
@@ -2582,6 +2591,7 @@ end
 // ---------------------------------------------------------------------------
 assign vnub_index_axi_o = vnub_index_axi;
 assign vnub_ack_trigger_axi_o = vnub_ack_trigger_r;
+assign lsds_index_axi_o = lsds_index_axi;
 
 always @(posedge clk_axi or negedge rst_n_axi) begin
  if (!rst_n_axi)
@@ -2589,6 +2599,14 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
  else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_VOICE_NUB_READ_INDEX)
  & wr_strb_axi[0])
  vnub_index_axi <= wr_data_axi[5:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ lsds_index_axi <= 9'd0;
+ else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_LSDS_READ_INDEX)
+ & wr_strb_axi[0])
+ lsds_index_axi <= wr_data_axi[8:0];
 end
 
 always @(posedge clk_axi or negedge rst_n_axi) begin

@@ -717,6 +717,82 @@ static void service_sds_frag_ack(tetra_hal_t *hal)
  }
 }
 
+/* ---- Long-SDS RX: FPGA SCH/F-Reassembly-Word-Mailbox (REG_LSDS_READ_*) ----
+ * Das FPGA reassembliert MAC-ACCESS(frag=1)[SCH/HU] + N×MAC-FRAG + MAC-END[SCH/F]
+ * zur TM-SDU; hier liest SW die fertige Body + parst/relayed sie (Architektur-Lock:
+ * Reassembly→FPGA, Parsing/Relay→SW). Neue Body via reass_cnt-Änderung (kein ACK). */
+static uint16_t g_lsds_last_cnt;
+static int g_lsds_cnt_init;
+
+static uint32_t lsds_read(tetra_hal_t *hal, uint32_t index)
+{
+ tetra_reg_write(hal, REG_LSDS_READ_INDEX, index);
+ return tetra_reg_read(hal, REG_LSDS_READ_DATA);
+}
+
+static void service_long_sds_rx(tetra_hal_t *hal)
+{
+ uint16_t cnt = (uint16_t)(lsds_read(hal, LSDS_IDX_CNT) & 0xFFFFu);
+ if (!g_lsds_cnt_init) { g_lsds_cnt_init = 1; g_lsds_last_cnt = cnt; return; }
+ if (cnt == g_lsds_last_cnt) return;            /* keine neue Kette */
+ g_lsds_last_cnt = cnt;
+
+ uint32_t lenopt = lsds_read(hal, LSDS_IDX_LENOPT);
+ int nbits = (int)(lenopt & 0xFFFFu);
+ int opt   = (int)((lenopt >> 16) & 1u);
+ if (nbits <= 0 || nbits > 8192) {
+ fprintf(stderr, "LONG-SDS: bogus len=%d, skip\n", nbits);
+ return;
+ }
+ uint32_t ssi = lsds_read(hal, LSDS_IDX_SSI) & 0xFFFFFFu;
+
+ /* Body-Words lesen → Bit-Puffer (MSB-first im Word). */
+ static uint8_t body[8192];
+ int nwords = (nbits + 31) / 32;
+ int w, b;
+ for (w = 0; w < nwords; w++) {
+ uint32_t word = lsds_read(hal, (uint32_t)w);
+ for (b = 0; b < 32; b++) {
+ int bit = w * 32 + b;
+ if (bit < nbits) body[bit] = (uint8_t)((word >> (31 - b)) & 1u);
+ }
+ }
+
+ fprintf(stderr, "LONG-SDS: reassembled ssi=0x%06X %dbit (%dB) opt=%d cnt=%u\n",
+ ssi, nbits, nbits / 8, opt, cnt);
+
+ /* meta[8:6]=mle_disc(CMCE=2), [5:2]=llc_pt(BL-DATA=1), [0]=opt → decode findet
+  * die CMCE-PDU bei body-bit (opt?6:0)+llc_hdr(5)+MLE-PD(3). */
+ uint16_t meta = (uint16_t)((2u << 6) | (1u << 2) | ((unsigned)opt & 1u));
+ uint32_t dest = 0; uint8_t proto = 0; uint16_t li = 0;
+ char text[512]; uint8_t udd[400]; int udd_len = 0;
+ if (decode_sds_reassembled(body, nbits, meta, &dest, &proto, &li,
+ text, (int)sizeof(text), udd, (int)sizeof(udd), &udd_len)) {
+ printf("LONG-SDS from=0x%06X to=0x%06X proto=%u %dbit text=\"%s\"\n",
+ ssi, dest, proto, nbits, text);
+ fflush(stdout);
+ /* Kurze reassemblierte SDS via vorhandenen D-SDS-DATA-Pfad relayen; eine
+  * echte lange SDS braucht DL-Fragmentierung (eigene Phase) → vorerst loggen. */
+ if (udd_len > 0 && udd_len <= 24 && tetra_db_lookup(dest, 0u, NULL)) {
+ tx_pdu_meta_t rm;
+ memset(&rm, 0, sizeof(rm));
+ rm.target_ssi = dest;
+ rm.cmce.calling_party_ssi = ssi;
+ memcpy(rm.cmce.sds_udd, udd, (size_t)udd_len);
+ rm.cmce.sds_udd_len = (uint16_t)udd_len;
+ int rrc = tetra_tx_submit(hal, TX_D_SDS_DATA, &rm);
+ printf("LONG-SDS-RELAY: 0x%06X -> 0x%06X (%d oct) rc=%d\n",
+ ssi, dest, udd_len, rrc);
+ } else if (udd_len > 24) {
+ printf("LONG-SDS-RELAY: %d oct braucht DL-Fragmentierung (noch nicht) — "
+ "RX/Decode OK\n", udd_len);
+ }
+ fflush(stdout);
+ } else {
+ fprintf(stderr, "LONG-SDS: %dbit SDS-Decode (meta=0x%X) fehlgeschlagen\n", nbits, meta);
+ }
+}
+
 int main(int argc, char **argv)
 {
  const char *db_path = TETRA_DB_DEFAULT_PATH;
@@ -799,6 +875,9 @@ int main(int argc, char **argv)
 
  /* UL-SDS frag=1: LLC-BL-ACK (Reassembly läuft im FPGA, SW quittiert nur). */
  service_sds_frag_ack(&hal);
+
+ /* Lange SDS: fertige TM-SDU aus der FPGA-Reassembly-Mailbox lesen + parsen. */
+ service_long_sds_rx(&hal);
 
  /* Operator-getriggertes DL-SDS aus /tmp/sds_out */
  service_sds_outbox(&hal);
