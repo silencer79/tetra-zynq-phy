@@ -29,7 +29,6 @@
 #include "tetra_hal.h"
 #include "tetra_db.h"
 #include "tetra_tx_transport.h"
-#include "tetra_ul_long_sds.h"
 #include "tetra_cmce_parser.h"
 #include "tetra_call_fsm.h"
 #include "tetra_mm_demand_parser.h"
@@ -680,72 +679,41 @@ static void usage(const char *a0)
  a0, TETRA_DB_DEFAULT_PATH);
 }
 
-/* ---- Lange SDS (Multi-Fragment, SCH/F) — komplementär zum Voice-Pfad ----
- * (a) MAC-ACCESS(frag=1) auf 0x164 startet eine Kette (TM-SDU-Anfang).
- * (b) SCH/F-NUBs (nur wenn kein aktiver Voice-Call → kein Mailbox-Konflikt)
- *     werden kanaldecodiert + angehängt; bei MAC-END → reassembliert + Relay.
- * NUB-Soft-Konvention ist im FPGA invers zu ETSI → beide Vorzeichen probieren. */
-static lsds_chain_t g_lsds;
-
-static void service_long_sds(tetra_hal_t *hal)
+/* ---- UL-SDS BL-DATA(frag=1): LLC-Schicht-2-Quittung (SW-Seite der Grenze) ----
+ * Architektur-Lock 2026-06-02 ([[feedback_reassembly_fpga_rest_sw]]): die
+ * Multi-Fragment-REASSEMBLY läuft generisch im FPGA (tetra_ul_demand_reassembly)
+ * und liefert die fertige TM-SDU über die 0x250-Mailbox an service_uldbod.
+ * SW macht hier nur die LLC-Quittung: eine fragmentierte UL-SDS (MAC-ACCESS
+ * frag=1, BL-DATA) wird mit BL-ACK NR quittiert — wie die 392-MHz-Referenz
+ * (AL-SETUP-Slot-Grant baut das RTL bit-identisch, MAC-RESOURCE→BL-ACK macht
+ * die BS). Ohne die BL-ACK retransmittiert das MS die frag=1 endlos. */
+static void service_sds_frag_ack(tetra_hal_t *hal)
 {
  uint32_t st = tetra_reg_read(hal, REG_UL_PDU_STATUS);
- if (UL_STATUS_VALID(st) && UL_STATUS_PDU_TYPE(st) == 0u && UL_STATUS_FRAG_FLAG(st)) {
+ if (!(UL_STATUS_VALID(st) && UL_STATUS_PDU_TYPE(st) == 0u && UL_STATUS_FRAG_FLAG(st)))
+ return;
+
  uint32_t r0 = tetra_reg_read(hal, REG_UL_PDU_RAW_0);
  uint32_t r1 = tetra_reg_read(hal, REG_UL_PDU_RAW_1);
- uint32_t r2 = tetra_reg_read(hal, REG_UL_PDU_RAW_2);
- uint8_t raw[92]; int i;
- for (i = 0; i < 32; i++) raw[i] = (uint8_t)((r0 >> (31 - i)) & 1u);
- for (i = 0; i < 32; i++) raw[32 + i] = (uint8_t)((r1 >> (31 - i)) & 1u);
- for (i = 0; i < 28; i++) raw[64 + i] = (uint8_t)((r2 >> (31 - i)) & 1u);
+ uint8_t raw[64]; int i;
+ /* raw[N] = On-Air-Bit N = raw_info_bits[N], LSB-first im 32-bit-Word
+  * (RTL: REG_UL_PDU_RAW_0 = raw_info_bits[31:0]). Leseart identisch zum
+  * CMCE-Dispatch (bit N = raws[N/32] >> (N%32)). */
+ for (i = 0; i < 32; i++) raw[i] = (uint8_t)((r0 >> i) & 1u);
+ for (i = 0; i < 32; i++) raw[32 + i] = (uint8_t)((r1 >> i) & 1u);
  uint32_t ssi = tetra_reg_read(hal, REG_UL_PDU_SSI) & 0xFFFFFFu;
- /* payload_start (parse_mac_access): 5 + ssi24 + opt1 + lindcap1 + frag1 + resreq4 = 36 */
- tetra_lsds_start(&g_lsds, ssi, raw + 36, 92 - 36);
- tetra_reg_write(hal, REG_UL_PDU_CTRL, 1u); /* clear valid sticky */
- fprintf(stderr, "LONG-SDS: chain start ssi=0x%06X res_req=%u\n",
- ssi, UL_STATUS_RES_REQ(st));
- }
+ tetra_reg_write(hal, REG_UL_PDU_CTRL, 1u); /* clear VALID sticky → kein Doppel-ACK */
 
- if (tetra_reg_read(hal, REG_VOICE_ACTIVE_MASK) != 0u) return; /* Voice-Call: NUB gehört voice_pipe */
- if ((tetra_reg_read(hal, REG_VOICE_NUB_READ_STATUS) & 0x1u) == 0u) return;
-
- int8_t softs[432]; uint8_t hard[432]; int w, n, i, rc;
- for (w = 0; w < 54; w++) {
- tetra_reg_write(hal, REG_VOICE_NUB_READ_INDEX, (uint32_t)w);
- uint32_t word = tetra_reg_read(hal, REG_VOICE_NUB_READ_DATA);
- for (n = 0; n < 8; n++) {
- uint32_t nib = (word >> (n * 4)) & 0xFu;
- int8_t s = (int8_t)((nib & 0x8) ? (int8_t)(nib | 0xF0) : (int8_t)nib);
- int ci = w * 8 + n;
- if (ci < 432) softs[431 - ci] = s;
- }
- }
- tetra_reg_write(hal, REG_VOICE_NUB_READ_ACK, 1u); /* ack + arm next */
-
- uint8_t cc = (uint8_t)(tetra_reg_read(hal, REG_COLOUR_CODE) & 0x3Fu);
- uint32_t cfg1 = tetra_reg_read(hal, REG_CELL_CFG_1);
- uint16_t mcc = (uint16_t)(cfg1 & 0x3FFu);
- uint16_t mnc = (uint16_t)((cfg1 >> 10) & 0x3FFFu);
-
- for (i = 0; i < 432; i++) hard[i] = (softs[i] > 0) ? 1u : 0u; /* FPGA-Konvention */
- rc = tetra_lsds_feed_schf(&g_lsds, hard, cc, 3, mcc, mnc);
- if (rc == 0) { /* CRC-Fail → inverse Vorzeichen-Konvention (ETSI) */
- for (i = 0; i < 432; i++) hard[i] = (softs[i] < 0) ? 1u : 0u;
- rc = tetra_lsds_feed_schf(&g_lsds, hard, cc, 3, mcc, mnc);
- }
- if (rc == 2) { /* Kette komplett → SDS reassembliert */
- uint16_t meta = (uint16_t)((2u << 6) | (1u << 2)); /* mle_disc=CMCE, llc_pt=BL-DATA */
- uint32_t dest = 0; uint8_t proto = 0; uint16_t li = 0;
- char text[256]; uint8_t udd[200]; int udd_len = 0;
- if (decode_sds_reassembled(g_lsds.tm, g_lsds.nbits, meta,
- &dest, &proto, &li, text, (int)sizeof(text),
- udd, (int)sizeof(udd), &udd_len)) {
- printf("LONG-SDS from=0x%06X to=0x%06X proto=%u %dbit/%dfrag text=\"%s\"\n",
- g_lsds.ssi, dest, proto, g_lsds.nbits, g_lsds.nfrag, text);
- } else {
- fprintf(stderr, "LONG-SDS: %dfrag %dbit reassembliert, SDS-Decode meta=0x%X fehlgeschlagen\n",
- g_lsds.nfrag, g_lsds.nbits, meta);
- }
+ /* LLC-Header ab tl_sdu_start=36 (opt_flag=1): [36]link_type [37]has_fcs
+  * [38:39]bl_pdu_type [40]N(S). BL-DATA = link_type 0, bl_pdu_type 01;
+  * Bit-Positionen bit-identisch zu tetra_ul_mac_access_parser. NR = empfangene NS. */
+ if (raw[36] == 0 && raw[38] == 0 && raw[39] == 1) {
+ tx_pdu_meta_t ack;
+ memset(&ack, 0, sizeof(ack));
+ ack.target_ssi = ssi;
+ ack.nr = (uint8_t)(raw[40] & 1u);
+ int ack_rc = tetra_tx_submit(hal, TX_BL_ACK, &ack);
+ fprintf(stderr, "SDS-FRAG-ACK -> 0x%06X nr=%u rc=%d\n", ssi, ack.nr, ack_rc);
  }
 }
 
@@ -829,8 +797,8 @@ int main(int argc, char **argv)
  service_uldbod(&hal);
  }
 
- /* Lange SDS (Multi-Fragment, SCH/F) — MAC-ACCESS-Start + NUB-Fragmente. */
- service_long_sds(&hal);
+ /* UL-SDS frag=1: LLC-BL-ACK (Reassembly läuft im FPGA, SW quittiert nur). */
+ service_sds_frag_ack(&hal);
 
  /* Operator-getriggertes DL-SDS aus /tmp/sds_out */
  service_sds_outbox(&hal);
@@ -922,6 +890,19 @@ int main(int argc, char **argv)
  }
  fflush(stdout);
  } else if (rc == 0) {
+ /* Fragmentierte CMCE-PDU (frag=1) = Start einer langen
+  * SDS-Fragment-Kette (U-SDS-DATA spillt in MAC-FRAG/MAC-END,
+  * der Parser sieht nur das erste 48-bit-Stück → mis-klassifiziert).
+  * Das ist KEIN Call-Setup — das FPGA reassembliert die Kette, SW
+  * quittiert per BL-ACK (service_sds_frag_ack).
+  * Ohne diese Guard fiele die frag=1 in den Call-FSM (→ U-SETUP/
+  * D-CONNECT; das MS bekäme Voice-Setup statt SCH/F-Slot-Grant →
+  * U-DISCONNECT cause=10). Call-Control ist nie fragmentiert. */
+ if (UL_STATUS_FRAG_FLAG(ul_status))
+ fprintf(stderr, "SDS-FRAG: skip call_fsm (frag=1) "
+ "ssi=0x%06X res_req=%u\n", cmce_ssi,
+ UL_STATUS_RES_REQ(ul_status));
+ else
  (void)tetra_call_fsm_handle(&hal, cmce_ssi, &p);
  } else {
  fprintf(stderr,
