@@ -152,7 +152,7 @@ reg vit_input_valid_sys;
 wire vit_decoded_bit_w, vit_decoded_valid_w, vit_block_done_w;
 wire [VIT_SOFT_WIDTH-1:0] vit_soft_active_w = vit_is_kept_w ? to_vit_soft(bdeint_rq)
  : VIT_CENTER;
-tetra_ul_viterbi_r14 #(.SOFT_WIDTH(VIT_SOFT_WIDTH), .TRACEBACK(32),
+tetra_ul_viterbi_r14_bram #(.SOFT_WIDTH(VIT_SOFT_WIDTH), .TRACEBACK(32),
  .MAX_STAGES(TRELLIS_STAGES)) u_viterbi (
  .clk_sys(clk_sys), .rst_n_sys(rst_n_sys),
  .soft_bit_0(vit_soft0_sys), .soft_bit_1(vit_soft1_sys),
