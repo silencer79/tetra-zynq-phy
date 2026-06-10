@@ -915,9 +915,14 @@ int main(int argc, char **argv)
  int tl_sdu_start = UL_STATUS_OPT_FLAG(ul_status) ? 36: 30;
  int llc_t = (int)UL_STATUS2_LLC_TYPE(s2);
  int llc_hdr_bits;
- switch (llc_t) {
+ /* llc_t = {link_type[3], has_fcs[2], bl_pdu_type[1:0]}. Die Header-Länge
+  * hängt nur vom bl_pdu_type ab — das has_fcs-Bit hängt eine FCS ans ENDE,
+  * nicht an den Header. Daher auf bl_pdu_type maskieren: sonst fällt z.B.
+  * BL-DATA+FCS (llc_t=5) in default → llc_hdr=4 statt 5 → cmce_start 1 Bit
+  * zu früh → SDS als U-SETUP fehlgeparst (spuriöser D-CONNECT). */
+ switch (llc_t & 0x3) {
  case 0x0: llc_hdr_bits = 6; break; /* BL-ADATA */
- case 0x1: llc_hdr_bits = 5; break; /* BL-DATA */
+ case 0x1: llc_hdr_bits = 5; break; /* BL-DATA (±FCS) */
  case 0x3: llc_hdr_bits = 4; break; /* BL-ACK */
  default: llc_hdr_bits = 4; break; /* BL-UDATA */
  }
