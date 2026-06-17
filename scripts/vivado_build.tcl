@@ -358,7 +358,7 @@ if {$ENABLE_ILA_DEBUG && [llength $debug_nets] > 0} {
  }
 }
 
-place_design -directive Auto_1
+place_design -directive ExtraTimingOpt
 phys_opt_design -directive AggressiveExplore
 route_design -directive AggressiveExplore
 phys_opt_design -directive AggressiveExplore
