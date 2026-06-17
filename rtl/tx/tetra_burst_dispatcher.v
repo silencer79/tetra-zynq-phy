@@ -114,6 +114,11 @@ module tetra_burst_dispatcher #(
  // fallback mit den filler-bits.
  // -------------------------------------------------------------------------
  input wire [3:0] voice_active_mask_sys, // mask bit per tn
+ // 2026-06-13 — Lange-SDS-DL-Zustellung: per-TN-Gate, das denselben Voice-
+ // Filler-Pfad nutzt (vfill_blk/valid), aber für die SDS-Fragment-Kette
+ // (MAC-RESOURCE→MAC-FRAG→MAC-END auf TN=0/MCCH) statt eines Voice-Calls.
+ // SW schreibt die Fragmente per-Frame in die Filler-Mailbox + setzt das Bit.
+ input wire [3:0] sds_fill_active_sys,
  input wire [4:0] tx_fn_sys, // 0-based fn (ETSI FN-1)
  /* Multi-Group 2026-05-25 — per-TS voice filler. Bit k im valid bzw.
   * Slice k im blk_per_ts_sys gehört zu ETSI TS(k+1).
@@ -218,7 +223,7 @@ always @(*) begin
  2'd0: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys0);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys0);
- if (voice_active_mask_sys[0] & vfill_valid_per_ts_sys[0]
+ if ((voice_active_mask_sys[0] | sds_fill_active_sys[0]) & vfill_valid_per_ts_sys[0]
  & (tx_fn_sys <= 5'd16)) begin
  sel_blk1_w = vfill_blk1_per_ts_sys[0*BLOCK_BITS +: BLOCK_BITS];
  sel_blk2_w = vfill_blk2_per_ts_sys[0*BLOCK_BITS +: BLOCK_BITS];
@@ -238,7 +243,7 @@ always @(*) begin
  2'd1: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys1);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys1);
- if (voice_active_mask_sys[1] & vfill_valid_per_ts_sys[1]
+ if ((voice_active_mask_sys[1] | sds_fill_active_sys[1]) & vfill_valid_per_ts_sys[1]
  & (tx_fn_sys <= 5'd16)) begin
  sel_blk1_w = vfill_blk1_per_ts_sys[1*BLOCK_BITS +: BLOCK_BITS];
  sel_blk2_w = vfill_blk2_per_ts_sys[1*BLOCK_BITS +: BLOCK_BITS];
@@ -258,7 +263,7 @@ always @(*) begin
  2'd2: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys2);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys2);
- if (voice_active_mask_sys[2] & vfill_valid_per_ts_sys[2]
+ if ((voice_active_mask_sys[2] | sds_fill_active_sys[2]) & vfill_valid_per_ts_sys[2]
  & (tx_fn_sys <= 5'd16)) begin
  sel_blk1_w = vfill_blk1_per_ts_sys[2*BLOCK_BITS +: BLOCK_BITS];
  sel_blk2_w = vfill_blk2_per_ts_sys[2*BLOCK_BITS +: BLOCK_BITS];
@@ -278,7 +283,7 @@ always @(*) begin
  2'd3: begin
  sel_burst_type_w = bus_is_sdb (sched_entry_reg_sys3);
  sel_enable_w = bus_is_enable(sched_entry_reg_sys3);
- if (voice_active_mask_sys[3] & vfill_valid_per_ts_sys[3]
+ if ((voice_active_mask_sys[3] | sds_fill_active_sys[3]) & vfill_valid_per_ts_sys[3]
  & (tx_fn_sys <= 5'd16)) begin
  sel_blk1_w = vfill_blk1_per_ts_sys[3*BLOCK_BITS +: BLOCK_BITS];
  sel_blk2_w = vfill_blk2_per_ts_sys[3*BLOCK_BITS +: BLOCK_BITS];

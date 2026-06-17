@@ -1863,6 +1863,9 @@ int main(int argc, char *argv[])
  * refresht nur noch das Payload-Window alle 60 s (UTC-Time-Field
  * stabil, HN-Advance jede ~61.2 s ≈ 1 Iteration). */
  int hf_tick = 0;
+ /* sel=2-Wert (DEFAULT-DEFINITION-FOR-ACCESS, aus --optfield = Gold 0xF6200)
+  * merken — der Toggle alterniert ihn mit EXTENDED-SERVICES (sel=3, 0x40C10). */
+ uint32_t optval_sel2 = info.optional_field_value;
  /* Cell scrambler init aus MCC/MNC/CC (matches RTL u_aach_encoder
  * lfsr_init_w pack). */
  uint32_t scramb_init = ((uint32_t)(info.mcc & 0x3FF) << 22) |
@@ -1876,7 +1879,7 @@ int main(int argc, char *argv[])
  refresh_d_nwrk_broadcast(&hal, scramb_init);
 
  while (g_daemon_running) {
- next.tv_sec += 60; /* 60 s payload-refresh cadence */
+ next.tv_sec += 2; /* 2 s — schnelle Optional-Field-Alternation (Gold-konform) */
 
  int rc;
  do {
@@ -1886,18 +1889,28 @@ int main(int argc, char *argv[])
  if (!g_daemon_running)
  break;
 
- /* SYSINFO Hyperframe advance — bei 60-s-Period ≈ 61.2 s liegt jede
- * Iteration sehr nah am Hyperframe-Edge → jede Iteration advancen.
- * (Gen-Drift gegen wall clock egal, HN ist nur MS-Stale-Detector.) */
- if (++hf_tick >= 1) {
+ /* Optional-Field-Toggle: DEFAULT-DEF-ACCESS (sel=2, Gold 0xF6200) ↔
+  * EXTENDED-SERVICES-BROADCAST (sel=3, Gold 0x40C10). Das Gold-Netz
+  * alterniert beide ~50/50; ohne EXTENDED-SERVICES-Broadcast leitet MS-B
+  * ab, dass die Zelle keine erweiterten Dienste kann, und lehnt lange/
+  * fragmentierte SDS ab (kurze SDS gehen, lange nicht). Pro Refresh togglen. */
+ if (info.optional_field_selector == 3) {
+ info.optional_field_selector = 2;
+ info.optional_field_value = optval_sel2;
+ } else {
+ info.optional_field_selector = 3;
+ info.optional_field_value = 0x40C10u;
+ }
+
+ /* SYSINFO jede Iteration neu schreiben (überträgt das getoggelte
+  * Optional-Field). Hyperframe nur ~alle 60 s (30 × 2 s) advancen. */
+ if (++hf_tick >= 30) {
  hf_tick = 0;
  info.hyperframe = (uint16_t)(info.hyperframe + 1);
+ }
  if (tetra_refresh_sysinfo(&hal, &info) != 0) {
  fprintf(stderr, "daemon: SYSINFO refresh failed — continuing\n");
  continue;
- }
- printf("HN advance: hyperframe = %u (SYSINFO refreshed)\n",
- info.hyperframe);
  }
 
  /* D-NWRK-BROADCAST payload refresh (no trigger — RTL Auto-Fires). */

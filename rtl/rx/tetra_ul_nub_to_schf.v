@@ -58,9 +58,16 @@ function signed [OUT_W-1:0] conv;
  end
 endfunction
 
-// combinational picks for the current dibit k: bit1 = softs[2k], bit0 = softs[2k+1]
-wire [NUB_SOFT_W-1:0] raw_b1 = softs_lat[(2*k_sys)   * NUB_SOFT_W +: NUB_SOFT_W];
-wire [NUB_SOFT_W-1:0] raw_b0 = softs_lat[(2*k_sys+1) * NUB_SOFT_W +: NUB_SOFT_W];
+// combinational picks for the current dibit k.
+// 2026-06-12 FIX: tetra_ul_nub_capture packs coded_softs MSB-first with BKN1 in
+// the UPPER half and BKN2 in the LOWER half, so coded-soft index i corresponds
+// to ON-AIR type-5 bit (431-i) (full reversal: on-air type5[j] = coded_softs[431-j]).
+// The SCH/F decoder expects on-air order (type5[0]=first). The voice TCH/S
+// de-interleaver compensates internally; the SCH/F path did not → 0 crc_ok on the
+// board (decoder + FSM proven correct in sim, only the soft ORDER was wrong).
+// Read reversed: type5[2k]=coded_softs[431-2k], type5[2k+1]=coded_softs[430-2k].
+wire [NUB_SOFT_W-1:0] raw_b1 = softs_lat[((NBITS-1) - 2*k_sys)   * NUB_SOFT_W +: NUB_SOFT_W];
+wire [NUB_SOFT_W-1:0] raw_b0 = softs_lat[((NBITS-1) - (2*k_sys+1)) * NUB_SOFT_W +: NUB_SOFT_W];
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys) begin

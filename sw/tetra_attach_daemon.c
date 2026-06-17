@@ -32,6 +32,9 @@
 #include "tetra_cmce_parser.h"
 #include "tetra_call_fsm.h"
 #include "tetra_mm_demand_parser.h"
+#include "tetra_sds_dl_frag.h"
+#include "tetra_channel_codec.h"
+#include "tetra_voice_filler.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -327,6 +330,18 @@ static void service_uldbod(tetra_hal_t *hal)
  pdu_ssi, sds_dest, sds_proto, sds_li);
  { int z; for (z = 0; z < sds_udd_len; z++) printf("%02X", sds_udd[z]); }
  printf(" text=\"%s\"\n", sds_text);
+ /* Vollständigkeit prüfen: passt die deklarierte SDS-Länge (sds_li, in Bit)
+  * komplett in die hier empfangenen Oktette? Wenn nicht, ist das der frag=1-
+  * START einer langen SDS, die als MAC-FRAG/MAC-END-Kette weiterläuft — dann
+  * NICHT quittieren und NICHT relayen (BL-ACK + Relay kommen nach FPGA-
+  * Reassembly in service_long_sds_rx). Eine verfrühte ACK bräche die Kette ab. */
+ if (((int)sds_li / 8) > sds_udd_len) {
+ fprintf(stderr, "SDS-FRAG-START (0x250) ssi=0x%06X li=%ubit udd=%doct "
+ "— defer BL-ACK+Relay bis Reassembly\n", pdu_ssi, sds_li, sds_udd_len);
+ fflush(stdout);
+ tetra_reg_write(hal, REG_UL_DEMAND_BODY_ACK, 0x1u);
+ return;
+ }
  /* LLC-Zustellquittung an den SDS-Absender — Gold DL #425 sendet die
   * BL-ACK VOR dem Relay. NR = empfangene LLC-NS (meta[1]). Ohne diese
   * Schicht-2-Quittung retransmittiert das Sende-MS → Fehlermeldung. */
@@ -687,34 +702,132 @@ static void usage(const char *a0)
  * frag=1, BL-DATA) wird mit BL-ACK NR quittiert — wie die 392-MHz-Referenz
  * (AL-SETUP-Slot-Grant baut das RTL bit-identisch, MAC-RESOURCE→BL-ACK macht
  * die BS). Ohne die BL-ACK retransmittiert das MS die frag=1 endlos. */
-static void service_sds_frag_ack(tetra_hal_t *hal)
+static void service_sds_frag_start(tetra_hal_t *hal)
 {
  uint32_t st = tetra_reg_read(hal, REG_UL_PDU_STATUS);
  if (!(UL_STATUS_VALID(st) && UL_STATUS_PDU_TYPE(st) == 0u && UL_STATUS_FRAG_FLAG(st)))
  return;
 
- uint32_t r0 = tetra_reg_read(hal, REG_UL_PDU_RAW_0);
- uint32_t r1 = tetra_reg_read(hal, REG_UL_PDU_RAW_1);
- uint8_t raw[64]; int i;
- /* raw[N] = On-Air-Bit N = raw_info_bits[N], LSB-first im 32-bit-Word
-  * (RTL: REG_UL_PDU_RAW_0 = raw_info_bits[31:0]). Leseart identisch zum
-  * CMCE-Dispatch (bit N = raws[N/32] >> (N%32)). */
- for (i = 0; i < 32; i++) raw[i] = (uint8_t)((r0 >> i) & 1u);
- for (i = 0; i < 32; i++) raw[32 + i] = (uint8_t)((r1 >> i) & 1u);
  uint32_t ssi = tetra_reg_read(hal, REG_UL_PDU_SSI) & 0xFFFFFFu;
- tetra_reg_write(hal, REG_UL_PDU_CTRL, 1u); /* clear VALID sticky → kein Doppel-ACK */
+ tetra_reg_write(hal, REG_UL_PDU_CTRL, 1u); /* clear VALID sticky → kein Re-Trigger */
 
- /* LLC-Header ab tl_sdu_start=36 (opt_flag=1): [36]link_type [37]has_fcs
-  * [38:39]bl_pdu_type [40]N(S). BL-DATA = link_type 0, bl_pdu_type 01;
-  * Bit-Positionen bit-identisch zu tetra_ul_mac_access_parser. NR = empfangene NS. */
- if (raw[36] == 0 && raw[38] == 0 && raw[39] == 1) {
- tx_pdu_meta_t ack;
- memset(&ack, 0, sizeof(ack));
- ack.target_ssi = ssi;
- ack.nr = (uint8_t)(raw[40] & 1u);
- int ack_rc = tetra_tx_submit(hal, TX_BL_ACK, &ack);
- fprintf(stderr, "SDS-FRAG-ACK -> 0x%06X nr=%u rc=%d\n", ssi, ack.nr, ack_rc);
- }
+ /* KEINE BL-ACK auf den frag=1-START. Das 392-MHz-Gold quittiert erst NACH
+  * der kompletten MAC-FRAG/MAC-END-Kette (DL #798), nie auf dem Start. Eine
+  * verfrühte LLC-ACK signalisiert dem MS „BL-DATA zugestellt" → es bricht die
+  * UL-Fragment-Kette nach einem Burst ab (gemessen: 2 statt 4 Bursts, TM-SDU
+  * 33 statt 105 Oktette). Am Leben hält die Kette der Slot-Grant
+  * (tetra_pre_reply_slotgrant, 0x30 = cap_alloc 3 wie Gold); die ACK kommt erst
+  * in service_long_sds_rx nach abgeschlossener FPGA-Reassembly. Kurze SDS (die
+  * in den 147-bit-Body passen) quittiert weiterhin service_uldbod, sobald
+  * komplett. */
+ fprintf(stderr, "SDS-FRAG-START ssi=0x%06X — defer BL-ACK bis Reassembly fertig\n", ssi);
+}
+
+/* ---- Lange-SDS-DL-Zustellung: Multi-Burst-Fragmentierung an das Ziel-MS ----
+ * UDD > 24 Oktette passt nicht in einen DL-Burst. tetra_sds_dl_build_fragments baut
+ * die MAC-RESOURCE→MAC-FRAG→MAC-END-Kette (268-bit SCH/F-Info je Burst); hier SCH/F-
+ * codieren + per-Frame über den Voice-Filler-Pfad (REG_VOICE_ACTIVE_MASK[4] =
+ * sds_fill_active TN=0, RTL burst_dispatcher) auf den MCCH pushen. Das Ziel-MS
+ * reassembliert + quittiert → der Absender bekommt seine SDS-TL-Zustellbestätigung. */
+#define SDS_DL_CODED_BITS 432
+static struct {
+    int      active;
+    int      n;
+    int      idx;
+    uint16_t last_fn;
+    uint32_t dest;          /* Empfänger-SSI — für den Slot-Grant nach „done" */
+    uint8_t  type5[SDS_DL_FRAG_MAX][SDS_DL_CODED_BITS];
+} g_sds_dl;
+
+static void sds_dl_delivery_start(tetra_hal_t *hal, uint32_t dest, uint32_t calling,
+                                  uint8_t ns, uint8_t nr,
+                                  const uint8_t *udd, int udd_len)
+{
+    if (g_sds_dl.active) {
+        fprintf(stderr, "SDS-DL-FRAG: busy, drop delivery to 0x%06X\n", dest);
+        return;
+    }
+    sds_dl_frag_t frag;
+    int nf = tetra_sds_dl_build_fragments(dest, calling, ns, nr, udd, udd_len, &frag);
+    if (nf <= 0) { fprintf(stderr, "SDS-DL-FRAG: build failed (%d oct)\n", udd_len); return; }
+
+    uint8_t cc = (uint8_t)(tetra_reg_read(hal, REG_COLOUR_CODE) & 0x3Fu);
+    uint32_t cfg1 = tetra_reg_read(hal, REG_CELL_CFG_1);
+    uint16_t mcc = (uint16_t)(cfg1 & 0x3FFu);
+    uint16_t mnc = (uint16_t)((cfg1 >> 10) & 0x3FFFu);
+
+    int i, b;
+    for (i = 0; i < nf; i++) {
+        uint8_t info_bits[SCHF_INFO_BITS];
+        for (b = 0; b < SCHF_INFO_BITS; b++)
+            info_bits[b] = (uint8_t)((frag.info[i][b >> 3] >> (7 - (b & 7))) & 1u);
+        if (tetra_codec_schf_encode(info_bits, cc, 1, mcc, mnc, g_sds_dl.type5[i]) != 0) {
+            fprintf(stderr, "SDS-DL-FRAG: SCH/F-encode #%d failed\n", i);
+            return;
+        }
+    }
+    /* Empfänger-Slot-Grant kommt NACH der Frag-Kette (im „done"-Zweig) über die
+     * RTL pre_reply_slotgrant-FSM (NDB2/SCH/HD, Gold-#822-konform) — NICHT als
+     * SCH/F-Voice-Filler-Burst (falscher Bursttyp, MS-B ignorierte ihn). */
+    g_sds_dl.dest = dest & 0x00FFFFFFu;
+    g_sds_dl.n = nf; g_sds_dl.idx = 0; g_sds_dl.active = 1;
+    /* Pacing über den NETZ-SYNCHRONEN Air-FN (REG_TX_TDMA_STATE[6:2], 0-based 0..17;
+     * fn==17 = ETSI-FN18 = BNCH/BSCH). REG_TX_TDMA(0x38) ist nur ein free-running
+     * Zähler ohne Air-Bezug — damit war FN18 unsichtbar und das 3. Fragment ging dort
+     * verloren (Messung dl_new.log: Kette FN16,17,[FN18=SYSINFO],01 → MS-B unvollständig). */
+    g_sds_dl.last_fn = (uint16_t)((tetra_reg_read(hal, REG_TX_TDMA_STATE) >> 2) & 0x1Fu);
+    printf("SDS-DL-FRAG: start 0x%06X->0x%06X %d oct → %d Frag (+ Empfänger-Slot-Grant nach done)\n",
+           calling, dest, udd_len, nf);
+    fflush(stdout);
+}
+
+/* Pro Main-Loop: ein Fragment pro Frame auf den MCCH (TN=0) pushen. */
+static void service_sds_dl_delivery(tetra_hal_t *hal)
+{
+    if (!g_sds_dl.active) return;
+    /* 0-based Air-FN (0..17), netz-synchron — fn==17 ist FN18 (BNCH). */
+    uint16_t fn = (uint16_t)((tetra_reg_read(hal, REG_TX_TDMA_STATE) >> 2) & 0x1Fu);
+    if (fn == g_sds_dl.last_fn) return;       /* nur bei Air-Frame-Wechsel pushen */
+    g_sds_dl.last_fn = fn;
+
+    if (g_sds_dl.idx < g_sds_dl.n) {
+        /* Start-Fenster: die Fragment-Kette muss KOMPLETT vor FN18 (fn==17) liegen.
+         * Früh+robust beginnen, sobald nf Fragmente mit Reserve vor fn==17 passen:
+         * fn <= 16 - nf. So landet das letzte Fragment <= FN17 und die Kette ist lückenlos.
+         * (Frame-LAGE selbst ist gold-EGAL: Gold variiert FN03..06 / FN14..17 je Capture —
+         * 2026-06-17 verifiziert. Das FN18-Anpacken [start_fn=16-n exakt] war fragil
+         * [+1 Pipeline-Offset → MAC-END auf FN18 gedroppt] und brachte nichts → verworfen.) */
+        int win = 16 - (int)g_sds_dl.n;
+        if (g_sds_dl.idx == 0 && win >= 0 && (int)fn > win) return; /* Fenster abwarten */
+        /* Defensiv (nur falls nf>16 nicht ins Fenster passt): FN18 nie bespielen,
+         * die RTL droppt den Filler dort ohnehin (burst_dispatcher: tx_fn_sys<=16). */
+        if (fn == 17u) return;
+        tetra_voice_filler_write_ts(hal, g_sds_dl.type5[g_sds_dl.idx], 1u /* TS1=TN0/MCCH */);
+        /* sds_fill_active[TN0]=Bit4 (RMW: Voice-Bits [3:0] bleiben; jeden Frame
+         * re-asserted = selbstheilend gegen call_fsm). Das LETZTE Fragment (MAC-END)
+         * setzt zusätzlich Bit8=sds_fill_last → AACH-Encoder bewirbt auf diesem
+         * TN0-Slot 0x0009 (DL=Unalloc, Gold #810) statt 0x0249; Frag-Start + MAC-FRAG
+         * bleiben 0x0249 (Gold #798/#802/#806). AACH nutzt 2-Slot-Lookahead — ob das
+         * Bit den MAC-END-Slot trifft, wird in der Capture verifiziert (sonst Timing
+         * 1 Frame vorziehen). */
+        uint32_t m = tetra_reg_read(hal, REG_VOICE_ACTIVE_MASK);
+        m |= (1u << 4);
+        if (g_sds_dl.idx == g_sds_dl.n - 1) m |=  (1u << 8);  /* MAC-END → 0x0009 */
+        else                                m &= ~(1u << 8);
+        tetra_reg_write(hal, REG_VOICE_ACTIVE_MASK, m);
+        g_sds_dl.idx++;
+    } else {
+        uint32_t m = tetra_reg_read(hal, REG_VOICE_ACTIVE_MASK);
+        tetra_reg_write(hal, REG_VOICE_ACTIVE_MASK, m & ~((1u << 4) | (1u << 8)));
+        tetra_voice_filler_clear_ts(hal, 1u);
+        g_sds_dl.active = 0;
+        printf("SDS-DL-FRAG: done (%d Bursts gepusht)\n", g_sds_dl.n);
+        /* Empfänger-Slot-Grant (NDB2/SCH/HD via RTL pre_reply_slotgrant, Gold #822):
+         * gibt MS-B den UL-Subslot für seinen SDS-TL-Delivery-Report. */
+        int sgrc = tetra_tx_rx_slotgrant(hal, g_sds_dl.dest);
+        printf("SDS-DL-FRAG: Empfänger-Slot-Grant → 0x%06X rc=%d\n", g_sds_dl.dest, sgrc);
+        fflush(stdout);
+    }
 }
 
 /* ---- Long-SDS RX: FPGA SCH/F-Reassembly-Word-Mailbox (REG_LSDS_READ_*) ----
@@ -761,12 +874,36 @@ static void service_long_sds_rx(tetra_hal_t *hal)
  fprintf(stderr, "LONG-SDS: reassembled ssi=0x%06X %dbit (%dB) opt=%d cnt=%u\n",
  ssi, nbits, nbits / 8, opt, cnt);
 
+ /* LLC BL-ACK an den Absender — JETZT, nach kompletter FPGA-Reassembly
+  * (FSM S_EMIT feuert nur auf MAC-END). Gold-Timing: die BL-ACK folgt der
+  * Fragment-Kette, nicht dem frag=1-START. NR = empfangenes N(S) aus dem
+  * LLC-Header (BL-DATA: bit (opt?6:0)+4); body[] ist hier Bit-pro-Byte. Unab-
+  * hängig vom Text-Decode: ohne diese Schicht-2-Quittung retransmittiert das
+  * Sende-MS die Kette endlos. */
+ {
+ int ns_pos = (opt ? 6 : 0) + 4;
+ tx_pdu_meta_t ack;
+ memset(&ack, 0, sizeof(ack));
+ ack.target_ssi = ssi;
+ ack.nr = (ns_pos < nbits) ? (uint8_t)(body[ns_pos] & 1u) : 0u;
+ int ack_rc = tetra_tx_submit(hal, TX_BL_ACK, &ack);
+ fprintf(stderr, "LONG-SDS-ACK -> 0x%06X nr=%u rc=%d\n", ssi, ack.nr, ack_rc);
+ }
+
  /* meta[8:6]=mle_disc(CMCE=2), [5:2]=llc_pt(BL-DATA=1), [0]=opt → decode findet
   * die CMCE-PDU bei body-bit (opt?6:0)+llc_hdr(5)+MLE-PD(3). */
  uint16_t meta = (uint16_t)((2u << 6) | (1u << 2) | ((unsigned)opt & 1u));
  uint32_t dest = 0; uint8_t proto = 0; uint16_t li = 0;
  char text[512]; uint8_t udd[400]; int udd_len = 0;
- if (decode_sds_reassembled(body, nbits, meta, &dest, &proto, &li,
+ /* body[] ist hier Bit-pro-Byte (1 Bit je uint8_t) — gut für den BL-ACK-Bit-
+  * Zugriff oben. decode_sds_reassembled erwartet aber GEPACKTE Bytes
+  * (sds_gbit liest b[p>>3] >> (7-(p&7))). Daher vor dem Decode packen,
+  * sonst scheitert der Parse trotz korrekter Reassembly+ACK. */
+ static uint8_t pbody[1024];
+ { int z; memset(pbody, 0, sizeof(pbody));
+   for (z = 0; z < nbits && (z >> 3) < (int)sizeof(pbody); z++)
+     if (body[z]) pbody[z >> 3] |= (uint8_t)(0x80u >> (z & 7)); }
+ if (decode_sds_reassembled(pbody, nbits, meta, &dest, &proto, &li,
  text, (int)sizeof(text), udd, (int)sizeof(udd), &udd_len)) {
  printf("LONG-SDS from=0x%06X to=0x%06X proto=%u %dbit text=\"%s\"\n",
  ssi, dest, proto, nbits, text);
@@ -783,9 +920,14 @@ static void service_long_sds_rx(tetra_hal_t *hal)
  int rrc = tetra_tx_submit(hal, TX_D_SDS_DATA, &rm);
  printf("LONG-SDS-RELAY: 0x%06X -> 0x%06X (%d oct) rc=%d\n",
  ssi, dest, udd_len, rrc);
+ } else if (udd_len > 24 && tetra_db_lookup(dest, 0u, NULL)) {
+ /* Lange SDS (>24 oct): MAC-fragmentiert als MAC-RESOURCE→MAC-FRAG→MAC-END
+  * an das Ziel-MS zustellen (per-Frame über den Voice-Filler-Pfad auf TN=0).
+  * ns/nr: frischer DL-Link → 0/0. */
+ sds_dl_delivery_start(hal, dest, ssi, 1u, 1u, udd, udd_len); /* ns=1, nr=1 wie Gold (dl_ref.log #798). N(S)=0-Test (2026-06-17) verworfen: ETSI EN 300 392-2 §22.2.1.1 — Basic-Link quittiert mit N(R)=N(S)-Echo, KEIN HDLC-V(R)-Gate, also kein Verwurf bei N(S)-Mismatch → N(S)-Wert ist nicht die Ursache. */
  } else if (udd_len > 24) {
- printf("LONG-SDS-RELAY: %d oct braucht DL-Fragmentierung (noch nicht) — "
- "RX/Decode OK\n", udd_len);
+ printf("LONG-SDS-RELAY: skip 0x%06X (nicht lokal registriert, %d oct)\n",
+ dest, udd_len);
  }
  fflush(stdout);
  } else {
@@ -873,11 +1015,15 @@ int main(int argc, char **argv)
  service_uldbod(&hal);
  }
 
- /* UL-SDS frag=1: LLC-BL-ACK (Reassembly läuft im FPGA, SW quittiert nur). */
- service_sds_frag_ack(&hal);
+ /* UL-SDS frag=1-START: nur Sticky clearen + loggen — KEINE verfrühte BL-ACK
+  * (würgt die Fragment-Kette ab). Quittung folgt nach kompletter Reassembly. */
+ service_sds_frag_start(&hal);
 
  /* Lange SDS: fertige TM-SDU aus der FPGA-Reassembly-Mailbox lesen + parsen. */
  service_long_sds_rx(&hal);
+
+ /* Lange-SDS-DL-Zustellung: Fragment-Kette per-Frame an das Ziel-MS pushen. */
+ service_sds_dl_delivery(&hal);
 
  /* Operator-getriggertes DL-SDS aus /tmp/sds_out */
  service_sds_outbox(&hal);

@@ -109,7 +109,12 @@ module tetra_reply_mailbox (
  output wire [2:0] mb_raw_mle_pd_sys,
  /* SDS BL-ACK delivery — W9[13]. 1 = build a pure LLC BL-ACK (no MLE-PD,
   * no TM-SDU body) instead of the mle_pd-derived BL-ADATA/BL-UDATA. */
- output wire mb_raw_llc_bl_ack_sys
+ output wire mb_raw_llc_bl_ack_sys,
+ /* Empfänger-Slot-Grant — W9[14]. 1 = der GO-Puls triggert die
+  * pre_reply_slotgrant-FSM (NDB2/SCH/HD AL-SETUP an mb_ssi für den
+  * Delivery-Report nach langer-SDS-Zustellung), NICHT den normalen
+  * MLE-Reply. */
+ output wire mb_raw_slotgrant_sys
 );
 
  // -----------------------------------------------------------------------
@@ -178,6 +183,7 @@ module tetra_reply_mailbox (
  assign mb_raw_mm_bits_sys = { w13_w, w12_w, w11_w, w10_w };
  assign mb_raw_mle_pd_sys = w9_w[12:10];
  assign mb_raw_llc_bl_ack_sys = w9_w[13];
+ assign mb_raw_slotgrant_sys = w9_w[14];
 
 endmodule
 

@@ -20,13 +20,16 @@
 // - Z.4: Dual-path — mm=2 kept on SCH/F, mm=7 on SCH/HD.
 // AACH override on mm=2 SCH/F path was 0x0249 on-air
 // (Drift #3) and sg_element=0x01 vs 0x00 (Drift #4).
-// - Z.9 (this rev): Collapse to single SCH/HD pipeline for both mm-types.
-// sg_element=0x00 universally (Drift #4 fixed).
-// AACH 0x0009 via PDU-class header → queue → scheduler
-// (Drift #3 expected to auto-resolve once both mm-types
-// traverse the same SCH/HD path).
-// BKN2 = sig_companion_sys via existing scheduler
+// - Z.9: Collapse to single SCH/HD pipeline for both mm-types.
+// sg_element=0x00 universally. AACH 0x0009 via PDU-class header →
+// queue → scheduler. BKN2 = sig_companion_sys via existing scheduler
 // scheme (head_is_f=0 routes to SYSINFO; Drift #2 OK).
+// - 2026-06-10: sg_element made mm-dependent (single SCH/HD path kept).
+// mm=2 (Attach) = 0x00 (Z.9 value — registration needs it; 0x30 breaks
+// the attach, observed air: MS sees BS but cannot register). mm=7
+// (Group / CMCE-mis-tagged long SDS) = 0x30 (cap_alloc=3 = grant 3
+// slots), decoded from the 392-MHz reference DL so the long-SDS sender
+// gets the SCH/F slots for its MAC-FRAG continuation.
 //
 // Filter:
 // `mm_pdu_type` is still consumed as a defensive filter — only mm ∈ {2,7}
@@ -56,6 +59,13 @@ module tetra_pre_reply_slotgrant (
  // other mm-types count as drop and stay IDLE.
  input wire [3:0] mm_pdu_type,
 
+ // SW-Trigger (Empfänger-Slot-Grant nach langer-SDS-Zustellung): 1-Zyklus-Puls
+ // + Empfänger-SSI (CDC-resynced aus AXI). Wirkt wie mm=2: sg_element=0x00
+ // (1 Subslot, FirstSubslotGranted), kein AACH-Hold. Adresse = sw_grant_ssi.
+ // Damit baut dieselbe FSM den Gold-#822-konformen NDB2/SCH/HD-Grant an MS-B.
+ input wire sw_grant_pulse,
+ input wire [23:0] sw_grant_ssi,
+
  // MCCH slot (CDC-resynced from AXI), pre-reply target TN
  input wire [1:0] cfg_mcch_tn,
  input wire [31:0] cfg_scramble_init,
@@ -83,7 +93,16 @@ module tetra_pre_reply_slotgrant (
 
  // Stats — saturating 16-bit counters
  output reg [15:0] push_cnt_sys,
- output reg [15:0] drop_cnt_sys
+ output reg [15:0] drop_cnt_sys,
+
+ // 2026-06-10 — UL-Slot-Reservierung: 1-Cycle-Puls beim Push eines
+ // cap_alloc>0-Grants (mm=7/0x30), zusammen mit der Frame-Anzahl
+ // (= capacity_allocation = sg_element[7:4]). Der AACH-Encoder hält damit
+ // die TN=0-Idle-AACH N Frames auf 0x0000 (Gold-Referenz: f1=0 f2=0), statt
+ // sofort wieder 0x0249 (Random) zu öffnen — sonst bricht die UL-MAC-FRAG-
+ // Kette nach 1 Fragment ab. mm=2 (Attach, sg_element=0x00) → kein Hold.
+ output reg resv_pulse_sys,
+ output reg [3:0] resv_frames_sys
 );
 
  // -------------------------------------------------------------------------
@@ -96,6 +115,16 @@ module tetra_pre_reply_slotgrant (
  always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys) frag1_pulse_q <= 1'b0;
  else frag1_pulse_q <= frag1_pulse;
+ end
+
+ // SW-Trigger-Edge (Empfänger-Slot-Grant). Eigene Edge-Detection, damit ein
+ // länger anstehender CDC-Puls nur einen Grant erzeugt.
+ reg sw_grant_pulse_q;
+ wire sw_grant_edge_w = sw_grant_pulse & ~sw_grant_pulse_q;
+
+ always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) sw_grant_pulse_q <= 1'b0;
+ else sw_grant_pulse_q <= sw_grant_pulse;
  end
 
  // -------------------------------------------------------------------------
@@ -111,14 +140,26 @@ module tetra_pre_reply_slotgrant (
  reg [23:0] lat_ssi;
  reg [1:0] lat_target_tn;
  reg [31:0] lat_scramble_init;
+ // mm-abhängiges slot_granting_element, am Trigger gelatcht (wie lat_ssi):
+ //   mm=2 (ITSI-Attach / Einbuchung)  → 0x00 (FirstSubslotGranted — Attach-Frag-2,
+ //                                      bewährt; 0x30 bricht die Einbuchung)
+ //   mm=7 (Group-Switch / lange SDS)  → 0x30 (cap_alloc=3, ref-dekodiert, gibt dem
+ //                                      MS die 3 SCH/F-Slots für die Fragment-Kette)
+ reg [7:0] lat_sg_element;
  // SCH/HD coded-payload latch (216 bit).
  reg [215:0] lat_coded_schhd;
 
  // -------------------------------------------------------------------------
  // Internal MAC-RESOURCE 124-bit builder + SCH/HD encoder.
- // AL-SETUP, slot_granting_flag=1, sg_element=0x00 — Ref bit-identity
- // for BOTH mm=2 (per removed-memory) and mm=7
- // (per removed-memory).
+ // AL-SETUP, slot_granting_flag=1, sg_element = lat_sg_element (mm-dependent):
+ //   mm=2 (ITSI-Attach) → 0x00 (FirstSubslotGranted) — the registration
+ //     Frag-2 path; 0x30 here BREAKS the attach (MS can't complete).
+ //   mm=7 (Group-Switch / long SDS, CMCE-mis-tagged mm=7) → 0x30 =
+ //     capacity_allocation 3 ("grant 3 slots", ETSI §21.5.6 [7:4]) +
+ //     granting_delay 0 [3:0]. Decoded from the 392-MHz reference DL
+ //     (DL_…17-30-04): the BS grants the long-SDS sender 0x30, and the MS
+ //     then sends its 3× SCH/F MAC-FRAG continuation that the FPGA
+ //     reassembly path consumes. 0x00 (one subslot) starved the chain.
  // -------------------------------------------------------------------------
  reg builder_start;
  wire [123:0] builder_pdu_w;
@@ -141,7 +182,7 @@ module tetra_pre_reply_slotgrant (
 .power_control_flag (1'b0),
 .power_control_element (4'd0),
 .slot_granting_flag (1'b1),
-.slot_granting_element (8'h00),
+.slot_granting_element (lat_sg_element), // mm=2→0x00 (Attach), mm=7→0x30 (SDS, cap_alloc=3)
 .chan_alloc_flag (1'b0),
 .chan_alloc_element (32'd0),
 .chan_alloc_element_len (5'd0),
@@ -190,26 +231,42 @@ module tetra_pre_reply_slotgrant (
  lat_ssi <= 24'd0;
  lat_target_tn <= 2'd0;
  lat_scramble_init <= 32'd0;
+ lat_sg_element <= 8'h00;
  lat_coded_schhd <= 216'd0;
  builder_start <= 1'b0;
  enc_req_r <= 1'b0;
  wr_slotgrant_valid_sys <= 1'b0;
  push_cnt_sys <= 16'd0;
  drop_cnt_sys <= 16'd0;
+ resv_pulse_sys <= 1'b0;
+ resv_frames_sys <= 4'd0;
  end else begin
  // Default 1-cycle strobes
  builder_start <= 1'b0;
+ resv_pulse_sys <= 1'b0;
  wr_slotgrant_valid_sys <= 1'b0;
 
  case (state)
  S_IDLE: begin
- if (frag1_edge_w) begin
+ if (sw_grant_edge_w) begin
+ // SW-getriggerter Empfänger-Slot-Grant (lange-SDS-Zustellung).
+ // Wie mm=2: sg_element=0x00 (1 Subslot), kein AACH-Hold.
+ // Adresse = sw_grant_ssi (Empfänger), bypasst den mm-Filter.
+ lat_ssi <= sw_grant_ssi;
+ lat_target_tn <= cfg_mcch_tn;
+ lat_scramble_init <= cfg_scramble_init;
+ lat_sg_element <= 8'h00;
+ builder_start <= 1'b1;
+ state <= S_BUILD;
+ end else if (frag1_edge_w) begin
  if (mm_accept_w) begin
  // Latch trigger inputs and kick local SCH/HD pipeline
  // (no arbitration; pipeline is exclusive to this FSM).
  lat_ssi <= ul_ssi;
  lat_target_tn <= cfg_mcch_tn;
  lat_scramble_init <= cfg_scramble_init;
+ // mm=2 (Einbuchung) → 0x00; mm=7 (SDS/Group) → 0x30
+ lat_sg_element <= (mm_pdu_type == 4'd2) ? 8'h00 : 8'h30;
  builder_start <= 1'b1;
  state <= S_BUILD;
  end else begin
@@ -244,6 +301,12 @@ module tetra_pre_reply_slotgrant (
  wr_slotgrant_valid_sys <= 1'b1;
  if (push_cnt_sys != 16'hFFFF)
  push_cnt_sys <= push_cnt_sys + 16'd1;
+ // UL-Slot-Reservierung: nur wenn cap_alloc>0 (sg_element[7:4],
+ // mm=7→0x30→3). Der AACH-Encoder hält N Idle-Frames auf 0x0000.
+ if (lat_sg_element[7:4] != 4'd0) begin
+ resv_pulse_sys <= 1'b1;
+ resv_frames_sys <= lat_sg_element[7:4];
+ end
  state <= S_IDLE;
  end
 

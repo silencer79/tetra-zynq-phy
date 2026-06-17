@@ -70,6 +70,24 @@ module tetra_aach_encoder (
  input wire [13:0] grant_info_sys,
  output reg grant_consume_sys,
 
+ // 2026-06-10 — UL-Slot-Reservierungs-Hold (lange UL-SDS MAC-FRAG-Kette).
+ // resv_pulse_sys (1 Cycle) aus tetra_pre_reply_slotgrant beim cap_alloc>0-
+ // Grant lädt resv_frames_sys (= capacity_allocation). Für so viele
+ // TN=0-Idle-Frames wird die AACH auf 0x0000 (DL=Unalloc/UL=Unalloc, f1=0
+ // f2=0) gehalten statt 0x0249 (Common/Random) — Gold-Referenz @392MHz, sonst
+ // bricht die UL-Fragment-Kette nach 1 Fragment ab. Grant-Frame selbst
+ // (signalling_active=1) nutzt die Queue-AACH und verbraucht keinen Hold.
+ input wire resv_pulse_sys,
+ input wire [3:0] resv_frames_sys,
+
+ // 2026-06-17 — Lange-DL-SDS MAC-END-Marker. Das letzte Fragment der DL-Frag-
+ // Kette (Voice-Filler-Pfad, tn_sys==0) bewirbt AACH 0x0009 (DL=Unalloc) statt
+ // der Idle-Default 0x0249 (DL=Common). Gold-Referenz @392MHz: Frag-Start +
+ // MAC-FRAG = 0x0249 (#798/#802/#806), MAC-END = 0x0009 (#810) — der Transaktions-
+ // Ende-Marker, den das MS zur Finalisierung der Frag-Reassembly auswertet.
+ // SW: REG_VOICE_ACTIVE_MASK[8], nur im MAC-END-Frame gesetzt.
+ input wire sds_fill_last_sys,
+
  /* Phase Y.4.1 — Voice-Active-Mask (4 bit, bit N = active voice on
  * tn_sys==N). Wenn bit gesetzt UND tn_sys nicht 0 UND nicht F18
  * → AACH = slot_aach_sys[tn]. Sonst idle-Pattern wie bisher. SW
@@ -155,6 +173,10 @@ reg [4:0] mask_cnt_sys; // 0..29
 reg [31:0] lfsr_sys;
 reg [29:0] mask_sys;
 reg [13:0] info_sys;
+// UL-Slot-Reservierungs-Hold: zählt die verbleibenden TN=0-Idle-Frames, für
+// die die AACH auf 0x0000 (reserviert) gehalten wird. Geladen aus
+// resv_frames_sys bei resv_pulse_sys, dekrementiert je TN=0-Idle-Frame.
+reg [3:0] resv_hold_sys;
 
 // Fibonacci LFSR feedback (matches sw/tetra_hal.c:next_lfsr_bit)
 wire lfsr_fb_w = lfsr_sys[ 0] ^ lfsr_sys[ 6] ^ lfsr_sys[ 9] ^ lfsr_sys[10] ^
@@ -174,8 +196,12 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  aach_coded_sys <= 30'd0;
  aach_valid_sys <= 1'b0;
  grant_consume_sys <= 1'b0;
+ resv_hold_sys <= 4'd0;
  end else begin
  grant_consume_sys <= 1'b0;
+ // Reservierungs-Hold laden (Priorität vor dem Dekrement im S_IDLE-Pfad).
+ if (resv_pulse_sys)
+ resv_hold_sys <= resv_frames_sys;
  case (state_sys)
  // -----------------------------------------------------------------
  S_IDLE: begin
@@ -215,8 +241,19 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  end else if (tn_sys == 2'd0 && !signalling_active_sys && grant_pending_sys) begin
  info_sys <= grant_info_sys;
  grant_consume_sys <= 1'b1;
+ end else if (tn_sys == 2'd0 && !signalling_active_sys && resv_hold_sys != 4'd0) begin
+ // UL-Slot-Reservierungs-Hold: AACH = 0x0000 (DL=Unalloc UL=Unalloc,
+ // f1=0 f2=0), Gold-Referenz @392MHz, statt 0x0249 (Common/Random).
+ // Hält die reservierten UL-Slots, damit das MS die MAC-FRAG-Kette
+ // komplett senden kann. 1 Dekrement pro TN=0-Idle-Frame (Load hat
+ // bei gleichzeitigem resv_pulse Vorrang).
+ info_sys <= 14'h0000;
+ if (!resv_pulse_sys)
+ resv_hold_sys <= resv_hold_sys - 4'd1;
  end else if (tn_sys == 2'd0) begin
- info_sys <= signalling_active_sys ? 14'h0009: 14'h0249;
+ // sds_fill_last_sys: letztes DL-SDS-Fragment (MAC-END) → 0x0009 (Gold #810),
+ // sonst Idle/Common 0x0249 (Frag-Start + MAC-FRAG, Gold #798/#802/#806).
+ info_sys <= (signalling_active_sys | sds_fill_last_sys) ? 14'h0009: 14'h0249;
  end else if (voice_active_mask_sys[tn_sys]) begin
  /* 2026-05-24 — Passthrough aus SW-kontrolliertem Per-TN-AACH-Reg.
   * Hardcoded 14'h32CB (BlueStation-default, UMt=11) ENTFERNT.

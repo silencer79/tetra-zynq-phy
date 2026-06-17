@@ -41,6 +41,8 @@ typedef enum {
  TX_D_SDS_DATA = 11, /* CMCE pdu=15, BS→MS SDS (raw_mode CMCE) */
  /* SDS-Zustellquittung (2026-06-02) */
  TX_BL_ACK = 12, /* reine LLC BL-ACK an SDS-Absender, nr=empfangene NS */
+ /* Status-SDS (2026-06-03) */
+ TX_D_STATUS = 13, /* CMCE pdu=8, BS→MS precoded status (raw_mode CMCE) */
 } tx_pdu_class_t;
 
 /* Slot-class hint (Z.2+). 0 = legacy (RTL chooses default per existing
@@ -125,5 +127,10 @@ typedef struct {
  * PDU bytes. */
 int tetra_tx_submit(tetra_hal_t *hal, tx_pdu_class_t cls,
  const tx_pdu_meta_t *meta);
+
+/* Empfänger-Slot-Grant (NDB2/SCH/HD AL-SETUP) an `ssi` — nach langer-SDS-
+ * Zustellung, damit der Empfänger seinen SDS-TL-Delivery-Report senden kann.
+ * Triggert die RTL pre_reply_slotgrant-FSM via Reply-Mailbox W9[14]. */
+int tetra_tx_rx_slotgrant(tetra_hal_t *hal, uint32_t ssi);
 
 #endif /* TETRA_TX_TRANSPORT_H */

@@ -198,10 +198,38 @@ int tetra_cmce_parse(const uint8_t *body_bits_msb_first,
  return 0;
  }
 
+ case CMCE_U_STATUS: {
+ /* U-STATUS (ETSI EN 300 392-2 §14.7.2.9): area_sel(4) CPTI(2)
+  * [called addr] pre_coded_status(16) o-bit(1). Short, never fragmented. */
+ if (pos + 4 + 2 > n_bits) return -1;
+ out->area_selection = (uint8_t)get_bits(body_bits_msb_first, &pos, 4);
+ out->called_party_type_identifier = (uint8_t)get_bits(body_bits_msb_first, &pos, 2);
+ switch (out->called_party_type_identifier) {
+ case CMCE_CPTI_SNA:
+ if (pos + 8 > n_bits) return -1;
+ out->called_party_sna = (uint8_t)get_bits(body_bits_msb_first, &pos, 8);
+ break;
+ case CMCE_CPTI_SSI:
+ if (pos + 24 > n_bits) return -1;
+ out->called_party_ssi = get_bits(body_bits_msb_first, &pos, 24);
+ break;
+ case CMCE_CPTI_TSI:
+ if (pos + 48 > n_bits) return -1;
+ out->called_party_ssi = get_bits(body_bits_msb_first, &pos, 24);
+ out->called_party_extension = get_bits(body_bits_msb_first, &pos, 24);
+ break;
+ default:
+ break;
+ }
+ if (pos + 16 > n_bits) return -1;
+ out->pre_coded_status = (uint16_t)get_bits(body_bits_msb_first, &pos, 16);
+ if (pos + 1 <= n_bits) out->o_bit = (uint8_t)get_bits(body_bits_msb_first, &pos, 1);
+ return 0;
+ }
+
  case CMCE_U_CONNECT:
  case CMCE_U_INFO:
  case CMCE_U_ALERT:
- case CMCE_U_STATUS:
  default:
  /* Surface only pdu_type + call_identifier-attempt for U-ALERT/U-CONNECT
  * (both begin with 14-bit call_id per ETSI §14.7.2.x). Lack of body

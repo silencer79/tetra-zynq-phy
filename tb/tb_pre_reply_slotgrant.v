@@ -1,14 +1,14 @@
 // =============================================================================
 // tb_pre_reply_slotgrant.v — Phase Z.9 Pre-Reply Slot-Grant Mini-FSM regression
 //
-// Z.9 (single-path): the FSM produces the IDENTICAL 124-bit AL-SETUP body
-// for BOTH mm=2 (ITSI-Attach) and mm=7 (Group-Switch), SCH/HD-encodes it
-// (216 bits) and pushes MSB-aligned in the 432-bit queue bus. Constants:
-// slot_granting_flag = 1
-// slot_granting_element = 0x00
-// addr_type = SSI (3'b001)
-// llc_pdu_type = AL-SETUP (4'd8)
-// random_access_flag = 1
+// 2026-06-10 (mm-dependent slot grant): the FSM produces an AL-SETUP body that
+// is identical for mm=2 (ITSI-Attach) and mm=7 (Group-Switch / long SDS) EXCEPT
+// the slot_granting_element, which is mm-dependent:
+// mm=2 → 0x00 (FirstSubslotGranted — the Attach Frag-2 path; 0x30 breaks it)
+// mm=7 → 0x30 (capacity_allocation 3 = grant 3 slots, ref-decoded; gives the
+// long-SDS sender the SCH/F slots for its MAC-FRAG continuation)
+// Other constants: slot_granting_flag=1, addr_type=SSI (3'b001),
+// llc_pdu_type=AL-SETUP (4'd8), random_access_flag=1.
 // AACH 0x0009 lift is delivered separately via the queue-entry's
 // per-PDU-class AACH-pattern field (PDUC_PRE_REPLY_SLOTGRANT_AACH).
 //
@@ -23,10 +23,9 @@
 // Builder-PDU bit-pattern bit-exact against -memory:
 // removed-memory (mm=2 Pre-Reply LI=7) +
 // removed-memory (mm=7 same).
-// TC3 mm=7 frag1_pulse, ssi=0x282FF4 — IDENTICAL coded payload to TC2
-// (single-path proof). Differing SSI changes the address slot but
-// the structural fields (PDUtype, FillBit, RA, LI, sg_flag,
-// sg_element, AL-SETUP) are identical.
+// TC3 mm=7 frag1_pulse, ssi=0x282FF4 — DIFFERENT coded payload to TC2
+// (sg=0x30 vs mm=2 sg=0x00). All other structural fields identical;
+// the coded body must differ exactly in the slot_granting nibble.
 // TC4 collision drop — second frag1_pulse during S_BUILD/S_ENC
 // → drop_cnt += 1
 // TC5 fresh push after busy clears (mm=7 path) — push_cnt monotonic
@@ -118,6 +117,7 @@ module tb_pre_reply_slotgrant;
  // -------------------------------------------------------------------------
  reg ref_builder_start = 1'b0;
  reg [23:0] ref_ssi = 24'd0;
+ reg [7:0]  ref_sg_element = 8'h30; // set per-mm before compute_ref_schhd
 
  wire [123:0] ref_pdu_w;
  wire ref_pdu_valid_w;
@@ -137,7 +137,7 @@ module tb_pre_reply_slotgrant;
 .power_control_flag (1'b0),
 .power_control_element (4'd0),
 .slot_granting_flag (1'b1),
-.slot_granting_element (8'h00), // sg_element=0x00 (Z.9 universal)
+.slot_granting_element (ref_sg_element), // per-mm: 0x00 (mm=2) / 0x30 (mm=7) — tracks DUT
 .chan_alloc_flag (1'b0),
 .chan_alloc_element (32'd0),
 .chan_alloc_element_len (5'd0),
@@ -315,6 +315,7 @@ module tb_pre_reply_slotgrant;
  // Test cases
  // -------------------------------------------------------------------------
  reg [431:0] exp_coded;
+ reg [431:0] exp_coded_grp;
  reg [431:0] got_coded_lu;
  reg [431:0] got_coded_grp;
  reg [215:0] ref_coded;
@@ -344,7 +345,8 @@ module tb_pre_reply_slotgrant;
  end
 
  // -----------------------------------------------------------------
- $display("---- TC2 mm=2 SCH/HD push, ssi=0x282FF4 ( body) ----");
+ $display("---- TC2 mm=2 (ITSI-Attach) SCH/HD push, ssi=0x282FF4 — sg=0x00 ----");
+ ref_sg_element = 8'h00; // mm=2 Attach
  compute_ref_schhd(24'h282FF4, ref_coded, ref_info);
  // Z.9: 432-bit bus carries 216-bit SCH/HD MSB-aligned.
  exp_coded = {ref_coded, 216'd0};
@@ -360,7 +362,7 @@ module tb_pre_reply_slotgrant;
  // fill markers). The header-only check is the load-bearing one
  // for Drift #4 (sg_element=0x00) per the Phase Z.9 mandate.
  if (ref_info[123:69] === REF_BODY_SSI_282FF4[123:69]) begin
- $display(" PASS ref-PDU header [123:69] bit-exact vs (ssi=0x282FF4, sg=0x00)");
+ $display(" PASS ref-PDU header [123:69] bit-exact vs (ssi=0x282FF4, mm=2 sg=0x00)");
  pass_cnt = pass_cnt + 1;
  end else begin
  $display(" FAIL ref-PDU header mismatch against body [123:69]");
@@ -385,7 +387,7 @@ module tb_pre_reply_slotgrant;
  // [107:84] SSI = 24'h282FF4
  // [83] pc_flag = 0
  // [82] sg_flag = 1
- // [81:74] sg_element = 8'h00
+ // [81:74] sg_element = 8'h00 (mm=2 Attach — FirstSubslotGranted)
  // [73] ca_flag = 0
  // [72:69] AL-SETUP = 4'b1000
  if (ref_info[123:122] === 2'b00) begin
@@ -449,7 +451,7 @@ module tb_pre_reply_slotgrant;
  fail_cnt = fail_cnt + 1;
  end
  if (ref_info[81:74] === 8'h00) begin
- $display(" PASS sg_element=0x00 (Z.9 universal)"); pass_cnt = pass_cnt + 1;
+ $display(" PASS sg_element=0x00 (mm=2 Attach — FirstSubslotGranted)"); pass_cnt = pass_cnt + 1;
  end else begin
  $display(" FAIL sg_element expected 0x00 got 0x%h", ref_info[81:74]);
  fail_cnt = fail_cnt + 1;
@@ -489,7 +491,19 @@ module tb_pre_reply_slotgrant;
  end
 
  // -----------------------------------------------------------------
- $display("---- TC3 mm=7 SCH/HD push, ssi=0x282FF4 — IDENTICAL to mm=2 ----");
+ $display("---- TC3 mm=7 (Group/long-SDS) SCH/HD push, ssi=0x282FF4 — sg=0x30 ----");
+ // Recompute the reference with sg=0x30 — mm=7 must DIFFER from mm=2.
+ ref_sg_element = 8'h30; // mm=7 SDS/Group
+ compute_ref_schhd(24'h282FF4, ref_coded, ref_info);
+ exp_coded_grp = {ref_coded, 216'd0};
+ // Spot-check the mm=7 reference body carries sg=0x30 (cap_alloc=3).
+ if (ref_info[81:74] === 8'h30) begin
+ $display(" PASS mm=7 ref sg_element=0x30 (cap_alloc=3, grant 3 slots)");
+ pass_cnt = pass_cnt + 1;
+ end else begin
+ $display(" FAIL mm=7 ref sg_element expected 0x30 got 0x%h", ref_info[81:74]);
+ fail_cnt = fail_cnt + 1;
+ end
  @(posedge clk);
  cfg_mcch_tn = 2'd1;
 
@@ -502,8 +516,8 @@ module tb_pre_reply_slotgrant;
  got_coded_grp = wr_slotgrant_coded_sys;
  check_eq2 ("pdu_type=01 (SCH_HD)", wr_slotgrant_pdu_type_sys, 2'd1);
  check_eq2 ("target_tn=cfg_mcch_tn", wr_slotgrant_target_tn_sys, 2'd1);
- check_eq432("coded[431:0] bit-exact (MSB-aligned SCH/HD)",
- got_coded_grp, exp_coded);
+ check_eq432("coded[431:0] bit-exact vs mm=7 ref (sg=0x30)",
+ got_coded_grp, exp_coded_grp);
  if (got_coded_grp[215:0] === 216'd0) begin
  $display(" PASS coded[215:0]=0 (MSB-aligned)");
  pass_cnt = pass_cnt + 1;
@@ -511,12 +525,12 @@ module tb_pre_reply_slotgrant;
  $display(" FAIL coded[215:0] != 0, got %h", got_coded_grp[215:0]);
  fail_cnt = fail_cnt + 1;
  end
- // Single-path proof: identical SSI → identical body → identical coded.
- if (got_coded_lu === got_coded_grp) begin
- $display(" PASS mm=2 vs mm=7 → IDENTICAL coded payload (single-path proof)");
+ // mm-dependent sg: mm=2 (0x00) and mm=7 (0x30) MUST differ now.
+ if (got_coded_lu !== got_coded_grp) begin
+ $display(" PASS mm=2 vs mm=7 → DIFFERENT payload (sg 0x00 vs 0x30, as intended)");
  pass_cnt = pass_cnt + 1;
  end else begin
- $display(" FAIL mm=2 vs mm=7 produced DIFFERENT payloads (single-path broken)");
+ $display(" FAIL mm=2 vs mm=7 IDENTICAL — sg not mm-dependent (Einbuchung broken)");
  fail_cnt = fail_cnt + 1;
  end
  check_eq32 ("push_cnt=2", {16'd0, push_cnt_sys}, 32'd2);

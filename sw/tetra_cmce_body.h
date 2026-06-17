@@ -79,6 +79,9 @@ typedef struct {
  /* D-SDS-DATA (pdu_type 15). calling_party_ssi above = sender SSI. */
  uint8_t sds_udd[32]; /* UDD-4 payload: PID + SDS-TL header + 8-bit text */
  uint16_t sds_udd_len; /* payload length in BYTES (0 = not an SDS) */
+
+ /* D-STATUS (pdu_type 8). calling_party_ssi above = sender SSI. */
+ uint16_t pre_coded_status; /* 16-bit precoded status value */
 } cmce_meta_t;
 
 /* All return total bit length, 0 on parameter error. out is zeroed
@@ -93,5 +96,7 @@ int tetra_cmce_build_d_release (const cmce_meta_t *m, uint8_t *out);
 int tetra_cmce_build_d_connect_ack (const cmce_meta_t *m, uint8_t *out);
 int tetra_cmce_build_d_alert (const cmce_meta_t *m, uint8_t *out);
 int tetra_cmce_build_d_sds_data (const cmce_meta_t *m, uint8_t *out);
+/* Status-SDS (2026-06-03) */
+int tetra_cmce_build_d_status (const cmce_meta_t *m, uint8_t *out);
 
 #endif /* TETRA_CMCE_BODY_H */

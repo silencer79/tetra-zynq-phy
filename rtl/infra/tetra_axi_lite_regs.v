@@ -378,6 +378,11 @@ module tetra_axi_lite_regs (
  input wire [15:0] ul_cont_cnt_axi,
  input wire [15:0] schhu_attempted_cnt_axi,
  input wire [15:0] schhu_ok_cnt_axi,
+ // 2026-06-12 — SCH/F-Decode-Diagnose (lange UL-SDS): ok in freie obere
+ // 16 Bit von REG_SCHHU_CRC_CNT (0x1F0), att in obere 16 Bit von
+ // REG_NWRK_BCAST_CNT (0x1E4).
+ input wire [15:0] schf_dec_ok_cnt_axi,
+ input wire [15:0] schf_dec_att_cnt_axi,
 
  // ------------------------------------------------------------------
  // DL-Signal-Queue / Pre-Reply / Scheduler diagnostic counters
@@ -1241,7 +1246,7 @@ always @(*) begin
  // Phase H.6.1 — UL MAC-END-HU pipeline diagnostic counters
  REG_UL_CONT_CNT: rdata_mux_axi = {16'b0, ul_cont_cnt_axi};
  REG_SCHHU_VALID_CNT: rdata_mux_axi = {16'b0, schhu_attempted_cnt_axi};
- REG_SCHHU_CRC_CNT: rdata_mux_axi = {16'b0, schhu_ok_cnt_axi};
+ REG_SCHHU_CRC_CNT: rdata_mux_axi = {schf_dec_ok_cnt_axi, schhu_ok_cnt_axi};
  REG_AACH_GRANT_HINT: rdata_mux_axi = {aach_grant_pending_axi, 17'b0,
  aach_grant_info_axi};
  // DL-Signal-Queue / Pre-Reply / Scheduler diagnostic counters
@@ -1265,7 +1270,7 @@ always @(*) begin
  REG_NWRK_BCAST_INDEX: rdata_mux_axi = {28'b0, nwrk_bcast_index_axi};
  REG_NWRK_BCAST_DATA: rdata_mux_axi = nwrk_bcast_payload_word_axi;
  REG_NWRK_BCAST_TRIGGER: rdata_mux_axi = {31'b0, nwrk_bcast_trigger_r};
- REG_NWRK_BCAST_CNT: rdata_mux_axi = {16'b0, nwrk_bcast_cnt_axi};
+ REG_NWRK_BCAST_CNT: rdata_mux_axi = {schf_dec_att_cnt_axi, nwrk_bcast_cnt_axi};
  REG_NWRK_BCAST_PERIOD_MF: rdata_mux_axi = {27'b0, nwrk_bcast_period_mf_axi};
  // Raw RX IQ capture (bank-0 addresses 0x138/0x13C/0x1FC)
  REG_IQCAP_CTRL:   rdata_mux_axi = iqcap_ctrl_reg_axi;

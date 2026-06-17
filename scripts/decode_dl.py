@@ -1468,9 +1468,26 @@ def refine_timing(iq, ts_offset, sps, ref_dibits, ref_diff):
 # Main decoder
 # =============================================================================
 
+def _cell_matches(si, want_mcc, want_mnc, want_cc):
+    """Cell filter for acquisition. If any want_* is set, only TMO SBs whose
+    MCC/MNC/CC match the requested values are accepted (others = co-channel/DMO
+    beacons that would hijack the scrambler + burst grid). All-None = no filter."""
+    if want_mcc is None and want_mnc is None and want_cc is None:
+        return True
+    if si.get('Mode') != 'TMO':
+        return False
+    if want_mcc is not None and si.get('MCC') != want_mcc:
+        return False
+    if want_mnc is not None and si.get('MNC') != want_mnc:
+        return False
+    if want_cc is not None and si.get('ColourCode') != want_cc:
+        return False
+    return True
+
+
 def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
               max_bursts=200, conjugate=False, swap_iq=False, verbose=False,
-              dump_burst=-1):
+              dump_burst=-1, want_mcc=None, want_mnc=None, want_cc=None):
     print("=" * 60)
     print(" TETRA Downlink Decoder — Full MAC/LLC/MLE")
     print("=" * 60)
@@ -1594,6 +1611,9 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
             ok, info, _ = decode_channel(sb1_d, 120, 11, 60)
             if ok:
                 si = parse_sysinfo_sb(info)
+                if not _cell_matches(si, want_mcc, want_mnc, want_cc):
+                    # co-channel / DMO beacon — would hijack scrambler + grid; keep scanning
+                    continue
                 mode = si.get('Mode', 'TMO')
                 if mode == 'TMO':
                     mcc = si['MCC']; mnc = si['MNC']; cc = si['ColourCode']
@@ -1831,20 +1851,26 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
             if sb1_crc:
                 n_sb_ok += 1
                 si = parse_sysinfo_sb(sb1_info)
-                mode = si.get('Mode', 'TMO')
-                if mode == 'TMO':
-                    mcc = si['MCC']; mnc = si['MNC']; cc = si['ColourCode']
-                    scramb_code = make_scramb_code(mcc, mnc, cc)
+                if not _cell_matches(si, want_mcc, want_mnc, want_cc):
+                    # foreign SB landed in our grid — do NOT let it hijack
+                    # scrambler/time; keep the locked cell.
+                    print(f"SB1 CRC OK [foreign {si.get('Mode','?')} "
+                          f"CC={si.get('ColourCode','?')}] ignored (cell filter)")
                 else:
-                    mcc = 0; mnc = si.get('MNI', 0) & 0x3F; cc = si['ColourCode']
-                    scramb_code = make_scramb_code_dmo(mnc, si.get('SourceAddress', 0))
-                fn = si['Frame']
-                air_tn, air_fn, air_mn = sync_to_air(si)
-                # Re-sync NetworkTime from the air values (+1 inside)
-                nt.synchronize(air_tn, air_fn, air_mn)
-                mf_str = si['MultiFrame'] if mode == 'TMO' else 'n/a'
-                print(f"SB1 CRC OK [{mode}] MCC={mcc} MNC={mnc} CC={cc} "
-                      f"FN(air)={fn} MF(air)={mf_str} TN(air)={si['TimeSlot']} → {nt}")
+                    mode = si.get('Mode', 'TMO')
+                    if mode == 'TMO':
+                        mcc = si['MCC']; mnc = si['MNC']; cc = si['ColourCode']
+                        scramb_code = make_scramb_code(mcc, mnc, cc)
+                    else:
+                        mcc = 0; mnc = si.get('MNI', 0) & 0x3F; cc = si['ColourCode']
+                        scramb_code = make_scramb_code_dmo(mnc, si.get('SourceAddress', 0))
+                    fn = si['Frame']
+                    air_tn, air_fn, air_mn = sync_to_air(si)
+                    # Re-sync NetworkTime from the air values (+1 inside)
+                    nt.synchronize(air_tn, air_fn, air_mn)
+                    mf_str = si['MultiFrame'] if mode == 'TMO' else 'n/a'
+                    print(f"SB1 CRC OK [{mode}] MCC={mcc} MNC={mnc} CC={cc} "
+                          f"FN(air)={fn} MF(air)={mf_str} TN(air)={si['TimeSlot']} → {nt}")
             else:
                 n_sb_fail += 1
                 bad_burst_counter += 0.5
@@ -2179,6 +2205,20 @@ def _print_mac(prefix, mac, info_bits, verbose):
                 print(f" UMt={mac['usage_marker']}", end='')
             print(f" LI={li} ({mac.get('length_indicator_meaning', '?')})")
 
+            # Reservation/grant fields — what makes the MS send its SCH/F continuation
+            res = []
+            if mac.get('random_access_flag') is not None:
+                res.append(f"RA={mac['random_access_flag']}")
+            if mac.get('position_of_grant') is not None:
+                res.append(f"PoG={mac['position_of_grant']}")
+            if mac.get('slot_granting_flag'):
+                sg = mac.get('slot_granting')
+                res.append(f"SlotGrant={'0x%02X' % sg if sg is not None else 'set'}")
+            elif mac.get('slot_granting_flag') == 0:
+                res.append("SlotGrant=none")
+            if res:
+                print(f"{prefix}    Grant: {' '.join(res)}")
+
             ca = mac.get('channel_allocation')
             if ca:
                 name = ca.get('allocation_type_name', '?')
@@ -2348,6 +2388,12 @@ if __name__ == '__main__':
                         help='Dump info/type-5 hard bits for one burst index, '
                              'or a comma-separated list of indexes. Use -2 '
                              'for grid positions only.')
+    parser.add_argument('--mcc', type=int, default=None,
+                        help='Lock onto this TMO MCC only (skip other cells / DMO co-channel)')
+    parser.add_argument('--mnc', type=int, default=None,
+                        help='Lock onto this TMO MNC only')
+    parser.add_argument('--cc', type=int, default=None,
+                        help='Lock onto this TMO ColourCode only')
     args = parser.parse_args()
 
     if args.capture:
@@ -2373,5 +2419,6 @@ if __name__ == '__main__':
     ok = decode_dl(args.input, sample_rate=args.sr,
                    freq_offset=args.offset, max_bursts=args.max_bursts,
                    conjugate=args.conjugate, swap_iq=args.swap_iq,
-                   verbose=args.verbose, dump_burst=dump_burst)
+                   verbose=args.verbose, dump_burst=dump_burst,
+                   want_mcc=args.mcc, want_mnc=args.mnc, want_cc=args.cc)
     sys.exit(0 if ok else 1)

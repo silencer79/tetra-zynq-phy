@@ -830,7 +830,10 @@ wire lsds_valid_sys_w;
 tetra_ul_schf_reassembly u_ul_schf_reassembly (
 .clk_sys (clk_sys),
 .rst_n_sys (rst_n_sys),
-.t0_frames_sys (reass_t0_frames_axi_sys),
+ // 2026-06-12 — eigener SCH/F-T0 (4 Frames), entkoppelt vom geteilten
+ // REG_REASSEMBLY_T0 (=1, für Attach getunt). Die lange-SDS-Kette hat
+ // FRAG→END ~2 Frames auseinander → T0=1 würde sie vor dem END droppen.
+.t0_frames_sys (4'd4),
 .frame_tick_sys (frame_tick_sys),
 .frag1_pulse_sys (frag1_pulse_w),
 .frag1_ssi_sys (ul_issi_sys),
@@ -1353,6 +1356,7 @@ tetra_burst_dispatcher #(
 .tx_busy_sys (disp_tx_busy_sys_w),
  // Phase 7 G.8 voice-slot filler-mailbox inputs (SW-encoded SCH/F)
 .voice_active_mask_sys (voice_active_mask_sys_r1),
+.sds_fill_active_sys (sds_fill_active_sys_r1),
 .tx_fn_sys (tx_tdma_state_fn_sys),
 .vfill_valid_per_ts_sys (vfill_valid_per_ts_sys_w),
 .vfill_blk1_per_ts_sys (vfill_blk1_per_ts_sys_w),
@@ -2298,6 +2302,8 @@ tetra_axi_lite_regs u_axi_regs (
 .ul_cont_cnt_axi (ul_cont_cnt_axi_r1),
 .schhu_attempted_cnt_axi (schhu_attempted_axi_r1),
 .schhu_ok_cnt_axi (schhu_ok_axi_r1),
+.schf_dec_ok_cnt_axi (schf_dec_ok_axi_r1),
+.schf_dec_att_cnt_axi (schf_dec_att_axi_r1),
  // DL-Signal-Queue / Pre-Reply / Scheduler diagnostic counters
  // (resynced 2-FF clk_sys → clk_axi just above).
 .slotgrant_push_cnt_axi (slotgrant_push_cnt_axi_r1),
@@ -2568,7 +2574,9 @@ tetra_mle_registration_fsm u_mle_registration_fsm (
 .mb_gila_present (mb_gila_present_sys_w),
 .mb_encryption (mb_encryption_sys_w),
 .mb_auth_result (mb_auth_result_sys_w),
-.mb_go_pulse (mb_go_pulse_sys_w),
+ // GO gegen den Empfänger-Slot-Grant maskieren (W9[14]): bei slot-grant-Request
+ // triggert der GO NUR die pre_reply_slotgrant-FSM, NICHT diesen MLE-Reply.
+.mb_go_pulse (mb_go_pulse_sys_w & ~mb_raw_slotgrant_sys_w),
  // Phase Y.2 — raw-mode bypass (Variante A) for mm=11 D-ATTACH-DETACH-
  // GRP-ID-ACK. raw_mode_flag=0 => mm=2 ACCEPT path bit-identical.
 .mb_raw_mode_flag (mb_raw_mode_flag_sys_w),
@@ -2812,6 +2820,12 @@ end
 (* ASYNC_REG = "TRUE" *) reg [15:0] schhu_attempted_axi_r1;
 (* ASYNC_REG = "TRUE" *) reg [15:0] schhu_ok_axi_r0;
 (* ASYNC_REG = "TRUE" *) reg [15:0] schhu_ok_axi_r1;
+// 2026-06-12 — SCH/F-Decode-Diagnose (lange UL-SDS): att/ok in freie obere
+// 16 Bit von REG_NWRK_BCAST_CNT (0x1E4) bzw. REG_SCHHU_CRC_CNT (0x1F0).
+(* ASYNC_REG = "TRUE" *) reg [15:0] schf_dec_att_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] schf_dec_att_axi_r1;
+(* ASYNC_REG = "TRUE" *) reg [15:0] schf_dec_ok_axi_r0;
+(* ASYNC_REG = "TRUE" *) reg [15:0] schf_dec_ok_axi_r1;
 
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  if (!rst_n_axi) begin
@@ -2821,6 +2835,10 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  schhu_attempted_axi_r1 <= 16'd0;
  schhu_ok_axi_r0 <= 16'd0;
  schhu_ok_axi_r1 <= 16'd0;
+ schf_dec_att_axi_r0 <= 16'd0;
+ schf_dec_att_axi_r1 <= 16'd0;
+ schf_dec_ok_axi_r0 <= 16'd0;
+ schf_dec_ok_axi_r1 <= 16'd0;
  end else begin
  ul_cont_cnt_axi_r0 <= ul_continuation_count_sys;
  ul_cont_cnt_axi_r1 <= ul_cont_cnt_axi_r0;
@@ -2828,6 +2846,10 @@ always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  schhu_attempted_axi_r1 <= schhu_attempted_axi_r0;
  schhu_ok_axi_r0 <= schhu_ok_sys;
  schhu_ok_axi_r1 <= schhu_ok_axi_r0;
+ schf_dec_att_axi_r0 <= schf_dec_att_w;
+ schf_dec_att_axi_r1 <= schf_dec_att_axi_r0;
+ schf_dec_ok_axi_r0 <= schf_dec_ok_w;
+ schf_dec_ok_axi_r1 <= schf_dec_ok_axi_r0;
  end
 end
 
@@ -3076,6 +3098,9 @@ wire [431:0] dl_pdu_coded_w;
 wire dl_pdu_busy_w;
 wire dl_pdu_done_to_mle_w;
 
+// 2026-06-10 — UL-Slot-Reservierungs-Hold: pre_reply_slotgrant → aach_encoder.
+wire slotgrant_resv_pulse_w;
+wire [3:0] slotgrant_resv_frames_w;
 tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
 .clk_sys (clk_sys),
 .rst_n_sys (rst_n_sys),
@@ -3086,6 +3111,11 @@ tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
  // mm-types build the IDENTICAL 124-bit AL-SETUP body via the local
  // SCH/HD pipeline, so no path-switching beyond the filter.
 .mm_pdu_type (frag1_mm_type_w),
+ // SW-Trigger (Empfänger-Slot-Grant, lange-SDS-Zustellung): reply-Mailbox-GO
+ // mit W9[14]=1 → NDB2/SCH/HD AL-SETUP an mb_ssi (Empfänger). Mitnutzung der
+ // bereits CDC-resyncten mb_ssi/mb_go_pulse statt eigener Register-CDC.
+.sw_grant_pulse (mb_go_pulse_sys_w & mb_raw_slotgrant_sys_w),
+.sw_grant_ssi (mb_ssi_sys_w),
 .cfg_mcch_tn (cfg_mcch_tn_sys_r1),
 .cfg_scramble_init (mle_dl_scramb_init_sys),
  // Shared SCH/HD encoder (ch0, Priorität)
@@ -3101,7 +3131,11 @@ tetra_pre_reply_slotgrant u_pre_reply_slotgrant (
 .wr_slotgrant_pdu_type_sys(slotgrant_pdu_type_sys_w),
 .wr_slotgrant_target_tn_sys(slotgrant_target_tn_sys_w),
 .push_cnt_sys (slotgrant_push_cnt_sys_w),
-.drop_cnt_sys (slotgrant_drop_cnt_sys_w)
+.drop_cnt_sys (slotgrant_drop_cnt_sys_w),
+ // 2026-06-10 — UL-Slot-Reservierung an den AACH-Encoder (Hold der TN=0-
+ // Idle-AACH auf 0x0000 für cap_alloc Frames, lange UL-SDS-Kette).
+.resv_pulse_sys (slotgrant_resv_pulse_w),
+.resv_frames_sys (slotgrant_resv_frames_w)
 );
 
 // =============================================================================
@@ -3441,6 +3475,7 @@ wire mb_raw_ns_sys_w;
 wire mb_raw_nr_sys_w;
 wire [2:0] mb_raw_mle_pd_sys_w; /* Phase 7 G.4 — MLE-PD selector */
 wire mb_raw_llc_bl_ack_sys_w; /* SDS BL-ACK delivery (W9[13]) */
+wire mb_raw_slotgrant_sys_w;  /* Empfänger-Slot-Grant-Trigger (W9[14]) */
 
 tetra_reply_mailbox u_reply_mailbox (
 .clk_sys (clk_sys),
@@ -3471,7 +3506,8 @@ tetra_reply_mailbox u_reply_mailbox (
 .mb_raw_ns_sys (mb_raw_ns_sys_w),
 .mb_raw_nr_sys (mb_raw_nr_sys_w),
 .mb_raw_mle_pd_sys (mb_raw_mle_pd_sys_w),
-.mb_raw_llc_bl_ack_sys (mb_raw_llc_bl_ack_sys_w)
+.mb_raw_llc_bl_ack_sys (mb_raw_llc_bl_ack_sys_w),
+.mb_raw_slotgrant_sys (mb_raw_slotgrant_sys_w)
 );
 
 // CDC: rdata + busy clk_sys → clk_axi (busy is the OR of FSM busy-state).
@@ -3973,6 +4009,33 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  else voice_active_mask_sys_r1 <= voice_active_mask_sys_r0;
 end
 
+// 2026-06-13 — sds_fill_active CDC: obere Nibble [7:4] von REG_VOICE_ACTIVE_MASK,
+// per-TN-Override für die lange-SDS-DL-Zustellung (nutzt den Voice-Filler-Pfad).
+(* ASYNC_REG = "TRUE" *) reg [3:0] sds_fill_active_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [3:0] sds_fill_active_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) sds_fill_active_sys_r0 <= 4'd0;
+ else sds_fill_active_sys_r0 <= voice_active_mask_axi_w[7:4];
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) sds_fill_active_sys_r1 <= 4'd0;
+ else sds_fill_active_sys_r1 <= sds_fill_active_sys_r0;
+end
+
+// 2026-06-17 — sds_fill_last CDC: Bit[8] von REG_VOICE_ACTIVE_MASK. Nur im
+// MAC-END-Frame der DL-SDS-Frag-Kette gesetzt → AACH-Encoder bewirbt 0x0009
+// (DL=Unalloc, Gold #810) statt 0x0249 auf dem TN0-MCCH-Slot.
+(* ASYNC_REG = "TRUE" *) reg sds_fill_last_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg sds_fill_last_sys_r1;
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) sds_fill_last_sys_r0 <= 1'b0;
+ else sds_fill_last_sys_r0 <= voice_active_mask_axi_w[8];
+end
+always @(posedge clk_sys or negedge rst_n_sys) begin
+ if (!rst_n_sys) sds_fill_last_sys_r1 <= 1'b0;
+ else sds_fill_last_sys_r1 <= sds_fill_last_sys_r0;
+end
+
 // 2026-05-24 Klasse 2 — slot_aach CDC axi→sys (4×16-bit, default 0x3000 idle).
 (* ASYNC_REG = "TRUE" *) reg [63:0] slot_aach_sys_r0;
 (* ASYNC_REG = "TRUE" *) reg [63:0] slot_aach_sys_r1;
@@ -4182,6 +4245,12 @@ tetra_aach_encoder u_aach_encoder (
 .grant_pending_sys (aach_grant_pending_sys_r1),
 .grant_info_sys (aach_grant_info_sys_r1),
 .grant_consume_sys (aach_grant_consume_sys_w),
+ // 2026-06-10 — UL-Slot-Reservierungs-Hold (TN=0-Idle-AACH = 0x0000 für
+ // cap_alloc Frames nach einem Slot-Grant; lange UL-SDS MAC-FRAG-Kette).
+.resv_pulse_sys (slotgrant_resv_pulse_w),
+.resv_frames_sys (slotgrant_resv_frames_w),
+ // 2026-06-17 — DL-SDS MAC-END → AACH 0x0009 (Gold #810) auf TN0.
+.sds_fill_last_sys (sds_fill_last_sys_r1),
  /* Phase Y.4.1 — Voice-Slot AACH-Override (4-bit bitmap per tn_sys). */
 .voice_active_mask_sys (voice_active_mask_sys_r1),
  /* 2026-05-24 Klasse 2 — Per-TN AACH-Wert von SW. */

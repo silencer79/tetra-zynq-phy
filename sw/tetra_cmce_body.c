@@ -35,6 +35,7 @@
 #define D_TX_CEASED 9u
 #define D_TX_GRANTED 11u
 #define D_SDS_DATA 15u
+#define D_STATUS 8u
 
 static void put_bits(uint8_t *dst, int *pos, uint32_t value, int nbits)
 {
@@ -294,5 +295,22 @@ int tetra_cmce_build_d_sds_data(const cmce_meta_t *m, uint8_t *out)
  for (i = 0; i < (int)m->sds_udd_len; i++)
  put_bits(out, &pos, m->sds_udd[i], 8);
  put_bits(out, &pos, 0u, 1); /* o-bit = 0 (no Type-2/3 IEs) */
+ return pos;
+}
+
+/* D-STATUS (CMCE pdu_type 8, ETSI EN 300 392-2 §14.7.1.x): kurze Status-PDU.
+ * pdu_type(5) CPTI(2)=SSI calling_party_ssi(24) pre_coded_status(16) o-bit(1).
+ * calling_party_ssi = ursprünglicher Absender (Relay). Bit-genau vs
+ * bluestation d_status.rs. */
+int tetra_cmce_build_d_status(const cmce_meta_t *m, uint8_t *out)
+{
+ if (m == NULL || out == NULL) return 0;
+ memset(out, 0, TETRA_CMCE_MAX_BYTES);
+ int pos = 0;
+ put_bits(out, &pos, D_STATUS, 5);
+ put_bits(out, &pos, 1u, 2); /* CPTI = 1 (SSI) */
+ put_bits(out, &pos, m->calling_party_ssi & 0x00FFFFFFu, 24);
+ put_bits(out, &pos, (uint32_t)m->pre_coded_status, 16);
+ put_bits(out, &pos, 0u, 1); /* o-bit = 0 (no Type-3 IEs) */
  return pos;
 }

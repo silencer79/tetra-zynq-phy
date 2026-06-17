@@ -63,6 +63,22 @@ static int reply_wait_idle(tetra_hal_t *hal)
  return -1;
 }
 
+/* Empfänger-Slot-Grant nach langer-SDS-Zustellung. Triggert die RTL-FSM
+ * tetra_pre_reply_slotgrant (baut den Gold-#822-konformen NDB2/SCH/HD AL-SETUP
+ * mit slot_granting_flag=1, sg_element=0x00) über die Reply-Mailbox: W0 = Ziel-
+ * SSI (= mb_ssi → sw_grant_ssi), W9[14]=1 (slot_grant_request → sw_grant_pulse).
+ * Der MLE-FSM-GO ist im Top mit ~W9[14] maskiert, also entsteht KEIN normaler
+ * Reply. Gibt MS-B den UL-Subslot für seinen SDS-TL-Delivery-Report. */
+int tetra_tx_rx_slotgrant(tetra_hal_t *hal, uint32_t ssi)
+{
+ if (reply_wait_idle(hal) < 0) return -1;
+ reply_write(hal, 0, ssi & 0x00FFFFFFu);   /* mb_ssi = Empfänger */
+ reply_write(hal, 9, (1u << 14));            /* W9[14] = slot_grant_request */
+ tetra_reg_write(hal, REG_REPLY_GO, 0x1u);
+ usleep(200);
+ return 0;
+}
+
 /* mm=1 / mm=4 — D-LOC-UPDATE-ACCEPT / -REJECT body.
  *
  * For REJECT (result != 0) the GILA fields are zeroed — the RTL REJECT
@@ -295,6 +311,8 @@ int tetra_tx_submit(tetra_hal_t *hal, tx_pdu_class_t cls,
  return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_alert);
  case TX_D_SDS_DATA:
  return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_sds_data);
+ case TX_D_STATUS:
+ return submit_cmce_pdu(hal, meta, tetra_cmce_build_d_status);
  case TX_BL_ACK:
  return submit_bl_ack(hal, meta);
  default:

@@ -91,6 +91,8 @@ typedef struct {
  uint32_t sds_user_data; /* user-data bits seen, MSB-aligned */
  uint8_t sds_user_data_bits; /* # user-data bits actually present */
  uint8_t sds_truncated; /* 1 = PDU continues past this fragment */
+ /* U-STATUS (pdu_type 8) — 16-bit precoded status; dest = called_party_ssi. */
+ uint16_t pre_coded_status;
 
  /* O-bit: 1 iff any Type-2/Type-3 fields followed. We do NOT parse the
  * type-2/3 IE chain — callers that need IE-level detail must do their
