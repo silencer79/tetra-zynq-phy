@@ -71,12 +71,12 @@ int tetra_sds_dl_build_fragments(uint32_t dest_ssi, uint32_t calling_ssi,
      * END   : 4-bit Header (type2+sub1+fill1) + Rest  (KEIN Längenfeld — Gold #810)
      */
     const int FRAG_HDR    = 4;
-    const int END_HDR     = 4;                  /* type(2)+sub(1)+fill(1), kein Längenfeld */
+    const int END_HDR     = 21;                 /* ETSI Table 21.59: type2+sub1+fill1+posgrant1+lenind6+slotgrant1+basic_slot8+chanalloc1 */
     const int BURST       = SCHF_INFO_BITS;     /* 268 */
     const int FRAG_CAP = BURST - FRAG_HDR;      /* 264 */
-    const int END_CAP  = BURST - END_HDR;       /* 264 */
+    const int END_CAP  = BURST - END_HDR;      /* 247 = 268-21 */
 
-    int consumed = 0; int nf = 0;
+    int consumed = 0; int nf = 0; int last_end = 0;
     while (consumed < tmn) {
         if (nf >= SDS_DL_FRAG_MAX) return 0;    /* zu lang */
         uint8_t *blk = out->info[nf];
@@ -117,28 +117,50 @@ int tetra_sds_dl_build_fragments(uint32_t dest_ssi, uint32_t calling_ssi,
             pb_bits(blk, &pos, tm, consumed, take);
             consumed += take;
         } else if (remaining > END_CAP) {
-            /* MAC-FRAG (mac_pdu_type=01, sub=0) */
+            /* MAC-FRAG (Table 21.57): 4-bit Header + bis FRAG_CAP TM-SDU. Passt der Rest
+             * zwar in eine FRAG, aber nicht mehr in eine END (kuerzere END-Kapazitaet wegen
+             * 21-bit-Header), traegt die FRAG den Rest + Fill, gefolgt von leerer MAC-END. */
+            int take = (remaining > FRAG_CAP) ? FRAG_CAP : remaining;
             pb(blk, &pos, 1u, 2);               /* MAC pdu_type = 01 (MAC-FRAG/END) */
             pb(blk, &pos, 0u, 1);               /* sub = 0 (FRAG) */
-            pb(blk, &pos, 0u, 1);               /* fill_bit_indication = 0 */
-            pb_bits(blk, &pos, tm, consumed, FRAG_CAP);
-            consumed += FRAG_CAP;
+            pb(blk, &pos, (take < FRAG_CAP) ? 1u : 0u, 1); /* fill_bit_indication */
+            pb_bits(blk, &pos, tm, consumed, take);
+            consumed += take;
+            if (take < FRAG_CAP && pos < BURST)
+                pb(blk, &pos, 1u, 1);           /* Fill-Marker */
         } else {
-            /* MAC-END (mac_pdu_type=01, sub=1): 4-bit Header, KEIN Längenfeld.
-             * Gold dl_ref.log #810: payload@4, fill_bit=1; Gesamtlänge steht in CMCE-LI.
-             * (Vorher 6-bit Längenfeld → 6-bit-Versatz im letzten Fragment.) */
-            pb(blk, &pos, 1u, 2);               /* MAC pdu_type = 01 */
-            pb(blk, &pos, 1u, 1);               /* sub = 1 (END) */
-            pb(blk, &pos, 1u, 1);               /* fill_bit_indication = 1 (Rest = Fill) */
+            /* MAC-END (downlink) EXAKT nach ETSI Table 21.59 - gold dl_ref.log #810.
+             * Der fruehere 4-bit-Header (ohne position_of_grant + length_indication +
+             * slot/chan-Flags) war DER Bug: MS-B las die TM-SDU-Bits als Header/Laenge
+             * (length_ind=39 -> 312-bit-PDU) -> Reassembly korrupt -> SDS verworfen.
+             * length_indication = MAC-PDU-Laenge in Oktetten (Y2=1 fuer SCH/F). */
+            int li_oct = (END_HDR + remaining + 7) / 8;
+            pb(blk, &pos, 1u, 2);               /* MAC pdu_type = 01 (MAC-FRAG/END) */
+            pb(blk, &pos, 1u, 1);               /* MAC pdu subtype = 1 (MAC-END) */
+            pb(blk, &pos, 1u, 1);               /* fill_bit_indication = 1 */
+            pb(blk, &pos, 0u, 1);               /* position_of_grant = 0 */
+            pb(blk, &pos, (uint32_t)li_oct & 0x3Fu, 6); /* length_indication (Oktette) */
+            pb(blk, &pos, 1u, 1);               /* slot_granting_flag = 1 (UL-Reply-Slot, Gold) */
+            pb(blk, &pos, 0u, 8);               /* basic_slot_granting_element = 0x00 */
+            pb(blk, &pos, 0u, 1);               /* channel_allocation_flag = 0 */
+            /* pos == 21 (= END_HDR) -> TM-SDU-Rest */
             pb_bits(blk, &pos, tm, consumed, remaining);
             consumed += remaining;
-            /* FILL-MARKER (ETSI §23.4.3): erstes Fill-Bit = '1', Rest '0'. Ohne dieses
-             * '1' nimmt der MS-Empfänger das letzte CONTENT-'1' als Fill-Marker und
-             * trunkiert die reassemblierte TM-SDU → UDD unvollständig → SDS verworfen.
-             * (Gold dl_ref.log #810: Fill-Marker direkt nach der TM-SDU; danach Nullen.) */
-            if (pos < BURST)
-                pb(blk, &pos, 1u, 1);
+            if (pos < li_oct * 8)
+                pb(blk, &pos, 1u, 1);           /* Fill-Marker '1', Rest 0 (memset) */
+            last_end = 1;
         }
+        nf++;
+    }
+    /* Garantie: Kette endet mit MAC-END. Passte der Rest in eine FRAG (nicht END),
+     * leere MAC-END anhaengen (ETSI 23.4.2.1.1 "empty MAC-END"). */
+    if (!last_end) {
+        if (nf >= SDS_DL_FRAG_MAX) return 0;
+        uint8_t *blk = out->info[nf]; int pos = 0;
+        pb(blk, &pos, 1u, 2); pb(blk, &pos, 1u, 1); pb(blk, &pos, 1u, 1);
+        pb(blk, &pos, 0u, 1);
+        pb(blk, &pos, 3u, 6);                          /* length_indication = 3 Oktett (nur Header) */
+        pb(blk, &pos, 1u, 1); pb(blk, &pos, 0u, 8); pb(blk, &pos, 0u, 1);
         nf++;
     }
     out->n = nf;
