@@ -109,6 +109,12 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  * - frees any slot abandoned > CALL_FSM_CALL_STALE_MS (no U-RELEASE) */
 void tetra_call_fsm_tick(tetra_hal_t *hal);
 
+/* Late Entry (ETSI §18.5.8) — re-send das D-SETUP für einen laufenden
+ * Gruppenruf auf `gssi`, wenn ein MS neu dazukommt, damit es spät beitreten
+ * kann. Liefert die Anzahl re-benachrichtigter Rufe. Wird aus den mm=7- /
+ * mm=2-Attach-Handlern aufgerufen. */
+int tetra_call_fsm_notify_late_entry(tetra_hal_t *hal, uint32_t gssi);
+
 /* Diagnostic: print all active slots. */
 void tetra_call_fsm_dump(void);
 

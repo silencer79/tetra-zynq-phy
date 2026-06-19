@@ -548,6 +548,20 @@ static void react_mm7_grpid(tetra_hal_t *hal,
  "tetra_attach_daemon: GRP serviced ssi=0x%06X cnt=%u atd=%u "
  "rep=%u → reply_cnt=%u ns=%u nr=%u policy=0x%X\n",
  ssi, cnt, atd, rep, reply_count, ns, nr, policy);
+
+ /* Late Entry (ETSI §18.5.8): das MS hat sich gerade auf reply_gssi[]
+  * angehängt (DETACH-Records wurden oben rausgefiltert). Läuft auf einer
+  * dieser Gruppen ein Ruf, das D-SETUP gezielt nachschicken → das MS bekommt
+  * die Kanal-Zuweisung und tritt dem laufenden Ruf bei. Event-getriggert,
+  * kein periodischer Broadcast. */
+ for (unsigned i = 0; i < reply_count; i++) {
+ int le = tetra_call_fsm_notify_late_entry(hal, reply_gssi[i]);
+ if (le > 0)
+ fprintf(stderr,
+ "tetra_attach_daemon: LATE-ENTRY ssi=0x%06X gssi=0x%06X → "
+ "%d laufender Ruf, D-SETUP nachgeschickt\n",
+ ssi, reply_gssi[i], le);
+ }
 }
 
 /* Stage one body in the Reply mailbox via tetra_tx_transport. */
@@ -684,6 +698,19 @@ static void react_mm2_locupd(tetra_hal_t *hal,
  (gssi_resolved && cnt > 0u) ? ", gssi=hit":
  ((cnt > 0u) ? ", gssi=fallback": ", gssi=none"),
  "");
+
+ /* Late Entry (ETSI §18.5.8): bei erfolgreicher Registrierung mit Group-
+  * Attach (gild) prüfen ob auf der Gruppe ein Ruf läuft (z.B. MS kommt in die
+  * Zelle zurück) und ggf. das D-SETUP nachschicken. */
+ if (result == M2_DEFAULT_RESULT_OK && gssi_resolved &&
+ effective_gila_gssi != 0u) {
+ int le = tetra_call_fsm_notify_late_entry(hal, effective_gila_gssi);
+ if (le > 0)
+ fprintf(stderr,
+ "tetra_attach_daemon: LATE-ENTRY ssi=0x%06X gssi=0x%06X → "
+ "%d laufender Ruf, D-SETUP nachgeschickt\n",
+ ssi, effective_gila_gssi, le);
+ }
 }
 
 static void usage(const char *a0)

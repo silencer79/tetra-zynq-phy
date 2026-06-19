@@ -262,6 +262,31 @@ static int stage_d_setup(tetra_hal_t *hal, call_slot_t *s)
  return tetra_tx_submit(hal, TX_D_SETUP, &m);
 }
 
+/* Late Entry (ETSI EN 300 392-2 §18.5.8) — re-broadcast das D-SETUP für einen
+ * laufenden Gruppenruf, wenn sich ein MS neu auf dessen GSSI anhängt (mm=7
+ * Group-Attach oder mm=2 Registrierung). Das D-SETUP trägt die Kanal-Zuweisung
+ * (chan_alloc_ts_bitmap) → das spät dazukommende MS erfährt den Traffic-TS und
+ * tritt dem Ruf bei. Event-getriggert (vom Attach-Handler), KEIN periodischer
+ * MCCH-Broadcast. Liefert die Anzahl re-benachrichtigter aktiver Rufe auf der
+ * GSSI (0 = kein laufender Ruf). */
+int tetra_call_fsm_notify_late_entry(tetra_hal_t *hal, uint32_t gssi)
+{
+ if (hal == NULL || gssi == 0u) return 0;
+ int n = 0;
+ for (unsigned i = 0; i < CALL_FSM_MAX_CALLS; i++) {
+ call_slot_t *s = &g_slots[i];
+ if (s->ssi == 0u || s->group_gssi != gssi) continue;
+ if (s->state != CALL_STATE_CONNECTED && s->state != CALL_STATE_TALKER)
+ continue;
+ int rc = stage_d_setup(hal, s);
+ fprintf(stderr,
+ "tetra_call_fsm: LATE-ENTRY D-SETUP → gssi=0x%06X call_id=%u "
+ "voice_ts=TS%u rc=%d\n", gssi, s->call_id, s->voice_ts, rc);
+ n++;
+ }
+ return n;
+}
+
 static int stage_d_connect(tetra_hal_t *hal, call_slot_t *s)
 {
  tx_pdu_meta_t m;
