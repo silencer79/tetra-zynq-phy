@@ -903,6 +903,33 @@ static void service_long_sds_rx(tetra_hal_t *hal)
  { int z; memset(pbody, 0, sizeof(pbody));
    for (z = 0; z < nbits && (z >> 3) < (int)sizeof(pbody); z++)
      if (body[z]) pbody[z >> 3] |= (uint8_t)(0x80u >> (z & 7)); }
+ /* REGRESSION-FIX 2026-06-19: die generische LSDS-Reassembly liefert auch
+  * mehrfragmentige MM-PDUs (Gruppenwechsel mm=7) hierher, nicht nur SDS.
+  * service_long_sds_rx hardcodete meta=CMCE und verwarf sie → kein Group-Attach,
+  * MS retransmittiert endlos (alternierendes N(S)). Daher VOR dem SDS-Decode:
+  * MLE-PD aus dem Body lesen; ist es MM (001), an den MM-Walker routen. */
+ { int L0 = opt ? 6 : 0;
+   uint8_t llc_pt2 = (uint8_t)sds_gbits(pbody, L0, 4);
+   int llc_hdr2 = (llc_pt2 == 0) ? 6 : (llc_pt2 == 1) ? 5 : (llc_pt2 == 2) ? 4 : 5;
+   uint8_t mle_pd = (uint8_t)sds_gbits(pbody, L0 + llc_hdr2, 3);
+   if (mle_pd == 1u) {                          /* MLE-PD = MM (nicht CMCE/SDS) */
+     uint8_t mmt = (uint8_t)sds_gbits(pbody, L0 + llc_hdr2 + 3, 4);
+     int mmoff = L0 + llc_hdr2 + 3 + 4, i;      /* MM-Body nach dem 4-bit MM-PDU-Typ */
+     uint8_t mmbody[TETRA_MM_DEMAND_BODY_BYTES];
+     memset(mmbody, 0, sizeof(mmbody));
+     for (i = 0; i < TETRA_MM_DEMAND_BODY_BYTES * 8 && (mmoff + i) < nbits; i++)
+       if (sds_gbit(pbody, mmoff + i)) mmbody[i >> 3] |= (uint8_t)(0x80u >> (i & 7));
+     tetra_mm_demand_parsed_t mp;
+     int mrc = tetra_mm_demand_parser_parse(mmbody, mmt, ssi, &mp);
+     fprintf(stderr, "LONG-SDS->MM-REROUTE ssi=0x%06X mm_type=%u rc=%d parse_ok=%u\n",
+             ssi, mmt, mrc, mp.parse_ok);
+     if (mrc == 0 && mp.parse_ok) {
+       if (mmt == 2u) react_mm2_locupd(hal, &mp);
+       else if (mmt == 7u) react_mm7_grpid(hal, &mp);
+     }
+     return;                                     /* MM behandelt — kein SDS-Decode */
+   }
+ }
  if (decode_sds_reassembled(pbody, nbits, meta, &dest, &proto, &li,
  text, (int)sizeof(text), udd, (int)sizeof(udd), &udd_len)) {
  printf("LONG-SDS from=0x%06X to=0x%06X proto=%u %dbit text=\"%s\"\n",
