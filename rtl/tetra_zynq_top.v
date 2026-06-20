@@ -441,6 +441,23 @@ wire [1:0] reass_busy_slots_sys;
 wire [31:0] ul_scramb_init_axi_w;
 wire [31:0] ul_scramb_init_sys;
 
+// Phase X.4 — EntityTable (formerly Subscriber-Shadow), ProfileTable and
+// Active-Session Table moved to ARM SW. The AXI-Lite indirect-write
+// windows in tetra_axi_lite_regs.v still emit `shadow_wr_*` /
+// `profile_wr_*` / `profile_rd_idx_axi` strobes for SW backwards
+// compatibility, so we keep dangling wire declarations here; they
+// terminate at no consumer in PL and synth prunes them. Phase X.5
+// will retire the AXI windows together with the legacy Pre-Reply path.
+wire [7:0] shadow_wr_idx_w;
+wire [63:0] shadow_wr_data_w;
+wire shadow_wr_en_w;
+
+wire [2:0] profile_wr_idx_w;
+wire [31:0] profile_wr_data_w;
+wire [2:0] profile_rd_idx_axi_sys_w;
+wire [31:0] profile_rd_data_axi_sys_w = 32'd0; // tied to 0 (no live ProfileTable)
+wire profile_wr_en_w;
+
 // MLE-registration FSM → DL-signalling-queue request port. The MLE emits
 // the full 432-bit SCH/F codeword as a queue-request; the scheduler
 // pops one per frame and drives the per-TN signalling block bundle that
@@ -2234,6 +2251,17 @@ tetra_axi_lite_regs u_axi_regs (
 .ul_mle_disc_axi (ul_mle_disc_axi_r1),
 .ul_mm_pdu_type_axi (ul_mm_pdu_type_axi_r1),
 .ul_scramb_init_axi (ul_scramb_init_axi_w),
+ // Subscriber-Shadow indirect write window (Phase 6 M2.3 — 0x180..0x18C)
+.shadow_wr_idx_axi (shadow_wr_idx_w),
+.shadow_wr_data_axi (shadow_wr_data_w),
+.shadow_wr_en_axi (shadow_wr_en_w),
+ // Profile-Table indirect write window (Phase 6 D-rev — 0x1C0..0x1CC)
+.profile_wr_idx_axi (profile_wr_idx_w),
+.profile_wr_data_axi (profile_wr_data_w),
+.profile_wr_en_axi (profile_wr_en_w),
+ // Phase 7 F.4 — drift-free Profile-Table read port for CGI GET
+.profile_rd_idx_axi (profile_rd_idx_axi_sys_w),
+.profile_rd_data_axi (profile_rd_data_axi_sys_w),
  // MLE registration FSM debug counters (resynced below)
 .mle_ul_req_cnt_axi (mle_ul_req_cnt_axi_r1),
 .mle_accept_cnt_axi (mle_accept_cnt_axi_r1),

@@ -205,6 +205,41 @@
 #define REASSEMBLY_STATS_REASS(x) ( (x) & 0xFFFFu)
 #define REASSEMBLY_STATS_DROP(x) (((x) >> 16) & 0xFFFFu)
 
+/* Subscriber-Shadow BRAM indirect write window (Phase 6 M2.3)
+ * INDEX: [7:0] slot index 0..255
+ * DATA_LO: bits [31:0] of 64-bit shadow record
+ * DATA_HI: bits [63:32] of 64-bit entity record
+ * CTRL: W1S [0] commit pulse (self-clearing)
+ * 64-bit record layout (Phase 6 D-rev §9.2, see rtl/lmac/tetra_entity_table.v):
+ * [63:40] entity_id (ISSI ODER GSSI),
+ * [39] entity_type (0=ISSI, 1=GSSI),
+ * [38:35] profile_id (index into ProfileTable),
+ * [34:1] reserved=0, [0] valid */
+#define REG_SHADOW_INDEX 0x180
+#define REG_SHADOW_DATA_LO 0x184
+#define REG_SHADOW_DATA_HI 0x188
+#define REG_SHADOW_CTRL 0x18C
+#define SHADOW_CTRL_COMMIT (1u << 0)
+
+/* Profile-Table indirect window (Phase 6 D-rev §9.2) — 0x1C0..0x1CC.
+ * 6 × 32-bit profile records. No DATA_HI (record fits in one word).
+ * 32-bit layout (see rtl/lmac/tetra_profile_table.v):
+ * [31:24] max_call_duration (sec, 0=unlimited)
+ * [23:16] hangtime (×100 ms)
+ * [15:12] priority
+ * [11: 9] gila_class (M2-default = 4)
+ * [ 8: 7] gila_lifetime (M2-default = 1)
+ * [ 6: 4] reserved
+ * [ 3] permit_voice
+ * [ 2] permit_data
+ * [ 1] permit_reg
+ * [ 0] valid
+ * Slot 0 reset-default = 0x0000_088F (M2 bit-identity guard). */
+#define REG_PROFILE_INDEX 0x1C0
+#define REG_PROFILE_DATA 0x1C4
+#define REG_PROFILE_CTRL 0x1CC
+#define PROFILE_CTRL_COMMIT (1u << 0)
+
 /* Phase H.7 — D-NWRK-BROADCAST periodic push (indirect 432-bit window) */
 #define REG_NWRK_BCAST_INDEX 0x1D0 /* R/W [3:0] payload word 0..13 */
 #define REG_NWRK_BCAST_DATA 0x1D4 /* R/W [31:0] indirect via INDEX */

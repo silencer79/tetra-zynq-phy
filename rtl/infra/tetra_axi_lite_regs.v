@@ -64,6 +64,15 @@
 // tetra_ul_sch_hu_decoder (MS bursts use the
 // BS extended scrambling sequence — MCU writes
 // this once at boot from CC/MCC/MNC)
+// 0x180 SHADOW_INDEX R/W [7:0] subscriber-shadow slot index (0..255)
+// 0x184 SHADOW_DATA_LO R/W bits [31:0] of 64-bit shadow record
+// 0x188 SHADOW_DATA_HI R/W bits [63:32] of 64-bit shadow record
+// 0x18C SHADOW_CTRL W1S [0] commit — writes INDEX/DATA_{HI,LO} into
+// the shadow BRAM as a single-cycle wr_en pulse
+// (self-clearing; reads back 0). Issued as:
+// write INDEX → write DATA_LO → write DATA_HI
+// → write CTRL=1 (commit).
+// MCU side uses sw/tetra_db_mgr.c.
 // 0x200..0x2FC PHASE-X1 EXTENSION R/W Phase X.1 mailbox-extension window
 // ([10:8]==3'b010). Used by REG_DEMAND_*
 // (0x200..0x20C); the rest reserved for
@@ -297,6 +306,36 @@ module tetra_axi_lite_regs (
  // UL scrambler seed — MCU programs once at boot. Caller 2-FF-resyncs
  // axi→sys in top-level before feeding tetra_ul_sch_hu_decoder.
  output wire [31:0] ul_scramb_init_axi,
+
+ // ------------------------------------------------------------------
+ // Subscriber-Shadow BRAM indirect write window (Phase 6 M2.3)
+ // 0x180 INDEX, 0x184 DATA_LO, 0x188 DATA_HI, 0x18C CTRL (commit W1S).
+ // Writes INDEX + DATA_LO + DATA_HI into staging registers, then a
+ // write with CTRL[0]=1 fires a single-cycle shadow_wr_en_axi pulse
+ // that commits the staged {INDEX, DATA_HI, DATA_LO} into the shadow
+ // BRAM. Caller resyncs wr_en to clk_sys in top (same-clock project
+ // for now — direct connect is fine).
+ // ------------------------------------------------------------------
+ output wire [7:0] shadow_wr_idx_axi,
+ output wire [63:0] shadow_wr_data_axi,
+ output wire shadow_wr_en_axi,
+
+ // ------------------------------------------------------------------
+ // Profile-Table indirect write window (Phase 6 D-rev, §9.2)
+ // 0x1C0 INDEX, 0x1C4 DATA, 0x1CC CTRL (commit W1S). Profile records
+ // are 32-bit; no DATA_HI. Caller resyncs wr_en to clk_sys in top
+ // (same-clock project).
+ // ------------------------------------------------------------------
+ output wire [2:0] profile_wr_idx_axi,
+ output wire [31:0] profile_wr_data_axi,
+ output wire profile_wr_en_axi,
+
+ // Phase 7 F.4 — independent AXI read port for profiles.cgi GET.
+ // wr to REG_PROFILE_INDEX (0x1C0) drives profile_rd_idx_axi. The
+ // next read of REG_PROFILE_DATA_RD (0x1C8) returns
+ // profile_rd_data_axi (live from rtl/lmac/tetra_profile_table.v).
+ output wire [2:0] profile_rd_idx_axi,
+ input wire [31:0] profile_rd_data_axi,
 
  // ------------------------------------------------------------------
  // MLE registration FSM debug counters (clk_axi domain, 2-FF resynced
@@ -744,6 +783,11 @@ localparam [6:0] REG_UL_PDU_RAW_2 = 7'h5D; // 0x174 RO raw_info_bits[91:64]
 localparam [6:0] REG_UL_PDU_CTRL = 7'h5E; // 0x178 W1C clear valid sticky
 localparam [6:0] REG_UL_SCRAMB_INIT = 7'h5F; // 0x17C R/W UL scrambler seed
 
+// Subscriber-Shadow BRAM indirect window (Phase 6 M2.3) — 0x180..0x18C
+localparam [6:0] REG_SHADOW_INDEX = 7'h60; // 0x180 R/W slot index [7:0]
+localparam [6:0] REG_SHADOW_DATA_LO = 7'h61; // 0x184 R/W record [31:0]
+localparam [6:0] REG_SHADOW_DATA_HI = 7'h62; // 0x188 R/W record [63:32]
+localparam [6:0] REG_SHADOW_CTRL = 7'h63; // 0x18C W1S commit pulse
 
 // MLE registration FSM debug counters (Phase 6 M2.3b)
 localparam [6:0] REG_MLE_STATS_A = 7'h64; // 0x190 RO {accept_cnt[15:0], ul_req_cnt[15:0]}
@@ -786,6 +830,19 @@ localparam [6:0] REG_AACH_GRANT_HINT = 7'h7D; // 0x1F4 R/W [31] pending (HW-clr 
 localparam [6:0] REG_DL_SCHEDULER_STATS = 7'h7E; // 0x1F8 RO {override[31:16], pop[15:0]}
 
 // Profile-Table indirect window (Phase 6 D-rev) — 0x1C0..0x1CC
+// 6 × 32-bit profile records (§9.2). No DATA_HI — Profile is 32 bit, fits
+// in one register. Slot 0 reset-default = 0x0000_088F (M2 bit-identity).
+localparam [6:0] REG_PROFILE_INDEX = 7'h70; // 0x1C0 R/W slot index [2:0]
+localparam [6:0] REG_PROFILE_DATA = 7'h71; // 0x1C4 R/W record [31:0]
+// Phase 7 F.4 — drift-free read-back from RTL Profile-Table. Writing
+// REG_PROFILE_INDEX (0x1C0) drives `profile_rd_idx_axi`; the next AXI
+// read of REG_PROFILE_DATA_RD returns the live record directly from
+// rtl/lmac/tetra_profile_table.v (independent of the FSM read port).
+// CGI POST keeps using the staging register (REG_PROFILE_DATA + CTRL),
+// so writes are unchanged. CGI GET now reads from this register
+// instead of the TSV mirror file.
+localparam [6:0] REG_PROFILE_DATA_RD = 7'h72; // 0x1C8 RO record [31:0]
+localparam [6:0] REG_PROFILE_CTRL = 7'h73; // 0x1CC W1S commit pulse
 
 // D-NWRK-BROADCAST periodic push (Phase H.7) — indirect 432-bit payload window
 localparam [6:0] REG_NWRK_BCAST_INDEX = 7'h74; // 0x1D0 R/W [3:0] payload word index 0..13
@@ -1164,6 +1221,11 @@ always @(*) begin
  REG_UL_PDU_RAW_2: rdata_mux_axi = {4'b0, ul_raw_info_bits_lat_axi[91:64]};
  REG_UL_PDU_CTRL: rdata_mux_axi = {31'b0, ul_pdu_valid_sticky_axi};
  REG_UL_SCRAMB_INIT: rdata_mux_axi = ul_scramb_init_reg_axi;
+ // Subscriber-Shadow indirect window readback (staging regs)
+ REG_SHADOW_INDEX: rdata_mux_axi = {24'b0, shadow_index_axi};
+ REG_SHADOW_DATA_LO: rdata_mux_axi = shadow_data_lo_axi;
+ REG_SHADOW_DATA_HI: rdata_mux_axi = shadow_data_hi_axi;
+ REG_SHADOW_CTRL: rdata_mux_axi = 32'b0; // self-clearing
  // MLE registration FSM debug
  REG_MLE_STATS_A: rdata_mux_axi = {mle_accept_cnt_axi, mle_ul_req_cnt_axi};
  REG_MLE_STATS_B: rdata_mux_axi = {15'b0, mle_busy_sticky_axi, mle_drop_cnt_axi};
@@ -1198,6 +1260,12 @@ always @(*) begin
  8'd0};
  REG_DL_SCHEDULER_STATS: rdata_mux_axi = {sched_override_cnt_axi,
  sched_pop_cnt_axi};
+ // Profile-Table indirect window (Phase 6 D-rev)
+ REG_PROFILE_INDEX: rdata_mux_axi = {29'b0, profile_index_axi};
+ REG_PROFILE_DATA: rdata_mux_axi = profile_data_axi;
+ // Phase 7 F.4 — drift-free read-back from RTL Profile-Table
+ REG_PROFILE_DATA_RD: rdata_mux_axi = profile_rd_data_axi;
+ REG_PROFILE_CTRL: rdata_mux_axi = 32'b0; // self-clearing
  // Phase H.7 — D-NWRK-BROADCAST indirect window
  REG_NWRK_BCAST_INDEX: rdata_mux_axi = {28'b0, nwrk_bcast_index_axi};
  REG_NWRK_BCAST_DATA: rdata_mux_axi = nwrk_bcast_payload_word_axi;
@@ -2099,6 +2167,113 @@ always @(posedge clk_axi or negedge rst_n_axi) begin
 end
 assign ul_scramb_init_axi = ul_scramb_init_reg_axi;
 
+// ---------------------------------------------------------------------------
+// Subscriber-Shadow BRAM indirect write window (Phase 6 M2.3)
+// ---------------------------------------------------------------------------
+// Staging registers for the 64-bit record + 8-bit slot index. Written
+// from AXI-Lite. A write to REG_SHADOW_CTRL with wdata[0]=1 fires a
+// single-cycle shadow_wr_en pulse that commits the staged values into
+// the subscriber-shadow BRAM at the top level.
+// ---------------------------------------------------------------------------
+reg [7:0] shadow_index_axi;
+reg [31:0] shadow_data_lo_axi;
+reg [31:0] shadow_data_hi_axi;
+reg shadow_commit_pulse_axi;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ shadow_index_axi <= 8'h00;
+ else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SHADOW_INDEX) & wr_strb_axi[0])
+ shadow_index_axi <= wr_data_axi[7:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ shadow_data_lo_axi <= 32'h0;
+ else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SHADOW_DATA_LO)) begin
+ if (wr_strb_axi[0]) shadow_data_lo_axi[7:0] <= wr_data_axi[7:0];
+ if (wr_strb_axi[1]) shadow_data_lo_axi[15:8] <= wr_data_axi[15:8];
+ if (wr_strb_axi[2]) shadow_data_lo_axi[23:16] <= wr_data_axi[23:16];
+ if (wr_strb_axi[3]) shadow_data_lo_axi[31:24] <= wr_data_axi[31:24];
+ end
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ shadow_data_hi_axi <= 32'h0;
+ else if (wr_en_axi & (wr_addr_axi[8:2] == REG_SHADOW_DATA_HI)) begin
+ if (wr_strb_axi[0]) shadow_data_hi_axi[7:0] <= wr_data_axi[7:0];
+ if (wr_strb_axi[1]) shadow_data_hi_axi[15:8] <= wr_data_axi[15:8];
+ if (wr_strb_axi[2]) shadow_data_hi_axi[23:16] <= wr_data_axi[23:16];
+ if (wr_strb_axi[3]) shadow_data_hi_axi[31:24] <= wr_data_axi[31:24];
+ end
+end
+
+// 1-cycle commit pulse on CTRL write with wdata[0]=1.
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ shadow_commit_pulse_axi <= 1'b0;
+ else
+ shadow_commit_pulse_axi <= wr_en_axi &
+ (wr_addr_axi[8:2] == REG_SHADOW_CTRL) &
+ wr_strb_axi[0] &
+ wr_data_axi[0];
+end
+
+assign shadow_wr_idx_axi = shadow_index_axi;
+assign shadow_wr_data_axi = {shadow_data_hi_axi, shadow_data_lo_axi};
+assign shadow_wr_en_axi = shadow_commit_pulse_axi;
+
+// ---------------------------------------------------------------------------
+// Profile-Table BRAM indirect write window (Phase 6 D-rev, §9.2)
+// ---------------------------------------------------------------------------
+// Staging registers for the 32-bit record + 3-bit slot index. Written
+// from AXI-Lite. A write to REG_PROFILE_CTRL with wdata[0]=1 fires a
+// single-cycle profile_wr_en pulse that commits the staged values into
+// the Profile Table at the top level.
+// ---------------------------------------------------------------------------
+reg [2:0] profile_index_axi;
+reg [31:0] profile_data_axi;
+reg profile_commit_pulse_axi;
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ profile_index_axi <= 3'd0;
+ else if (wr_en_axi & (wr_addr_axi[8:2] == REG_PROFILE_INDEX) & wr_strb_axi[0])
+ profile_index_axi <= wr_data_axi[2:0];
+end
+
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ profile_data_axi <= 32'h0;
+ else if (wr_en_axi & (wr_addr_axi[8:2] == REG_PROFILE_DATA)) begin
+ if (wr_strb_axi[0]) profile_data_axi[7:0] <= wr_data_axi[7:0];
+ if (wr_strb_axi[1]) profile_data_axi[15:8] <= wr_data_axi[15:8];
+ if (wr_strb_axi[2]) profile_data_axi[23:16] <= wr_data_axi[23:16];
+ if (wr_strb_axi[3]) profile_data_axi[31:24] <= wr_data_axi[31:24];
+ end
+end
+
+// 1-cycle commit pulse on CTRL write with wdata[0]=1.
+always @(posedge clk_axi or negedge rst_n_axi) begin
+ if (!rst_n_axi)
+ profile_commit_pulse_axi <= 1'b0;
+ else
+ profile_commit_pulse_axi <= wr_en_axi &
+ (wr_addr_axi[8:2] == REG_PROFILE_CTRL) &
+ wr_strb_axi[0] &
+ wr_data_axi[0];
+end
+
+assign profile_wr_idx_axi = profile_index_axi;
+assign profile_wr_data_axi = profile_data_axi;
+assign profile_wr_en_axi = profile_commit_pulse_axi;
+// Phase 7 F.4 — same INDEX register also drives the AXI read port of
+// the Profile Table. Read latency is 1 clk_sys cycle from index drive
+// to data ready; the AXI rdata pipeline already has ≥2 clk_axi cycles
+// of latency between AR accept and RVALID, so by the time we mux into
+// rdata_mux_axi the table has settled.
+assign profile_rd_idx_axi = profile_index_axi;
 
 // ---------------------------------------------------------------------------
 // Cell-Config Registers (0x130 CELL_CFG_0, 0x134 CELL_CFG_1) — Plan Stufe 3.5
