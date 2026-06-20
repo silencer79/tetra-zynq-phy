@@ -79,7 +79,7 @@ Block Design (Vivado BD):
  ├── RX: adc_data_i0/q0 → rx_i/q_lvds (combinatorial pass-through)
  └── TX: tx_i/q_lvds → dac_data_i0/q0 (registered sample-and-hold)
 
-deprecated/tetra_ad9361_interface.v ← ARCHIVED (Custom LVDS, nicht mehr aktiv)
+archive/rtl/tetra_ad9361_interface.v ← ARCHIVED (Custom LVDS, nicht mehr aktiv)
 ```
 
 **Clock-Naming-Konvention:** Suffixe zeigen Clock-Domäne, nicht Signal-Quelle:

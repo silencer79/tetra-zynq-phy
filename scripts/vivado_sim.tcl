@@ -63,8 +63,8 @@ array set MODULE_FILES {
  }
  tetra_ad9361_interface {
  tb/sim_models/xilinx_prim_sim.v
- rtl/tetra_ad9361_interface.v
- tb/tb_tetra_ad9361_interface.v
+ archive/rtl/tetra_ad9361_interface.v
+ archive/tb/tb_tetra_ad9361_interface.v
  }
  tetra_pi4dqpsk_demod {
  rtl/rx/tetra_pi4dqpsk_demod.v
