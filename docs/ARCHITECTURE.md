@@ -190,9 +190,15 @@ tetra_zynq_top.v (4419 L) ── tetra_ad9361_axis_adapter.v
 funktional durch SW abgelöst (SW-Walker `tetra_mm_demand_parser.c` + Daemon-
 Lookup); ihr RTL-Output ist A/B-Legacy.
 
-**Orphans (nicht instanziiert, Removal-Kandidaten):** `tetra_voice_relay.v`
-(→ SW `voice_pipe`), `tetra_d_location_update_reject_encoder.v` (→ SW
-`tetra_tx_transport.c`), `tetra_system_top.v` (nur Sim-Top in TB-tcl).
+**Archiviert 2026-06-20 (`archive/`, funktional durch SW abgelöst, waren nicht
+instanziiert):** `tetra_voice_relay.v` (→ SW `voice_pipe`),
+`tetra_d_location_update_reject_encoder.v` (→ SW `tetra_tx_transport.c`) — jeweils
+mit ihrer toten Testbench. Siehe `archive/README.md`.
+
+`tetra_system_top.v` ist **KEIN** Orphan: es ist der echte Synthese-Top
+(`vivado_build.tcl -top tetra_system_top`), wrappt die Vivado-BD um `tetra_zynq_top`.
+Ein Top-Modul wird per Definition nirgends instanziiert — die Ref-Count-Heuristik
+greift hier nicht.
 
 **SW-Stack (`sw/`, Linux-Daemon — der frühere RTL-AST/CMCE-FSM lebt heute hier):**
 `tetra_attach_daemon` (Mainloop + Mailbox-Poll) · `tetra_hal` (AXI-HAL + SYSINFO,

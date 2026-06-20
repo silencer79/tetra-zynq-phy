@@ -81,11 +81,11 @@ int tetra_tx_rx_slotgrant(tetra_hal_t *hal, uint32_t ssi)
 
 /* mm=1 / mm=4 — D-LOC-UPDATE-ACCEPT / -REJECT body.
  *
- * For REJECT (result != 0) the GILA fields are zeroed — the RTL REJECT
- * encoder (rtl/lmac/tetra_d_location_update_reject_encoder.v) builds an
- * 8-bit MM body (PDU-Type=7 + 3-bit cause + o-bit=0) without GILA, and
- * the MLE-FSM Z.5 dual-branch FSM picks the REJECT branch when W3 != 0.
- * Mirror the suppression here as a safety net.
+ * For REJECT (result != 0) the GILA fields are zeroed. Historisch baute der
+ * RTL-REJECT-Encoder (jetzt archiviert: archive/rtl/tetra_d_location_update_
+ * reject_encoder.v) ein 8-bit MM body (PDU-Type=7 + 3-bit cause + o-bit=0) ohne
+ * GILA; heute wird der Reject rein SW-seitig erzeugt. Mirror the suppression
+ * here as a safety net.
  *
  * Phase Y.2 — explicitly clear W9 (raw_mode_flag) so the MLE-FSM uses
  * the legacy dloc-encoder path. The reset state of W9 is 0, but a

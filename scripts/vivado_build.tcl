@@ -158,7 +158,6 @@ add_files -norecurse [list \
  $PROJ_DIR/rtl/lmac/tetra_steal_detect.v \
  $PROJ_DIR/rtl/lmac/tetra_ul_mac_access_parser.v \
  $PROJ_DIR/rtl/lmac/tetra_d_location_update_encoder.v \
- $PROJ_DIR/rtl/lmac/tetra_d_location_update_reject_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_sch_hd_encoder.v \
  $PROJ_DIR/rtl/lmac/tetra_sch_hd_shared.v \
  $PROJ_DIR/rtl/lmac/tetra_sch_f_encoder.v \

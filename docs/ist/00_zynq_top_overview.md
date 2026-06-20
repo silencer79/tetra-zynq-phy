@@ -2,8 +2,9 @@
 Stand: 2026-06-20 (Instanz-/Wire-Inventar reviewed)
 
 Quelle: `rtl/tetra_zynq_top.v` (**4419 Zeilen**, war 3949 beim letzten
-Voll-Review). Top-Level der PL-Logik, vom BD über `tetra_system_wrapper`
-(siehe `rtl/tetra_system_top.v`, Sim-Top — NICHT Synth-Top) instanziiert.
+Voll-Review). PL-Design-Modul, in der Vivado-BD als Module-Reference instanziiert.
+Der eigentliche Synthese-Top ist `rtl/tetra_system_top.v` (`vivado_build.tcl
+-top tetra_system_top`), das die BD um `tetra_zynq_top` wrappt.
 
 > **Zeilennummern-Caveat:** Die `Zeile`-Spalten unten sind 2026-05-17-Baseline;
 > die Datei ist seither um ~470 Zeilen gewachsen → Nummern verschoben
