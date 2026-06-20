@@ -889,131 +889,20 @@ end
 // Lower MAC Channel Coding (TX: CRC/encode/interleave/scramble)
 // =============================================================================
 
-wire lmac_decoded_bit_sys;
-wire lmac_decoded_valid_sys;
-wire lmac_block_done_sys;
-wire [15:0] lmac_path_metric_sys;
-wire [13:0] lmac_aach_data_sys;
-wire lmac_aach_done_sys;
-wire lmac_aach_error_sys;
-wire lmac_crc_ok_sys;
-wire lmac_crc_valid_sys;
-wire lmac_stolen_sys;
-
-// TX path (Phase 3: idle — ARM provides pre-encoded blocks via AXI-DMA Phase 4)
-wire [BLOCK_BITS-1:0] lmac_tx_block1_sys;
-wire [BLOCK_BITS-1:0] lmac_tx_block2_sys;
-wire [BB_BITS-1:0] lmac_tx_bb_sys;
-wire lmac_tx_block_ready_sys;
 
 // LFSR init: {TN[1:0], MNC[13:0], MCC[9:0], CC[5:0]} per ETSI §8.2.5
 // colour_code_axi[5:0] = CC; MNC/MCC = 0 for initial testing
 wire [31:0] lfsr_init_sys;
 assign lfsr_init_sys = {2'd0, 14'd0, 10'd0, colour_code_axi};
 
-tetra_lmac #(
-.BLOCK_BITS(BLOCK_BITS),
-.LFSR_WIDTH(32)
-) u_lmac (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
- // RX input from burst_demux (slot 0 only in Phase 3)
-.rx_block1_sys (rx_block1_sys),
-.rx_block2_sys (rx_block2_sys),
-.rx_bb_sys (rx_bb_sys),
-.rx_slot_valid_sys (rx_slot_valid_sys),
-.lfsr_init_sys (lfsr_init_sys),
-.load_lfsr_sys (rx_slot_valid_sys), // re-init LFSR each burst
-.punct_pattern_sys (3'd0), // Rate 1/3 (full rate)
- // RX decoded output
-.rx_decoded_bit_sys (lmac_decoded_bit_sys),
-.rx_decoded_valid_sys (lmac_decoded_valid_sys),
-.rx_block_done_sys (lmac_block_done_sys),
-.rx_path_metric_sys (lmac_path_metric_sys),
-.rx_aach_data_sys (lmac_aach_data_sys),
-.rx_aach_done_sys (lmac_aach_done_sys),
-.rx_aach_error_sys (lmac_aach_error_sys),
-.rx_crc_ok_sys (lmac_crc_ok_sys),
-.rx_crc_valid_sys (lmac_crc_valid_sys),
-.rx_stolen_sys (lmac_stolen_sys),
- // TX input (Phase 3: placeholder — DMA path not yet implemented)
-.tx_data_in_sys (1'b0),
-.tx_data_valid_sys (1'b0),
-.tx_flush_sys (1'b0),
-.tx_aach_in_sys (14'd0),
-.tx_aach_valid_sys (1'b0),
- // TX output
-.tx_block1_sys (lmac_tx_block1_sys),
-.tx_block2_sys (lmac_tx_block2_sys),
-.tx_bb_sys (lmac_tx_bb_sys),
-.tx_block_ready_sys (lmac_tx_block_ready_sys)
-);
 
-// =============================================================================
-// RX Bit Accumulator — serial Viterbi output → parallel DMA block
-//
-// Accumulates BLOCK_BITS decoded bits into a flat register, then asserts
-// mac_valid_sys to the DMA bridge when lmac_block_done_sys fires.
-//
-// Pipeline:
-// lmac_decoded_valid_sys → shift acc_reg_sys left, insert bit at [0]
-// lmac_block_done_sys → latch acc_reg → mac_valid_sys pulse
-//
-// Note: Viterbi outputs bit_0 FIRST (LSB-first). DMA bridge expects payload
-// packed as received (DMA word 0 bit 0 = first decoded bit).
-// =============================================================================
-
-// R1: accumulation shift register (BLOCK_BITS bits, R3: flat register)
-reg [BLOCK_BITS-1:0] acc_reg_sys;
-reg [BLOCK_BITS-1:0] acc_latch_sys; // stable latched copy for DMA bridge
-reg mac_valid_r_sys; // 1-cycle pulse for DMA bridge
-
-// R1: acc_reg — shift left, insert new bit at LSB
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys)
- acc_reg_sys <= {BLOCK_BITS{1'b0}};
- else if (lmac_decoded_valid_sys)
- acc_reg_sys <= {acc_reg_sys[BLOCK_BITS-2:0], lmac_decoded_bit_sys};
-end
-
-// R1: acc_latch — capture accumulated block when viterbi reports block_done
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys)
- acc_latch_sys <= {BLOCK_BITS{1'b0}};
- else if (lmac_block_done_sys)
- acc_latch_sys <= acc_reg_sys;
-end
-
-// R1: mac_valid_r_sys — 1-cycle pulse on block_done (same cycle as latch)
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys)
- mac_valid_r_sys <= 1'b0;
- else
- mac_valid_r_sys <= lmac_block_done_sys;
-end
 
 // =============================================================================
 // AXI-DMA Bridge — packs MAC blocks into AXI4-Stream for PS DMA
 // =============================================================================
 
-wire [15:0] dma_block_count_sys;
-wire irq_mac_block_sys;
-wire dma_fifo_empty_sys;
-wire dma_fifo_full_sys;
-
-// CRC error and sync-lost counters (Phase 3: simple 16-bit saturating counters)
-reg [15:0] crc_err_cnt_sys;
 reg [15:0] sync_lost_cnt_sys;
 
-// R1: crc_err_cnt_sys — increments when CRC fails
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys)
- crc_err_cnt_sys <= 16'd0;
- else if (ctrl_reset_counters_sys)
- crc_err_cnt_sys <= 16'd0;
- else if (lmac_crc_valid_sys && !lmac_crc_ok_sys && !(&crc_err_cnt_sys))
- crc_err_cnt_sys <= crc_err_cnt_sys + 16'd1;
-end
 
 // R1: sync_lost_cnt_sys — increments on sync_locked falling edge
 // 2-FF edge detector for sync_locked falling
@@ -1040,33 +929,18 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
  sync_lost_cnt_sys <= sync_lost_cnt_sys + 16'd1;
 end
 
-tetra_axi_dma_bridge #(
-.MAX_BLOCK_BITS(432),
-.MAX_DATA_WORDS(14)
-) u_dma_bridge (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
- // MAC block input (from accumulator)
-.mac_data_sys ({{(432-BLOCK_BITS){1'b0}}, acc_latch_sys}),
-.mac_len_sys (10'd216),
-.mac_slot_sys (rx_slot_num_sys),
-.mac_burst_type_sys (rx_burst_type_sys),
-.mac_frame_sys ({11'd0, frame_num_sys}),
-.mac_valid_sys (mac_valid_r_sys),
-.mac_ready_sys (),
- // AXI4-Stream master
-.m_axis_tvalid (m_axis_tvalid),
-.m_axis_tready (m_axis_tready),
-.m_axis_tdata (m_axis_tdata),
-.m_axis_tkeep (m_axis_tkeep),
-.m_axis_tlast (m_axis_tlast),
- // Status
-.dma_block_count_sys (dma_block_count_sys),
-.irq_mac_block_sys (irq_mac_block_sys),
-.fifo_empty_sys (dma_fifo_empty_sys),
-.fifo_full_sys (dma_fifo_full_sys),
-.reset_counters_sys (ctrl_reset_counters_sys)
-);
+// DL-Decode→DMA-Kette entfernt 2026-06-20 (kein operativer Verbraucher;
+// nur Diagnose: CRC-Zähler→print_status, IRQ ungenutzt, steal→slot_status).
+// axi_dma bleibt vorerst in der BD (Schritt 2); m_axis hier auf idle.
+assign m_axis_tvalid = 1'b0;
+assign m_axis_tdata  = 32'd0;
+assign m_axis_tkeep  = 4'd0;
+assign m_axis_tlast  = 1'b0;
+wire [15:0] crc_err_cnt_sys    = 16'd0; // war: lmac-CRC (nur print_status)
+wire        irq_mac_block_sys  = 1'b0;  // war: dma block-done IRQ (ungenutzt)
+wire [15:0] dma_block_count_sys= 16'd0; // REG_DMA_BLK_CNT
+wire        dma_fifo_empty_sys = 1'b1;  // STATUS rx_fifo_empty
+wire        dma_fifo_full_sys  = 1'b0;  // STATUS/IRQ rx_fifo_full
 
 // =============================================================================
 // TX Chain — burst assembly → π/4-DQPSK → RRC → CIC → AD9361
@@ -1597,7 +1471,7 @@ reg irq_crc_tgl_axi_r2;
 
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys) irq_crc_tgl_sys <= 1'b0;
- else if (lmac_crc_valid_sys && !lmac_crc_ok_sys) irq_crc_tgl_sys <= ~irq_crc_tgl_sys;
+ // DL-Decode-CRC entfernt 2026-06-20 → kein CRC-IRQ mehr (Toggle hält 0)
 end
 always @(posedge s_axi_aclk or negedge rst_n_axi) begin
  if (!rst_n_axi) irq_crc_tgl_axi_r0 <= 1'b0;
@@ -2166,7 +2040,7 @@ tetra_axi_lite_regs u_axi_regs (
 .pll_locked_axi (1'b1), // Phase 3: assume PLL locked
 .rx_fifo_empty_axi (dma_fifo_empty_sys),
 .rx_fifo_full_axi (fifo_full_axi_r1),
-.slot_status_axi ({lmac_stolen_sys, 3'd0}), // slot 0 steal flag
+.slot_status_axi (4'd0), // steal-detect (DL-Decode) 2026-06-20 entfernt
 .frame_num_axi (frame_num_axi),
 .slot_num_axi (slot_num_axi),
 .tx_slot_axi (tx_slot_cnt_sys),
