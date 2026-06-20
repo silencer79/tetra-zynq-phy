@@ -375,7 +375,21 @@ durch inline-Reg-Variablen.
 
 ---
 
-> **⟳ Review-Delta 2026-06-20:** MM-/Registration-Logik ist **SW-abgelöst**: `mle_registration_fsm.v` + `ul_demand_ie_parser.v` sind noch instanziiert, aber ihr Output ist **A/B-Legacy** — der funktionale Pfad läuft in SW (`tetra_mm_demand_parser.c` + `tetra_attach_daemon.c` `react_mm2/mm7`). `pre_reply_blck`/`pre_reply_slotgrant` + `dl_nwrk_broadcast` bleiben live. Die **neue** Signalling-Logik (CMCE-Call, SDS, Gruppenwechsel, **Late Entry**) ist KOMPLETT SW (`tetra_call_fsm.c`), KEIN RTL-FSM. `d_location_update_reject_encoder.v` = Orphan (SW macht Reject).
+> **⟳ Review-Delta 2026-06-20:** Die MM-/Registration-**Entscheidung** liegt in SW
+> (`tetra_mm_demand_parser.c` + `tetra_attach_daemon.c` `react_mm2/mm7`) — aber bei der
+> Einordnung der RTL-Module aufpassen:
+> - **`mle_registration_fsm.v` ist LIVE** (NICHT A/B-Legacy): eine dünne SW-getriggerte
+>   **ACCEPT-Build-FSM**. SW stagt die D-LOC-UPDATE-ACCEPT-Felder in die Reply-Mailbox +
+>   pulst `REG_REPLY_GO`; die FSM ignoriert ihre UL-Eingänge (`_unused_ports`-Senke) und
+>   sequenziert nur noch den SCH/F-Build (via `dl_pdu_builder`) → **on-air**. Name historisch
+>   (keine Registration-*Entscheidung* mehr, baut aber die Registration-*Antwort*).
+> - `pre_reply_blck`/`pre_reply_slotgrant` + `dl_nwrk_broadcast` bleiben live (Pre-Reply
+>   triggert auf `reass_valid_sys` bzw. `frag1_pulse_w`, nicht mehr auf den IE-Parser).
+> - **Archiviert** (`archive/`, Phase 1E-B, NICHT mehr instanziiert): `ul_demand_ie_parser.v`
+>   + `demand_mailbox` + `grp_demand_mailbox` — Parsing läuft SW-seitig auf Raw-Body `0x250`.
+>   `d_location_update_reject_encoder.v` ebenfalls archiviert (SW macht Reject).
+> - Die **neue** Signalling-Logik (CMCE-Call, SDS, Gruppenwechsel, **Late Entry**) ist
+>   KOMPLETT SW (`tetra_call_fsm.c`), KEIN RTL-FSM.
 
 ## Querverbindungen / Drift-Spuren
 

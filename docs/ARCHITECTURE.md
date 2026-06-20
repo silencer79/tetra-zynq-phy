@@ -172,23 +172,28 @@ tetra_zynq_top.v (4419 L) ── tetra_ad9361_axis_adapter.v
 │     Codec:     scrambler · interleaver · deinterleaver · rcpc_encoder ·
 │                depuncture_r23 · viterbi_decoder (DL-Loopback) · reed_muller ·
 │                crc16 · steal_detect
-│     UL-Parse:  ul_mac_access_parser · ul_demand_reassembly · ul_demand_ie_parser(*)
+│     UL-Parse:  ul_mac_access_parser · ul_demand_reassembly
 │     DL-Build:  mac_resource_dl_builder · mac_resource_bl_ack_builder ·
 │                dl_pdu_builder · d_location_update_encoder · dl_nwrk_broadcast ·
 │                basic_slotgrant_encoder · mle_registration_fsm(*)
 │     Pre-Reply: pre_reply_blck · pre_reply_slotgrant
 │     DL-Sig:    dl_signal_queue · dl_signal_scheduler
-│     Mailboxen: indirect_mailbox (+ _wr) · demand_mailbox · grp_demand_mailbox ·
-│                ul_demand_body_mailbox · reply_mailbox · voice_filler_mailbox ·
-│                voice_nub_read_mailbox
+│     Mailboxen: indirect_mailbox (+ _wr) · ul_demand_body_mailbox ·
+│                reply_mailbox · voice_filler_mailbox · voice_nub_read_mailbox
 │
 └── infra/  axi_lite_regs (Reg-Bank, 2660 L) · axi_dma_bridge (PL→PS S2MM) ·
             clk_reset (MMCM + Reset-Sync)
 ```
 
-(*) `ul_demand_ie_parser` + `mle_registration_fsm` sind noch instanziiert, aber
-funktional durch SW abgelöst (SW-Walker `tetra_mm_demand_parser.c` + Daemon-
-Lookup); ihr RTL-Output ist A/B-Legacy.
+(*) `mle_registration_fsm` ist **live**, aber nicht mehr selbst-entscheidend: seit
+Phase X.4/X.6 eine **dünne SW-getriggerte ACCEPT-Build-FSM**. SW stagt die
+D-LOCATION-UPDATE-ACCEPT-Felder in die Reply-Mailbox + pulst `REG_REPLY_GO`; die
+FSM ignoriert ihre UL-Eingänge (`_unused_ports`) und sequenziert nur noch den
+SCH/F-Build (via `dl_pdu_builder`) → on-air. Der Name ist historisch (macht keine
+Registration-*Entscheidung* mehr, baut aber die Registration-*Antwort*). Die
+RTL-IE-Parse-Kette (`ul_demand_ie_parser` + `demand_mailbox` + `grp_demand_mailbox`)
+ist seit Phase 1E-B nach `archive/` ausgelagert — Parsing läuft in SW
+(`tetra_mm_demand_parser.c`) auf Raw-Body `0x250`.
 
 **Archiviert 2026-06-20 (`archive/`, funktional durch SW abgelöst, waren nicht
 instanziiert):** `tetra_voice_relay.v` (→ SW `voice_pipe`),

@@ -240,7 +240,7 @@ Neu dokumentationswürdig (siehe entsprechende Kapitel):
 5. **`sw/www/` vs `sw/web/` CGI-Duplikate** — leicht andere Defaults (Ch 9)
 6. **`vivado_sim.tcl xc7z020clg484-1` vs `vivado_build.tcl xc7z020clg400-1`** — Package-Discrepancy (Ch 11)
 7. **`add_ila_debug.tcl` Syntax-Bugs** + `extract_cdc_violations.tcl lassassign`-Tippfehler (Ch 11)
-8. **`mle_registration_fsm` ignoriert alle UL-MAC-ACCESS-Inputs** (`_unused_ports`-Senke) — Logic ist in SW (Ch 6)
+8. **`mle_registration_fsm` ignoriert alle UL-MAC-ACCESS-Inputs** (`_unused_ports`-Senke) — Entscheidungs-Logik ist in SW. Modul selbst ist LIVE: dünne SW-getriggerte ACCEPT-Build-FSM (`mb_go_pulse` → SCH/F-Build → on-air), Name historisch (Ch 6)
 9. **CDC-Brücken** alle 2-FF-Synchronizer (`ASYNC_REG=TRUE`), aber RAMB18-Async-Control-Warnings in `ul_burst_capture` (pre-existing in DRC)
 10. **Hardcoded Konstanten in `dl_pdu_builder`:** `usage_marker=11`, `chan_alloc=0x0027_2FD3`, `granting_delay=0` (Ch 5) — kein Mehrfach-Call-Support
 11. **Phase Y.4.1 vs Y.4.2/Y.4.3 im Code wired** aber Y.4.2/Y.4.3 **on-air inert** wegen sync-gegateter Demod-Source (Ch 4, Ch 12)

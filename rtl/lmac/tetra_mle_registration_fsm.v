@@ -1,6 +1,16 @@
 // =============================================================================
 // tetra_mle_registration_fsm.v
 //
+// ROLE (Stand 2026-06): LIVE, aber NUR noch eine duenne SW-getriggerte
+//   ACCEPT-Build-FSM. Trifft KEINE Registration-Entscheidung mehr (das macht
+//   SW: tetra_attach_daemon.c). Trigger = mb_go_pulse (SW pulst REG_REPLY_GO);
+//   die FSM ignoriert ALLE UL-Eingaenge (siehe _unused_ports weiter unten) und
+//   sequenziert nur den SCH/F-Build der D-LOC-UPDATE-ACCEPT ueber den externen
+//   tetra_dl_pdu_builder -> on-air. Modulname ist historisch (baut die
+//   Registration-*Antwort*, nicht die *Entscheidung*). 2026-06-20 bewusst NICHT
+//   umbenannt: Name vertretbar + breite Rename-Streuung (Synth-Top,
+//   Build-Filelist, 4 SVG-Diagramme) bei ~97% Slice nicht gerechtfertigt.
+//
 // Phase X.7 — Cleanup: USE_SW mux + dead encoder-fallback latches removed.
 // Phase X.6 — SW-driven minimal trigger FSM, builder pipeline EXTERNALISED.
 //
