@@ -69,24 +69,7 @@ module tetra_lmac #(
  output wire rx_crc_valid_sys,
 
  // Steal-detect output
- output wire rx_stolen_sys,
-
- // -------------------------------------------------------------------------
- // TX input (from AXI-DMA / software)
- // -------------------------------------------------------------------------
- input wire tx_data_in_sys,
- input wire tx_data_valid_sys,
- input wire tx_flush_sys,
- input wire [13:0] tx_aach_in_sys,
- input wire tx_aach_valid_sys,
-
- // -------------------------------------------------------------------------
- // TX output (to burst_mux / burst_builder)
- // -------------------------------------------------------------------------
- output wire [BLOCK_BITS-1:0] tx_block1_sys,
- output wire [BLOCK_BITS-1:0] tx_block2_sys,
- output wire [29:0] tx_bb_sys,
- output wire tx_block_ready_sys
+ output wire rx_stolen_sys
 );
 
 // =============================================================================
@@ -106,19 +89,6 @@ wire [2:0] rx_depunct_soft3_sys;
 wire rx_depunct_valid_sys;
 wire rx_depunct_done_sys;
 
-// ---- TX path ----------------------------------------------------------------
-wire [3:0] tx_enc_coded_sys;
-wire tx_enc_valid_sys;
-wire [1:0] tx_punct_bits_sys;
-wire tx_punct_valid_sys;
-wire tx_punct_cnt_sys;
-
-wire tx_intlv_out_sys;
-wire tx_intlv_valid_sys;
-wire tx_intlv_done_sys;
-
-wire tx_scr_out_sys;
-wire tx_scr_valid_sys;
 
 // CRC wires
 wire rx_crc_next_ok_sys;
@@ -231,11 +201,11 @@ tetra_reed_muller #(
 .decode_data_out(rm_aach_data_w),
 .decode_done (rm_aach_done_w),
 .decode_error (rm_aach_error_w),
- // Encoder (TX path, wired below)
-.encode_data_in (tx_aach_in_sys),
-.encode_valid (tx_aach_valid_sys),
-.encode_data_out(tx_bb_sys),
-.encode_done (tx_block_ready_sys)
+ // Encoder ports unused — AACH TX-Encode-Pfad 2026-06-20 entfernt, tie off
+.encode_data_in (14'd0),
+.encode_valid (1'b0),
+.encode_data_out(),
+.encode_done ()
 );
 
 // ---- Module output assignments for AACH ──────────────────────────────────────
@@ -261,95 +231,6 @@ tetra_steal_detect u_steal_detect (
 );
 
 assign rx_stolen_sys = steal_active_w[0];
-
-// =============================================================================
-// TX PATH
-// =============================================================================
-
-// ---- Step 1: CRC-16 append (TX) ─────────────────────────────────────────────
-// CRC appended in software (AXI-DMA payload already includes FCS).
-// The CRC module here is used as a checker only (RX path, wired above).
-// TX CRC: ARM software appends 16-bit FCS before DMA transfer.
-
-// ---- Step 2: RCPC Encoder ────────────────────────────────────────────────────
-tetra_rcpc_encoder #(
-.K(5)
-) u_rcpc_encoder (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
-.data_in (tx_data_in_sys),
-.data_valid (tx_data_valid_sys),
-.punct_pattern(punct_pattern_sys),
-.flush (tx_flush_sys),
-.coded_bits (tx_enc_coded_sys),
-.coded_valid (tx_enc_valid_sys),
-.punct_out_bits(tx_punct_bits_sys),
-.punct_valid (tx_punct_valid_sys),
-.punct_out_cnt(tx_punct_cnt_sys)
-);
-
-// ---- Step 2b: Puncture serializer ────────────────────────────────────────────
-// Rate-2/3 puncture outputs 2 bits (even) or 1 bit (odd) per input bit.
-// Serialize to 1-bit stream for the interleaver.
-reg tx_ser_pending_sys; // 1 = second bit buffered
-reg tx_ser_bit_sys; // buffered g2(a) bit
-wire tx_ser_out_sys = tx_ser_pending_sys ? tx_ser_bit_sys
-: tx_punct_bits_sys[0];
-wire tx_ser_valid_sys = tx_ser_pending_sys | tx_punct_valid_sys;
-
-always @(posedge clk_sys or negedge rst_n_sys) begin
- if (!rst_n_sys) begin
- tx_ser_pending_sys <= 1'b0;
- tx_ser_bit_sys <= 1'b0;
- end else if (tx_ser_pending_sys) begin
- // Output buffered bit this cycle; clear pending
- tx_ser_pending_sys <= 1'b0;
- end else if (tx_punct_valid_sys && !tx_punct_cnt_sys) begin
- // Even cycle: 2 bits. Output bit[0]=g1(a) now, buffer bit[1]=g2(a)
- tx_ser_pending_sys <= 1'b1;
- tx_ser_bit_sys <= tx_punct_bits_sys[1];
- end
-end
-
-// ---- Step 3: Interleaver ─────────────────────────────────────────────────────
-tetra_interleaver #(
-.MAX_BLOCK_SIZE(432)
-) u_tx_interleaver (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
-.block_size (9'd216),
-.data_in (tx_ser_out_sys),
-.data_in_valid (tx_ser_valid_sys),
-.data_out (tx_intlv_out_sys),
-.data_out_valid(tx_intlv_valid_sys),
-.block_done (tx_intlv_done_sys)
-);
-
-// ---- Step 4: Scrambler (TX) ──────────────────────────────────────────────────
-tetra_scrambler #(
-.LFSR_WIDTH(LFSR_WIDTH)
-) u_tx_scrambler (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
-.lfsr_init (lfsr_init_sys),
-.load_init (load_lfsr_sys),
-.data_in (tx_intlv_out_sys),
-.data_valid (tx_intlv_valid_sys),
-.data_out (tx_scr_out_sys),
-.data_out_valid(tx_scr_valid_sys)
-);
-
-// ---- TX block output (serial to parallel — accumulate into block bus) ─────────
-// In Phase 3, the block bus is filled by the ARM via AXI-DMA (pre-encoded).
-// The LMAC TX path (encoder → interleaver → scrambler) is instantiated here
-// but feeds the DMA bridge input, not directly the burst_mux, in the current
-// architecture. The output ports tx_block1_sys/tx_block2_sys are driven by
-// the scrambler stream — full integration requires a serial-to-parallel
-// accumulation buffer (future: integrate with AXI-DMA bridge MM2S path).
-
-// For now: tie tx_block1/2 to zero (AXI-DMA provides encoded blocks directly)
-assign tx_block1_sys = {BLOCK_BITS{1'b0}};
-assign tx_block2_sys = {BLOCK_BITS{1'b0}};
 
 endmodule
 `default_nettype wire

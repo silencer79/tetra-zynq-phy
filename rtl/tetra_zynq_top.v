@@ -884,10 +884,6 @@ wire lmac_crc_valid_sys;
 wire lmac_stolen_sys;
 
 // TX path (Phase 3: idle — ARM provides pre-encoded blocks via AXI-DMA Phase 4)
-wire [BLOCK_BITS-1:0] lmac_tx_block1_sys;
-wire [BLOCK_BITS-1:0] lmac_tx_block2_sys;
-wire [BB_BITS-1:0] lmac_tx_bb_sys;
-wire lmac_tx_block_ready_sys;
 
 // LFSR init: {TN[1:0], MNC[13:0], MCC[9:0], CC[5:0]} per ETSI §8.2.5
 // colour_code_axi[5:0] = CC; MNC/MCC = 0 for initial testing
@@ -918,18 +914,7 @@ tetra_lmac #(
 .rx_aach_error_sys (lmac_aach_error_sys),
 .rx_crc_ok_sys (lmac_crc_ok_sys),
 .rx_crc_valid_sys (lmac_crc_valid_sys),
-.rx_stolen_sys (lmac_stolen_sys),
- // TX input (Phase 3: placeholder — DMA path not yet implemented)
-.tx_data_in_sys (1'b0),
-.tx_data_valid_sys (1'b0),
-.tx_flush_sys (1'b0),
-.tx_aach_in_sys (14'd0),
-.tx_aach_valid_sys (1'b0),
- // TX output
-.tx_block1_sys (lmac_tx_block1_sys),
-.tx_block2_sys (lmac_tx_block2_sys),
-.tx_bb_sys (lmac_tx_bb_sys),
-.tx_block_ready_sys (lmac_tx_block_ready_sys)
+.rx_stolen_sys (lmac_stolen_sys)
 );
 
 // =============================================================================
