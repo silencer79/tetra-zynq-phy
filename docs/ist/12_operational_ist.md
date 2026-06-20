@@ -1,7 +1,9 @@
 # IST — Kapitel 12: Operational State
-Stand: 2026-05-19
+Stand: 2026-05-19  · reviewed 2026-06-20 (Delta s.u.)
 
 Was läuft AKTUELL auf dem Board, was ist live verifiziert, was ist offen.
+
+> **⟳ Review-Delta 2026-06-20:** SW-only-Daemon-Iteration: Restart via **`systemd-run`** (Unit `tetra_attach.service`, Log `/tmp/tetra_attach_daemon.log`) — Kill mit `killall`, **nicht** `pkill -f` (matcht die eigene SSH-Cmdline). Live air-verifiziert seither: Multi-Group/Multi-TS, kurze+lange SDS, Gruppenwechsel, **Late Entry**. Board 192.168.2.90.
 
 ## Deployed Bitstream
 

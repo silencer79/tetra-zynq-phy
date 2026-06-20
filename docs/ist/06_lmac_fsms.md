@@ -1,5 +1,5 @@
 # IST — Kapitel 6: LMAC Signaling FSMs
-Stand: 2026-05-17
+Stand: 2026-05-17  · reviewed 2026-06-20 (Delta s.u.)
 Quelle: rtl/lmac/tetra_{mle_registration_fsm,pre_reply_blck,pre_reply_slotgrant,dl_nwrk_broadcast,ul_demand_ie_parser}.v
 
 > **Hinweis 2026-05-17:** `tetra_ul_demand_ie_parser.v` ist physisch in
@@ -374,6 +374,8 @@ Header dokumentiert eine vergangene Sim-Race-Falle (Z.72-76) als gelöst
 durch inline-Reg-Variablen.
 
 ---
+
+> **⟳ Review-Delta 2026-06-20:** MM-/Registration-Logik ist **SW-abgelöst**: `mle_registration_fsm.v` + `ul_demand_ie_parser.v` sind noch instanziiert, aber ihr Output ist **A/B-Legacy** — der funktionale Pfad läuft in SW (`tetra_mm_demand_parser.c` + `tetra_attach_daemon.c` `react_mm2/mm7`). `pre_reply_blck`/`pre_reply_slotgrant` + `dl_nwrk_broadcast` bleiben live. Die **neue** Signalling-Logik (CMCE-Call, SDS, Gruppenwechsel, **Late Entry**) ist KOMPLETT SW (`tetra_call_fsm.c`), KEIN RTL-FSM. `d_location_update_reject_encoder.v` = Orphan (SW macht Reject).
 
 ## Querverbindungen / Drift-Spuren
 

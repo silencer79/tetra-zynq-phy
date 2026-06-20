@@ -1,7 +1,9 @@
 # IST — Kapitel 11: Build-System
-Stand: 2026-05-19
+Stand: 2026-05-19  · reviewed 2026-06-20 (Delta s.u.)
 
 Beschreibt den Vivado-TCL-Flow, die XDC-Constraints, die Run-Wrapper, die Deploy-Pipeline, die ILA-Debug-Tools und die CDC-Reports. Reine Bestandsaufnahme.
+
+> **⟳ Review-Delta 2026-06-20:** Vivado-Flow unverändert (create_bd → synth → impl → export_xsa → program_fpga). Build ist **nicht mehr** `cae5108`/E2 — seither mehrere RTL-Rebuilds (`ul_schf_reassembly`, Soft-Amplituden-Norm, SCH/F-Survivor in BRAM). **Slice ~97 %** (LUT ~67 %), WNS knapp positiv.
 
 ## Aktueller Build-Stand (commit `cae5108` Phase E2)
 

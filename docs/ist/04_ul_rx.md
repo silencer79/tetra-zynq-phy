@@ -1,7 +1,9 @@
 # IST — Kapitel 4: UL RX (oversampled Sync + RA-Burst Decode + Reassembly + Voice-NUB-Capture)
-Stand: 2026-05-17
+Stand: 2026-05-17  · reviewed 2026-06-20 (Delta s.u.)
 Quelle: rtl/rx/tetra_ul_{sync_detect_os4,burst_capture,pi4dqpsk_demod,sch_hu_decoder,viterbi_r14,demand_reassembly,nub_capture}.v
  + rtl/lmac/tetra_{viterbi_decoder,deinterleaver,depuncture_r23,ul_mac_access_parser,ul_demand_ie_parser,steal_detect}.v
+
+> **⟳ Review-Delta 2026-06-20:** **NEU:** `tetra_ul_schf_reassembly.v` (generische UL-Multi-Fragment-Reassembly für lange SDS + mm=7-Multi-Frag → LSDS-Mailbox), `tetra_ul_nub_to_schf.v` (Feed-Adapter), `tetra_ul_viterbi_r14_bram.v` (BRAM-Survivor-Variante). NUB-Capture jetzt mit **Soft-Decision-Amplituden-Normierung** (Stage 2b). `ul_demand_ie_parser` bleibt instanziiert, ist aber **SW-abgelöst** (`tetra_mm_demand_parser.c`).
 
 ## Inhalt
 1. `tetra_ul_sync_detect_os4.v` — 4-Phasen ETS-x-seq Detector @ 72 kHz (zwei Instanzen: SCH/HU + NUB-NTS1)

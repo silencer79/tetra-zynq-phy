@@ -1,13 +1,32 @@
 # IST — tetra-zynq-phy Code-State
 
-**Stand:** 2026-05-19
-**Branch:** `refactor/phase-7-groupcall`
-**Letzter Commit:** `d0f266d feat(webui): Phase B — live status dashboard with RSSI/BFI/MER`
-**Working-Tree:** clean (Submodule `tetra-bluestation` dirty, `scripts/vcxo_cal.sh` IP-Fix uncommitted, `sw/test_bs_codec.c` + `tetra-kit/` untracked — keine kritischen RTL/SW-Diffs)
-**Build-Artefakt:** `build/tetra_zynq_phy.bit.bin` (Phase-E2-Build vom 2026-05-18, MD5 `44af4da62168a89f2bc4e87ab22bd833`)
-**Vivado-Stand nach E2:** Slice **98.10 %**, LUT 71.61 %, FF 43.61 %, **WNS +0.114 ns** (positiv, knapp)
+**Stand:** 2026-06-20
+**Branch:** `main`
+**Letzter Commit:** `1eaa92b feat(call): Late Entry — D-SETUP event-getriggert`
+**Working-Tree:** Submodule `tetra-bluestation` ist externes Upstream (nie ins Haupt-Repo committen)
+**Build-Artefakt:** `build/tetra_zynq_phy.bit.bin` — neuer als der E2-Build (seither RTL: `ul_schf_reassembly`, Soft-Amplituden-Norm im NUB-Capture, SCH/F-Survivor/Soft-Buffer in BRAM). Aktuelle MD5 + Vivado-Bilanz im jeweiligen Build-`*_utilization_placed.rpt`.
+**Vivado-Stand (ballpark):** Slice **~97 %** (LUT ~67 %, FF treibt Packing), WNS knapp positiv — slice-limitiert.
 
 Diese Dokumentation beschreibt was der Code **TUT**, nicht was er tun **sollte**. Keine Pläne, keine Bewertungen, keine ETSI-Spec-Vergleiche. Reiner IST-Stand zum Stichtag.
+
+## Änderungen seit 2026-05-19 (neueste zuerst)
+
+Seit dem letzten IST-Stichtag deutlich erweiterter Funktionsumfang — fast alles
+**SW-resident** im Daemon; FPGA = PHY + Kanalcodierung + *generische* Reassembly.
+
+| Bereich | Was | Commit / Ort |
+|---------|-----|--------------|
+| Late Entry | event-getriggertes D-SETUP-Nachschicken bei Attach/Reg in laufenden Ruf | `1eaa92b`, `tetra_call_fsm_notify_late_entry()` |
+| Gruppenwechsel | mm=7 aus generischer LSDS-Reassembly an `react_mm7_grpid` gereroutet | `f3b4c9e`, `tetra_attach_daemon.c` |
+| Lange SDS (DL+UL) | DL-MAC-Frag (MAC-END ETSI Table 21.59) + UL-Multi-Fragment-Reassembly im FPGA | `cf1eb2b`, `tetra_sds_dl_frag.c`, `tetra_ul_schf_reassembly.v` |
+| Kurze + Status-SDS | bidirektional, Quittung = LLC BL-ACK; generische FPGA-Reassembly | `tetra_sds_dl_frag.c`, `tetra_cmce_*` |
+| Einzelruf-Handshake | D-SETUP calling_party_ssi + D-CONNECT-ACK + D-ALERT + U-CONNECT/U-ALERT | `a4bdc6b`, `tetra_call_fsm.c` |
+| Multi-Group / Multi-TS | parallele Gruppenrufe TS2/3/4, per-TS Quiet-Detection | `tetra_call_fsm.c`, `tetra_ts_map.h` |
+| RX-Verbesserung | Soft-Decision Amplituden-Normierung; SCH/F-Survivor + Soft-Buffer in BRAM | `05331b2` + RX-perf-Commits |
+| SW-Move | DL-PDU-Pipeline + MM-Demand-Walker in SW (RTL-Parser A/B-Legacy) | `tetra_mm_demand_parser.c`, `tetra_attach_daemon.c` |
+
+Detail je Subsystem: `docs/ist/*`; Gesamtbild `docs/ARCHITECTURE.md` §3 + §4.5.
+
 
 ## Änderungen seit 2026-05-14
 
@@ -58,7 +77,7 @@ Neu dokumentationswürdig (siehe entsprechende Kapitel):
 | 11 | [11_build.md](ist/11_build.md) | Vivado-Flow, Constraints, Deploy-Pipeline, Cross-Compile, ILA, CDC-Reports | 18 KB |
 | 12 | [12_operational_ist.md](ist/12_operational_ist.md) | Was läuft auf Board: deployed Bitstream, Daemons, AXI-Counter, live-verifiziert vs inert | 8 KB |
 
-**Total:** ~283 KB (~10 000 Zeilen) für die strukturierte Beschreibung von 65 RTL-Files + 22 SW-Files + 50 Scripts.
+**Total:** strukturierte Beschreibung von 74 RTL-Files + 51 SW-Files (+ 8 ETSI-Codec) + 62 Scripts.
 
 ## Block-Diagramm (vereinfacht)
 
@@ -160,24 +179,21 @@ Neu dokumentationswürdig (siehe entsprechende Kapitel):
  │ └──── AXI Mailboxes ──────────────────┘
  │ (für SW-Polling)
  │
- │ ── (Working-Tree only) Y.4.2/Y.4.3 hack ──
  │
- │ rx_chain.ul_demod_dibit_out_sys = demod_dibit_sys ← Working-Tree
- │ = ul_soft0/1[MSB] ← Deployed Bitstream
+ │ ── Voice-Pfad (live: Phase C UL-NUB + Phase 7 G.8 DL-Filler) ──
+ │
+ │ ul_nub_capture (NTS1-aligned, 432 type-5 soft)
  │ │
  │ ▼
- │ ul_voice_capture
- │ (216-Dibit FSM,
- │ DL-slot-aligned)
- │ │
- │ ▼ voice_burst_valid
- │ CMCE-port-mux (zynq_top)
- │ (mit nwrk_bcast OR'd)
+ │ voice_nub_read_mailbox ──► SW voice_pipe.c
+ │ (descramble + Viterbi +
+ │ re-encode + SSI-Patch)
  │ │
  │ ▼
- │ DL signal queue
- │ (CMCE-port input)
+ │ voice_filler_mailbox ──► burst_dispatcher
+ │ (DL voice-slot override, gated by voice_active_mask)
  │
+ │ (Y.4.2/Y.4.3 ul_voice_capture + CMCE-port-mux: im A.1-Rollback ENTFERNT)
  └─────────────────────────────────────────────────────────
 ```
 

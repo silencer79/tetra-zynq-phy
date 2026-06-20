@@ -3,6 +3,8 @@
 Quelle: `rtl/infra/tetra_clk_reset.v` (199 Zeilen) + Top-Level Verdrahtung in
 `rtl/tetra_zynq_top.v`.
 
+> **⟳ Review-Delta 2026-06-20:** Clock-Domains (clk_sys 100 MHz / clk_lvds / clk_axi / sym ~18 kHz) + `tetra_clk_reset.v` **unverändert** seit Erstellung.
+
 ## Clock-Domains (im Design real benutzt)
 
 | Domain | Quelle | Frequenz | Verbraucher |

@@ -1,6 +1,8 @@
 # IST — Kapitel 3: RX Datapath (core)
-Stand: 2026-05-17
+Stand: 2026-05-17  · reviewed 2026-06-20 (Delta s.u.)
 Quelle: rtl/rx/tetra_{rx_frontend,timing_recovery,pi4dqpsk_demod,sync_detect,burst_demux,frame_counter,rx_burst_fifo,rx_chain}.v
+
+> **⟳ Review-Delta 2026-06-20:** DL-RX-Kette unverändert. **NEU:** `rtl/rx/tetra_rx_iq_capture.v` (Roh-Post-RRC-IQ-Capture, `scripts/capture_rx_iq.sh`). `tetra_rx_burst_fifo.v` (in Quelle genannt) ist **entfernt** (Phase A.3.1).
 
 ## Inhalt
 1. `tetra_rx_frontend.v` — CDC LVDS→sys, 5th-order CIC R=64, 33-tap RRC

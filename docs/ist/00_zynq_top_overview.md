@@ -1,8 +1,14 @@
 # IST 00 — tetra_zynq_top Übersicht
-Stand: 2026-05-17
+Stand: 2026-06-20 (Instanz-/Wire-Inventar reviewed)
 
-Quelle: `rtl/tetra_zynq_top.v` (3949 Zeilen). Top-Level der PL-Logik, vom BD
-über `tetra_system_wrapper` (siehe `rtl/tetra_system_top.v`) instanziiert.
+Quelle: `rtl/tetra_zynq_top.v` (**4419 Zeilen**, war 3949 beim letzten
+Voll-Review). Top-Level der PL-Logik, vom BD über `tetra_system_wrapper`
+(siehe `rtl/tetra_system_top.v`, Sim-Top — NICHT Synth-Top) instanziiert.
+
+> **Zeilennummern-Caveat:** Die `Zeile`-Spalten unten sind 2026-05-17-Baseline;
+> die Datei ist seither um ~470 Zeilen gewachsen → Nummern verschoben
+> (Instanz-Namen + Zweck stimmen weiter). Neu seit dem Review:
+> `u_ul_schf_reassembly` (~Z. 830, generische UL-Multi-Fragment-Reassembly).
 
 ## Inhalt
 
@@ -43,7 +49,8 @@ In Reihenfolge des Auftauchens in `tetra_zynq_top.v`:
 | 298 | `u_ad9361_adapter` | `tetra_ad9361_axis_adapter` | AD9361 Fabric ↔ tetra RX/TX-Bus |
 | 542 | `u_rx_chain` | `tetra_rx_chain` | RX-Pipeline (Frontend, Demod, Sync, TDMA, UL-Decoder) |
 | 691 | `u_ul_demand_reassembly` | `tetra_ul_demand_reassembly` | Phase 7 F.1 — UL MAC-ACCESS Frag-1+Frag-2 Reassembly |
-| 755 | `u_ul_demand_ie_parser` | `tetra_ul_demand_ie_parser` | Phase 7 F.2 — IE-Walker für mm=2 + mm=7 MM-Body |
+| 755 | `u_ul_demand_ie_parser` | `tetra_ul_demand_ie_parser` | Phase 7 F.2 — IE-Walker mm=2 + mm=7 (SW-abgelöst durch `tetra_mm_demand_parser.c`, RTL-Output A/B-Legacy) |
+| ~830 | `u_ul_schf_reassembly` | `tetra_ul_schf_reassembly` | **Neu** — generische UL-Multi-Fragment-Reassembly (lange SDS / mm=7-Multi-Frag) → LSDS-Mailbox → SW |
 | 843 | `u_lmac` | `tetra_lmac` | LMAC RX/TX Channel-Coding-Wrapper (TX-Pfad tot) |
 | 972 | `u_dma_bridge` | `tetra_axi_dma_bridge` | S2MM-Bridge LMAC → AXI4-Stream → PS |
 | 1226 | `u_slot_content_mux` | `tetra_slot_content_mux` | Phase Y.3 stripped — BRAM-Prefetch FSM für Schedule |
@@ -502,11 +509,10 @@ tx_tdma_sync_load_strobe_sys — Edge-Detect zum Sync-Load in den Counter
 ```
 voice_active_mask_axi_w[31:0] — AXI-Register Wert
 voice_active_mask_sys_r1[3:0] — 2-FF Resync in clk_sys
-voice_burst_valid_sys_w — vom u_ul_voice_capture
-voice_burst_coded_sys_w[431:0]
-voice_burst_target_tn_sys_w[1:0]
-voice_burst_aach_sys_w[13:0]
-voice_burst_pdu_type_sys_w[1:0]
-ul_demod_dibit_sys_w[1:0] — vom u_rx_chain (Y.4.2)
-ul_demod_valid_sys_w
+vfill_blk1/2_sys[215:0]       — vom u_voice_filler_mailbox (DL re-encoded NUB)
+vfill_valid_sys               — gated mit voice_active_mask im burst_dispatcher
+(UL-NUB-Capture-Wires liegen in u_rx_chain → voice_nub_read_mailbox)
+
+# ENTFERNT (A.1-Rollback): voice_burst_* / ul_demod_dibit_* (Y.4.2 UL-voice-
+# capture + CMCE-Port-Forward) existieren im heutigen Top NICHT mehr.
 ```

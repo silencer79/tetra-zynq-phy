@@ -1,13 +1,15 @@
 # HARDWARE — Plattform, AD9361, Register-Map, CDC, Timing
 
 **Projekt:** tetra-zynq-phy (LibreSDR, Zynq-7020 + AD9361)
-**Zuletzt verifiziert:** 2026-04-13
+**Zuletzt verifiziert:** 2026-04-13  · reviewed 2026-06-20 (Delta s.u.)
 
 Ersetzt: `hw_setup.md`, `hw_board_state.md`, `adi_ip_integration.md`,
 `axi_ad9361_integration.md`, `register_map.md`, `cdc_analysis.md`,
 `timing_analysis.md`.
 
 ---
+
+> **⟳ Review-Delta 2026-06-20:** Plattform (LibreSDR Zynq-7020 + AD9361, DL 438.25 / UL 428.25 MHz) unverändert. Die **aktuelle** AXI-Register-Map steht in `docs/ist/08_axi_regmap.md` (hier ggf. veraltet).
 
 ## 1. Plattform
 

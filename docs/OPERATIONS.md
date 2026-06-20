@@ -1,12 +1,14 @@
 # OPERATIONS — Deploy, Test, Troubleshooting
 
 **Projekt:** tetra-zynq-phy (LibreSDR, Zynq-7020 + AD9361)
-**Zuletzt aktualisiert:** 2026-05-19 (Phase E2 + WebUI Live-Dashboard)
+**Zuletzt aktualisiert:** 2026-05-19 (Phase E2 + WebUI Live-Dashboard)  · reviewed 2026-06-20 (Delta s.u.)
 
 Ersetzt: `deployment_guide.md`, `deploy_workflow.md`, `test_results.md`,
 `sim_results.txt`, `test_results_raw.txt`.
 
 ---
+
+> **⟳ Review-Delta 2026-06-20:** Deploy-Pipeline `scripts/deploy.sh` gilt. **SW-only-Iteration:** Daemon via `systemd-run` neu starten (NICHT `pkill -f` — matcht eigene SSH-Cmdline → killt die Session; `killall tetra_attach_daemon` ist sicher). Air-Tests ≥3×. Board 192.168.2.90 root/openwifi. Bitstream-Wechsel → SDR rebooten + MS power-cyclen ansagen.
 
 ## 1. Quick Reference — Alltags-Kommandos
 

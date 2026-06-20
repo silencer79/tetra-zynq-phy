@@ -1,5 +1,5 @@
 # IST 08 — AXI4-Lite Register Map
-Stand: 2026-05-17
+Stand: 2026-05-17  · reviewed 2026-06-20 (Delta s.u.)
 
 Quelle: `rtl/infra/tetra_axi_lite_regs.v` (2445 Zeilen). Modul: `tetra_axi_lite_regs`,
 Slave-Base wird im BD adressiert (Headerkommentar in `tetra_zynq_top.v` nennt
@@ -15,6 +15,8 @@ fires bei `aw_latched & w_latched & !bvalid`. Read-Machine: 1-Cycle-Latenz für
 Register-Reads, 2-Cycle für Schedule-BRAM-Reads (Port-A Sync-Read).
 
 `BRESP`/`RRESP` immer OKAY.
+
+> **⟳ Review-Delta 2026-06-20:** Detail-Adressen können gedriftet sein — **verbindliche Quelle ist `rtl/infra/tetra_axi_lite_regs.v` (2660 Z.).** Bekannte Änderungen: AST-/TTL-/Shadow-/Profile-Regs durch den FPGA-thin-signaling-Refactor entfernt bzw. Stub; **dazu** Voice-Regs (0x1EC VOICE_ACTIVE_MASK, 0x264/0x268, 0x270–0x28C Voice-Filler/NUB), Schedule-BRAM-Fenster und NWRK-BCAST-Regs. Bank-Struktur (0x000–0x1FC / 0x200–0x2FC / 0x400–0x63F) gilt.
 
 ## Komplette Register-Tabelle
 

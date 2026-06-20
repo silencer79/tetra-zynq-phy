@@ -1,5 +1,5 @@
 # IST — Kapitel 9: SW Stack
-Stand: 2026-05-17
+Stand: 2026-05-17  · reviewed 2026-06-20 (Delta s.u.)
 Quelle: alle Dateien in sw/ inkl. `sw/etsi_codec/`
 
 Dieses Kapitel beschreibt nur das, was die Quellen unter `sw/` heute tatsaechlich
@@ -7,6 +7,8 @@ implementieren. Es ist kein Design-Dokument und keine Spezifikation. Bei
 Unklarheit aus dem Code ist das im Text vermerkt.
 
 ---
+
+> **⟳ Review-Delta 2026-06-20:** Der SW-Daemon ist seither **stark gewachsen** und ist heute der Ort der MAC/LLC/CMCE/MM-Kontroll-Logik. NEU/erweitert: `tetra_call_fsm.c` (Group+Indiv-Call, Multi-Group/Multi-TS, **Late Entry** via `notify_late_entry`), `tetra_sds_dl_frag.c` (lange SDS, MAC-END ETSI Table 21.59), `tetra_mm_demand_parser.c` (mm=2/7-Walker), `tetra_cmce_body`/`_parser`, `tetra_grpack_body`, im Daemon `service_uldbod` + `service_long_sds_rx` (mit MM-Reroute). Voice: `voice_pipe` + `voice_filler` + `tch_s_codec`/`bs_tch_s`/`etsi_codec`. WebUI: `sw/web/` (8 CGI) + `sw/www/` (3 CGI, alt). `tetra_sysinfo`-Binary wird aus `tetra_hal.c` gebaut.
 
 ## Section 1 — Daemons
 

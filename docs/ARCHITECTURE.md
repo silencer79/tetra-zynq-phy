@@ -1,8 +1,13 @@
 # ARCHITECTURE — RTL/SW-Stack, Meilensteine, Modul-Status, Ressourcen
 
 **Projekt:** tetra-zynq-phy (LibreSDR, Zynq-7020 + AD9361)
-**Architektur-Entscheidung:** 2026-04-22 — FPGA-heavy Stack (überholt, siehe §2.5)
-**Zuletzt aktualisiert:** 2026-05-19 (Phase E2 Soft-Decisions + WebUI Live-Dashboard)
+**Architektur-Cut (verbindlich):** 2026-05-03 — *FPGA Thin-Signaling* (§2.5): FPGA = PHY + Kanalcodierung + generische Reassembly + Mailboxes; MAC/LLC/CMCE/MM-Logik im SW-Daemon.
+**Zuletzt aktualisiert:** 2026-06-20 (Code-Inventur: Modulbaum §3.2, Ressourcen §6, Meilensteine §4 auf Ist-Stand; Features bis Late Entry)
+
+> **Lese-Hinweis:** §2, §7 und §9 sind grösstenteils *historischer* Planungs-/
+> Fix-Record (als solcher markiert) und enthalten Module/Tabellen, die es
+> heute nicht mehr gibt. Der aktuelle Ist-Stand steht in §3.2 (Modulbaum),
+> §4 (Meilensteine), §6 (Ressourcen) sowie ausführlich in `docs/ist/*`.
 
 Ersetzt: `plan_tetra_bs_stack.md`, `plan_tetra_tdma_rtl_ownership.md`,
 `module_status.md`, `resource_estimate.md`.
@@ -112,91 +117,90 @@ Detail-Memo: `project_arch_fpga_thin_signaling.md`.
 
 ## 3. Architektur-Überblick
 
-### 3.1 Signalfluss
+### 3.1 Signalfluss (FPGA ↔ SW, Mailbox-getrennt)
 
 ```
-AD9361 IQ ──► [axi_ad9361 IP] ──► [adapter] ──► [RX Frontend: CIC+RRC]
- │
- ▼
- [Demod] ──► [Timing Recovery] ──► [Sync Detect]
- │
- ▼
- [Burst Demux] ──► [Frame Counter] (TDMA-Status)
- │
- ┌─────────────────────────────────┘
- ▼
- [LMAC RX: descramble → deinterleave → Viterbi → CRC → Reed-Muller]
- │
- ▼
- [MAC-ACCESS Parser] ──► [MLE Registration FSM] ──► [Active Session Table]
- │
- ▼
- [MAC-RESOURCE DL Builder]
- [D-LOCATION-UPDATE Encoder]
- │
- ▼
- [LMAC TX: CRC → RCPC → interleave → scramble] ──► [π/4-DQPSK Mod]
- │
- ▼
- [RRC → CIC → DAC → axi_ad9361 IP]
- │
- ▼
- AD9361 IQ
+RX:  AD9361 ─► [FPGA PHY: CIC/RRC ─► Demod ─► Sync ─► Burst-Demux]
+       ├─ DL: descramble ─► deinterleave ─► Viterbi ─► CRC ─► Reed-Muller
+       └─ UL: ul_sync_os4 ─► nub/burst_capture ─► ul_demod (soft)
+              ─► ul_sch_f / ul_sch_hu_decoder ─► ul_viterbi_r14 ─► *_reassembly
+                                 │
+                         [AXI-Mailboxen]   demand / grp_demand / reply /
+                                 │          voice_filler / voice_nub / raw-pdu
+                                 ▼
+SW (tetra_attach_daemon):  Mailbox-Poll ─► cmce_parser / mm_demand_parser
+       ─► call_fsm (Group/Indiv-Call, Late Entry) + DB-Lookup (db.tsv)
+       ─► Builder (cmce_body / grpack / sds_dl_frag) ─► tx_transport
+       ─► Voice: voice_pipe (UL→DL bit-transparenter Relay)
+                                 │
+                         [AXI-Mailboxen]
+                                 ▼
+TX:  [FPGA: dl_pdu_builder ─► sch_f / sch_hd_encoder ─► burst_builder
+       ─► π/4-DQPSK-Mod ─► RRC ─► CIC ─► DAC ─► AD9361]
+     AACH / BSCH: aach_encoder / sb1_encoder (TDMA-getaktet)
 ```
 
-### 3.2 Modulbaum (aktueller Stand)
+**Kern:** Kontroll-Ebene (MAC/LLC/CMCE/MM) liegt im SW-Daemon; das FPGA macht
+PHY + Kanalcodierung + *generische* Reassembly und tauscht über AXI-Mailboxen
+([`docs/ist/07_mailboxes.md`](ist/07_mailboxes.md)) strukturierte Felder.
+
+### 3.2 Modulbaum / RTL-Inventar (Stand 2026-06-20)
+
+Synth-Top ist `tetra_zynq_top.v` (in der Vivado-BD instanziiert neben PS7 +
+`axi_ad9361`-IP + `axi_dma`). Gruppierung nach `rtl/`-Verzeichnis:
 
 ```
-tetra_zynq_top.v
-├── tetra_ad9361_axis_adapter.v
+tetra_zynq_top.v (4419 L) ── tetra_ad9361_axis_adapter.v
 │
-├── tetra_rx_chain.v
-│ ├── tetra_rx_frontend.v (CIC + RRC)
-│ ├── tetra_pi4dqpsk_demod.v (CORDIC)
-│ ├── tetra_timing_recovery.v (Gardner TED + NCO)
-│ ├── tetra_sync_detect.v (Training-Seq-Correlator)
-│ ├── tetra_burst_demux.v (4-Slot Demux)
-│ ├── tetra_frame_counter.v (TDMA-Hierarchie)
-│ ├── tetra_ul_sync_detect_os4.v (UL-RA-Sync, 4× oversampled)
-│ ├── tetra_ul_burst_capture.v (UL-RA-Ring-Buffer)
-│ ├── tetra_ul_pi4dqpsk_demod.v (UL Demod 5-bit Soft-out)
-│ ├── tetra_ul_sch_hu_decoder.v (K=168, a=13, 92 info bits)
-│ └── tetra_ul_viterbi_r14.v (ETSI-konformer UL-Viterbi)
+├── rx/   DL-RX-PHY
+│     rx_frontend (CIC+RRC+CDC) · pi4dqpsk_demod (CORDIC) · timing_recovery
+│     (Gardner) · sync_detect (Train-Korrelator) · burst_demux · frame_counter
+│     · rx_iq_capture (Roh-Post-RRC-IQ, Debug)
+│   UL-RX-PHY:
+│     ul_sync_detect_os4 · ul_burst_capture · ul_pi4dqpsk_demod (soft) ·
+│     ul_nub_capture (TCH/S-NUB) · ul_nub_to_schf · ul_sch_f_decoder ·
+│     ul_sch_hu_decoder · ul_viterbi_r14 (+ _bram-Variante) · ul_schf_reassembly
+│     (lange SDS / MM-Multi-Fragment)
 │
-├── tetra_tx_chain.v
-│ ├── tetra_pi4dqpsk_mod.v (Symbol-Mapping)
-│ ├── tetra_rrc_filter.v (α=0.35)
-│ ├── tetra_burst_builder.v (255-sym Slot-Content)
-│ ├── tetra_burst_mux.v (4-Slot Multiplexer)
-│ ├── tetra_tx_frontend.v (CIC-Interpolation)
-│ ├── tetra_sb1_encoder.v (BSCH/SYNC-PDU)
-│ ├── tetra_sch_f_encoder.v (SCH/F 268→432)
-│ └── tetra_aach_encoder.v (Reed-Muller 30/14)
+├── tx/   DL-TX-PHY + TDMA
+│     pi4dqpsk_mod · rrc_filter (α=0.35) · burst_builder · burst_dispatcher ·
+│     tx_frontend (CIC) · sb1_encoder (BSCH) · sch_f_encoder · sch_hd_encoder
+│     (+ _shared) · aach_encoder (+ _rm) · tdma_timebase · slot_schedule ·
+│     slot_content_mux
 │
-├── tetra_lmac.v
-│ ├── tetra_scrambler.v
-│ ├── tetra_interleaver.v
-│ ├── tetra_rcpc_encoder.v
-│ ├── tetra_viterbi_decoder.v (DL-Path, 16-state)
-│ ├── tetra_reed_muller.v
-│ ├── tetra_crc16.v
-│ ├── tetra_steal_detect.v
-│ ├── tetra_ul_mac_access_parser.v (MAC-ACCESS Header → AXI-Mailbox)
-│ ├── tetra_ul_demand_reassembly.v (UL#0 + UL#1 Frags → 129-bit MM-Body)
-│ ├── tetra_ul_demand_ie_parser.v (mm=2/mm=7 IE-Walker → demand_mailbox)
-│ ├── tetra_demand_mailbox.v + tetra_grp_demand_mailbox.v (Snapshots → SW)
-│ ├── tetra_mle_registration_fsm.v (UL-Demand → SCH/F-Accept-Pipeline)
-│ ├── tetra_d_location_update_encoder.v (MM-PDU-Builder)
-│ ├── tetra_dl_pdu_builder.v (Phase X.6 — shared SCH/F+MAC-RESOURCE+slotgrant)
-│ ├── tetra_dl_signal_queue.v (depth-4 Drop-Newest FIFO)
-│ └── tetra_dl_signal_scheduler.v (MLE > CMCE > SDS, 1 frame ahead)
-│ (Session-State + Subscriber-DB liegen SW-side im tetra_attach_daemon
-│  über /root/db.tsv — der frühere RTL-AST wurde 2026-05 abgekündigt.)
+├── lmac/   Kanalcodierung + UL-Parse + DL-Build + Mailboxes
+│     Codec:     scrambler · interleaver · deinterleaver · rcpc_encoder ·
+│                depuncture_r23 · viterbi_decoder (DL-Loopback) · reed_muller ·
+│                crc16 · steal_detect
+│     UL-Parse:  ul_mac_access_parser · ul_demand_reassembly · ul_demand_ie_parser(*)
+│     DL-Build:  mac_resource_dl_builder · mac_resource_bl_ack_builder ·
+│                dl_pdu_builder · d_location_update_encoder · dl_nwrk_broadcast ·
+│                basic_slotgrant_encoder · mle_registration_fsm(*)
+│     Pre-Reply: pre_reply_blck · pre_reply_slotgrant
+│     DL-Sig:    dl_signal_queue · dl_signal_scheduler
+│     Mailboxen: indirect_mailbox (+ _wr) · demand_mailbox · grp_demand_mailbox ·
+│                ul_demand_body_mailbox · reply_mailbox · voice_filler_mailbox ·
+│                voice_nub_read_mailbox
 │
-├── tetra_axi_dma_bridge.v (PL → PS S2MM)
-├── tetra_axi_lite_regs.v (Reg-Bank + Shadow-BRAM-Window)
-└── tetra_clk_reset.v (Reset-Sync, MMCM)
+└── infra/  axi_lite_regs (Reg-Bank, 2660 L) · axi_dma_bridge (PL→PS S2MM) ·
+            clk_reset (MMCM + Reset-Sync)
 ```
+
+(*) `ul_demand_ie_parser` + `mle_registration_fsm` sind noch instanziiert, aber
+funktional durch SW abgelöst (SW-Walker `tetra_mm_demand_parser.c` + Daemon-
+Lookup); ihr RTL-Output ist A/B-Legacy.
+
+**Orphans (nicht instanziiert, Removal-Kandidaten):** `tetra_voice_relay.v`
+(→ SW `voice_pipe`), `tetra_d_location_update_reject_encoder.v` (→ SW
+`tetra_tx_transport.c`), `tetra_system_top.v` (nur Sim-Top in TB-tcl).
+
+**SW-Stack (`sw/`, Linux-Daemon — der frühere RTL-AST/CMCE-FSM lebt heute hier):**
+`tetra_attach_daemon` (Mainloop + Mailbox-Poll) · `tetra_hal` (AXI-HAL + SYSINFO,
+baut auch das `tetra_sysinfo`-Binary) · `tetra_call_fsm` (Group/Indiv-Call + Late
+Entry) · `tetra_cmce_body`/`_parser` · `tetra_mm_demand_parser` · `tetra_grpack_body`
+· `tetra_sds_dl_frag` · `tetra_tx_transport` · `tetra_db` · `tetra_voice_pipe`/
+`_filler` · `tetra_tch_s_codec`/`bs_tch_s`/`etsi_codec` (ACELP). Detail:
+[`docs/ist/09_sw_stack.md`](ist/09_sw_stack.md).
 
 ### 3.3 Verilog-Konventionen
 
@@ -269,15 +273,32 @@ SW-resident (`sw/etsi_codec/`, `sw/tetra_bs_tch_s.{c,h}`).
 BFI Median ~6 % → ~3 % im Air-Test (7× besser im 320-Burst Sustained-Test).
 Siehe `IST.md` + Memory `project_phy_improvement_options`.
 
-### 4.4 M4 — Einzelrufe + Paging ⏳ (Plan)
+### 4.4 M4 — Einzelrufe + Paging 🟡 (teilweise, SW-resident)
 
-| Substep | Module |
-|---------|--------|
-| M4.1 CMCE Individual Call | `tetra_cmce_indiv_fsm.v` (oder Erweiterung M3.1) — D-SETUP/D-CONNECT/D-RELEASE |
-| M4.2 Duplex-Slot-Management | `tetra_slot_content_mux.v`-Erweiterung |
-| M4.3 Paging | `tetra_paging_fsm.v`, D-ALERT-Encoder, RACH-Antwort → Handoff an Call-FSM |
+Anders als ursprünglich geplant (RTL-FSMs) läuft das **komplett im SW-Daemon**
+(`sw/tetra_call_fsm.c`) — es gibt KEIN `tetra_cmce_indiv_fsm.v`/`tetra_paging_fsm.v`.
 
-**Aufwand M4:** ~3-4 Wochen (inkrementell auf M3).
+| Substep | Stand |
+|---------|-------|
+| M4.1 CMCE Individual Call | 🟡 Handshake committet `a4bdc6b` (D-SETUP calling_party_ssi + D-CONNECT-ACK + D-ALERT + U-CONNECT/U-ALERT-Handler) — SW in `tetra_call_fsm.c` |
+| M4.2 Duplex-Slot-Management | Voll-Duplex offen (braucht Slice-Headroom, §6.3) |
+| M4.3 Paging | ⏳ offen |
+
+### 4.5 Über M3/M4 hinaus — Stand 2026-06
+
+Seit der M3/M4-Tabelle dazugekommen (alle SW-resident; FPGA nur PHY +
+Kanalcodierung + generische Reassembly):
+
+| Feature | Stand | Ort |
+|---------|-------|-----|
+| Multi-Group / Multi-TS (parallele Gruppenrufe TS2/3/4) | ✅ air | `tetra_call_fsm.c`, `tetra_ts_map.h` |
+| Kurze SDS bidirektional (Text + Status-SDS) | ✅ air | `tetra_sds_dl_frag.c` + generische FPGA-Reassembly |
+| Lange SDS (Multi-Fragment DL + UL) | ✅ air | `tetra_sds_dl_frag.c` (MAC-END ETSI Table 21.59), `tetra_ul_schf_reassembly.v` |
+| Gruppenwechsel mm=7 (Reroute aus LSDS-Reassembly) | ✅ air | `tetra_attach_daemon.c` `service_long_sds_rx` |
+| **Late Entry** (event-getriggert bei Attach/Reg in laufenden Ruf) | ✅ air (mm=7) | `tetra_call_fsm_notify_late_entry()` |
+| RX Soft-Decision + Amplituden-Normierung | ✅ air | `tetra_ul_nub_capture.v`, Viterbi-Survivor in BRAM |
+
+Detaillierter Ist-Stand je Subsystem: `docs/ist/*`, Zusammenfassung in `docs/IST.md`.
 
 ---
 
@@ -352,11 +373,17 @@ Eintrag-Format (16 bit):
 
 **Stufe 8 — SW-Migration**: `tetra_sysinfo` schreibt Cell-Config + -Preset + NULL-PDU-Register nur einmal beim Boot. Per-Slot-Encoding-Pfade (BSCH, AACH) werden aus SW entfernt.
 
-### 5.4 Aktueller Status TDMA-Umbau
+### 5.4 Aktueller Status TDMA-Umbau — teil-umgesetzt
 
-🔴 **Nicht umgesetzt.** Heutiges RTL hat `always @(*)`-Scheduling in `tetra_zynq_top.v:694-756` mit hart kodierten Mustern. SW schreibt BSCH/AACH-Payload kontinuierlich. 1 % NDB-Decoderate auf eigenen WAVs ist ein direkter Folgeeffekt.
+⚠️ **Teilweise umgesetzt.** Die Stufen-1/3/4-Module existieren und sind
+instanziiert: `rtl/tx/tetra_tdma_timebase.v` (kanonische TX-TDMA-Zeitbasis),
+`rtl/tx/tetra_slot_schedule.v` (Schedule-Dual-Port-BRAM) und
+`rtl/tx/tetra_slot_content_mux.v`. Der Schedule-Preset (Stufe 7) wird per
+`scripts/schedule.py` nach `sw/tetra_schedule.h` generiert.
 
-**Aufwand:** ~1-2 Wochen für alle 8 Stufen. Priorität: hoch für DL-Qualität, niedrig für MS-Registration (dort andere Blocker).
+Welche Scheduling-Pfade noch SW-getrieben sind und wie die Module verdrahtet
+sind, steht verbindlich im TX-Kapitel
+([`docs/ist/05_tx_datapath.md`](ist/05_tx_datapath.md)) — nicht hier.
 
 ---
 
@@ -418,17 +445,23 @@ Eintrag-Format (16 bit):
 | `tetra_axi_dma_bridge` | ~120 | ~570 | 0 | 0 | 7/7 | S2MM 32-bit |
 | **Summe** | **~12,000** | **~25,000** | **~10** | **~5** | | — |
 
-### 6.3 Ressourcen-Utilization (Zynq-7020)
+### 6.3 Ressourcen-Utilization (Zynq-7020) — Stand 2026-06
 
-| Resource | Genutzt | Verfügbar | Utilization |
-|----------|---------|-----------|-------------|
-| LUT | ~12,000 | 53,200 | ~23% |
-| FF | ~25,000 | 106,400 | ~24% |
-| DSP48E1 | ~10 | 220 | ~5% |
-| BRAM18k | ~5 | 280 | ~2% |
-| BUFG | ~6 | 32 | ~19% |
+> **Die per-Modul-Tabelle §6.2 ist ein historischer Snapshot vom 2026-04-25
+> und NICHT mehr aktuell** (vor allen UL-Voice-/Soft-Decision-/SW-Move-
+> Arbeiten). Verbindliche Zahlen stehen im Vivado-`*_utilization_placed.rpt`
+> des jeweiligen Builds.
 
-**Viel Headroom für M3+M4** (Group-Call-FSM, Voice-Relay-FIFO, Paging-FSM, Subscriber/Group-Shadow-BRAM).
+Aktueller Ist-Stand (ballpark): das Design ist **slice-limitiert** geworden.
+Nach den RX-Soft-Decision-Arbeiten (Option E2: Soft-Buffer + Viterbi-Survivor
+in BRAM) und den SW-Move-Refactors liegt die **Slice-Auslastung bei ~97 %** bei
+nur **~67 % LUT** — FF/Control-Sets treiben das Packing, nicht die Logik-Menge.
+
+Konsequenzen (prägen die Architektur):
+- Neue grosse RTL-Blöcke (Coherent-Demod, Voll-Duplex) brauchen erst
+  Slice-Headroom → MAC/CMCE/MM bewusst in den SW-Daemon verlagert (§2.5).
+- DSP48E1 (~14 %) und BRAM18k weiterhin reichlich Reserve.
+- WNS nach den letzten RX-Pipeline-Moves knapp positiv (Timing-Closure eng).
 
 ### 6.4 Top-Level-Integration
 

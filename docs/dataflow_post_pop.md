@@ -1,6 +1,8 @@
 # TX-Datenfluss Post-Pop (queue.head → on-air IQ)
 
-Stand: HEAD `5b2f39c`. Quelle: jede Zeile aus dem Verilog-Code grep't (Datei:Zeile referenziert).
+Stand: HEAD `5b2f39c`. Quelle: jede Zeile aus dem Verilog-Code grep't (Datei:Zeile referenziert).  · reviewed 2026-06-20 (Delta s.u.)
+
+> **⟳ Review-Delta 2026-06-20:** **ACHTUNG VERALTET** — 'Stand HEAD 5b2f39c' ist alt; referenzierte Zeilennummern + AST/Y.4.2-Pfade stimmen nicht mehr (`tetra_zynq_top.v` jetzt 4419 Z.). Aktueller TX-Datenfluss: `ist/00` §Datenpfad-TX + `ist/05`. Nur noch grobe Orientierung.
 
 ## ASCII-Pfaddiagramm
 

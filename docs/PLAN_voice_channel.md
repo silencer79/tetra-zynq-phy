@@ -1,6 +1,6 @@
 # PLAN — Voice-Channel Phase C + E2
 
-**Stand:** 2026-05-14 (Plan), umgesetzt zwischen 2026-05-14 und 2026-05-19.
+**Stand:** 2026-05-14 (Plan), umgesetzt zwischen 2026-05-14 und 2026-05-19.  · reviewed 2026-06-20 (Delta s.u.)
 **Quellen:** docs/IST.md, docs/ist/04_ul_rx.md, docs/ist/05_tx_datapath.md, Phase B Forensik aus `scripts/forensic_ul_nub.py` auf `wavs/reference/UL_Gruppenruf_*.wav`.
 
 > **STATUS 2026-05-19 — Phase C + Phase E2 live + verifiziert.**
@@ -39,6 +39,8 @@
 > Nachvollziehbarkeit erhalten — Decisions D1-D3 sind im Wesentlichen
 > umgesetzt, D4 "bit-transparent" ist durch "SW decode+encode" ersetzt
 > worden (Verbesserung).
+
+> **⟳ Review-Delta 2026-06-20:** **ABGESCHLOSSEN** — Phase C + E2 umgesetzt + air-verifiziert. Dies ist ein historischer Plan; aktueller Voice-Ist-Stand: `ist/04` + `ist/05` + `ist/09`.
 
 ## Ziel
 

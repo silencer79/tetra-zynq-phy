@@ -1,6 +1,8 @@
 # IST — Kapitel 5: DL TX Datapath + Channel Coding
-Stand: 2026-05-17
+Stand: 2026-05-17  · reviewed 2026-06-20 (Delta s.u.)
 Quelle: rtl/tx/*.v + rtl/lmac/tetra_{crc16,reed_muller,interleaver,scrambler,rcpc_encoder,sch_*_encoder,mac_resource_*,dl_*,chan_alloc_encoder,basic_slotgrant_encoder,d_location_update_*,voice_filler_mailbox}.v
+
+> **⟳ Review-Delta 2026-06-20:** TX-PHY + Channel-Coding stabil. `chan_alloc_encoder.v` (in Quelle genannt) ist **entfernt** (X.6 dead-code). `tdma_timebase` + `slot_schedule` + `slot_content_mux` live; SCH/HD via `sch_hd_encoder` (+`_shared`); AACH via `aach_encoder`/`aach_rm_encoder`.
 
 ## Inhaltsverzeichnis
 

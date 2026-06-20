@@ -1,5 +1,5 @@
 # IST 07 — Mailboxes, DMA-Bridge, LMAC-Wrapper
-Stand: 2026-05-17
+Stand: 2026-05-17  · reviewed 2026-06-20 (Delta s.u.)
 
 Quellen:
 - `rtl/lmac/tetra_indirect_mailbox.v` (95 Zeilen) — generisches Read-Side
@@ -12,6 +12,8 @@ Quellen:
 - `rtl/infra/tetra_tx_pdu_mailbox.v` (314 Zeilen) — 4-Slot TX-PDU-Submit
 - `rtl/infra/tetra_axi_dma_bridge.v` (263 Zeilen) — RX-S2MM-Bridge
 - `rtl/lmac/tetra_lmac.v` (355 Zeilen) — Struktureller LMAC-Wrapper
+
+> **⟳ Review-Delta 2026-06-20:** **NEU seit diesem Kapitel:** `voice_filler_mailbox` + `voice_nub_read_mailbox` (Voice-Pfad), `ul_demand_body_mailbox`, `grp_demand_mailbox`, sowie die generische **`ul_schf_reassembly`→LSDS-Mailbox** (lange SDS / mm=7-Multi-Fragment). Die 0x250-Reply/Demand-Mailbox trägt SDS/MM. `tetra_tx_pdu_mailbox.v` ist **NICHT instanziiert** (tot). Generische Mailbox-Basis: `indirect_mailbox` (+`_wr`).
 
 ## tetra_indirect_mailbox.v (95 Zeilen)
 

@@ -1,7 +1,7 @@
 # PROTOCOL — TETRA Stack, ETSI-Referenz, Fremd-Implementierungen
 
 **Projekt:** tetra-zynq-phy
-**Stand:** 2026-04-25 (M2 erreicht)
+**Stand:** 2026-04-25 (M2 erreicht)  · reviewed 2026-06-20 (Delta s.u.)
 
 Ersetzt: `sdrsharp_tetra_dll_analysis.md`. Integriert Findings aus `osmo-tetra`
 Decoder, `tetra-bluestation` (MidnightBlueLabs, Rust-BS-Implementierung), sowie
@@ -9,6 +9,8 @@ dem Reference-Capture einer fremden TETRA-BS mit erfolgreichem MS-Attach
 (`docs/references/captures_external_bs_2026-04-25/`).
 
 ---
+
+> **⟳ Review-Delta 2026-06-20:** ETSI/bluestation-Referenz gilt weiter. Seit M2 im Stack dazugekommene PDUs: **CMCE Call** (D-SETUP/D-CONNECT(-ACK)/D-ALERT/D-TX-GRANTED/D-RELEASE), **SDS** (U/D-SDS-DATA + Status-SDS pdu 8, Quittung = LLC BL-ACK), **MM mm=7** (U-ATTACH-DETACH-GROUP-IDENTITY) + **D-NWRK-BROADCAST**. DL-MAC-END = **21-bit** Header (ETSI Table 21.59). Late Entry = D-SETUP-Re-Broadcast bei Attach.
 
 ## 1. Inhalt
 

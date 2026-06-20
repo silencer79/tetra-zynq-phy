@@ -1,7 +1,9 @@
 # IST — Kapitel 10: Scripts
-Stand: 2026-05-14
+Stand: 2026-05-14  · reviewed 2026-06-20 (Delta s.u.)
 
 Beschreibt den aktuellen Zustand aller Skripte in `scripts/`. Reine Bestandsaufnahme — keine Vergleiche, keine Empfehlungen.
+
+> **⟳ Review-Delta 2026-06-20:** **NEU:** `scripts/capture_rx_iq.sh` (Roh-RX-IQ-Drain aus dem SDR). Decoder `decode_dl.py`/`decode_ul.py` erweitert (SDS/Call-PDUs). `scripts/_resolved/` = archivierte Einmal-Helfer.
 
 ## Übersicht
 
