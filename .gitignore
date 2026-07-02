@@ -19,6 +19,9 @@
 # General logs
 *.log
 
+# Generiertes Artefakt der Code-/Datenfluss-Karte (Generator: scripts/gen_code_map.py)
+code_map.html
+
 # OS files
 .DS_Store
 Thumbs.db
