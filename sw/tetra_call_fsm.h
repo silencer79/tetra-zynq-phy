@@ -46,6 +46,8 @@
  * Slot freed wird. Wenn U-DISCONNECT zu spät kommt (>5s nach Voice-Ende):
  * MS retried U-DISCONNECT — kein Schaden im Multi-Group-Betrieb. */
 #define CALL_FSM_CALL_STALE_MS 5000u
+/* Einzelruf-Alert-Timeout: B nimmt nicht ab -> Ruf abbauen (max. Klingeldauer). */
+#define CALL_FSM_ALERT_TIMEOUT_MS 20000u
 
 typedef enum {
  CALL_STATE_IDLE = 0,

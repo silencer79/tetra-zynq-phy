@@ -61,6 +61,7 @@ static uint32_t compute_voice_mask(void)
  if (g_slots[i].ssi == 0u) continue;
  if (g_slots[i].state == CALL_STATE_IDLE) continue;
  if (g_slots[i].state == CALL_STATE_RELEASING) continue;
+ if (g_slots[i].state == CALL_STATE_CONNECTING) continue; /* Einzelruf klingelt — noch keine Voice */
  /* Saturating subtract — notify_ul_burst() kann last_activity_poll_cnt
   * minimal in die Zukunft schreiben (≤ paar ms voice_pipe-Latenz). */
  uint32_t age = (g_slots[i].last_activity_poll_cnt > now)
@@ -222,9 +223,14 @@ static int stage_d_call_proceeding(tetra_hal_t *hal, call_slot_t *s)
  m.target_ssi = s->ssi;
  m.ns = s->ns;
  m.nr = s->nr;
- m.umt = s->umt;
- m.chan_alloc_ts_bitmap = tetra_ts_to_chan_alloc_bitmap(s->voice_ts);
+ m.umt = 0u; /* Einzelruf wie Gold: plain SSI, kein Kanal beim Klingeln */
+ m.chan_alloc_ts_bitmap = 0u;
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
+ /* hook + simplex aus A's U-SETUP spiegeln (BlueStation send_d_call_proceeding
+  * Z.327-328): ohne das sieht A's MS bei einem Hook-Ruf hook=0 → behandelt ihn
+  * als Direktruf → PTT-Loslassen = auflegen (U-DISCONNECT UserRequested). */
+ m.cmce.hook_method_selection = s->hook_method;
+ m.cmce.simplex_duplex_selection = s->simplex_duplex;
  return tetra_tx_submit(hal, TX_D_CALL_PROCEEDING, &m);
 }
 
@@ -243,8 +249,13 @@ static int stage_d_setup(tetra_hal_t *hal, call_slot_t *s)
               : s->ssi;
  m.ns = s->ns;
  m.nr = s->nr;
- m.umt = s->umt;
- m.chan_alloc_ts_bitmap = tetra_ts_to_chan_alloc_bitmap(s->voice_ts);
+ /* Einzelruf wie Gold: D-SETUP an B OHNE Kanal-Zuweisung (plain SSI) —
+  * Traffic-Kanal erst im D-CONNECT/D-CONNECT-ACK nach Annahme.
+  * Gruppe: MIT Kanal (Member müssen sofort beitreten). */
+ int is_indiv_setup = (s->group_gssi == 0u && s->target_issi != 0u);
+ m.umt = is_indiv_setup ? 0u : s->umt;
+ m.chan_alloc_ts_bitmap = is_indiv_setup ? 0u
+                          : tetra_ts_to_chan_alloc_bitmap(s->voice_ts);
  m.cmce.call_identifier = s->call_id & 0x3FFFu;
  m.cmce.call_time_out = 7; /* T5m per bluestation */
  m.cmce.transmission_grant = 3; /* GrantedToOtherUser */
@@ -342,6 +353,21 @@ static int stage_d_connect_ack(tetra_hal_t *hal, call_slot_t *s)
  m.cmce.transmission_grant = CMCE_TG_GRANTED;
  m.cmce.transmission_request_permission = 0;
  return tetra_tx_submit(hal, TX_D_CONNECT_ACK, &m);
+}
+
+/* D-ALERT an den Caller — "called party is ringing" (Einzelruf). */
+static int stage_d_alert(tetra_hal_t *hal, call_slot_t *s)
+{
+ tx_pdu_meta_t m;
+ memset(&m, 0, sizeof(m));
+ m.target_ssi = s->ssi;
+ m.ns = s->ns;
+ m.nr = s->nr;
+ m.umt = 0u; /* Einzelruf wie Gold: plain SSI, kein Kanal beim Klingeln */
+ m.chan_alloc_ts_bitmap = 0u;
+ m.cmce.call_identifier = s->call_id & 0x3FFFu;
+ m.cmce.simplex_duplex_selection = s->simplex_duplex;
+ return tetra_tx_submit(hal, TX_D_ALERT, &m);
 }
 
 static int stage_d_release(tetra_hal_t *hal, call_slot_t *s, uint8_t cause)
@@ -442,6 +468,7 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  s->t_ceased_ms = 0u;
  s->t_first_nub_logged = 0u;
 
+ if (cp_is_group) {
  int rc = stage_d_connect(hal, s);
  uint32_t t_conn1_ms = mono_ms_lo();
  fprintf(stderr,
@@ -469,6 +496,24 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  "voice_ts=TS%u, filler cleared — voice-slot wartet auf UL-NUB)\n",
  g_mask_cached, s->call_id, s->voice_ts);
  return rc;
+ } else {
+ /* Einzelruf wie Gold: ERST AL-SETUP (Advanced Link an A, via RTL
+  * pre_reply_slotgrant) — hält A's MS im Ruf-Zustand, sonst U-DISCONNECT
+  * beim PTT-Loslassen. Dann klingeln; KEIN D-CONNECT/Grant/Voice bis Annahme. */
+ (void)tetra_tx_rx_slotgrant(hal, s->ssi); /* AL-SETUP an Caller A */
+ int rcp = stage_d_call_proceeding(hal, s);
+ int rca = stage_d_alert(hal, s);
+ int rds = stage_d_setup(hal, s);
+ s->state = CALL_STATE_CONNECTING; /* klingelt, wartet auf U-CONNECT */
+ s->setup_stage = 11u; /* tick: D-SETUP(B) 1x resend, KEIN connect */
+ s->setup_next_ms = mono_ms_lo() + 113u;
+ s->last_activity_poll_cnt = mono_ms_lo();
+ fprintf(stderr,
+ "tetra_call_fsm: U-SETUP(ind) ssi=0x%06X -> B=0x%06X klingelt "
+ "(PROCEEDING rc=%d ALERT rc=%d SETUP rc=%d) call_id=%u hook=%u simplex=%u — warte auf U-CONNECT\n",
+ ssi, s->target_issi, rcp, rca, rds, s->call_id, s->hook_method, s->simplex_duplex);
+ return (rds < 0) ? rds : 0;
+ }
  }
 
  case CMCE_U_TX_DEMAND: {
@@ -572,15 +617,19 @@ int tetra_call_fsm_handle(tetra_hal_t *hal, uint32_t ssi,
  }
  }
  if (s == NULL) return -1;
- int rc = stage_d_connect_ack(hal, s);
- s->state = CALL_STATE_TALKER;
+ /* B nimmt an -> JETZT verbinden: D-CONNECT an A + D-CONNECT-ACK an B, dann Voice. */
+ int rcc = stage_d_connect(hal, s);
+ int rca = stage_d_connect_ack(hal, s);
+ s->state = CALL_STATE_CONNECTED;
+ s->setup_stage = 0u; /* Klingel-Resend stoppen */
  s->last_activity_poll_cnt = mono_ms_lo();
  mask_write_cached(hal, compute_voice_mask());
+ tetra_voice_filler_clear(hal);
  fprintf(stderr,
- "tetra_call_fsm: U-CONNECT ssi=0x%06X → D-CONNECT-ACK "
- "call_id=%u rc=%d\n",
- ssi, s->call_id, rc);
- return rc;
+ "tetra_call_fsm: U-CONNECT ssi=0x%06X -> D-CONNECT(A=0x%06X)+D-CONNECT-ACK(B) "
+ "call_id=%u rc=%d/%d — verbunden, Voice scharf\n",
+ ssi, s->ssi, s->call_id, rcc, rca);
+ return (rcc < 0) ? rcc : rca;
  }
 
  case CMCE_U_ALERT: {
@@ -712,6 +761,13 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  s->call_id, src, mono_ms_lo() - s->t_setup_arrived_ms);
  }
  s->setup_stage = 0u;
+ } else if (s->setup_stage == 11u) {
+ /* Einzelruf: D-SETUP(B) 1x wiederholen (Robustheit), KEIN D-CONNECT. */
+ int src = stage_d_setup(hal, s);
+ fprintf(stderr,
+ "tetra_call_fsm: D-SETUP(ind resend) -> issi=0x%06X call_id=%u rc=%d\n",
+ s->target_issi, s->call_id, src);
+ s->setup_stage = 0u;
  }
  }
 
@@ -723,6 +779,17 @@ void tetra_call_fsm_tick(tetra_hal_t *hal)
  uint32_t age = (s->last_activity_poll_cnt > now)
               ? 0u
               : (now - s->last_activity_poll_cnt);
+ /* Klingelnder Einzelruf (CONNECTING) NICHT per 5s-NUB-Watchdog freigeben —
+  * B braucht ~10s zum Annehmen. Eigener Alert-Timeout. */
+ if (s->state == CALL_STATE_CONNECTING) {
+ uint32_t ring_age = (now > s->t_setup_arrived_ms) ? (now - s->t_setup_arrived_ms) : 0u;
+ if (ring_age > CALL_FSM_ALERT_TIMEOUT_MS) {
+ fprintf(stderr, "tetra_call_fsm: ALERT-TIMEOUT ssi=0x%06X call_id=%u — B nimmt nicht ab -> D-RELEASE\n", s->ssi, s->call_id);
+ stage_d_release(hal, s, 0u);
+ free_slot(hal, s);
+ }
+ continue;
+ }
  if (s->state != CALL_STATE_IDLE &&
  age > CALL_FSM_CALL_STALE_MS) {
  fprintf(stderr,
