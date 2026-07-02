@@ -1,13 +1,15 @@
 # IST — tetra-zynq-phy Code-State
 
-**Stand:** 2026-06-20
+**Stand:** 2026-07-02
 **Branch:** `main`
-**Letzter Commit:** `1eaa92b feat(call): Late Entry — D-SETUP event-getriggert`
+**Letzter Commit:** `b44bfc5 docs(ist): fix UL-Demand-Body-Layout auf echtes Modul (147-bit, W2-W6)`
 **Working-Tree:** Submodule `tetra-bluestation` ist externes Upstream (nie ins Haupt-Repo committen)
 **Build-Artefakt:** `build/tetra_zynq_phy.bit.bin` — neuer als der E2-Build (seither RTL: `ul_schf_reassembly`, Soft-Amplituden-Norm im NUB-Capture, SCH/F-Survivor/Soft-Buffer in BRAM). Aktuelle MD5 + Vivado-Bilanz im jeweiligen Build-`*_utilization_placed.rpt`.
-**Vivado-Stand (ballpark):** Slice **~97 %** (LUT ~67 %, FF treibt Packing), WNS knapp positiv — slice-limitiert.
+**Vivado-Stand (ballpark):** Slice **~98,66 %** (nach `b92f47e`, LUT ~67 %, FF treibt Packing), WNS knapp positiv — slice-limitiert.
 
-Diese Dokumentation beschreibt was der Code **TUT**, nicht was er tun **sollte**. Keine Pläne, keine Bewertungen, keine ETSI-Spec-Vergleiche. Reiner IST-Stand zum Stichtag.
+Diese Dokumentation beschreibt was der Code **TUT**, nicht was er tun **sollte**. Keine Pläne, keine Bewertungen, keine ETSI-Spec-Vergleiche. Reiner IST-Stand zum Stichtag. (Ausnahme: `docs/ist/13_fpga_sw_boundary.md` §5 enthält einen explizit markierten Bewertungsteil.)
+
+**Kapitel:** `docs/ist/00`–`12` je Subsystem; **neu `docs/ist/13_fpga_sw_boundary.md`** — FPGA/SW-Grenz-Inventur (was läuft wo, End-to-End-Ketten) + logische Trennpunkte T1–T6, faktengeprüft 13/14.
 
 ## Änderungen seit 2026-05-19 (neueste zuerst)
 
