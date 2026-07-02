@@ -242,9 +242,18 @@ Der SW-Move ist vollzogen: SW walkt den rohen 129-bit-Body selbst
 nach `archive/` verschoben (`0fec1c4`). Die alten parsed-Snapshot-Mailboxen
 (0x200 mm=2, 0x240 mm=7) sind entfernt.
 
-**Zweck:** Snapshot raw 129-bit MM-Body + SSI + mm_pdu_type aus
-`tetra_ul_demand_reassembly` → 16 × 32-bit Indirect-Mailbox für SW-Walker.
-Layout: W0 magic(0xA5)+mm_type+body[128], W1 ssi, W2-W5 body[127:0], W7 drop_cnt.
+**Zweck:** Snapshot raw **147-bit TM-SDU-Body** (ab LLC-Header) + SSI + 13-bit
+meta-Bündel aus `tetra_ul_demand_reassembly` → 16 × 32-bit Indirect-Mailbox für
+SW-Walker. Layout (verifiziert gegen Modul-Header Z.17-27 **und** SW-Leser
+`uldbod_unpack`, `sw/tetra_attach_daemon.c:108-124` — beide deckungsgleich):
+- W0 `[31:24]`=0xA5 magic, `[12:0]`=meta (`[12:9]`=mm_pdu_type, `[8:6]`=mle_disc, `[5:2]`=llc_pdu_type, `[1]`=llc_ns, `[0]`=opt_flag)
+- W1 `[23:0]`=ssi
+- W2=body[146:115], W3=body[114:83], W4=body[82:51], W5=body[50:19], W6 `[18:0]`=body[18:0] (MSB-first)
+- W7 `[15:0]`=drop_cnt; W8..W15 reserved
+
+> **Hinweis:** Der Kommentar in `sw/tetra_hal.h` (Z.278-300) beschreibt hier ein
+> veraltetes 129-bit/W2-W5-Layout — er stimmt NICHT mit Modul + SW-Leser überein.
+> Verbindlich ist das Modul `tetra_ul_demand_body_mailbox.v`.
 
 ## tetra_tx_pdu_mailbox.v (314 Zeilen)
 

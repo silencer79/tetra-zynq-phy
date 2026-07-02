@@ -168,7 +168,7 @@ read-side `if (rd_addr_axi[10:9] == 2'b01)`. Eigenes Case-Statement über `[8:2]
 | 0x240..0x24C | ~~REG_GRP_DEMAND_*~~ **ENTFERNT (Phase 1E-B)** | - | - | - | mm=7-Group-Attach-Snapshot raus; mm=7 walkt ebenfalls roh via REG_UL_DEMAND_BODY_* @ 0x250 |
 | 0x250 | REG_UL_DEMAND_BODY_STATUS | 32 | RO | - | **AKTIV** (`u_ul_demand_body_mailbox`, top:3184) — `[31:16]=drop_cnt, [0]=pending` |
 | 0x254 | REG_UL_DEMAND_BODY_INDEX | 4 | R/W | 0 | Word-Selector 0..15 |
-| 0x258 | REG_UL_DEMAND_BODY_DATA | 32 | RO | - | Indirect via INDEX — 129-bit MM-Body + SSI + mm_pdu_type (magic 0xA5), SW-Walker `tetra_mm_demand_parser.c` |
+| 0x258 | REG_UL_DEMAND_BODY_DATA | 32 | RO | - | Indirect via INDEX (0..7): W0=0xA5 magic+meta[12:0], W1=ssi[23:0], W2..W6=147-bit TM-SDU-Body (ab LLC-Hdr), W7=drop_cnt. Quelle: `tetra_ul_demand_body_mailbox.v:17-27` + SW-Leser `uldbod_unpack`. **hal.h-Kommentar (129-bit) ist veraltet.** |
 | 0x25C | REG_UL_DEMAND_BODY_ACK | 1 | W1S | 0 | [0] ACK — HW-Clr nach Consume |
 
 **Phase C / Phase 7 G.8 — Voice-Channel Telemetrie + Filler-Mailbox + NUB-Read-Mailbox (Bank-1 0x260..0x28C):**
