@@ -159,20 +159,17 @@ read-side `if (rd_addr_axi[10:9] == 2'b01)`. Eigenes Case-Statement über `[8:2]
 
 | Addr | Name | Width | R/W | Default | Beschreibung / Side-effect |
 |--------|----------------------------|-------|------|---------|----------------------------|
-| 0x200 | REG_DEMAND_STATUS | 32 | RO | - | `{demand_drop_cnt[15:0], 15'd0, demand_pending}` |
-| 0x204 | REG_DEMAND_INDEX | 4 | R/W | 4'd0 | Indirect-Word-Index 0..15 für mm=2 Demand-Mailbox |
-| 0x208 | REG_DEMAND_DATA | 32 | RO | - | Indirect via INDEX, lebt in clk_sys (CDC durch Top) |
-| 0x20C | REG_DEMAND_ACK | 1 | W1S | 0 | [0] ACK — HW-Clr durch `demand_consume_axi` |
+| 0x200..0x20C | ~~REG_DEMAND_*~~ **ENTFERNT (Phase 1E-B)** | - | - | - | mm=2-Demand-Snapshot raus (`tetra_axi_lite_regs.v:855-859`); SW walkt den rohen Body via REG_UL_DEMAND_BODY_* @ 0x250 |
 | 0x220 | REG_REPLY_INDEX | 4 | R/W | 4'd0 | Word-Selector für Reply-Mailbox |
 | 0x224 | REG_REPLY_DATA | 32 | R/W | - | Indirect-Write + Readback; `wr_en_x1` Pulse → `reply_we_axi_o` |
 | 0x228 | REG_REPLY_GO | 1 | W1S | 0 | [0] GO-Pulse zum MLE-FSM, HW-Clr |
 | 0x22C | REG_REPLY_STATUS | 1 | RO | - | [0]=busy-mirror (= `mle_busy_w` resynct) |
 | 0x230 | REG_REPLY_USE_SW | 1 | R/W | 1'b1 | [0]=use_sw_body. Phase X.7 Stand: nur Status, FPGA-Mux entfernt |
-| 0x240 | REG_GRP_DEMAND_STATUS | 32 | RO | - | `{grp_drop_cnt[15:0], 15'd0, grp_pending}` |
-| 0x244 | REG_GRP_DEMAND_INDEX | 4 | R/W | 4'd0 | Word-Index für mm=7 Group-Attach Demand |
-| 0x248 | REG_GRP_DEMAND_DATA | 32 | RO | - | Indirect via INDEX |
-| 0x24C | REG_GRP_DEMAND_ACK | 1 | W1S | 0 | [0] ACK — HW-Clr durch `grp_demand_consume_axi` |
-| 0x250..0x25C | (entfernt Phase Y.2) | - | - | - | Gruppen-Reply komplett gestrichen — SW nutzt mm=2 Reply-Pull-Mailbox mit raw-mode |
+| 0x240..0x24C | ~~REG_GRP_DEMAND_*~~ **ENTFERNT (Phase 1E-B)** | - | - | - | mm=7-Group-Attach-Snapshot raus; mm=7 walkt ebenfalls roh via REG_UL_DEMAND_BODY_* @ 0x250 |
+| 0x250 | REG_UL_DEMAND_BODY_STATUS | 32 | RO | - | **AKTIV** (`u_ul_demand_body_mailbox`, top:3184) — `[31:16]=drop_cnt, [0]=pending` |
+| 0x254 | REG_UL_DEMAND_BODY_INDEX | 4 | R/W | 0 | Word-Selector 0..15 |
+| 0x258 | REG_UL_DEMAND_BODY_DATA | 32 | RO | - | Indirect via INDEX — 129-bit MM-Body + SSI + mm_pdu_type (magic 0xA5), SW-Walker `tetra_mm_demand_parser.c` |
+| 0x25C | REG_UL_DEMAND_BODY_ACK | 1 | W1S | 0 | [0] ACK — HW-Clr nach Consume |
 
 **Phase C / Phase 7 G.8 — Voice-Channel Telemetrie + Filler-Mailbox + NUB-Read-Mailbox (Bank-1 0x260..0x28C):**
 

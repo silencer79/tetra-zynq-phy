@@ -233,18 +233,18 @@ Rate ~60 ms ist das in Praxis kein Problem.
 **Nachbarn:** ↑ `tetra_zynq_top.v` (`u_voice_nub_read_mailbox`). ↓ AXI-Side
 (SW-Daemon `sw/tetra_voice_pipe.c`).
 
-## tetra_ul_demand_body_mailbox.v (126 Zeilen, Phase 1A Vorbereitung, NOT IN ZYNQ_TOP)
+## tetra_ul_demand_body_mailbox.v (126 Zeilen, Phase 1A — INSTANZIIERT top:3184)
 
-**Status:** Modul existiert (commit `47def0e`), ist aber **noch nicht** im
-`tetra_zynq_top.v` instantiiert. Vorbereitung für künftigen SW-Move von
-`tetra_ul_demand_ie_parser` (~3500 LUT).
+**Status (korrigiert 2026-07-02):** LIVE — instanziiert als `u_ul_demand_body_mailbox`
+in `tetra_zynq_top.v:3184`, gemappt auf AXI `REG_UL_DEMAND_BODY_*` (0x250..0x25C).
+Der SW-Move ist vollzogen: SW walkt den rohen 129-bit-Body selbst
+(`sw/tetra_mm_demand_parser.c`), der alte RTL-`tetra_ul_demand_ie_parser` wurde
+nach `archive/` verschoben (`0fec1c4`). Die alten parsed-Snapshot-Mailboxen
+(0x200 mm=2, 0x240 mm=7) sind entfernt.
 
-**Zweck (geplant):** Snapshot raw 129-bit MM-Body + SSI + mm_pdu_type aus
+**Zweck:** Snapshot raw 129-bit MM-Body + SSI + mm_pdu_type aus
 `tetra_ul_demand_reassembly` → 16 × 32-bit Indirect-Mailbox für SW-Walker.
-Layout: W0 magic+mm_type+body[128], W1 ssi, W2-W5 body[127:0], W7 drop_cnt.
-
-**Verbleibend:** zynq_top-Integration + AXI-Reg-Mapping + SW-Parser-Port.
-Siehe Memory `project_fpga_slice_bottleneck` für Roadmap.
+Layout: W0 magic(0xA5)+mm_type+body[128], W1 ssi, W2-W5 body[127:0], W7 drop_cnt.
 
 ## tetra_tx_pdu_mailbox.v (314 Zeilen)
 
