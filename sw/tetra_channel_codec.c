@@ -329,3 +329,108 @@ int tetra_codec_schf_decode(const uint8_t *type5_in,
 
  return crc16_check(decoded) ? 0 : -1;
 }
+
+/* ========================================================================
+ * SCH/HU (UL RA/MAC-ACCESS) Soft-Chain — Option B, spiegelt
+ * tetra_ul_sch_hu_decoder.v (K=168, a=13, info=92) + decode_dl.py.
+ * ======================================================================== */
+#define SCHHU_INFO_BITS   92
+#define SCHHU_CHECK_BITS  108   /* 92 info + 16 CRC */
+#define SCHHU_DEC_BITS    112   /* + 4 tail */
+#define SCHHU_MOTHER_BITS 448
+#define SCHHU_CODED_BITS  168
+#define SCHHU_A           13
+
+static int crc16_check_n(const uint8_t *bits, int info_len)
+{
+    uint16_t crc = 0xFFFF;
+    for (int i = 0; i < info_len; i++) {
+        int fb = (bits[i] & 1) ^ ((crc >> 15) & 1);
+        crc <<= 1; if (fb) crc ^= 0x1021;
+    }
+    crc ^= 0xFFFF;
+    for (int i = 0; i < 16; i++) {
+        int want = (crc >> (15 - i)) & 1;
+        if ((bits[info_len + i] & 1) != want) return 0;
+    }
+    return 1;
+}
+
+int tetra_codec_schhu_decode(const uint8_t *type5_168,
+                             uint8_t colour_code, uint8_t slot_num,
+                             uint16_t mcc, uint16_t mnc,
+                             uint8_t *info_92_out)
+{
+    uint8_t type4[SCHHU_CODED_BITS], type4d[SCHHU_CODED_BITS];
+    uint8_t mother[SCHHU_MOTHER_BITS];
+    uint8_t decoded[SCHHU_DEC_BITS];
+
+    tetra_codec_descramble(type5_168, SCHHU_CODED_BITS, colour_code, slot_num,
+                           mcc, mnc, type4);
+    tetra_codec_deinterleave_perm(type4, SCHHU_CODED_BITS, SCHHU_A, type4d);
+    tetra_codec_depuncture_r23(type4d, SCHHU_CODED_BITS, mother);
+    tetra_codec_viterbi_r14(mother, SCHHU_DEC_BITS, decoded);
+    memcpy(info_92_out, decoded, SCHHU_INFO_BITS);
+    return crc16_check_n(decoded, SCHHU_INFO_BITS) ? 0 : -1;
+}
+
+/* ========================================================================
+ * SOFT-Pfad (Option B) — signed int soft-values, Konvention:
+ *   positiv = bit '1', negativ = bit '0', |s| = Konfidenz, 0 = Erasure.
+ * ======================================================================== */
+void tetra_codec_descramble_soft(const int *soft_in, int len,
+                                 uint8_t colour_code, uint8_t slot_num,
+                                 uint16_t mcc, uint16_t mnc, int *soft_out)
+{
+    uint32_t lfsr = ((uint32_t)(mcc&0x3FF)<<22)|((uint32_t)(mnc&0x3FFF)<<8)
+                    |((uint32_t)(colour_code&0x3F)<<2)|3u;
+    if(!lfsr) lfsr=0xFFFFFFFF;
+    for(int i=0;i<len;i++){ uint8_t b=next_lfsr_bit(&lfsr); soft_out[i]= b? -soft_in[i] : soft_in[i]; }
+    (void)slot_num;
+}
+void tetra_codec_deinterleave_perm_soft(const int *in,int N,int a,int *out){
+    for(int k=1;k<=N;k++){ int j=1+((a*k)%N); out[k-1]=in[j-1]; }
+}
+/* Soft-Depuncture r=2/3: 3 soft/Paar an mother {0,1,4}; Rest Erasure=0. */
+void tetra_codec_depuncture_r23_soft(const int *in_punct,int in_len,int *mother){
+    int np=in_len/3;
+    for(int p=0;p<np;p++){
+        mother[p*8+0]=in_punct[p*3+0]; mother[p*8+1]=in_punct[p*3+1];
+        mother[p*8+2]=0; mother[p*8+3]=0; mother[p*8+4]=in_punct[p*3+2];
+        mother[p*8+5]=0; mother[p*8+6]=0; mother[p*8+7]=0;
+    }
+}
+/* Soft K=5 r=1/4 Viterbi. Metrik: pro mother-bit Strafe |s| bei Vorzeichen-
+ * Widerspruch zum erwarteten bit, 0 bei Erasure(s==0). */
+void tetra_codec_viterbi_r14_soft(const int *soft_in,int n_input,uint8_t *decoded){
+    const int NS=16; const int INF=1<<28; /* > max metric (~448×|s|); passt in 32-bit int (auch arm) */
+    int pm[16],pmn[16];
+    uint8_t *tbs=(uint8_t*)__builtin_alloca((size_t)n_input*NS);
+    uint8_t *tbi=(uint8_t*)__builtin_alloca((size_t)n_input*NS);
+    for(int s=0;s<NS;s++) pm[s]=(s==0)?0:INF;
+    for(int i=0;i<n_input;i++){
+        int rx[4]; for(int m=0;m<4;m++) rx[m]=soft_in[i*4+m];
+        for(int s=0;s<NS;s++) pmn[s]=INF;
+        for(int os=0;os<NS;os++){ if(pm[os]>=INF) continue;
+            for(int inp=0;inp<2;inp++){
+                int sr=((os<<1)|inp)&0x1F; int nsx=sr&0xF; int metric=pm[os];
+                for(int m=0;m<4;m++){ int e=parity5((uint8_t)(sr&VITERBI_G[m])); int s=rx[m];
+                    if(s!=0){ int hb=(s>0)?1:0; if(e!=hb) metric += (s<0? -s : s); } }
+                if(metric<pmn[nsx]){ pmn[nsx]=metric; tbs[i*NS+nsx]=(uint8_t)os; tbi[i*NS+nsx]=(uint8_t)inp; }
+            } }
+        for(int s=0;s<NS;s++) pm[s]=pmn[s];
+    }
+    int st=0;
+    for(int i=n_input-1;i>=0;i--){ decoded[i]=tbi[i*NS+st]; st=tbs[i*NS+st]; }
+}
+int tetra_codec_schhu_decode_soft(const int *soft_168,
+                                  uint8_t cc,uint8_t slot,uint16_t mcc,uint16_t mnc,
+                                  uint8_t *info_92_out){
+    int t4[168],t4d[168],mo[448]; uint8_t dec[112];
+    tetra_codec_descramble_soft(soft_168,168,cc,slot,mcc,mnc,t4);
+    tetra_codec_deinterleave_perm_soft(t4,168,13,t4d);
+    tetra_codec_depuncture_r23_soft(t4d,168,mo);
+    tetra_codec_viterbi_r14_soft(mo,112,dec);
+    memcpy(info_92_out,dec,92);
+    return crc16_check_n(dec,92)?0:-1;
+}

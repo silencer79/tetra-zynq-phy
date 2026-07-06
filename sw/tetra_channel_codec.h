@@ -92,4 +92,31 @@ int tetra_codec_schf_decode(const uint8_t *type5_in,
                             uint16_t mcc, uint16_t mnc,
                             uint8_t *info_268_out);
 
+/* ────────────────────────────────────────────────────────────────────────
+ * Option B — UL Soft-Decode-Kette (SCH/HU). Spiegelt
+ * rtl/rx/tetra_ul_sch_hu_decoder.v (K=168, a=13, info=92) + decode_dl.py.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/* SCH/HU hard-decoder: 168 type-5 → 92 info.
+ * type5 → descramble → deinterleave(N=168,a=13) → depuncture P_2/3 →
+ *   Viterbi(112 stages) → 92 info + 16 CRC. Return 0 = CRC OK, -1 sonst. */
+int tetra_codec_schhu_decode(const uint8_t *type5_168,
+                             uint8_t colour_code, uint8_t slot_num,
+                             uint16_t mcc, uint16_t mnc,
+                             uint8_t *info_92_out);
+
+/* SOFT-Pfad (Option B) — signed-int soft-values. Konvention:
+ * positiv = bit '1', negativ = bit '0', |s| = Konfidenz, 0 = Erasure. */
+void tetra_codec_descramble_soft(const int *soft_in, int len,
+                                 uint8_t colour_code, uint8_t slot_num,
+                                 uint16_t mcc, uint16_t mnc, int *soft_out);
+void tetra_codec_deinterleave_perm_soft(const int *in, int N, int a, int *out);
+void tetra_codec_depuncture_r23_soft(const int *in_punct, int in_len, int *mother);
+void tetra_codec_viterbi_r14_soft(const int *soft_in, int n_input,
+                                  uint8_t *decoded);
+int tetra_codec_schhu_decode_soft(const int *soft_168,
+                                  uint8_t colour_code, uint8_t slot_num,
+                                  uint16_t mcc, uint16_t mnc,
+                                  uint8_t *info_92_out);
+
 #endif /* TETRA_CHANNEL_CODEC_H */

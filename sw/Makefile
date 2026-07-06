@@ -78,10 +78,25 @@ test_cmce_body: test_cmce_body.c tetra_cmce_body.c tetra_cmce_body.h
 	gcc -Wall -Werror -O2 -o /tmp/test_cmce_body \
 		test_cmce_body.c tetra_cmce_body.c
 
-test: test_grpack test_cmce_parser test_cmce_body
+test_schf_rt: test_schf_roundtrip.c tetra_channel_codec.c tetra_channel_codec.h
+	gcc -Wall -Werror -O2 -o /tmp/test_schf_rt \
+		test_schf_roundtrip.c tetra_channel_codec.c
+
+test_schhu_rt: test_schhu_roundtrip.c tetra_channel_codec.c tetra_channel_codec.h
+	gcc -Wall -Werror -O2 -o /tmp/test_schhu_rt \
+		test_schhu_roundtrip.c tetra_channel_codec.c
+
+test_ul_soft: test_soft_gain.c tetra_channel_codec.c tetra_channel_codec.h
+	gcc -Wall -Werror -O2 -o /tmp/test_ul_soft \
+		test_soft_gain.c tetra_channel_codec.c -lm
+
+test: test_grpack test_cmce_parser test_cmce_body test_schf_rt test_schhu_rt test_ul_soft
 	/tmp/test_grpack
 	/tmp/test_cmce_parser
 	/tmp/test_cmce_body
+	/tmp/test_schf_rt
+	/tmp/test_schhu_rt
+	/tmp/test_ul_soft
 
 module:
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \
