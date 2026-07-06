@@ -56,4 +56,42 @@ int ul_reass_end(ul_reass_t *r, uint32_t ssi, const uint8_t *info92,
  * (drop_cnt++). now_ms monoton. */
 void ul_reass_tick(ul_reass_t *r, uint32_t now_ms);
 
+/* ────────────────────────────────────────────────────────────────────────
+ * Long-SDS Multi-Fragment-Reassembly (SCH/F) — Spiegel von
+ * rtl/rx/tetra_ul_schf_reassembly.v.
+ *   Kette: MAC-ACCESS(frag=1)[SCH/HU] frag1=info92[30..91] (62)
+ *          ++ N × MAC-FRAG[SCH/F]  info268[4..267]  (264)
+ *          ++ MAC-END[SCH/F]       info268[10..267] (258)  → komplett
+ * Single-Chain (SCH/F trägt keine SSI — reservierter Slot ordnet zu).
+ * ──────────────────────────────────────────────────────────────────────── */
+#define UL_LSDS_MAX_BITS       8192
+#define UL_LSDS_T0_MS_DEFAULT   227   /* ETSI ~4 TDMA-frames */
+
+typedef struct {
+    int      active;
+    uint32_t ssi;
+    uint8_t  opt;
+    int      len;                    /* akkumulierte Bits */
+    uint8_t  body[UL_LSDS_MAX_BITS]; /* byte-per-bit, MSB-first */
+    uint32_t t0_deadline_ms;
+    uint32_t t0_ms;
+    uint32_t reass_cnt;
+    uint32_t drop_cnt;
+} ul_lsds_t;
+
+void ul_lsds_init(ul_lsds_t *r, uint32_t t0_ms);
+
+/* MAC-ACCESS(frag=1)[SCH/HU]: startet die Kette mit frag1 = info92[30..91]. */
+void ul_lsds_start(ul_lsds_t *r, uint32_t ssi, const uint8_t *info92,
+                   uint8_t opt, uint32_t now_ms);
+
+/* SCH/F-Fragment (mac_pdu_type==01): is_end = info268[2]. Hängt info268[4..267]
+ * (FRAG) bzw. info268[10..267] (END) an. Bei END: komplettiert → füllt out_*,
+ * gibt 1 zurück (reass_cnt++). Sonst 0. Ohne aktive Kette: 0 (orphan). */
+int ul_lsds_frag(ul_lsds_t *r, const uint8_t *info268, int is_end, uint32_t now_ms,
+                 uint8_t *out_body, int *out_len, uint32_t *out_ssi, uint8_t *out_opt);
+
+/* Wall-Clock-Tick: aktive Kette nach T0-Ablauf verwerfen (drop_cnt++). */
+void ul_lsds_tick(ul_lsds_t *r, uint32_t now_ms);
+
 #endif /* TETRA_UL_REASSEMBLY_H */

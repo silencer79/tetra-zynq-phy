@@ -94,6 +94,10 @@ test_ul_reass: test_ul_reass.c tetra_ul_reassembly.c tetra_ul_reassembly.h
 	gcc -Wall -Werror -O2 -o /tmp/test_ul_reass \
 		test_ul_reass.c tetra_ul_reassembly.c
 
+test_ul_lsds: test_ul_lsds.c tetra_ul_reassembly.c tetra_ul_reassembly.h
+	gcc -Wall -Werror -O2 -o /tmp/test_ul_lsds \
+		test_ul_lsds.c tetra_ul_reassembly.c
+
 test_ul_rx_mb: test_ul_rx_mailbox.c tetra_ul_rx_mailbox.c tetra_ul_rx_mailbox.h \
 		tetra_channel_codec.c tetra_channel_codec.h
 	gcc -Wall -Werror -O2 -o /tmp/test_ul_rx_mb \
@@ -107,7 +111,7 @@ test_ul_parity: test_ul_rtl_parity.c tetra_channel_codec.c tetra_channel_codec.h
 		test_ul_rtl_parity.c tetra_channel_codec.c
 	/tmp/test_ul_rtl_parity ../sim_out/ul_sch_hu_soft.hex ../sim_out/ul_sch_hu_exp.hex
 
-test: test_grpack test_cmce_parser test_cmce_body test_schf_rt test_schhu_rt test_ul_soft test_ul_reass test_ul_rx_mb
+test: test_grpack test_cmce_parser test_cmce_body test_schf_rt test_schhu_rt test_ul_soft test_ul_reass test_ul_lsds test_ul_rx_mb
 	/tmp/test_grpack
 	/tmp/test_cmce_parser
 	/tmp/test_cmce_body
@@ -115,6 +119,7 @@ test: test_grpack test_cmce_parser test_cmce_body test_schf_rt test_schhu_rt tes
 	/tmp/test_schhu_rt
 	/tmp/test_ul_soft
 	/tmp/test_ul_reass
+	/tmp/test_ul_lsds
 	/tmp/test_ul_rx_mb
 
 module:

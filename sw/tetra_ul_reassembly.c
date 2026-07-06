@@ -67,3 +67,54 @@ int ul_reass_end(ul_reass_t *r, uint32_t ssi, const uint8_t *info92,
     r->reass_cnt++;
     return 1;
 }
+
+/* ========================================================================
+ * Long-SDS Multi-Fragment (SCH/F) — Spiegel tetra_ul_schf_reassembly.v.
+ * ======================================================================== */
+void ul_lsds_init(ul_lsds_t *r, uint32_t t0_ms)
+{
+    memset(r, 0, sizeof(*r));
+    r->t0_ms = t0_ms ? t0_ms : UL_LSDS_T0_MS_DEFAULT;
+}
+
+void ul_lsds_start(ul_lsds_t *r, uint32_t ssi, const uint8_t *info92,
+                   uint8_t opt, uint32_t now_ms)
+{
+    r->active = 1;
+    r->ssi = ssi & 0xFFFFFFu;
+    r->opt = opt & 1;
+    r->len = 0;
+    for (int b = 0; b < 62; b++)            /* frag1 = info92[30..91] */
+        r->body[r->len++] = info92[30 + b] & 1;
+    r->t0_deadline_ms = now_ms + r->t0_ms;
+}
+
+int ul_lsds_frag(ul_lsds_t *r, const uint8_t *info268, int is_end, uint32_t now_ms,
+                 uint8_t *out_body, int *out_len, uint32_t *out_ssi, uint8_t *out_opt)
+{
+    if (!r->active) return 0;               /* orphan fragment (keine Kette) */
+
+    int start = is_end ? 10 : 4;            /* MAC-END info[10..267] / MAC-FRAG info[4..267] */
+    for (int i = start; i < 268 && r->len < UL_LSDS_MAX_BITS; i++)
+        r->body[r->len++] = info268[i] & 1;
+
+    if (is_end) {
+        if (out_body) memcpy(out_body, r->body, (size_t)r->len);
+        if (out_len)  *out_len = r->len;
+        if (out_ssi)  *out_ssi = r->ssi;
+        if (out_opt)  *out_opt = r->opt;
+        r->active = 0;
+        r->reass_cnt++;
+        return 1;
+    }
+    r->t0_deadline_ms = now_ms + r->t0_ms;  /* T0 pro Fragment neu (wie RTL) */
+    return 0;
+}
+
+void ul_lsds_tick(ul_lsds_t *r, uint32_t now_ms)
+{
+    if (r->active && (int32_t)(now_ms - r->t0_deadline_ms) >= 0) {
+        r->active = 0;
+        r->drop_cnt++;
+    }
+}
