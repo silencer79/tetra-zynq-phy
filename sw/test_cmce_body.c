@@ -152,8 +152,11 @@ int main(void)
  * know — we just round-trip the raw bits. Use the exact 30-bit
  * payload from bluestation.
  * --------------------------------------------------------------- */
- printf("\nTC3 — D-CONNECT bluestation-conformant (o-bit=0, 30 bits)\n");
+ printf("\nTC3 — D-CONNECT gold-bit-exakt (o-bit=1 + call-priority IE, 39 bits)\n");
  {
+ /* Nachgezogen 2026-07-06: der Builder ist seit 1bc4d1b gold-bit-exakt gegen
+  * reference-DL.wav (#5887/5895/5903) — 39 Bit inkl. Type-2 call-priority-IE.
+  * Die alte 30-Bit-BlueStation-Erwartung war stale (Gold = Wahrheit). */
  cmce_meta_t m;
  memset(&m, 0, sizeof(m));
  m.call_identifier = 4;
@@ -162,7 +165,7 @@ int main(void)
  m.transmission_request_permission = 0; /* allowed to request */
  m.call_ownership = 1;
  len = tetra_cmce_build_d_connect(&m, out);
- check_eq_int("len_bits", len, 30);
+ check_eq_int("len_bits", len, 39);
  exp_len = pack_bitstr(
  "00010" /* pdu=2 */
  "00000000000100" /* call_id=4 */
@@ -172,10 +175,16 @@ int main(void)
  "00" /* tg=0 Granted */
  "0" /* trp=0 allowed */
  "1" /* owner=1 */
- "0", /* o-bit=0 */
+ "1" /* o-bit=1 — Type-2 IE folgt */
+ "1" /* p_call_priority_present=1 */
+ "0000" /* call_priority=0 */
+ "0" /* p_bsi_present=0 (D-CONNECT hat kein BSI) */
+ "0" /* p_tmp_addr_present=0 */
+ "0" /* p_notif_present=0 */
+ "0", /* m-bit=0 */
  exp);
- check_eq_int("exp_len_bits", exp_len, 30);
- check_bytes_n("bytes", out, exp, 30);
+ check_eq_int("exp_len_bits", exp_len, 39);
+ check_bytes_n("bytes", out, exp, 39);
  }
 
  /* ---------------------------------------------------------------
