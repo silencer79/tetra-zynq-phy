@@ -90,13 +90,18 @@ test_ul_soft: test_soft_gain.c tetra_channel_codec.c tetra_channel_codec.h
 	gcc -Wall -Werror -O2 -o /tmp/test_ul_soft \
 		test_soft_gain.c tetra_channel_codec.c -lm
 
-test: test_grpack test_cmce_parser test_cmce_body test_schf_rt test_schhu_rt test_ul_soft
+test_ul_reass: test_ul_reass.c tetra_ul_reassembly.c tetra_ul_reassembly.h
+	gcc -Wall -Werror -O2 -o /tmp/test_ul_reass \
+		test_ul_reass.c tetra_ul_reassembly.c
+
+test: test_grpack test_cmce_parser test_cmce_body test_schf_rt test_schhu_rt test_ul_soft test_ul_reass
 	/tmp/test_grpack
 	/tmp/test_cmce_parser
 	/tmp/test_cmce_body
 	/tmp/test_schf_rt
 	/tmp/test_schhu_rt
 	/tmp/test_ul_soft
+	/tmp/test_ul_reass
 
 module:
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \
