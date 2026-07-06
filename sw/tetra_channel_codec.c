@@ -434,3 +434,20 @@ int tetra_codec_schhu_decode_soft(const int *soft_168,
     memcpy(info_92_out,dec,92);
     return crc16_check_n(dec,92)?0:-1;
 }
+
+/* SCH/F Soft-Decoder (Option B): 432 soft type-5 → 268 info (K=432,a=103). */
+int tetra_codec_schf_decode_soft(const int *soft_432,
+                                 uint8_t colour_code, uint8_t slot_num,
+                                 uint16_t mcc, uint16_t mnc,
+                                 uint8_t *info_268_out)
+{
+    int t4[SCHF_CODED_BITS], t4d[SCHF_CODED_BITS], mo[SCHF_TAIL_BITS * 4];
+    uint8_t dec[SCHF_TAIL_BITS];
+    tetra_codec_descramble_soft(soft_432, SCHF_CODED_BITS, colour_code, slot_num,
+                                mcc, mnc, t4);
+    tetra_codec_deinterleave_perm_soft(t4, SCHF_CODED_BITS, 103, t4d);
+    tetra_codec_depuncture_r23_soft(t4d, SCHF_CODED_BITS, mo);
+    tetra_codec_viterbi_r14_soft(mo, SCHF_TAIL_BITS, dec);
+    memcpy(info_268_out, dec, SCHF_INFO_BITS);
+    return crc16_check_n(dec, SCHF_INFO_BITS) ? 0 : -1;
+}

@@ -119,4 +119,10 @@ int tetra_codec_schhu_decode_soft(const int *soft_168,
                                   uint16_t mcc, uint16_t mnc,
                                   uint8_t *info_92_out);
 
+/* SCH/F Soft-Decoder: 432 soft type-5 → 268 info (K=432, a=103). 0 = CRC OK. */
+int tetra_codec_schf_decode_soft(const int *soft_432,
+                                 uint8_t colour_code, uint8_t slot_num,
+                                 uint16_t mcc, uint16_t mnc,
+                                 uint8_t *info_268_out);
+
 #endif /* TETRA_CHANNEL_CODEC_H */

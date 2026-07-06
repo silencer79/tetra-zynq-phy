@@ -107,6 +107,12 @@ test_ul_mac_parse: test_ul_mac_parse.c tetra_ul_mac_parse.c tetra_ul_mac_parse.h
 	gcc -Wall -Werror -O2 -o /tmp/test_ul_mac_parse \
 		test_ul_mac_parse.c tetra_ul_mac_parse.c
 
+test_ul_rx_service: test_ul_rx_service.c tetra_ul_rx_service.c tetra_ul_reassembly.c \
+		tetra_ul_mac_parse.c tetra_ul_rx_mailbox.c tetra_channel_codec.c
+	gcc -Wall -Werror -O2 -o /tmp/test_ul_rx_service \
+		test_ul_rx_service.c tetra_ul_rx_service.c tetra_ul_reassembly.c \
+		tetra_ul_mac_parse.c tetra_ul_rx_mailbox.c tetra_channel_codec.c
+
 # RTL-Paritaet: SW-SCH/HU-Soft-Decode == RTL-TB-Vektoren (tb_ul_sch_hu_decoder.v).
 # Regeneriert den Vektor deterministisch (python3+numpy) → getrennt vom pure-C 'test'.
 test_ul_parity: test_ul_rtl_parity.c tetra_channel_codec.c tetra_channel_codec.h
@@ -115,7 +121,7 @@ test_ul_parity: test_ul_rtl_parity.c tetra_channel_codec.c tetra_channel_codec.h
 		test_ul_rtl_parity.c tetra_channel_codec.c
 	/tmp/test_ul_rtl_parity ../sim_out/ul_sch_hu_soft.hex ../sim_out/ul_sch_hu_exp.hex
 
-test: test_grpack test_cmce_parser test_cmce_body test_schf_rt test_schhu_rt test_ul_soft test_ul_reass test_ul_lsds test_ul_rx_mb test_ul_mac_parse
+test: test_grpack test_cmce_parser test_cmce_body test_schf_rt test_schhu_rt test_ul_soft test_ul_reass test_ul_lsds test_ul_rx_mb test_ul_mac_parse test_ul_rx_service
 	/tmp/test_grpack
 	/tmp/test_cmce_parser
 	/tmp/test_cmce_body
@@ -126,6 +132,7 @@ test: test_grpack test_cmce_parser test_cmce_body test_schf_rt test_schhu_rt tes
 	/tmp/test_ul_lsds
 	/tmp/test_ul_rx_mb
 	/tmp/test_ul_mac_parse
+	/tmp/test_ul_rx_service
 
 module:
 	$(MAKE) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) \
