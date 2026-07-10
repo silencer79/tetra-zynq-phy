@@ -427,7 +427,7 @@ module tetra_axi_lite_regs (
  input wire uldbod_pending_axi_i,
  input wire [15:0] uldbod_drop_cnt_axi_i,
  input wire [31:0] uldbod_data_word_axi_i,
- output wire [3:0] uldbod_index_axi_o,
+ output wire [8:0] uldbod_index_axi_o,   // Option B: 9-bit (22 Control-Soft-Mailbox-Worte)
  output wire uldbod_ack_trigger_axi,
  input wire uldbod_consume_axi,
 
@@ -1084,7 +1084,7 @@ reg [3:0] ctrl_reg_axi; // declared below
 reg [31:0] scratch_axi; // declared below
 
 // Phase 1A UL-Demand-Body Raw-Mailbox AXI-side state.
-reg [3:0] uldbod_index_axi;
+reg [8:0] uldbod_index_axi;
 reg uldbod_ack_trigger_r;
 
 // Phase X.2 reply-pull-mailbox AXI-side state — declared below; forward refs OK.
@@ -1297,7 +1297,7 @@ always @(*) begin
  REG_UL_DEMAND_BODY_STATUS: rdata_mux_axi = {uldbod_drop_cnt_axi_i,
                                               15'd0,
                                               uldbod_pending_axi_i};
- REG_UL_DEMAND_BODY_INDEX:  rdata_mux_axi = {28'd0, uldbod_index_axi};
+ REG_UL_DEMAND_BODY_INDEX:  rdata_mux_axi = {23'd0, uldbod_index_axi};
  REG_UL_DEMAND_BODY_DATA:   rdata_mux_axi = uldbod_data_word_axi_i;
  REG_UL_DEMAND_BODY_ACK:    rdata_mux_axi = {31'd0, uldbod_ack_trigger_r};
  // Phase C voice-channel telemetry
@@ -2503,9 +2503,9 @@ assign uldbod_ack_trigger_axi = uldbod_ack_trigger_r;
 
 always @(posedge clk_axi or negedge rst_n_axi) begin
  if (!rst_n_axi)
- uldbod_index_axi <= 4'd0;
+ uldbod_index_axi <= 9'd0;
  else if (wr_en_x1_axi & (wr_addr_axi[8:2] == REG_UL_DEMAND_BODY_INDEX) & wr_strb_axi[0])
- uldbod_index_axi <= wr_data_axi[3:0];
+ uldbod_index_axi <= wr_data_axi[8:0];
 end
 
 always @(posedge clk_axi or negedge rst_n_axi) begin

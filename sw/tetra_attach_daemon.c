@@ -35,6 +35,8 @@
 #include "tetra_sds_dl_frag.h"
 #include "tetra_channel_codec.h"
 #include "tetra_voice_filler.h"
+#include "tetra_ul_rx_service.h"
+#include "tetra_ul_rx_mailbox.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,40 +96,25 @@ static void on_sigint(int sig)
  keep_running = 0;
 }
 
-/* Phase 1A — raw-body Mailbox (parallel zum RTL-Parser). */
-static uint32_t uldbod_read(tetra_hal_t *hal, uint32_t idx)
-{
- tetra_reg_write(hal, REG_UL_DEMAND_BODY_INDEX, idx);
- return tetra_reg_read(hal, REG_UL_DEMAND_BODY_DATA);
-}
-
-/* Unpack the Phase-G.x 0x250 mailbox layout: W0=meta[12:0], W1=ssi,
- * W2..W6=body[146:0] (147-bit TM-SDU, MSB-first, on-air position 0 = the
- * first LLC-header bit = block-bit 30). W2=[146:115] W3=[114:83] W4=[82:51]
- * W5=[50:19] W6[18:0]=[18:0]; on-air position p = body[146-p]. */
-static void uldbod_unpack(uint32_t w0, uint32_t w1, uint32_t w2, uint32_t w3,
- uint32_t w4, uint32_t w5, uint32_t w6,
- uint8_t body[19], uint16_t *meta, uint32_t *ssi)
-{
- int p;
- *meta = (uint16_t)(w0 & 0x1FFFu);
- *ssi = w1 & 0x00FFFFFFu;
- memset(body, 0, 19);
- for (p = 0; p < 147; p++) {
- uint32_t w; int bi;
- if (p < 32) { w = w2; bi = 31 - p; }
- else if (p < 64) { w = w3; bi = 63 - p; }
- else if (p < 96) { w = w4; bi = 95 - p; }
- else if (p < 128) { w = w5; bi = 127 - p; }
- else { w = w6; bi = 146 - p; } /* 18..0 */
- if ((w >> bi) & 1u) body[p >> 3] |= (uint8_t)(0x80u >> (p & 7));
- }
-}
-
 /* Phase 1E-A — service-counter shared between react_mm2_locupd() (called
  * from service_uldbod()) and the legacy main-loop demand branch (drain-
  * only after Phase 1E-A). */
 static uint32_t serviced_g = 0;
+
+/* Option B — die gesamte UL-Signalisierung fließt jetzt durch den SW-Service:
+ * RTL liefert nur noch rohen Soft-Burst + Slot (SCH/HU via 0x250-Mailbox,
+ * SCH/F-Long-SDS-Continuations via die 0x280-NUB). Der Service dekodiert,
+ * reassembliert (Demand-2-Burst / Long-SDS) und liefert einen fertigen
+ * LLC-ausgerichteten TM-SDU-Body + meta13, den dispatch_ul_pdu() an die
+ * bestehenden Handler (call_fsm / mm-Walker / SDS-Relay) routet. */
+static ul_rx_ctx_t g_ulrx;
+
+static uint32_t mono_ms(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint32_t)((uint32_t)ts.tv_sec * 1000u + (uint32_t)(ts.tv_nsec / 1000000L));
+}
 
 /* Tiny LLC stop-and-wait NR/NS hash (open-addressing on 24-bit SSI).
  * 64 slots is sufficient — typical cell sees < 10 simultaneously-attaching
@@ -298,139 +285,6 @@ static void service_sds_outbox(tetra_hal_t *hal)
  printf("SDS-OUT: to=0x%06lX from=0x%06lX rc=%d text=\"%s\"\n",
  (unsigned long)dest, (unsigned long)from, rc, text);
  fflush(stdout);
-}
-
-static void service_uldbod(tetra_hal_t *hal)
-{
- uint32_t w0 = uldbod_read(hal, 0);  /* magic + meta[12:0] */
- uint32_t w1 = uldbod_read(hal, 1);  /* ssi */
- uint32_t w2 = uldbod_read(hal, 2);  /* body[146:115] */
- uint32_t w3 = uldbod_read(hal, 3);  /* body[114:83] */
- uint32_t w4 = uldbod_read(hal, 4);  /* body[82:51] */
- uint32_t w5 = uldbod_read(hal, 5);  /* body[50:19] */
- uint32_t w6 = uldbod_read(hal, 6);  /* body[18:0] */
-
- uint8_t nbody[19];          /* 147-bit TM-SDU, on-air pos 0 = LLC header */
- uint16_t meta;
- uint32_t pdu_ssi;
- uldbod_unpack(w0, w1, w2, w3, w4, w5, w6, nbody, &meta, &pdu_ssi);
- uint8_t mm_type = (uint8_t)((meta >> 9) & 0xF);
-
- /* Stage 2 — a reassembled CMCE U-SDS-DATA lands here too; the RTL
-  * mis-tags it with an MM pdu_type. Decode as SDS first; only fall
-  * through to the MM walker when it is not a plausible U-SDS-DATA. */
- {
- uint32_t sds_dest = 0; uint8_t sds_proto = 0; uint16_t sds_li = 0;
- char sds_text[64];
- uint8_t sds_udd[48]; int sds_udd_len = 0;
- if (decode_sds_reassembled(nbody, 147, meta,
- &sds_dest, &sds_proto, &sds_li, sds_text, (int)sizeof(sds_text),
- sds_udd, (int)sizeof(sds_udd), &sds_udd_len)) {
- printf("SDS-TEXT from=0x%06X to=0x%06X proto=%u len=%ubit udd=",
- pdu_ssi, sds_dest, sds_proto, sds_li);
- { int z; for (z = 0; z < sds_udd_len; z++) printf("%02X", sds_udd[z]); }
- printf(" text=\"%s\"\n", sds_text);
- /* Vollständigkeit prüfen: passt die deklarierte SDS-Länge (sds_li, in Bit)
-  * komplett in die hier empfangenen Oktette? Wenn nicht, ist das der frag=1-
-  * START einer langen SDS, die als MAC-FRAG/MAC-END-Kette weiterläuft — dann
-  * NICHT quittieren und NICHT relayen (BL-ACK + Relay kommen nach FPGA-
-  * Reassembly in service_long_sds_rx). Eine verfrühte ACK bräche die Kette ab. */
- if (((int)sds_li / 8) > sds_udd_len) {
- fprintf(stderr, "SDS-FRAG-START (0x250) ssi=0x%06X li=%ubit udd=%doct "
- "— defer BL-ACK+Relay bis Reassembly\n", pdu_ssi, sds_li, sds_udd_len);
- fflush(stdout);
- tetra_reg_write(hal, REG_UL_DEMAND_BODY_ACK, 0x1u);
- return;
- }
- /* LLC-Zustellquittung an den SDS-Absender — Gold DL #425 sendet die
-  * BL-ACK VOR dem Relay. NR = empfangene LLC-NS (meta[1]). Ohne diese
-  * Schicht-2-Quittung retransmittiert das Sende-MS → Fehlermeldung. */
- {
- tx_pdu_meta_t ack;
- memset(&ack, 0, sizeof(ack));
- ack.target_ssi = pdu_ssi;
- ack.nr = (uint8_t)((meta >> 1) & 1u); /* NR = received NS */
- int ack_rc = tetra_tx_submit(hal, TX_BL_ACK, &ack);
- printf("SDS-BL-ACK: -> 0x%06X nr=%u rc=%d\n", pdu_ssi, ack.nr, ack_rc);
- }
- /* SDS-Relay (BlueStation route_rf_deliver): an die Ziel-MS
-  * weiterleiten, wenn lokal als ISSI registriert. UDD (Text bzw.
-  * SDS-TL-Report von der Gegenseite) wird 1:1 in eine D-SDS-DATA
-  * verpackt → Zustellung + Quittungsfluss laufen über die BS. */
- if (sds_udd_len > 0 && sds_udd_len <= 24 &&
- tetra_db_lookup(sds_dest, 0u, NULL)) {
- tx_pdu_meta_t rm;
- memset(&rm, 0, sizeof(rm));
- rm.target_ssi = sds_dest;
- rm.cmce.calling_party_ssi = pdu_ssi;
- memcpy(rm.cmce.sds_udd, sds_udd, (size_t)sds_udd_len);
- rm.cmce.sds_udd_len = (uint16_t)sds_udd_len;
- int rrc = tetra_tx_submit(hal, TX_D_SDS_DATA, &rm);
- printf("SDS-RELAY: 0x%06X -> 0x%06X (%d oct) rc=%d\n",
- pdu_ssi, sds_dest, sds_udd_len, rrc);
- } else {
- printf("SDS-RELAY: skip dest=0x%06X (registered=%d udd=%d oct)\n",
- sds_dest, tetra_db_lookup(sds_dest, 0u, NULL), sds_udd_len);
- }
- fflush(stdout);
- tetra_reg_write(hal, REG_UL_DEMAND_BODY_ACK, 0x1u);
- return;
- }
- }
-
- /* MM walker: feed it the old block-bit-48 MM-body start, which now sits at
-  * on-air position 18 of the LLC-aligned body — bit-identical to pre-G.x. */
- uint8_t mmbody[TETRA_MM_DEMAND_BODY_BYTES];
- { int i; memset(mmbody, 0, sizeof(mmbody));
- for (i = 0; i < TETRA_MM_DEMAND_BODY_BYTES * 8 && (18 + i) < 147; i++)
- if (sds_gbit(nbody, 18 + i))
- mmbody[i >> 3] |= (uint8_t)(0x80u >> (i & 7));
- }
- tetra_mm_demand_parsed_t p;
- int rc = tetra_mm_demand_parser_parse(mmbody, mm_type, pdu_ssi, &p);
-
- if (rc == 0 && p.parse_ok && mm_type == 2) {
- fprintf(stderr,
- "tetra_attach_daemon: [SW-WALK mm=2] ssi=0x%06X LUT=%u ra=%u cc=%u "
- "class_valid=%u esm_valid=%u la_valid=%u la=0x%04X ssi_valid=%u "
- "ae_valid=%u gild_valid=%u gild_gssi=0x%06X gild_at=%u\n",
- p.pdu_ssi, p.location_update_type, p.request_to_append_la,
- p.cipher_control, p.class_of_ms_valid, p.energy_saving_mode_valid,
- p.la_information_valid, p.la_information, p.ssi_field_valid,
- p.address_ext_valid, p.gild_valid, p.gild_gssi, p.gild_address_type);
- } else if (rc == 0 && p.parse_ok && mm_type == 7) {
- fprintf(stderr,
- "tetra_attach_daemon: [SW-WALK mm=7] ssi=0x%06X gir=%u atd=%u count=%u",
- p.pdu_ssi, p.gid_group_identity_report,
- p.gid_attach_detach_mode, p.gid_count);
- for (int r = 0; r < p.gid_count && r < 3; r++) {
- fprintf(stderr, " rec%d{adi=%u cou=%u at=%u gssi=0x%06X}", r,
- p.gid_records[r].attach_detach,
- p.gid_records[r].class_of_usage,
- p.gid_records[r].address_type,
- p.gid_records[r].gssi);
- }
- fprintf(stderr, "\n");
- } else {
- fprintf(stderr,
- "tetra_attach_daemon: [SW-WALK FAIL] mm=%u ssi=0x%06X rc=%d parse_ok=%u\n",
- mm_type, pdu_ssi, rc, p.parse_ok);
- }
-
- /* Phase 1E-A — react aus Walker-Output. Replaced RTL-mailbox-getriebene
-  * Reaktion in service_demand / service_grp_demand. Beide RTL-Mailboxen
-  * werden im main-loop nur noch ge-drained (ACK ohne Aktion), bis Phase
-  * 1E-B den RTL-Parser + die Mailboxen physisch entfernt. */
- if (rc == 0 && p.parse_ok) {
- if (mm_type == 2u) {
- react_mm2_locupd(hal, &p);
- } else if (mm_type == 7u) {
- react_mm7_grpid(hal, &p);
- }
- }
-
- /* ACK clears pending + arms next */
- tetra_reg_write(hal, REG_UL_DEMAND_BODY_ACK, 0x1u);
 }
 
 /* Phase 1E-A — react to a Group-Attach (mm=7) demand parsed by the SW
@@ -721,41 +575,6 @@ static void usage(const char *a0)
  a0, TETRA_DB_DEFAULT_PATH);
 }
 
-/* ---- UL-SDS BL-DATA(frag=1): LLC-Schicht-2-Quittung (SW-Seite der Grenze) ----
- * Architektur-Lock 2026-06-02 ([[feedback_reassembly_fpga_rest_sw]]): die
- * Multi-Fragment-REASSEMBLY läuft generisch im FPGA (tetra_ul_demand_reassembly)
- * und liefert die fertige TM-SDU über die 0x250-Mailbox an service_uldbod.
- * SW macht hier nur die LLC-Quittung: eine fragmentierte UL-SDS (MAC-ACCESS
- * frag=1, BL-DATA) wird mit BL-ACK NR quittiert — wie die 392-MHz-Referenz
- * (AL-SETUP-Slot-Grant baut das RTL bit-identisch, MAC-RESOURCE→BL-ACK macht
- * die BS). Ohne die BL-ACK retransmittiert das MS die frag=1 endlos. */
-static void service_sds_frag_start(tetra_hal_t *hal)
-{
- uint32_t st = tetra_reg_read(hal, REG_UL_PDU_STATUS);
- if (!(UL_STATUS_VALID(st) && UL_STATUS_PDU_TYPE(st) == 0u && UL_STATUS_FRAG_FLAG(st)))
- return;
-
- uint32_t ssi = tetra_reg_read(hal, REG_UL_PDU_SSI) & 0xFFFFFFu;
- tetra_reg_write(hal, REG_UL_PDU_CTRL, 1u); /* clear VALID sticky → kein Re-Trigger */
-
- /* KEINE BL-ACK auf den frag=1-START. Das 392-MHz-Gold quittiert erst NACH
-  * der kompletten MAC-FRAG/MAC-END-Kette (DL #798), nie auf dem Start. Eine
-  * verfrühte LLC-ACK signalisiert dem MS „BL-DATA zugestellt" → es bricht die
-  * UL-Fragment-Kette nach einem Burst ab (gemessen: 2 statt 4 Bursts, TM-SDU
-  * 33 statt 105 Oktette). Am Leben hält die Kette der Slot-Grant
-  * (tetra_pre_reply_slotgrant, 0x30 = cap_alloc 3 wie Gold); die ACK kommt erst
-  * in service_long_sds_rx nach abgeschlossener FPGA-Reassembly. Kurze SDS (die
-  * in den 147-bit-Body passen) quittiert weiterhin service_uldbod, sobald
-  * komplett. */
- fprintf(stderr, "SDS-FRAG-START ssi=0x%06X — defer BL-ACK bis Reassembly fertig\n", ssi);
-}
-
-/* ---- Lange-SDS-DL-Zustellung: Multi-Burst-Fragmentierung an das Ziel-MS ----
- * UDD > 24 Oktette passt nicht in einen DL-Burst. tetra_sds_dl_build_fragments baut
- * die MAC-RESOURCE→MAC-FRAG→MAC-END-Kette (268-bit SCH/F-Info je Burst); hier SCH/F-
- * codieren + per-Frame über den Voice-Filler-Pfad (REG_VOICE_ACTIVE_MASK[4] =
- * sds_fill_active TN=0, RTL burst_dispatcher) auf den MCCH pushen. Das Ziel-MS
- * reassembliert + quittiert → der Absender bekommt seine SDS-TL-Zustellbestätigung. */
 #define SDS_DL_CODED_BITS 432
 static struct {
     int      active;
@@ -857,136 +676,314 @@ static void service_sds_dl_delivery(tetra_hal_t *hal)
     }
 }
 
-/* ---- Long-SDS RX: FPGA SCH/F-Reassembly-Word-Mailbox (REG_LSDS_READ_*) ----
- * Das FPGA reassembliert MAC-ACCESS(frag=1)[SCH/HU] + N×MAC-FRAG + MAC-END[SCH/F]
- * zur TM-SDU; hier liest SW die fertige Body + parst/relayed sie (Architektur-Lock:
- * Reassembly→FPGA, Parsing/Relay→SW). Neue Body via reass_cnt-Änderung (kein ACK). */
-static uint16_t g_lsds_last_cnt;
-static int g_lsds_cnt_init;
+/* ============================================================================
+ * Option B — UL-RX-Konsument. EIN Soft-Burst-Fenster (0x250, SCH/HU) + die
+ * 0x280-NUB (SCH/F-Long-SDS-Continuations). Ersetzt service_uldbod +
+ * service_long_sds_rx + den REG_UL_PDU-CMCE-Dispatch: alle drei alten
+ * RTL-Decode-Quellen sind seit dem RTL-Move tot (frag1_pulse=0, ul_pdu_valid=0).
+ * tetra_ul_rx_service() dekodiert + reassembliert und liefert
+ * (body, meta, ssi, source); hier folgt nur noch das Routing an die
+ * unveränderten Handler (call_fsm / mm-Walker / SDS-Relay).
+ * ==========================================================================*/
 
-static uint32_t lsds_read(tetra_hal_t *hal, uint32_t index)
+/* byte-per-bit (1 Bit je uint8_t, MSB-first) → gepackte Bytes für sds_gbit/
+ * tetra_cmce_parse/tetra_mm_demand_parser. */
+static void pack_bpb(const uint8_t *bpb, int nbits, uint8_t *packed, int cap)
 {
- tetra_reg_write(hal, REG_LSDS_READ_INDEX, index);
- return tetra_reg_read(hal, REG_LSDS_READ_DATA);
+ int i;
+ memset(packed, 0, (size_t)cap);
+ for (i = 0; i < nbits && (i >> 3) < cap; i++)
+ if (bpb[i] & 1) packed[i >> 3] |= (uint8_t)(0x80u >> (i & 7));
 }
 
-static void service_long_sds_rx(tetra_hal_t *hal)
+/* SINGLE — nicht-fragmentierter Einzelburst (body[0] = LLC-Header). Trägt
+ * Call-Control (U-SETUP/U-TX-DEMAND/…), Einzelburst-U-SDS-DATA (surface) und
+ * U-STATUS (relay). Bit-identisch zum früheren REG_UL_PDU-CMCE-Dispatch:
+ * cmce_start = llc_hdr(bl_pdu_type) + 3-bit-MLE-PD. */
+static void dispatch_ul_single(tetra_hal_t *hal, const uint8_t *body, int nbits,
+ uint16_t meta, uint32_t ssi)
 {
- uint16_t cnt = (uint16_t)(lsds_read(hal, LSDS_IDX_CNT) & 0xFFFFu);
- if (!g_lsds_cnt_init) { g_lsds_cnt_init = 1; g_lsds_last_cnt = cnt; return; }
- if (cnt == g_lsds_last_cnt) return;            /* keine neue Kette */
- g_lsds_last_cnt = cnt;
+ uint8_t mle_disc = (uint8_t)((meta >> 6) & 0x7);
+ uint8_t llc4 = (uint8_t)((meta >> 2) & 0xF);
 
- uint32_t lenopt = lsds_read(hal, LSDS_IDX_LENOPT);
- int nbits = (int)(lenopt & 0xFFFFu);
- int opt   = (int)((lenopt >> 16) & 1u);
- if (nbits <= 0 || nbits > 8192) {
- fprintf(stderr, "LONG-SDS: bogus len=%d, skip\n", nbits);
+ if (mle_disc == 1u) {
+ /* MM im Einzelburst — im alten System via REG_UL_PDU nie behandelt (nur
+ * mle_disc==2); MM-Registrierung läuft 2-Burst (DEMAND). Nur loggen,
+ * damit das Verhalten bit-identisch bleibt. */
+ fprintf(stderr, "UL-SINGLE MM(mle=1) ssi=0x%06X — via DEMAND erwartet, skip\n", ssi);
  return;
  }
- uint32_t ssi = lsds_read(hal, LSDS_IDX_SSI) & 0xFFFFFFu;
+ if (mle_disc != 2u) return; /* weder MM noch CMCE */
 
- /* Body-Words lesen → Bit-Puffer (MSB-first im Word). */
- static uint8_t body[8192];
- int nwords = (nbits + 31) / 32;
- int w, b;
- for (w = 0; w < nwords; w++) {
- uint32_t word = lsds_read(hal, (uint32_t)w);
- for (b = 0; b < 32; b++) {
- int bit = w * 32 + b;
- if (bit < nbits) body[bit] = (uint8_t)((word >> (31 - b)) & 1u);
+ int llc_hdr;
+ switch (llc4 & 0x3) { /* bl_pdu_type: 0=BL-ADATA 1=BL-DATA 3=BL-ACK */
+ case 0x0: llc_hdr = 6; break;
+ case 0x1: llc_hdr = 5; break;
+ case 0x3: llc_hdr = 4; break;
+ default: llc_hdr = 4; break;
  }
+ int cmce_start = llc_hdr + 3;
+ int cmce_bits = nbits - cmce_start;
+ if (cmce_bits <= 0) return;
+
+ uint8_t cbody[16];
+ memset(cbody, 0, sizeof(cbody));
+ for (int i = 0; i < cmce_bits && (i >> 3) < (int)sizeof(cbody); i++)
+ if (body[cmce_start + i] & 1) cbody[i >> 3] |= (uint8_t)(0x80u >> (i & 7));
+
+ cmce_pdu_t p;
+ memset(&p, 0, sizeof(p));
+ int rc = tetra_cmce_parse(cbody, cmce_bits, &p);
+ if (rc == 0 && p.pdu_type == CMCE_U_SDS_DATA) {
+ printf("SDS: U-SDS-DATA from=0x%06X area=%u cpti=%u dest=0x%06X SDTI=%u",
+ ssi, p.area_selection, p.called_party_type_identifier,
+ p.called_party_ssi, p.short_data_type_identifier);
+ if (p.short_data_type_identifier == 3)
+ printf(" len=%ubit proto=%u", p.sds_length_indicator, p.sds_protocol_id);
+ else if (p.sds_user_data_bits)
+ printf(" udd=0x%X(%ubit)", p.sds_user_data, p.sds_user_data_bits);
+ printf("%s\n", p.sds_truncated ? " [truncated/fragmented]" : "");
+ fflush(stdout);
+ } else if (rc == 0 && p.pdu_type == CMCE_U_STATUS) {
+ printf("STATUS: U-STATUS from=0x%06X cpti=%u dest=0x%06X status=0x%04X\n",
+ ssi, p.called_party_type_identifier, p.called_party_ssi, p.pre_coded_status);
+ if (tetra_db_lookup(p.called_party_ssi, 0u, NULL)) {
+ tx_pdu_meta_t sm;
+ memset(&sm, 0, sizeof(sm));
+ sm.target_ssi = p.called_party_ssi;
+ sm.cmce.calling_party_ssi = ssi;
+ sm.cmce.pre_coded_status = p.pre_coded_status;
+ int src = tetra_tx_submit(hal, TX_D_STATUS, &sm);
+ printf("STATUS-RELAY: 0x%06X -> 0x%06X status=0x%04X rc=%d\n",
+ ssi, p.called_party_ssi, p.pre_coded_status, src);
  }
+ fflush(stdout);
+ } else if (rc == 0) {
+ /* Call-Control (U-SETUP/U-TX-DEMAND/U-CONNECT/…). Einzelburst ist nie
+ * fragmentiert → direkt an den Call-FSM. */
+ (void)tetra_call_fsm_handle(hal, ssi, &p);
+ } else {
+ fprintf(stderr, "UL-SINGLE cmce parse rc=%d ssi=0x%06X bits=%d\n", rc, ssi, cmce_bits);
+ }
+}
 
- fprintf(stderr, "LONG-SDS: reassembled ssi=0x%06X %dbit (%dB) opt=%d cnt=%u\n",
- ssi, nbits, nbits / 8, opt, cnt);
+/* DEMAND — 2-Burst-SCH/HU (MAC-ACCESS frag=1 + MAC-END-HU), body = 147-bit,
+ * bit-identisch zum RTL-Reassembly-Format (reassembly.h). Spiegelt
+ * service_uldbod: erst SDS (decode_sds_reassembled → BL-ACK + Relay), sonst
+ * MM-Walker (mmbody @ pos 18). */
+static void dispatch_ul_demand(tetra_hal_t *hal, const uint8_t *body, int nbits,
+ uint16_t meta, uint32_t ssi)
+{
+ uint8_t nbody[19];
+ pack_bpb(body, nbits, nbody, (int)sizeof(nbody));
+ uint8_t mm_type = (uint8_t)((meta >> 9) & 0xF);
 
- /* LLC BL-ACK an den Absender — JETZT, nach kompletter FPGA-Reassembly
-  * (FSM S_EMIT feuert nur auf MAC-END). Gold-Timing: die BL-ACK folgt der
-  * Fragment-Kette, nicht dem frag=1-START. NR = empfangenes N(S) aus dem
-  * LLC-Header (BL-DATA: bit (opt?6:0)+4); body[] ist hier Bit-pro-Byte. Unab-
-  * hängig vom Text-Decode: ohne diese Schicht-2-Quittung retransmittiert das
-  * Sende-MS die Kette endlos. */
+ uint32_t sds_dest = 0; uint8_t sds_proto = 0; uint16_t sds_li = 0;
+ char sds_text[64]; uint8_t sds_udd[48]; int sds_udd_len = 0;
+ if (decode_sds_reassembled(nbody, nbits, meta, &sds_dest, &sds_proto, &sds_li,
+ sds_text, (int)sizeof(sds_text), sds_udd, (int)sizeof(sds_udd), &sds_udd_len)) {
+ printf("SDS-TEXT from=0x%06X to=0x%06X proto=%u len=%ubit udd=",
+ ssi, sds_dest, sds_proto, sds_li);
+ { int z; for (z = 0; z < sds_udd_len; z++) printf("%02X", sds_udd[z]); }
+ printf(" text=\"%s\"\n", sds_text);
+ if (((int)sds_li / 8) > sds_udd_len) {
+ fprintf(stderr, "SDS-FRAG-START (demand) ssi=0x%06X li=%ubit udd=%doct — defer\n",
+ ssi, sds_li, sds_udd_len);
+ fflush(stdout);
+ return;
+ }
  {
- int ns_pos = (opt ? 6 : 0) + 4;
  tx_pdu_meta_t ack;
  memset(&ack, 0, sizeof(ack));
+ ack.target_ssi = ssi;
+ ack.nr = (uint8_t)((meta >> 1) & 1u); /* NR = empfangene LLC-NS */
+ int ack_rc = tetra_tx_submit(hal, TX_BL_ACK, &ack);
+ printf("SDS-BL-ACK: -> 0x%06X nr=%u rc=%d\n", ssi, ack.nr, ack_rc);
+ }
+ if (sds_udd_len > 0 && sds_udd_len <= 24 && tetra_db_lookup(sds_dest, 0u, NULL)) {
+ tx_pdu_meta_t rm;
+ memset(&rm, 0, sizeof(rm));
+ rm.target_ssi = sds_dest;
+ rm.cmce.calling_party_ssi = ssi;
+ memcpy(rm.cmce.sds_udd, sds_udd, (size_t)sds_udd_len);
+ rm.cmce.sds_udd_len = (uint16_t)sds_udd_len;
+ int rrc = tetra_tx_submit(hal, TX_D_SDS_DATA, &rm);
+ printf("SDS-RELAY: 0x%06X -> 0x%06X (%d oct) rc=%d\n",
+ ssi, sds_dest, sds_udd_len, rrc);
+ } else {
+ printf("SDS-RELAY: skip dest=0x%06X (registered=%d udd=%d oct)\n",
+ sds_dest, tetra_db_lookup(sds_dest, 0u, NULL), sds_udd_len);
+ }
+ fflush(stdout);
+ return;
+ }
+
+ /* MM-Walker (mmbody ab on-air pos 18 des LLC-ausgerichteten 147-bit-Bodys). */
+ uint8_t mmbody[TETRA_MM_DEMAND_BODY_BYTES];
+ { int i; memset(mmbody, 0, sizeof(mmbody));
+ for (i = 0; i < TETRA_MM_DEMAND_BODY_BYTES * 8 && (18 + i) < nbits; i++)
+ if (sds_gbit(nbody, 18 + i)) mmbody[i >> 3] |= (uint8_t)(0x80u >> (i & 7));
+ }
+ tetra_mm_demand_parsed_t p;
+ int rc = tetra_mm_demand_parser_parse(mmbody, mm_type, ssi, &p);
+ if (rc == 0 && p.parse_ok) {
+ if (mm_type == 2u) react_mm2_locupd(hal, &p);
+ else if (mm_type == 7u) react_mm7_grpid(hal, &p);
+ else fprintf(stderr, "UL-DEMAND mm=%u ssi=0x%06X parse_ok — kein Handler\n", mm_type, ssi);
+ } else {
+ fprintf(stderr, "UL-DEMAND [walk fail] mm=%u ssi=0x%06X rc=%d parse_ok=%u\n",
+ mm_type, ssi, rc, p.parse_ok);
+ }
+}
+
+/* LONGSDS — komplettierte SCH/F-Multi-Fragment-Kette (body info[30]-basiert wie
+ * service_long_sds_rx). opt kommt via out->meta bit0. Spiegelt
+ * service_long_sds_rx: MLE-PD-Peek → MM-Reroute (mm7-Gruppenwechsel), sonst
+ * SDS-Decode + Relay bzw. DL-Fragmentierung. */
+static void dispatch_ul_longsds(tetra_hal_t *hal, const uint8_t *body, int nbits,
+ uint16_t meta, uint32_t ssi)
+{
+ int opt = meta & 1;
+ static uint8_t pbody[1024];
+ pack_bpb(body, nbits, pbody, (int)sizeof(pbody));
+
+ /* LLC BL-ACK an den Absender — JETZT nach kompletter Reassembly (vor dem
+  * MM-Reroute), sonst retransmittiert das Sende-MS die Fragment-Kette endlos
+  * (gilt für lange SDS UND mehrfragmentige MM-PDUs). NR = empfangenes N(S) aus
+  * dem BL-DATA-Header; body ist byte-per-bit → direkter Bit-Zugriff. Spiegelt
+  * die alte service_long_sds_rx-BL-ACK (ns_pos = (opt?6:0)+4). */
+ { int ns_pos = (opt ? 6 : 0) + 4;
+ tx_pdu_meta_t ack; memset(&ack, 0, sizeof(ack));
  ack.target_ssi = ssi;
  ack.nr = (ns_pos < nbits) ? (uint8_t)(body[ns_pos] & 1u) : 0u;
  int ack_rc = tetra_tx_submit(hal, TX_BL_ACK, &ack);
  fprintf(stderr, "LONG-SDS-ACK -> 0x%06X nr=%u rc=%d\n", ssi, ack.nr, ack_rc);
  }
 
- /* meta[8:6]=mle_disc(CMCE=2), [5:2]=llc_pt(BL-DATA=1), [0]=opt → decode findet
-  * die CMCE-PDU bei body-bit (opt?6:0)+llc_hdr(5)+MLE-PD(3). */
- uint16_t meta = (uint16_t)((2u << 6) | (1u << 2) | ((unsigned)opt & 1u));
+ int L0 = opt ? 6 : 0;
+ uint8_t llc_pt2 = (uint8_t)sds_gbits(pbody, L0, 4);
+ int llc_hdr2 = (llc_pt2 == 0) ? 6 : (llc_pt2 == 1) ? 5 : (llc_pt2 == 2) ? 4 : 5;
+ uint8_t mle_pd = (uint8_t)sds_gbits(pbody, L0 + llc_hdr2, 3);
+ if (mle_pd == 1u) { /* MLE-PD = MM (Gruppenwechsel etc.) */
+ uint8_t mmt = (uint8_t)sds_gbits(pbody, L0 + llc_hdr2 + 3, 4);
+ int mmoff = L0 + llc_hdr2 + 3 + 4, i;
+ uint8_t mmbody[TETRA_MM_DEMAND_BODY_BYTES];
+ memset(mmbody, 0, sizeof(mmbody));
+ for (i = 0; i < TETRA_MM_DEMAND_BODY_BYTES * 8 && (mmoff + i) < nbits; i++)
+ if (sds_gbit(pbody, mmoff + i)) mmbody[i >> 3] |= (uint8_t)(0x80u >> (i & 7));
+ tetra_mm_demand_parsed_t mp;
+ int mrc = tetra_mm_demand_parser_parse(mmbody, mmt, ssi, &mp);
+ fprintf(stderr, "LONG-SDS->MM-REROUTE ssi=0x%06X mm_type=%u rc=%d parse_ok=%u\n",
+ ssi, mmt, mrc, mp.parse_ok);
+ if (mrc == 0 && mp.parse_ok) {
+ if (mmt == 2u) react_mm2_locupd(hal, &mp);
+ else if (mmt == 7u) react_mm7_grpid(hal, &mp);
+ }
+ return;
+ }
+
+ uint16_t cmeta = (uint16_t)((2u << 6) | (1u << 2) | ((unsigned)opt & 1u));
  uint32_t dest = 0; uint8_t proto = 0; uint16_t li = 0;
  char text[512]; uint8_t udd[400]; int udd_len = 0;
- /* body[] ist hier Bit-pro-Byte (1 Bit je uint8_t) — gut für den BL-ACK-Bit-
-  * Zugriff oben. decode_sds_reassembled erwartet aber GEPACKTE Bytes
-  * (sds_gbit liest b[p>>3] >> (7-(p&7))). Daher vor dem Decode packen,
-  * sonst scheitert der Parse trotz korrekter Reassembly+ACK. */
- static uint8_t pbody[1024];
- { int z; memset(pbody, 0, sizeof(pbody));
-   for (z = 0; z < nbits && (z >> 3) < (int)sizeof(pbody); z++)
-     if (body[z]) pbody[z >> 3] |= (uint8_t)(0x80u >> (z & 7)); }
- /* REGRESSION-FIX 2026-06-19: die generische LSDS-Reassembly liefert auch
-  * mehrfragmentige MM-PDUs (Gruppenwechsel mm=7) hierher, nicht nur SDS.
-  * service_long_sds_rx hardcodete meta=CMCE und verwarf sie → kein Group-Attach,
-  * MS retransmittiert endlos (alternierendes N(S)). Daher VOR dem SDS-Decode:
-  * MLE-PD aus dem Body lesen; ist es MM (001), an den MM-Walker routen. */
- { int L0 = opt ? 6 : 0;
-   uint8_t llc_pt2 = (uint8_t)sds_gbits(pbody, L0, 4);
-   int llc_hdr2 = (llc_pt2 == 0) ? 6 : (llc_pt2 == 1) ? 5 : (llc_pt2 == 2) ? 4 : 5;
-   uint8_t mle_pd = (uint8_t)sds_gbits(pbody, L0 + llc_hdr2, 3);
-   if (mle_pd == 1u) {                          /* MLE-PD = MM (nicht CMCE/SDS) */
-     uint8_t mmt = (uint8_t)sds_gbits(pbody, L0 + llc_hdr2 + 3, 4);
-     int mmoff = L0 + llc_hdr2 + 3 + 4, i;      /* MM-Body nach dem 4-bit MM-PDU-Typ */
-     uint8_t mmbody[TETRA_MM_DEMAND_BODY_BYTES];
-     memset(mmbody, 0, sizeof(mmbody));
-     for (i = 0; i < TETRA_MM_DEMAND_BODY_BYTES * 8 && (mmoff + i) < nbits; i++)
-       if (sds_gbit(pbody, mmoff + i)) mmbody[i >> 3] |= (uint8_t)(0x80u >> (i & 7));
-     tetra_mm_demand_parsed_t mp;
-     int mrc = tetra_mm_demand_parser_parse(mmbody, mmt, ssi, &mp);
-     fprintf(stderr, "LONG-SDS->MM-REROUTE ssi=0x%06X mm_type=%u rc=%d parse_ok=%u\n",
-             ssi, mmt, mrc, mp.parse_ok);
-     if (mrc == 0 && mp.parse_ok) {
-       if (mmt == 2u) react_mm2_locupd(hal, &mp);
-       else if (mmt == 7u) react_mm7_grpid(hal, &mp);
-     }
-     return;                                     /* MM behandelt — kein SDS-Decode */
-   }
- }
- if (decode_sds_reassembled(pbody, nbits, meta, &dest, &proto, &li,
+ if (decode_sds_reassembled(pbody, nbits, cmeta, &dest, &proto, &li,
  text, (int)sizeof(text), udd, (int)sizeof(udd), &udd_len)) {
  printf("LONG-SDS from=0x%06X to=0x%06X proto=%u %dbit text=\"%s\"\n",
  ssi, dest, proto, nbits, text);
  fflush(stdout);
- /* Kurze reassemblierte SDS via vorhandenen D-SDS-DATA-Pfad relayen; eine
-  * echte lange SDS braucht DL-Fragmentierung (eigene Phase) → vorerst loggen. */
  if (udd_len > 0 && udd_len <= 24 && tetra_db_lookup(dest, 0u, NULL)) {
- tx_pdu_meta_t rm;
- memset(&rm, 0, sizeof(rm));
- rm.target_ssi = dest;
- rm.cmce.calling_party_ssi = ssi;
+ tx_pdu_meta_t rm; memset(&rm, 0, sizeof(rm));
+ rm.target_ssi = dest; rm.cmce.calling_party_ssi = ssi;
  memcpy(rm.cmce.sds_udd, udd, (size_t)udd_len);
  rm.cmce.sds_udd_len = (uint16_t)udd_len;
  int rrc = tetra_tx_submit(hal, TX_D_SDS_DATA, &rm);
- printf("LONG-SDS-RELAY: 0x%06X -> 0x%06X (%d oct) rc=%d\n",
- ssi, dest, udd_len, rrc);
+ printf("LONG-SDS-RELAY: 0x%06X -> 0x%06X (%d oct) rc=%d\n", ssi, dest, udd_len, rrc);
  } else if (udd_len > 24 && tetra_db_lookup(dest, 0u, NULL)) {
- /* Lange SDS (>24 oct): MAC-fragmentiert als MAC-RESOURCE→MAC-FRAG→MAC-END
-  * an das Ziel-MS zustellen (per-Frame über den Voice-Filler-Pfad auf TN=0).
-  * ns/nr: frischer DL-Link → 0/0. */
- sds_dl_delivery_start(hal, dest, ssi, 1u, 1u, udd, udd_len); /* ns=1, nr=1 wie Gold (dl_ref.log #798). N(S)=0-Test (2026-06-17) verworfen: ETSI EN 300 392-2 §22.2.1.1 — Basic-Link quittiert mit N(R)=N(S)-Echo, KEIN HDLC-V(R)-Gate, also kein Verwurf bei N(S)-Mismatch → N(S)-Wert ist nicht die Ursache. */
+ sds_dl_delivery_start(hal, dest, ssi, 1u, 1u, udd, udd_len);
  } else if (udd_len > 24) {
- printf("LONG-SDS-RELAY: skip 0x%06X (nicht lokal registriert, %d oct)\n",
- dest, udd_len);
+ printf("LONG-SDS-RELAY: skip 0x%06X (nicht lokal registriert, %d oct)\n", dest, udd_len);
  }
  fflush(stdout);
  } else {
- fprintf(stderr, "LONG-SDS: %dbit SDS-Decode (meta=0x%X) fehlgeschlagen\n", nbits, meta);
+ fprintf(stderr, "LONG-SDS: %dbit SDS-Decode (opt=%d) fehlgeschlagen\n", nbits, opt);
  }
+}
+
+static void dispatch_ul_pdu(tetra_hal_t *hal, const ul_rx_result_t *o)
+{
+ if (!o->have_body || o->body_len <= 0) return;
+ switch (o->source) {
+ case UL_RX_SRC_SINGLE: dispatch_ul_single (hal, o->body, o->body_len, o->meta, o->ssi); break;
+ case UL_RX_SRC_DEMAND: dispatch_ul_demand (hal, o->body, o->body_len, o->meta, o->ssi); break;
+ case UL_RX_SRC_LONGSDS: dispatch_ul_longsds(hal, o->body, o->body_len, o->meta, o->ssi); break;
+ default: break;
+ }
+}
+
+/* Liest EINEN SCH/HU-Soft-Burst aus der 0x250-Mailbox (Header + bis 22 Worte),
+ * dekodiert/reassembliert via SW-Service und dispatcht das Ergebnis. */
+static void service_ul_rx(tetra_hal_t *hal, uint32_t now)
+{
+ if ((tetra_reg_read(hal, REG_UL_RX_STATUS) & 0x1u) == 0u) return; /* nichts pending */
+
+ uint32_t words[UL_RX_MAX_WORDS];
+ tetra_reg_write(hal, REG_UL_RX_INDEX, 0u);
+ words[0] = tetra_reg_read(hal, REG_UL_RX_DATA);
+ int n_soft = (int)((words[0] >> 4) & 0xFFFu);
+ if (n_soft <= 0 || n_soft > UL_RX_MAX_SOFT) { /* korrupt → drainen */
+ tetra_reg_write(hal, REG_UL_RX_ACK, 0x1u);
+ return;
+ }
+ int nwords = 1 + (n_soft + 7) / 8;
+ for (int i = 1; i < nwords && i < (int)UL_RX_MAX_WORDS; i++) {
+ tetra_reg_write(hal, REG_UL_RX_INDEX, (uint32_t)i);
+ words[i] = tetra_reg_read(hal, REG_UL_RX_DATA);
+ }
+ tetra_reg_write(hal, REG_UL_RX_ACK, 0x1u); /* consume + arm next */
+
+ ul_rx_result_t out;
+ int r = tetra_ul_rx_service(&g_ulrx, words, now, &out);
+ /* frag=1-Demand-Start: der MS einen UL-Subslot granten, damit sie den
+  * MAC-END-HU (Continuation) sendet. Ersetzt den toten RTL-frag1_pulse→
+  * pre_reply_slotgrant-Pfad durch den SW-getriggerten sw_grant (REG_REPLY_GO). */
+ if (r && out.need_grant) {
+ int grc = tetra_tx_rx_slotgrant(hal, out.ssi);
+ fprintf(stderr, "UL-DEMAND-GRANT -> 0x%06X rc=%d (frag=1 → MAC-END-HU-Subslot)\n",
+ out.ssi, grc);
+ }
+ if (r && out.have_body)
+ dispatch_ul_pdu(hal, &out);
+}
+
+/* Long-SDS-Continuations: solange eine SCH/F-Kette offen ist (per frag=1 auf
+ * 0x250 gestartet) UND kein Voice-Call aktiv ist (VOICE_ACTIVE_MASK==0 → kein
+ * Voice-Pipe drainiert die NUB), die 432 Soft-Werte der reservierten Slot-NUB
+ * (0x280) abholen und als SCH/F-Burst in den Service füttern. Fail-safe:
+ * falsche Soft-Ordnung → schf_decode CRC-Fail → kein Body, kein Dispatch. */
+static void service_ul_schf_nub(tetra_hal_t *hal, uint32_t now)
+{
+ if (!g_ulrx.lsds.active) return; /* keine offene Kette */
+ if (tetra_reg_read(hal, REG_VOICE_ACTIVE_MASK) != 0u) return; /* Voice schützt NUB */
+ if ((tetra_reg_read(hal, REG_VOICE_NUB_READ_STATUS) & 0x1u) == 0u) return;
+
+ /* 54 Worte × 8 Nibbles → 432 signed-4-bit Soft (type5-Ordnung wie voice_pipe). */
+ int soft[UL_RX_MAX_SOFT];
+ for (int w = 0; w < 54; w++) {
+ tetra_reg_write(hal, REG_VOICE_NUB_READ_INDEX, (uint32_t)w);
+ uint32_t word = tetra_reg_read(hal, REG_VOICE_NUB_READ_DATA);
+ for (int n = 0; n < 8; n++) {
+ uint32_t nib = (word >> (n * 4)) & 0xFu;
+ int s = (nib & 0x8) ? (int)(nib | ~0xFu) : (int)nib; /* sign-extend 4-bit */
+ int coded_idx = w * 8 + n;
+ if (coded_idx < 432) soft[431 - coded_idx] = s;
+ }
+ }
+ tetra_reg_write(hal, REG_VOICE_NUB_READ_ACK, 0x1u); /* consume */
+
+ uint32_t words[UL_RX_MAX_WORDS];
+ (void)tetra_ul_rx_pack(0u, UL_RX_BT_SCHF, soft, 432, words);
+ ul_rx_result_t out;
+ if (tetra_ul_rx_service(&g_ulrx, words, now, &out) && out.have_body)
+ dispatch_ul_pdu(hal, &out);
 }
 
 int main(int argc, char **argv)
@@ -1043,6 +1040,19 @@ int main(int argc, char **argv)
   * thresh=12 dagegen tot — NUB-Detector lockt nicht mehr. */
  tetra_reg_write(&hal, REG_VOICE_NUB_SYNC_THRESH, 11u);
 
+ /* Option B — UL-RX-Service: Descramble-Parameter aus denselben Registern
+  * wie voice_pipe (cell-scrambler seed = (mcc<<22)|(mnc<<8)|(cc<<2)|3). scr_slot=0
+  * wie in test_ul_realair (SCH/HU-Descramble). */
+ {
+ uint8_t cc = (uint8_t)(tetra_reg_read(&hal, REG_COLOUR_CODE) & 0x3F);
+ uint32_t cfg1 = tetra_reg_read(&hal, REG_CELL_CFG_1);
+ uint16_t mcc = (uint16_t)(cfg1 & 0x3FF);
+ uint16_t mnc = (uint16_t)((cfg1 >> 10) & 0x3FFF);
+ tetra_ul_rx_init(&g_ulrx, cc, 0u, mcc, mnc);
+ fprintf(stderr, "tetra_attach_daemon: UL-RX Option B aktiv — cc=%u mcc=%u mnc=%u "
+ "(0x250 SCH/HU-Soft + 0x280 NUB SCH/F)\n", cc, mcc, mnc);
+ }
+
  fprintf(stderr,
  "tetra_attach_daemon: started — USE_SW=1, polling REG_DEMAND_STATUS, "
  "policy=0x%08X, VOICE_ACTIVE_MASK=0, NUB_SYNC_THRESH=11\n",
@@ -1050,7 +1060,6 @@ int main(int argc, char **argv)
  fprintf(stderr, "tetra_attach_daemon: W1C-RACE-FIX v2 ACTIVE (build 2026-05-24)\n");
 
  uint32_t since_reload_ms = 0;
- uint16_t last_ul_count = 0xFFFFu; /* sentinel: first PDU always triggers */
 
  while (keep_running) {
  /* MER-Fix: Watchdog für hängende VOICE_ACTIVE_MASK. Wenn kein Slot
@@ -1060,21 +1069,15 @@ int main(int argc, char **argv)
  * trotz Power-Cycle), Slot freigeben. */
  tetra_call_fsm_tick(&hal);
 
- /* Phase 1C — service raw-body Mailbox parallel zu RTL-Parser-Pfaden.
-  * Logs SW-Walker-Output für A/B-Vergleich. Wird vor dem
-  * RTL-parsed-demand-poll geprüft damit die Reihenfolge im Log
-  * konsistent ist (raw → parsed). */
- uint32_t uldbod_status = tetra_reg_read(&hal, REG_UL_DEMAND_BODY_STATUS);
- if (uldbod_status & 0x1u) {
- service_uldbod(&hal);
- }
-
- /* UL-SDS frag=1-START: nur Sticky clearen + loggen — KEINE verfrühte BL-ACK
-  * (würgt die Fragment-Kette ab). Quittung folgt nach kompletter Reassembly. */
- service_sds_frag_start(&hal);
-
- /* Lange SDS: fertige TM-SDU aus der FPGA-Reassembly-Mailbox lesen + parsen. */
- service_long_sds_rx(&hal);
+ /* Option B — UL-RX: EIN Soft-Burst-Fenster (0x250 SCH/HU) wird in SW
+  * dekodiert + reassembliert (SINGLE / DEMAND / LONG-SDS), plus NUB-SCH/F-Feed
+  * für Long-SDS-Continuations. Ersetzt service_uldbod + service_sds_frag_start
+  * + service_long_sds_rx + den REG_UL_PDU-CMCE-Dispatch (alle drei RTL-Quellen
+  * seit dem RTL-Move tot). tetra_ul_rx_tick() treibt die Reassembly-Timeouts. */
+ uint32_t now = mono_ms();
+ service_ul_rx(&hal, now);
+ service_ul_schf_nub(&hal, now);
+ tetra_ul_rx_tick(&g_ulrx, now);
 
  /* Lange-SDS-DL-Zustellung: Fragment-Kette per-Frame an das Ziel-MS pushen. */
  service_sds_dl_delivery(&hal);
@@ -1082,123 +1085,9 @@ int main(int argc, char **argv)
  /* Operator-getriggertes DL-SDS aus /tmp/sds_out */
  service_sds_outbox(&hal);
 
- /* Phase 1E-B (2026-05-20) — RTL-parsed group-demand Mailbox entfernt.
-  * Reaktion auf mm=7 läuft komplett aus dem SW-Walker-Pfad
-  * (service_uldbod → react_mm7_grpid). */
-
- /* Phase 7 G.2 — CMCE-Dispatch. We share REG_UL_PDU_STATUS with
- * tetra_ul_mon (which W1Cs the sticky for logging). Instead of
- * racing for the sticky bit we track ul_pdu_count[31:16]: each
- * CRC-OK PDU bumps it, so a count change = unseen PDU. We only
- * act on mle_disc==2 (CMCE); mle_disc==1 (MM) is already handled
- * by the reassembly path below. */
- uint32_t ul_status = tetra_reg_read(&hal, REG_UL_PDU_STATUS);
- /* 2026-05-24 — UL_STATUS_VALID-Gate ENTFERNT (W1C-race-fix v2 ACTIVE). */
- {
- uint16_t ul_count = (uint16_t)UL_STATUS_PDU_COUNT(ul_status);
- if (ul_count != last_ul_count) {
- last_ul_count = ul_count;
- uint32_t s2 = tetra_reg_read(&hal, REG_UL_PDU_STATUS_2);
- if (UL_STATUS2_MLE_DISC(s2) == 2u) {
- uint32_t cmce_ssi = tetra_reg_read(&hal, REG_UL_PDU_SSI)
- & 0x00FFFFFFu;
- uint32_t raw0 = tetra_reg_read(&hal, REG_UL_PDU_RAW_0);
- uint32_t raw1 = tetra_reg_read(&hal, REG_UL_PDU_RAW_1);
- uint32_t raw2 = tetra_reg_read(&hal, REG_UL_PDU_RAW_2)
- & 0x0FFFFFFFu; /* 28 bits valid */
- uint32_t raws[3] = { raw0, raw1, raw2 };
-
- /* raw_info_bits[91:0] = on-air bit stream stored LSB-first
- * within each 32-bit word. Bit N on-air = raws[N/32] bit
- * (N%32). CMCE PDU starts after MAC-header + LLC-header
- * + 3-bit MLE-PD; offset depends on opt-flag + LLC type. */
- int tl_sdu_start = UL_STATUS_OPT_FLAG(ul_status) ? 36: 30;
- int llc_t = (int)UL_STATUS2_LLC_TYPE(s2);
- int llc_hdr_bits;
- /* llc_t = {link_type[3], has_fcs[2], bl_pdu_type[1:0]}. Die Header-Länge
-  * hängt nur vom bl_pdu_type ab — das has_fcs-Bit hängt eine FCS ans ENDE,
-  * nicht an den Header. Daher auf bl_pdu_type maskieren: sonst fällt z.B.
-  * BL-DATA+FCS (llc_t=5) in default → llc_hdr=4 statt 5 → cmce_start 1 Bit
-  * zu früh → SDS als U-SETUP fehlgeparst (spuriöser D-CONNECT). */
- switch (llc_t & 0x3) {
- case 0x0: llc_hdr_bits = 6; break; /* BL-ADATA */
- case 0x1: llc_hdr_bits = 5; break; /* BL-DATA (±FCS) */
- case 0x3: llc_hdr_bits = 4; break; /* BL-ACK */
- default: llc_hdr_bits = 4; break; /* BL-UDATA */
- }
- int cmce_start = tl_sdu_start + llc_hdr_bits + 3; /* +MLE-PD */
- int cmce_bits = 92 - cmce_start;
- if (cmce_bits > 0) {
- uint8_t body[16];
- memset(body, 0, sizeof(body));
- for (int i = 0; i < cmce_bits; i++) {
- int n = cmce_start + i;
- int b = (int)((raws[n >> 5] >> (n & 31)) & 1u);
- if (b) body[i >> 3] |= (uint8_t)(0x80u >> (i & 7));
- }
- cmce_pdu_t p;
- memset(&p, 0, sizeof(p));
- int rc = tetra_cmce_parse(body, cmce_bits, &p);
- if (rc == 0 && p.pdu_type == CMCE_U_SDS_DATA) {
- /* SDS — surface it; do NOT feed the call-control FSM. When
- * sds_truncated=1 the user data spills into further MAC
- * fragments; full text decode lands with the reassembled-body
- * path (Stage 2). */
- printf("SDS: U-SDS-DATA from=0x%06X area=%u cpti=%u dest=0x%06X "
- "SDTI=%u", cmce_ssi, p.area_selection,
- p.called_party_type_identifier, p.called_party_ssi,
- p.short_data_type_identifier);
- if (p.short_data_type_identifier == 3)
- printf(" len=%ubit proto=%u", p.sds_length_indicator,
- p.sds_protocol_id);
- else if (p.sds_user_data_bits)
- printf(" udd=0x%X(%ubit)", p.sds_user_data,
- p.sds_user_data_bits);
- printf("%s\n", p.sds_truncated ? " [truncated/fragmented]" : "");
- fflush(stdout);
- } else if (rc == 0 && p.pdu_type == CMCE_U_STATUS) {
- /* Status-Message (precoded status) — wie SDS an die adressierte MS
- * als D-STATUS relayen, wenn lokal als ISSI registriert. */
- printf("STATUS: U-STATUS from=0x%06X cpti=%u dest=0x%06X status=0x%04X\n",
- cmce_ssi, p.called_party_type_identifier, p.called_party_ssi,
- p.pre_coded_status);
- if (tetra_db_lookup(p.called_party_ssi, 0u, NULL)) {
- tx_pdu_meta_t sm;
- memset(&sm, 0, sizeof(sm));
- sm.target_ssi = p.called_party_ssi;
- sm.cmce.calling_party_ssi = cmce_ssi;
- sm.cmce.pre_coded_status = p.pre_coded_status;
- int src = tetra_tx_submit(&hal, TX_D_STATUS, &sm);
- printf("STATUS-RELAY: 0x%06X -> 0x%06X status=0x%04X rc=%d\n",
- cmce_ssi, p.called_party_ssi, p.pre_coded_status, src);
- }
- fflush(stdout);
- } else if (rc == 0) {
- /* Fragmentierte CMCE-PDU (frag=1) = Start einer langen
-  * SDS-Fragment-Kette (U-SDS-DATA spillt in MAC-FRAG/MAC-END,
-  * der Parser sieht nur das erste 48-bit-Stück → mis-klassifiziert).
-  * Das ist KEIN Call-Setup — das FPGA reassembliert die Kette, SW
-  * quittiert per BL-ACK (service_sds_frag_ack).
-  * Ohne diese Guard fiele die frag=1 in den Call-FSM (→ U-SETUP/
-  * D-CONNECT; das MS bekäme Voice-Setup statt SCH/F-Slot-Grant →
-  * U-DISCONNECT cause=10). Call-Control ist nie fragmentiert. */
- if (UL_STATUS_FRAG_FLAG(ul_status))
- fprintf(stderr, "SDS-FRAG: skip call_fsm (frag=1) "
- "ssi=0x%06X res_req=%u\n", cmce_ssi,
- UL_STATUS_RES_REQ(ul_status));
- else
- (void)tetra_call_fsm_handle(&hal, cmce_ssi, &p);
- } else {
- fprintf(stderr,
- "tetra_call_fsm: parse rc=%d ssi=0x%06X "
- "start=%d bits=%d body=%02X%02X%02X%02X\n",
- rc, cmce_ssi, cmce_start, cmce_bits,
- body[0], body[1], body[2], body[3]);
- }
- }
- }
- }
- }
+ /* Option B — der frühere REG_UL_PDU-CMCE-Dispatch (Einzelburst-Call-Control /
+  * U-SDS-DATA / U-STATUS) ist jetzt in dispatch_ul_single() (Quelle
+  * UL_RX_SRC_SINGLE aus service_ul_rx). REG_UL_PDU ist seit dem RTL-Move tot. */
 
  /* Phase 1E-B (2026-05-20) — RTL-parsed demand Mailbox entfernt.
   * Reaktion auf mm=2 / mm=7 läuft vollständig im SW-Walker-Pfad

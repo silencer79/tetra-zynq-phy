@@ -431,6 +431,13 @@ wire [15:0] schhu_attempted_sys;
 wire [15:0] schhu_ok_sys;
 wire reass_valid_sys;
 wire [146:0] reass_body_sys;
+
+// Option B — UL Control-Soft-Burst-Mailbox (rx_chain u_ul_ctrl_mb ↔ 0x250-AXI-Fenster)
+wire [8:0]  ul_ctrl_mb_index_w;
+wire        ul_ctrl_mb_ack_w;
+wire [31:0] ul_ctrl_mb_rdata_w;
+wire        ul_ctrl_mb_valid_w;
+wire [15:0] ul_ctrl_mb_bursts_w;
 wire [23:0] reass_ssi_sys;
 wire [15:0] reass_cnt_sys;
 wire [15:0] reass_drop_cnt_sys;
@@ -645,7 +652,13 @@ tetra_rx_chain #(
  // Post-RRC IQ tap → raw RX IQ capture buffer
 .rx_fe_i_sys (rx_fe_i_sys_w),
 .rx_fe_q_sys (rx_fe_q_sys_w),
-.rx_fe_valid_sys (rx_fe_valid_sys_w)
+.rx_fe_valid_sys (rx_fe_valid_sys_w),
+ // Option B — UL Control-Soft-Burst-Mailbox (Slot-Kennung + 168 Soft roh an SW)
+.ul_ctrl_mb_index_sys (ul_ctrl_mb_index_w),
+.ul_ctrl_mb_ack_sys   (ul_ctrl_mb_ack_w),
+.ul_ctrl_mb_rdata_sys (ul_ctrl_mb_rdata_w),
+.ul_ctrl_mb_valid_sys (ul_ctrl_mb_valid_w),
+.ul_ctrl_mb_bursts_sys(ul_ctrl_mb_bursts_w)
 );
 
 // =============================================================================
@@ -3146,19 +3159,19 @@ end
 // werden vom gleichen reass_valid_sys-Puls getriggert. Erst wenn SW-Walker
 // produktiv ist, kann der RTL-Parser entfernt werden.
 // =============================================================================
-wire [3:0] uldbod_index_axi_w;
+wire [8:0] uldbod_index_axi_w;
 wire uldbod_ack_trigger_axi_w;
 wire [31:0] uldbod_data_word_axi_w;
 wire uldbod_pending_sys_w;
 wire [15:0] uldbod_drop_cnt_sys_w;
 wire [31:0] uldbod_data_word_sys_w;
 
-(* ASYNC_REG = "TRUE" *) reg [3:0] uldbod_index_sys_r0;
-(* ASYNC_REG = "TRUE" *) reg [3:0] uldbod_index_sys_r1;
+(* ASYNC_REG = "TRUE" *) reg [8:0] uldbod_index_sys_r0;
+(* ASYNC_REG = "TRUE" *) reg [8:0] uldbod_index_sys_r1;
 always @(posedge clk_sys or negedge rst_n_sys) begin
  if (!rst_n_sys) begin
- uldbod_index_sys_r0 <= 4'd0;
- uldbod_index_sys_r1 <= 4'd0;
+ uldbod_index_sys_r0 <= 9'd0;
+ uldbod_index_sys_r1 <= 9'd0;
  end else begin
  uldbod_index_sys_r0 <= uldbod_index_axi_w;
  uldbod_index_sys_r1 <= uldbod_index_sys_r0;
@@ -3181,19 +3194,14 @@ always @(posedge clk_sys or negedge rst_n_sys) begin
 end
 wire uldbod_ack_pulse_sys_w = uldbod_ack_sys_r1 & ~uldbod_ack_sys_r2;
 
-tetra_ul_demand_body_mailbox u_ul_demand_body_mailbox (
-.clk_sys                (clk_sys),
-.rst_n_sys              (rst_n_sys),
-.push_valid_sys         (reass_valid_sys),
-.body_sys               (reass_body_sys),
-.ssi_sys                (reass_ssi_sys),
-.meta_sys               (reass_meta_sys),
-.ack_consumed_pulse_sys (uldbod_ack_pulse_sys_w),
-.index_sys              (uldbod_index_sys_r1),
-.data_word_sys          (uldbod_data_word_sys_w),
-.pending_sys            (uldbod_pending_sys_w),
-.drop_cnt_sys           (uldbod_drop_cnt_sys_w)
-);
+// Option B: tetra_ul_demand_body_mailbox entfernt — das 0x250-AXI-Fenster liest
+// jetzt die Control-Soft-Burst-Mailbox (rx_chain u_ul_ctrl_mb). Index/ACK gehen
+// dorthin, Data/Valid kommen von dort. Reassembly/Parse macht SW.
+assign ul_ctrl_mb_index_w     = uldbod_index_sys_r1;
+assign ul_ctrl_mb_ack_w       = uldbod_ack_pulse_sys_w;
+assign uldbod_data_word_sys_w = ul_ctrl_mb_rdata_w;
+assign uldbod_pending_sys_w   = ul_ctrl_mb_valid_w;
+assign uldbod_drop_cnt_sys_w  = ul_ctrl_mb_bursts_w;
 
 (* ASYNC_REG = "TRUE" *) reg uldbod_pending_axi_r0;
 (* ASYNC_REG = "TRUE" *) reg uldbod_pending_axi_r1;

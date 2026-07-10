@@ -191,6 +191,17 @@ module tetra_rx_chain #(
  output wire [15:0] schhu_ok_sys,
 
  // -------------------------------------------------------------------------
+ // Option B — UL Control-Soft-Burst-Mailbox. RTL demoduliert nur; die 168
+ // Soft-Dibits + Slot-Kennung gehen roh an SW (tetra_ul_rx_service), die
+ // dekodiert/reassembliert/parst. Ersetzt die alte RTL-SCH/HU-Decode-Kette.
+ // -------------------------------------------------------------------------
+ input  wire [8:0]  ul_ctrl_mb_index_sys,
+ input  wire        ul_ctrl_mb_ack_sys,
+ output wire [31:0] ul_ctrl_mb_rdata_sys,
+ output wire        ul_ctrl_mb_valid_sys,
+ output wire [15:0] ul_ctrl_mb_bursts_sys,
+
+ // -------------------------------------------------------------------------
  // Debug outputs (ILA probes)
  // -------------------------------------------------------------------------
  output wire dbg_fe_valid_sys,
@@ -484,70 +495,72 @@ tetra_ul_pi4dqpsk_demod #(
 .soft_half_sys (ul_soft_half_sys)
 );
 
-tetra_ul_sch_hu_decoder #(
-.SOFT_IN_WIDTH(UL_SOFT_WIDTH)
-) u_ul_sch_hu (
+// Option B: SCH/HU-Decoder aus dem RTL entfernt — der Demod-Soft geht roh an
+// SW. Neue Control-Soft-Burst-Mailbox tappt den u_ul_demod-Strom + Slot-Kennung.
+tetra_ul_ctrl_softburst_mailbox #(
+.SOFT_IN_W(UL_SOFT_WIDTH), .SOFT_W(4), .N_SOFT(168)
+) u_ul_ctrl_mb (
 .clk_sys (clk_sys),
 .rst_n_sys (rst_n_sys),
-.scramb_init_sys (ul_scramb_init_sys),
 .soft_bit0_sys (ul_soft0_sys),
 .soft_bit1_sys (ul_soft1_sys),
 .soft_valid_sys (ul_soft_valid_sys),
 .soft_first_sys (ul_soft_first_sys),
 .soft_last_sys (ul_soft_last_sys),
-.soft_half_sys (ul_soft_half_sys),
-.info_bits_sys (ul_info_bits_sys),
-.info_valid_sys (ul_info_valid_sys),
-.crc_ok_sys (ul_crc_ok_sys),
-.decodes_attempted_sys(schhu_attempted_sys),
-.decodes_ok_sys (schhu_ok_sys)
+.timeslot_num_sys (timeslot_num_sys),
+.ack_pulse_sys (ul_ctrl_mb_ack_sys),
+.index_sys (ul_ctrl_mb_index_sys),
+.rdata_sys (ul_ctrl_mb_rdata_sys),
+.valid_sys (ul_ctrl_mb_valid_sys),
+.bursts_captured_sys (ul_ctrl_mb_bursts_sys)
 );
 
-tetra_ul_mac_access_parser u_ul_mac_parser (
-.clk_sys (clk_sys),
-.rst_n_sys (rst_n_sys),
-.info_bits_sys (ul_info_bits_sys),
-.info_valid_sys (ul_info_valid_sys),
-.crc_ok_sys (ul_crc_ok_sys),
-.pdu_type_sys (ul_pdu_type_sys),
-.fill_bit_sys (ul_fill_bit_sys),
-.encryption_mode_sys (ul_encryption_mode_sys),
-.ul_addr_type_sys (ul_addr_type_sys),
-.ul_issi_sys (ul_issi_sys),
-.ul_event_label_sys (ul_event_label_sys),
-.optional_field_flag_sys (ul_optional_field_flag_sys),
-.ul_frag_flag_sys (ul_frag_flag_sys),
-.ul_reservation_req_sys (ul_reservation_req_sys),
-.ul_length_ind_sys (ul_length_ind_sys),
-.mm_pdu_type_sys (ul_mm_pdu_type_sys),
-.loc_upd_type_sys (ul_loc_upd_type_sys),
-.raw_info_bits_sys (ul_raw_info_bits_sys),
-.pdu_valid_sys (ul_pdu_valid_sys),
-.pdu_count_sys (ul_pdu_count_sys),
-.bl_ack_valid_sys (ul_bl_ack_valid_sys),
-.bl_ack_nr_sys (ul_bl_ack_nr_sys),
-.bl_ack_count_sys (ul_bl_ack_count_sys),
-.ul_llc_is_bl_data_sys(ul_llc_is_bl_data_sys),
-.ul_llc_is_bl_ack_sys (ul_llc_is_bl_ack_sys),
-.ul_llc_has_fcs_sys (ul_llc_has_fcs_sys),
-.ul_llc_ns_valid_sys (ul_llc_ns_valid_sys),
-.ul_llc_ns_sys (ul_llc_ns_sys),
-.ul_llc_nr_valid_sys (ul_llc_nr_valid_sys),
-.ul_llc_nr_sys (ul_llc_nr_sys),
-.ul_llc_is_mle_mm_sys (ul_llc_is_mle_mm_sys),
-.ul_llc_mm_pdu_type_sys (ul_llc_mm_pdu_type_sys),
-.ul_llc_mm_loc_upd_type_sys (ul_llc_mm_loc_upd_type_sys),
- // Phase 7 F.3 — raw decoded LLC/MLE type fields for ul_mon mailbox.
-.ul_llc_pdu_type_sys (ul_llc_pdu_type_sys),
-.ul_mle_disc_sys (ul_mle_disc_sys),
- // Phase 7 F.1 — MAC-END-HU continuation outputs (consumed by
- // tetra_ul_demand_reassembly at the top level).
-.ul_pdu_is_continuation_sys (ul_pdu_is_continuation_sys),
-.ul_continuation_valid_sys (ul_continuation_valid_sys),
-.ul_continuation_bits_sys (ul_continuation_bits_sys),
-.ul_continuation_ssi_sys (ul_continuation_ssi_sys),
-.ul_continuation_count_sys (ul_continuation_count_sys)
-);
+// Tie-offs der alten SCH/HU-Decoder-Outputs (Decode ist jetzt SW-seitig).
+assign ul_info_bits_sys    = 92'd0;
+assign ul_info_valid_sys   = 1'b0;
+assign ul_crc_ok_sys       = 1'b0;
+assign schhu_attempted_sys = 16'd0;
+assign schhu_ok_sys        = 16'd0;
+
+// Option B: MAC-ACCESS-Parser aus dem RTL entfernt — SW parst den rohen
+// 92/147-bit-Body. Alle Parser-Outputs auf 0 getie-offt; die frueheren
+// Top-Konsumenten (Reassembly, pre_reply, demand-body-Mailbox) werden im
+// Top ebenfalls entfernt bzw. gehen dadurch dormant (frag1_pulse=0).
+assign ul_pdu_type_sys            = 1'b0;
+assign ul_fill_bit_sys            = 1'b0;
+assign ul_encryption_mode_sys     = 1'b0;
+assign ul_addr_type_sys           = 2'd0;
+assign ul_issi_sys                = 24'd0;
+assign ul_event_label_sys         = 10'd0;
+assign ul_optional_field_flag_sys = 1'b0;
+assign ul_frag_flag_sys           = 1'b0;
+assign ul_reservation_req_sys     = 4'd0;
+assign ul_length_ind_sys          = 5'd0;
+assign ul_mm_pdu_type_sys         = 4'd0;
+assign ul_loc_upd_type_sys        = 3'd0;
+assign ul_raw_info_bits_sys       = 92'd0;
+assign ul_pdu_valid_sys           = 1'b0;
+assign ul_pdu_count_sys           = 16'd0;
+assign ul_bl_ack_valid_sys        = 1'b0;
+assign ul_bl_ack_nr_sys           = 1'b0;
+assign ul_bl_ack_count_sys        = 16'd0;
+assign ul_llc_is_bl_data_sys      = 1'b0;
+assign ul_llc_is_bl_ack_sys       = 1'b0;
+assign ul_llc_has_fcs_sys         = 1'b0;
+assign ul_llc_ns_valid_sys        = 1'b0;
+assign ul_llc_ns_sys              = 1'b0;
+assign ul_llc_nr_valid_sys        = 1'b0;
+assign ul_llc_nr_sys              = 1'b0;
+assign ul_llc_is_mle_mm_sys       = 1'b0;
+assign ul_llc_mm_pdu_type_sys     = 4'd0;
+assign ul_llc_mm_loc_upd_type_sys = 3'd0;
+assign ul_llc_pdu_type_sys        = 4'd0;
+assign ul_mle_disc_sys            = 3'd0;
+assign ul_pdu_is_continuation_sys = 1'b0;
+assign ul_continuation_valid_sys  = 1'b0;
+assign ul_continuation_bits_sys   = 85'd0;
+assign ul_continuation_ssi_sys    = 24'd0;
+assign ul_continuation_count_sys  = 16'd0;
 
 // =============================================================================
 // burst_demux
