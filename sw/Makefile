@@ -113,6 +113,16 @@ test_ul_rx_service: test_ul_rx_service.c tetra_ul_rx_service.c tetra_ul_reassemb
 		test_ul_rx_service.c tetra_ul_rx_service.c tetra_ul_reassembly.c \
 		tetra_ul_mac_parse.c tetra_ul_rx_mailbox.c tetra_channel_codec.c
 
+# Phase-1 ECHT-LUFT: SW-SCH/HU-Decode == Referenz auf einem realen UL-WAV.
+# Kette: gen_ul_wav_iq_stim (WAV align + Referenz-Decode) → phase1_dump_soft
+# (RTL-emulierter Soft) → SW-Decode-Vergleich. Braucht python3+numpy+scipy.
+UL_WAV ?= wavs/local_cell_425-440mhz/UL_baseband_430650000Hz_21-13-38_21-06-2026.wav
+test_ul_realair: test_ul_realair.c tetra_channel_codec.c tetra_channel_codec.h
+	cd .. && python3 scripts/gen_ul_wav_iq_stim.py $(UL_WAV)
+	cd .. && python3 scripts/phase1_dump_soft.py
+	gcc -Wall -Werror -O2 -o /tmp/test_ul_realair test_ul_realair.c tetra_channel_codec.c
+	cd .. && /tmp/test_ul_realair sim_out/ul_wav_soft.hex sim_out/ul_wav_exp.hex
+
 # RTL-Paritaet: SW-SCH/HU-Soft-Decode == RTL-TB-Vektoren (tb_ul_sch_hu_decoder.v).
 # Regeneriert den Vektor deterministisch (python3+numpy) → getrennt vom pure-C 'test'.
 test_ul_parity: test_ul_rtl_parity.c tetra_channel_codec.c tetra_channel_codec.h
