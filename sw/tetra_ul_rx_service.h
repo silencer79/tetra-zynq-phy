@@ -39,10 +39,6 @@ typedef struct {
     int      body_len;          /* Bits */
     uint32_t ssi;
     uint16_t meta;              /* 13-bit Meta (single/demand); 0 für long-SDS */
-    int      need_grant;        /* 1 = frag=1-Demand-Start: BS muss der SSI einen
-                                 * UL-Subslot granten, damit sie den MAC-END-HU
-                                 * (Continuation) sendet. Ersetzt den alten
-                                 * RTL-frag1_pulse→pre_reply_slotgrant-Pfad. */
 } ul_rx_result_t;
 
 void tetra_ul_rx_init(ul_rx_ctx_t *c, uint8_t cc, uint8_t scr_slot,

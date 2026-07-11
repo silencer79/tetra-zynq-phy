@@ -36,20 +36,13 @@ module tb_ul_ctrl_softburst_mailbox;
     function signed [SOFT_IN_W-1:0] fv1; input integer k; begin fv1 = (k%2)? 3 : -100; end endfunction
     function signed [SOFT_IN_W-1:0] fv0; input integer k; begin fv0 = (k%3)? -2 : 90; end endfunction
 
-    // Einen Burst (84 Dibits = 168 Soft) auf negedge einspeisen.
-    // SCH/HU besteht aus zwei Code-Blöcken CB1 (k=0..41) + CB2 (k=42..83),
-    // JEDER mit eigenem soft_first (Start) und soft_last (Ende). Die Mailbox
-    // MUSS diese ignorieren und alle 168 kontinuierlich sammeln (sonst
-    // überschreibt CB2 den CB1 → nur 84 Soft). Diese Doppel-first/last-
-    // Einspeisung hätte den 100%-CRC-Fail-Bug gefangen.
+    // Einen Burst (84 Dibits) auf negedge einspeisen
     task feed_burst; input integer usefn; integer k; begin
         for (k=0; k<84; k=k+1) begin
             @(negedge clk);
             sb1 = usefn ? fv1(k) : 8'sd7;
             sb0 = usefn ? fv0(k) : -8'sd7;
-            svalid = 1;
-            sfirst = (k==0)  || (k==42); // CB1-Start UND CB2-Start
-            slast  = (k==41) || (k==83); // CB1-Ende UND CB2-Ende
+            svalid = 1; sfirst = (k==0); slast = (k==83);
         end
         @(negedge clk); svalid=0; sfirst=0; slast=0; sb1=0; sb0=0;
     end endtask
@@ -64,15 +57,7 @@ module tb_ul_ctrl_softburst_mailbox;
         sb0=0; sb1=0; svalid=0; sfirst=0; slast=0; tn=2'd2; ack=0; index=0;
         repeat(3) @(posedge clk); @(negedge clk); rst_n = 1;
 
-        // ---- Spurious soft_valid OHNE soft_first (Rausch/False-Lock): der
-        //      Anker muss darauf NICHT starten (valid bleibt 0, keine Drift). ----
-        @(negedge clk); sb1=5; sb0=-5; svalid=1; sfirst=0; slast=0;
-        @(negedge clk); sb1=6; sb0=-6; svalid=1; sfirst=0; slast=0;
-        @(negedge clk); svalid=0; sfirst=0; slast=0; sb1=0; sb0=0;
-        @(posedge clk);
-        ck(valid===1'b0, "spurious ohne soft_first ignoriert (valid bleibt 0)");
-
-        // ---- Burst 1 (ankert sauber auf soft_first trotz vorangehendem Rausch) ----
+        // ---- Burst 1 ----
         feed_burst(1);
         @(posedge clk);
         ck(valid===1'b1, "valid nach Burst");

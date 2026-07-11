@@ -58,14 +58,10 @@ int tetra_ul_rx_service(ul_rx_ctx_t *c, const uint32_t *words,
         if (p.frag_flag) {
             /* Fragmentierter Start: der Slot gehört ab jetzt dieser SSI; BEIDE
              * Akkumulatoren starten (Continuation kommt als SCH/HU-END → Demand,
-             * oder als SCH/F-Fragmente → Long-SDS; der passende gewinnt).
-             * need_grant: der Daemon muss der SSI einen UL-Subslot granten, sonst
-             * sendet die MS den MAC-END-HU nie (RTL-frag1_pulse-Grant ist tot). */
+             * oder als SCH/F-Fragmente → Long-SDS; der passende gewinnt). */
             c->slot_ssi[slot] = p.issi;
             ul_reass_frag1(&c->demand, p.issi, info, p.meta13, now_ms);
             ul_lsds_start(&c->lsds, p.issi, info, p.opt_flag, now_ms);
-            out->ssi        = p.issi;
-            out->need_grant = 1;
             return 1;                              /* noch kein Body */
         }
 
@@ -91,12 +87,10 @@ int tetra_ul_rx_service(ul_rx_ctx_t *c, const uint32_t *words,
 
         int is_end;
         if (tetra_ul_schf_is_frag(info, &is_end)) {
-            uint8_t opt = 0;
             if (ul_lsds_frag(&c->lsds, info, is_end, now_ms,
-                             out->body, &out->body_len, &out->ssi, &opt)) {
+                             out->body, &out->body_len, &out->ssi, NULL)) {
                 out->have_body = 1;
                 out->source    = UL_RX_SRC_LONGSDS;
-                out->meta      = (uint16_t)(opt & 1u); /* dispatch nutzt opt für L0-Offset */
             }
         }
         return 1;
