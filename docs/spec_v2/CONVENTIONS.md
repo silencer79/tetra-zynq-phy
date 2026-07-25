@@ -173,6 +173,19 @@ Der PS↔PL-Vertrag (`07`) ist **die** Quelle für Adressen. Andere Kapitel
 verweisen mit Registernamen, wiederholen keine Adressen. So kann eine
 Adress-Änderung nicht an fünf Stellen auseinanderlaufen.
 
+**Geltungsbereich der Regel:** Sie betrifft **V2-normative** Adressen — also
+jede Adresse, nach der jemand baut. Sie betrifft **nicht** das Zitieren einer
+**V1**-Adresse innerhalb eines Belegs oder eines V1-Befunds; ohne diese
+Möglichkeit ließe sich kein Altsystem-Defekt belegen. Ein solches Zitat muss
+zwei Bedingungen erfüllen: es steht in einem als V1 erkennbaren Zusammenhang
+(Befund, Beleg, Fehlerkatalog), und es ist nicht als V2-Festlegung lesbar.
+Beispiel für zulässig: der Nachweis, dass die V1-Bedienoberfläche auf eine
+Adresse zugreift, die es seit einem Umbau nicht mehr gibt. Beispiel für
+unzulässig: eine Registertabelle mit Adressspalte außerhalb von `07`.
+
+`scripts/spec_lint.py` setzt diese Unterscheidung um (Regel `regaddr`, dieselbe
+V1-Kontexterkennung wie die Regel `dangling`).
+
 ---
 
 ## 5. Kapitelaufbau (einheitlich)

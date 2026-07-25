@@ -20,7 +20,7 @@ Ressourcen-Budget). Für die Weiterverarbeitung der Blockdaten `05` und `06`.
 
 | ID | Anforderung | Prüfkriterium |
 |---|---|---|
-| R-02-01 | Die Kette dezimiert 4 608 000 Sa/s komplex auf 72 000 Sa/s = 4 Samples/Symbol bei 18 000 Symbol/s [ETSI §4.5.3, §4.7]. | Zähler `dbg_fe_cnt` steigt um 72 000 ± 1 pro Sekunde. |
+| R-02-01 | Die Kette dezimiert 4 608 000 Sa/s komplex auf 72 000 Sa/s = 4 Samples/Symbol bei 18 000 Symbol/s [ETSI §4.5.3, §4.7]. | Zähler `fe_sample_cnt` (§3.11, V-02-10 a) steigt um 72 000 ± 1 pro Sekunde. |
 | R-02-02 | Der Empfangsfilter ist ein Root-Raised-Cosine mit α = 0,35 [ETSI §5.5, Gl. 5.4]. | Koeffizienten-Vergleich gegen Referenzgenerator, Abweichung ≤ 2 LSB bei Q14. |
 | R-02-03 | Der Demodulator bildet die Differenzphase gemäß [ETSI Tabelle 5.1] auf Dibits ab: 00 → +π/4, 01 → +3π/4, 10 → −π/4, 11 → −3π/4. | Testvektor mit allen vier Übergängen, bit-exakt. |
 | R-02-04 | Die Symbol-Timing-Rückgewinnung erreicht Lock aus beliebiger Startphase innerhalb von ≤ 1 TDMA-Frame (4 Slots ≙ 4 · 255 = 1020 Symbole) [ETSI §4.5.2] ohne externe Hilfe. | Simulation mit ±1 Sample Startfehler; `timing_locked` innerhalb 1020 Symbolen. |

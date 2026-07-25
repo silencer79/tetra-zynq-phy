@@ -103,6 +103,18 @@ Burst-Aufbau und Modulation
 - **R-04-20** Ein Diagnose-Modus ersetzt den Dibit-Strom durch eine PRBS
   (Spektrumsmessung ohne Protokoll). Er ist per Register abschaltbar und im
   Reset aus.
+- **R-04-21** Zwischen zwei verschiedenen PDUs eines Handshakes — namentlich
+  zwischen Vorantwort und Anmeldebestätigung — existiert **kein**
+  Abstandsmechanismus: kein Wartezustand, kein Registerfeld, das den Abstand
+  vorgibt, und kein Selbstzählen von Slot-Pulsen im Erzeuger. Der Zeitpunkt der
+  Antwort entsteht allein aus dem Ereignis, das sie erzeugt („Zusammensetzung
+  vollständig **oder** Fenster abgelaufen", normativ `08 §3.5.2`,
+  frame-granular nach `08` R-08-11). Ein fester Abstand als Ersatz für dieses
+  Ereignis ist verboten. Nicht betroffen ist `delay_slots` der DL-PDU-Mailbox
+  (`07 §3.3`): es staffelt identische Wiederholungen **derselben** PDU
+  (`10 §3.4.3`, Abstand normativ `08 §3.4.3` R-4) und darf für einen
+  Antwortabstand nicht verwendet werden. Ausführlich mit Begründung und
+  Prüfkriterien in §3.5.3.
 
 ---
 

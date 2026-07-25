@@ -1,0 +1,66 @@
+{
+  "meta": {
+    "quelle": "BEISPIEL — synthetisch erzeugt, KEINE Messung",
+    "datum": "2026-07-25",
+    "kommentar": "Zeigt dasselbe Eingabeformat fuer den Luftteil L8 (14 §3.9.4): zwei Durchlaeufe a 60 s, Anmeldebestaetigung unterdrueckt, erst ein Endgeraet, dann zwei. params.wt_broadcast MUSS der von der eigenen Zelle tatsaechlich ausgesendete Wert sein — der Grenzwert von L8-6 wird daraus nachgerechnet (14 §6 O-14-8)."
+  },
+
+  "part": "luft",
+
+  "params": {
+    "grant_repeat": 2,
+    "grant_gap": 4,
+    "frame_ms": 56.67,
+    "imm": 1,
+    "wt_broadcast": 2,
+    "nu": 3,
+    "dlq_slots": 4
+  },
+
+  "steps": [
+    {
+      "label": "L8-Lauf 1 MS",
+      "duration_s": 60.0,
+      "ms_count": 1,
+      "suppress_ack": true,
+      "grant_trigger_cnt": 130,
+      "grant_emit_cnt": 120,
+      "grant_late_cnt": 0,
+      "open_access_subslots": 1900,
+      "resv_slot_cnt": 7,
+      "mcch_slot_cnt": 1059,
+      "dlq_drop_total": 0,
+      "dlq_drop_by_producer": { "mm": 0, "cmce": 0, "sds": 0 },
+      "dlq_depth_p99": 1,
+      "req_cnt": 240,
+      "ack_cnt": 0,
+      "ms_retry_cnt_by_addr": { "1000001": 240 }
+    },
+    {
+      "label": "L8-Lauf 2 MS",
+      "duration_s": 60.0,
+      "ms_count": 2,
+      "suppress_ack": true,
+      "grant_trigger_cnt": 250,
+      "grant_emit_cnt": 230,
+      "grant_late_cnt": 0,
+      "open_access_subslots": 1860,
+      "resv_slot_cnt": 14,
+      "mcch_slot_cnt": 1059,
+      "dlq_drop_total": 0,
+      "dlq_drop_by_producer": { "mm": 0, "cmce": 0, "sds": 0 },
+      "dlq_depth_p99": 2,
+      "req_cnt": 480,
+      "ack_cnt": 0,
+      "ms_retry_cnt_by_addr": { "1000001": 240, "1000002": 240 }
+    }
+  ],
+
+  "air_checks": {
+    "registration_after_release_s": 1.2,
+    "restart_observed": false,
+    "req_cnt_after_release": 3,
+    "ack_cnt_after_release": 3,
+    "double_registration_within_5s_cnt": 0
+  }
+}

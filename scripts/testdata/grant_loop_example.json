@@ -1,0 +1,149 @@
+{
+  "meta": {
+    "quelle": "BEISPIEL — synthetisch erzeugt, KEINE Messung",
+    "datum": "2026-07-25",
+    "kommentar": "Zeigt das Eingabeformat von scripts/grant_loop_check.py fuer den Simulationsteil (14 §3.9.3, S3-D). Alle Zaehler sind Zuwaechse ueber das Messfenster der jeweiligen Laststufe. Der Nachweisblock 'evidence' steht bewusst auf 'offen': die vier Testbenches existieren noch nicht, deshalb endet der Lauf mit UNVOLLSTAENDIG und nicht mit BESTANDEN."
+  },
+
+  "part": "simulation",
+
+  "params": {
+    "grant_repeat": 2,
+    "grant_gap": 4,
+    "frame_ms": 56.67,
+    "imm": 1,
+    "wt_broadcast": 2,
+    "nu": 3,
+    "dlq_slots": 4
+  },
+
+  "steps": [
+    {
+      "label": "Stufe 1",
+      "duration_s": 60.0,
+      "ms_count": 1,
+      "suppress_ack": true,
+      "grant_trigger_cnt": 175,
+      "grant_emit_cnt": 180,
+      "grant_late_cnt": 0,
+      "open_access_subslots": 1900,
+      "resv_slot_cnt": 190,
+      "mcch_slot_cnt": 1059,
+      "dlq_drop_total": 0,
+      "dlq_drop_by_producer": { "mm": 0, "cmce": 0, "sds": 0 },
+      "dlq_depth_p99": 1,
+      "req_cnt": 240,
+      "ack_cnt": 0,
+      "ms_retry_cnt_by_addr": { "1000001": 240 }
+    },
+    {
+      "label": "Stufe 2",
+      "duration_s": 60.0,
+      "ms_count": 2,
+      "suppress_ack": true,
+      "grant_trigger_cnt": 320,
+      "grant_emit_cnt": 330,
+      "grant_late_cnt": 0,
+      "open_access_subslots": 1840,
+      "resv_slot_cnt": 340,
+      "mcch_slot_cnt": 1059,
+      "dlq_drop_total": 0,
+      "dlq_drop_by_producer": { "mm": 0, "cmce": 0, "sds": 0 },
+      "dlq_depth_p99": 1,
+      "req_cnt": 480,
+      "ack_cnt": 0,
+      "ms_retry_cnt_by_addr": { "1000001": 240, "1000002": 240 }
+    },
+    {
+      "label": "Stufe 3",
+      "duration_s": 60.0,
+      "ms_count": 4,
+      "suppress_ack": true,
+      "grant_trigger_cnt": 460,
+      "grant_emit_cnt": 480,
+      "grant_late_cnt": 0,
+      "open_access_subslots": 1720,
+      "resv_slot_cnt": 490,
+      "mcch_slot_cnt": 1059,
+      "dlq_drop_total": 0,
+      "dlq_drop_by_producer": { "mm": 0, "cmce": 0, "sds": 0 },
+      "dlq_depth_p99": 2,
+      "req_cnt": 960,
+      "ack_cnt": 0,
+      "ms_retry_cnt_by_addr": {
+        "1000001": 240, "1000002": 240, "1000003": 240, "1000004": 240
+      }
+    },
+    {
+      "label": "Stufe 4",
+      "duration_s": 60.0,
+      "ms_count": 8,
+      "suppress_ack": true,
+      "grant_trigger_cnt": 465,
+      "grant_emit_cnt": 480,
+      "grant_late_cnt": 0,
+      "open_access_subslots": 1700,
+      "resv_slot_cnt": 490,
+      "mcch_slot_cnt": 1059,
+      "dlq_drop_total": 0,
+      "dlq_drop_by_producer": { "mm": 0, "cmce": 0, "sds": 0 },
+      "dlq_depth_p99": 2,
+      "req_cnt": 1920,
+      "ack_cnt": 0,
+      "ms_retry_cnt_by_addr": {
+        "1000001": 240, "1000002": 240, "1000003": 240, "1000004": 240,
+        "1000005": 240, "1000006": 240, "1000007": 240, "1000008": 240
+      }
+    },
+    {
+      "label": "Stufe 5",
+      "duration_s": 60.0,
+      "ms_count": 16,
+      "suppress_ack": true,
+      "grant_trigger_cnt": 468,
+      "grant_emit_cnt": 480,
+      "grant_late_cnt": 0,
+      "open_access_subslots": 1690,
+      "resv_slot_cnt": 490,
+      "mcch_slot_cnt": 1059,
+      "dlq_drop_total": 0,
+      "dlq_drop_by_producer": { "mm": 0, "cmce": 0, "sds": 0 },
+      "dlq_depth_p99": 2,
+      "req_cnt": 3840,
+      "ack_cnt": 0,
+      "ms_retry_cnt_by_addr": {
+        "1000001": 240, "1000002": 240, "1000003": 240, "1000004": 240,
+        "1000005": 240, "1000006": 240, "1000007": 240, "1000008": 240,
+        "1000009": 240, "1000010": 240, "1000011": 240, "1000012": 240,
+        "1000013": 240, "1000014": 240, "1000015": 240, "1000016": 240
+      }
+    }
+  ],
+
+  "evidence": {
+    "tb_ul_grant_bound": {
+      "status": "offen",
+      "quelle": "",
+      "datum": "",
+      "kommentar": "06 §5.1 V-06-5 — Zufallsstimulus ueber 10 000 Frames. Testbench existiert noch nicht."
+    },
+    "resv_same_staging_cycle": {
+      "status": "offen",
+      "quelle": "",
+      "datum": "",
+      "kommentar": "06 §3.9.3 / V-06-4 tb_ul_grant_window — Reservierung im selben Staging-Zyklus wie grant_valid_sys."
+    },
+    "tb_ul_assign_content_independence": {
+      "status": "offen",
+      "quelle": "",
+      "datum": "",
+      "kommentar": "07 §5.1 — Decoder-Schnittstellen mit Zufallswerten getrieben, Zuweisungs-Entscheidung unveraendert (R-00-02)."
+    },
+    "tb_grant_deadline": {
+      "status": "offen",
+      "quelle": "",
+      "datum": "",
+      "kommentar": "08 §5.1 — Zuweisungsbits liegen vor dem slot_pulse des Zielslots vor (R-00-01)."
+    }
+  }
+}
