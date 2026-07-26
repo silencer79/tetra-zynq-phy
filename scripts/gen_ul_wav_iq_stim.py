@@ -142,7 +142,9 @@ def main():
 
         # Decode via Python for expected bits
         blk1, blk2 = sample_half_soft_bits(iq, sps, x_pos, RA_CB_SYMS, cfo_A, 0.0)
-        crc_ok, info_bits, _, _ = try_channel_decode(blk1, blk2, scramb_init, 'schhu')
+        # try_channel_decode(): (crc_ok, info_bits, type4_hard, variant, type3_deint)
+        _r = try_channel_decode(blk1, blk2, scramb_init, 'schhu')
+        crc_ok, info_bits = _r[0], _r[1]
         if info_bits is None:
             info_bits = [0] * 92
         info_bits = list(int(b) & 1 for b in info_bits[:92])
