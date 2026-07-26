@@ -2,12 +2,38 @@
 
 Bit-genaue Decompose der beiden Reference-WAVs.
 
+> ## ⚠️ Quelldateien nicht mehr vorhanden — diese Auswertung ist nicht reproduzierbar
+>
+> Die unten genannten WAV-Dateien liegen **nicht mehr im Repository** (geprüft
+> 2026-07-26). Vorhanden sind zehn andere Aufnahmepaare derselben Zelle unter
+> `wavs/` — identische Netzkennung, Farbcode, Trägernummer und
+> Scrambler-Startwert, aber kürzer (8…56 s statt 104 s) und **inhaltlich ärmer**.
+>
+> Ein Screening aller zehn Aufnahmen ergab: **keine** enthält eine Anmeldung
+> (`D-LOCATION UPDATE ACCEPT`), einen Gruppenwechsel
+> (`D-ATTACH/DETACH GROUP IDENTITY ACK`) oder ein `D-SETUP`. Diese Auswertung ist
+> damit die **einzige** Dokumentation dieser Sequenzen und darf nicht
+> überschrieben werden — die Spec-Kapitel `09_LLC_MLE_MM` und `10_CMCE_CALL`
+> belegen damit.
+>
+> **Was das für ihre Verwendung heißt:** Die enthaltenen Daten sind echt und
+> weiter gültig. Nicht möglich ist ein Neulauf mit geändertem Werkzeug — auch
+> nicht der, der die unten beschriebene Werkzeuglücke schließen würde. Wer die
+> geschlossene Lücke mit Zahlen belegt sehen will, nutzt
+> `docs/reference_decode_2026-06-21/` (dieselbe Zelle, gefixtes Werkzeug, aber
+> ohne die Anmelde- und Gruppenwechsel-Sequenzen).
+>
+> **Abdeckungsstand vor jeder Nutzung prüfen:**
+> `python3 scripts/gold_coverage.py docs/reference_decode` — meldet, in welchen
+> Zellen der Matrix ein Nullbefund **kein** Befund ist, weil das erzeugende
+> Werkzeug diesen Bursttyp nicht durch die oberen Schichten geführt hat.
+
 ## Sources
 
 | WAV | Dauer | Bursts detected | Bursts decoded |
 |---|---|---|---|
-| `wavs/reference/GOLD_DL_ANMELDUNG_GRUPPENWECHSEL_GRUPPENRUF.wav` | 103.98 s | — | 7338 |
-| `wavs/reference/GOLD_UL_ANMELDUNG_GRUPPENWECHSEL_GRUPPENRUF.wav` | 109.36 s | — | 192 |
+| `wavs/reference/GOLD_DL_ANMELDUNG_GRUPPENWECHSEL_GRUPPENRUF.wav` (fehlt) | 103.98 s | — | 7338 |
+| `wavs/reference/GOLD_UL_ANMELDUNG_GRUPPENWECHSEL_GRUPPENRUF.wav` (fehlt) | 109.36 s | — | 192 |
 
 **Cell-Lock (TMO):** MCC=262 MNC=1010 CC=1 · Carrier=3719 · DL=392.9875 MHz · UL=382.9875 MHz · Scrambler=`0x4183F207` · MS ISSI=`0x282FF4` (2633716)
 
