@@ -52,6 +52,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #    1  t=0.014s  TN4 FN02 MN58  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72,6 +73,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #    2  t=27.201s  TN3 FN14 MN24  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -92,6 +94,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #    3  t=27.215s  TN4 FN14 MN24  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -147,6 +150,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #    5  t=27.243s  TN2 FN15 MN24  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -167,6 +171,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #    6  t=27.257s  TN3 FN15 MN24  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -187,6 +192,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #    7  t=27.271s  TN4 FN15 MN24  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -242,6 +248,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #    9  t=27.300s  TN2 FN16 MN24  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -262,6 +269,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   10  t=27.314s  TN3 FN16 MN24  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -282,6 +290,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   11  t=27.328s  TN4 FN16 MN24  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -337,6 +346,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   13  t=27.356s  TN2 FN17 MN24  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -357,6 +367,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   14  t=27.371s  TN3 FN17 MN24  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -377,6 +388,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   15  t=27.385s  TN4 FN17 MN24  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -430,6 +442,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   17  t=27.413s  TN2 FN18 MN24  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -450,6 +463,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   18  t=27.427s  TN3 FN18 MN24 BSCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -470,6 +484,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   19  t=27.441s  TN4 FN18 MN24  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -525,6 +540,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   21  t=27.470s  TN2 FN01 MN25  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -545,6 +561,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   22  t=27.484s  TN3 FN01 MN25  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -565,6 +582,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   23  t=27.498s  TN4 FN01 MN25  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -620,6 +638,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   25  t=27.526s  TN2 FN02 MN25  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -640,6 +659,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   26  t=27.541s  TN3 FN02 MN25  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -660,6 +680,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   27  t=27.555s  TN4 FN02 MN25  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -715,6 +736,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   29  t=27.583s  TN2 FN03 MN25  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -735,6 +757,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   30  t=27.597s  TN3 FN03 MN25  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -755,6 +778,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   31  t=27.611s  TN4 FN03 MN25  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -810,6 +834,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   33  t=27.640s  TN2 FN04 MN25  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -830,6 +855,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   34  t=27.654s  TN3 FN04 MN25  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -850,6 +876,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   35  t=27.668s  TN4 FN04 MN25  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -892,6 +919,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   37  t=27.696s  TN2 FN05 MN25  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -912,6 +940,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   38  t=27.711s  TN3 FN05 MN25  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -932,6 +961,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   39  t=27.725s  TN4 FN05 MN25  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -987,6 +1017,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   41  t=27.753s  TN2 FN06 MN25  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1007,6 +1038,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   42  t=27.767s  TN3 FN06 MN25  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1027,6 +1059,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   43  t=27.781s  TN4 FN06 MN25  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1082,6 +1115,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   45  t=27.810s  TN2 FN07 MN25  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1102,6 +1136,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   46  t=27.824s  TN3 FN07 MN25  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1122,6 +1157,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   47  t=27.838s  TN4 FN07 MN25  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1177,6 +1213,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   49  t=27.866s  TN2 FN08 MN25  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1197,6 +1234,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   50  t=27.881s  TN3 FN08 MN25  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1217,6 +1255,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   51  t=27.895s  TN4 FN08 MN25  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1272,6 +1311,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   53  t=27.923s  TN2 FN09 MN25  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1292,6 +1332,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   54  t=27.937s  TN3 FN09 MN25  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1312,6 +1353,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   55  t=27.951s  TN4 FN09 MN25  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1367,6 +1409,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   57  t=27.980s  TN2 FN10 MN25  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1387,6 +1430,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   58  t=27.994s  TN3 FN10 MN25  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1407,6 +1451,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   59  t=28.008s  TN4 FN10 MN25  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1462,6 +1507,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   61  t=28.036s  TN2 FN11 MN25  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1482,6 +1528,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   62  t=28.051s  TN3 FN11 MN25  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1502,6 +1549,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   63  t=28.065s  TN4 FN11 MN25  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1557,6 +1605,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   65  t=28.093s  TN2 FN12 MN25  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1577,6 +1626,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   66  t=28.107s  TN3 FN12 MN25  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1597,6 +1647,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   67  t=28.121s  TN4 FN12 MN25  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1652,6 +1703,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   69  t=28.150s  TN2 FN13 MN25  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1672,6 +1724,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   70  t=28.164s  TN3 FN13 MN25  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1692,6 +1745,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   71  t=28.178s  TN4 FN13 MN25  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1747,6 +1801,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   73  t=28.206s  TN2 FN14 MN25  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1767,6 +1822,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   74  t=28.221s  TN3 FN14 MN25  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1787,6 +1843,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   75  t=28.235s  TN4 FN14 MN25  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1842,6 +1899,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   77  t=28.263s  TN2 FN15 MN25  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1862,6 +1920,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   78  t=28.277s  TN3 FN15 MN25  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1882,6 +1941,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   79  t=28.291s  TN4 FN15 MN25  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1937,6 +1997,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   81  t=28.320s  TN2 FN16 MN25  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1957,6 +2018,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   82  t=28.334s  TN3 FN16 MN25  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -1977,6 +2039,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   83  t=28.348s  TN4 FN16 MN25  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2032,6 +2095,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   85  t=28.377s  TN2 FN17 MN25  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2052,6 +2116,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   86  t=28.391s  TN3 FN17 MN25  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2072,6 +2137,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   87  t=28.405s  TN4 FN17 MN25  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2125,6 +2191,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   89  t=28.433s  TN2 FN18 MN25 BSCH  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -2145,6 +2212,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   90  t=28.447s  TN3 FN18 MN25  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -2165,6 +2233,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   91  t=28.462s  TN4 FN18 MN25 BNCH  SB  corr=0.990
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -2220,6 +2289,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   93  t=28.490s  TN2 FN01 MN26  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2240,6 +2310,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   94  t=28.504s  TN3 FN01 MN26  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2260,6 +2331,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   95  t=28.518s  TN4 FN01 MN26  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2315,6 +2387,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   97  t=28.547s  TN2 FN02 MN26  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2335,6 +2408,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   98  t=28.561s  TN3 FN02 MN26  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2355,6 +2429,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #   99  t=28.575s  TN4 FN02 MN26  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2410,6 +2485,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  101  t=28.603s  TN2 FN03 MN26  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2430,6 +2506,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  102  t=28.617s  TN3 FN03 MN26  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2450,6 +2527,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  103  t=28.632s  TN4 FN03 MN26  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2505,6 +2583,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  105  t=28.660s  TN2 FN04 MN26  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2525,6 +2604,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  106  t=28.674s  TN3 FN04 MN26  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2545,6 +2625,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  107  t=28.688s  TN4 FN04 MN26  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2600,6 +2681,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  109  t=28.717s  TN2 FN05 MN26  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2620,6 +2702,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  110  t=28.731s  TN3 FN05 MN26  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2640,6 +2723,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  111  t=28.745s  TN4 FN05 MN26  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2695,6 +2779,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  113  t=28.773s  TN2 FN06 MN26  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2715,6 +2800,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  114  t=28.787s  TN3 FN06 MN26  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2735,6 +2821,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  115  t=28.802s  TN4 FN06 MN26  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2790,6 +2877,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  117  t=28.830s  TN2 FN07 MN26  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2810,6 +2898,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  118  t=28.844s  TN3 FN07 MN26  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2830,6 +2919,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  119  t=28.858s  TN4 FN07 MN26  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2885,6 +2975,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  121  t=28.887s  TN2 FN08 MN26  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2905,6 +2996,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  122  t=28.901s  TN3 FN08 MN26  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2925,6 +3017,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  123  t=28.915s  TN4 FN08 MN26  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -2980,6 +3073,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  125  t=28.943s  TN2 FN09 MN26  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3000,6 +3094,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  126  t=28.957s  TN3 FN09 MN26  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3020,6 +3115,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  127  t=28.972s  TN4 FN09 MN26  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3075,6 +3171,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  129  t=29.000s  TN2 FN10 MN26  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3095,6 +3192,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  130  t=29.014s  TN3 FN10 MN26  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3115,6 +3213,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  131  t=29.028s  TN4 FN10 MN26  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3170,6 +3269,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  133  t=29.057s  TN2 FN11 MN26  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3190,6 +3290,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  134  t=29.071s  TN3 FN11 MN26  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3210,6 +3311,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  135  t=29.085s  TN4 FN11 MN26  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3265,6 +3367,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  137  t=29.113s  TN2 FN12 MN26  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3285,6 +3388,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  138  t=29.127s  TN3 FN12 MN26  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3305,6 +3409,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  139  t=29.142s  TN4 FN12 MN26  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3360,6 +3465,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  141  t=29.170s  TN2 FN13 MN26  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3380,6 +3486,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  142  t=29.184s  TN3 FN13 MN26  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3400,6 +3507,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  143  t=29.198s  TN4 FN13 MN26  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3455,6 +3563,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  145  t=29.227s  TN2 FN14 MN26  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3475,6 +3584,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  146  t=29.241s  TN3 FN14 MN26  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3495,6 +3605,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  147  t=29.255s  TN4 FN14 MN26  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3550,6 +3661,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  149  t=29.283s  TN2 FN15 MN26  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3570,6 +3682,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  150  t=29.297s  TN3 FN15 MN26  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3590,6 +3703,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  151  t=29.312s  TN4 FN15 MN26  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3645,6 +3759,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  153  t=29.340s  TN2 FN16 MN26  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3665,6 +3780,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  154  t=29.354s  TN3 FN16 MN26  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3685,6 +3801,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  155  t=29.368s  TN4 FN16 MN26  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3740,6 +3857,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  157  t=29.397s  TN2 FN17 MN26  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3760,6 +3878,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  158  t=29.411s  TN3 FN17 MN26  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3780,6 +3899,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  159  t=29.425s  TN4 FN17 MN26  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3800,6 +3920,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  160  t=29.439s  TN1 FN18 MN26 BSCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=9 f1=1 f2=9 (dist=0)
 - **AACH bb (30 bit onair):** `100000000000011101000100000001`
 - **AACH bb (30 bit descrambled):** `000000010010011101101010010101`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001001001` (hex `0x0049`)
@@ -3820,6 +3941,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  161  t=29.453s  TN2 FN18 MN26  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -3840,6 +3962,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  162  t=29.467s  TN3 FN18 MN26 BNCH  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -3860,6 +3983,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  163  t=29.482s  TN4 FN18 MN26  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -3915,6 +4039,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  165  t=29.510s  TN2 FN01 MN27  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3935,6 +4060,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  166  t=29.524s  TN3 FN01 MN27  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -3955,6 +4081,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  167  t=29.538s  TN4 FN01 MN27  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4010,6 +4137,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  169  t=29.567s  TN2 FN02 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4030,6 +4158,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  170  t=29.581s  TN3 FN02 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4050,6 +4179,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  171  t=29.595s  TN4 FN02 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4105,6 +4235,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  173  t=29.623s  TN2 FN03 MN27  SB  corr=0.987
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4125,6 +4256,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  174  t=29.637s  TN3 FN03 MN27  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4145,6 +4277,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  175  t=29.652s  TN4 FN03 MN27  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4200,6 +4333,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  177  t=29.680s  TN2 FN04 MN27  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4220,6 +4354,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  178  t=29.694s  TN3 FN04 MN27  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4240,6 +4375,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  179  t=29.708s  TN4 FN04 MN27  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4295,6 +4431,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  181  t=29.737s  TN2 FN05 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4315,6 +4452,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  182  t=29.751s  TN3 FN05 MN27  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4335,6 +4473,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  183  t=29.765s  TN4 FN05 MN27  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4390,6 +4529,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  185  t=29.793s  TN2 FN06 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4410,6 +4550,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  186  t=29.807s  TN3 FN06 MN27  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4430,6 +4571,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  187  t=29.822s  TN4 FN06 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4485,6 +4627,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  189  t=29.850s  TN2 FN07 MN27  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4505,6 +4648,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  190  t=29.864s  TN3 FN07 MN27  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4525,6 +4669,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  191  t=29.878s  TN4 FN07 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4580,6 +4725,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  193  t=29.907s  TN2 FN08 MN27  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4600,6 +4746,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  194  t=29.921s  TN3 FN08 MN27  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4620,6 +4767,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  195  t=29.935s  TN4 FN08 MN27  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4675,6 +4823,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  197  t=29.963s  TN2 FN09 MN27  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4695,6 +4844,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  198  t=29.977s  TN3 FN09 MN27  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4715,6 +4865,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  199  t=29.992s  TN4 FN09 MN27  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4770,6 +4921,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  201  t=30.020s  TN2 FN10 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4790,6 +4942,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  202  t=30.034s  TN3 FN10 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4810,6 +4963,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  203  t=30.048s  TN4 FN10 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4865,6 +5019,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  205  t=30.077s  TN2 FN11 MN27  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4885,6 +5040,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  206  t=30.091s  TN3 FN11 MN27  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4905,6 +5061,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  207  t=30.105s  TN4 FN11 MN27  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4960,6 +5117,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  209  t=30.133s  TN2 FN12 MN27  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -4980,6 +5138,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  210  t=30.147s  TN3 FN12 MN27  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5000,6 +5159,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  211  t=30.162s  TN4 FN12 MN27  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5055,6 +5215,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  213  t=30.190s  TN2 FN13 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5075,6 +5236,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  214  t=30.204s  TN3 FN13 MN27  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5095,6 +5257,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  215  t=30.218s  TN4 FN13 MN27  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5150,6 +5313,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  217  t=30.247s  TN2 FN14 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5170,6 +5334,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  218  t=30.261s  TN3 FN14 MN27  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5190,6 +5355,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  219  t=30.275s  TN4 FN14 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5245,6 +5411,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  221  t=30.303s  TN2 FN15 MN27  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5265,6 +5432,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  222  t=30.317s  TN3 FN15 MN27  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5285,6 +5453,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  223  t=30.332s  TN4 FN15 MN27  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5340,6 +5509,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  225  t=30.360s  TN2 FN16 MN27  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5360,6 +5530,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  226  t=30.374s  TN3 FN16 MN27  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5380,6 +5551,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  227  t=30.388s  TN4 FN16 MN27  SB  corr=0.988
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5435,6 +5607,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  229  t=30.417s  TN2 FN17 MN27  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5455,6 +5628,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  230  t=30.431s  TN3 FN17 MN27  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5475,6 +5649,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  231  t=30.445s  TN4 FN17 MN27  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5528,6 +5703,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  233  t=30.473s  TN2 FN18 MN27 BNCH  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -5548,6 +5724,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  234  t=30.487s  TN3 FN18 MN27  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -5568,6 +5745,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  235  t=30.502s  TN4 FN18 MN27 BSCH  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -5623,6 +5801,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  237  t=30.530s  TN2 FN01 MN28  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5643,6 +5822,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  238  t=30.544s  TN3 FN01 MN28  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5663,6 +5843,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  239  t=30.558s  TN4 FN01 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5718,6 +5899,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  241  t=30.587s  TN2 FN02 MN28  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5738,6 +5920,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  242  t=30.601s  TN3 FN02 MN28  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5758,6 +5941,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  243  t=30.615s  TN4 FN02 MN28  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5813,6 +5997,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  245  t=30.643s  TN2 FN03 MN28  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5833,6 +6018,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  246  t=30.657s  TN3 FN03 MN28  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5853,6 +6039,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  247  t=30.672s  TN4 FN03 MN28  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5908,6 +6095,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  249  t=30.700s  TN2 FN04 MN28  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5928,6 +6116,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  250  t=30.714s  TN3 FN04 MN28  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -5948,6 +6137,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  251  t=30.728s  TN4 FN04 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6003,6 +6193,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  253  t=30.757s  TN2 FN05 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6023,6 +6214,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  254  t=30.771s  TN3 FN05 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6043,6 +6235,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  255  t=30.785s  TN4 FN05 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6098,6 +6291,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  257  t=30.813s  TN2 FN06 MN28  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6118,6 +6312,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  258  t=30.827s  TN3 FN06 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6138,6 +6333,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  259  t=30.842s  TN4 FN06 MN28  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6193,6 +6389,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  261  t=30.870s  TN2 FN07 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6213,6 +6410,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  262  t=30.884s  TN3 FN07 MN28  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6233,6 +6431,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  263  t=30.898s  TN4 FN07 MN28  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6288,6 +6487,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  265  t=30.927s  TN2 FN08 MN28  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6308,6 +6508,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  266  t=30.941s  TN3 FN08 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6328,6 +6529,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  267  t=30.955s  TN4 FN08 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6383,6 +6585,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  269  t=30.983s  TN2 FN09 MN28  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6403,6 +6606,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  270  t=30.997s  TN3 FN09 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6423,6 +6627,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  271  t=31.012s  TN4 FN09 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6478,6 +6683,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  273  t=31.040s  TN2 FN10 MN28  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6498,6 +6704,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  274  t=31.054s  TN3 FN10 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6518,6 +6725,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  275  t=31.068s  TN4 FN10 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6573,6 +6781,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  277  t=31.097s  TN2 FN11 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6593,6 +6802,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  278  t=31.111s  TN3 FN11 MN28  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6613,6 +6823,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  279  t=31.125s  TN4 FN11 MN28  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6668,6 +6879,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  281  t=31.153s  TN2 FN12 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6688,6 +6900,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  282  t=31.167s  TN3 FN12 MN28  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6708,6 +6921,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  283  t=31.182s  TN4 FN12 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6763,6 +6977,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  285  t=31.210s  TN2 FN13 MN28  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6783,6 +6998,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  286  t=31.224s  TN3 FN13 MN28  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6803,6 +7019,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  287  t=31.238s  TN4 FN13 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6858,6 +7075,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  289  t=31.267s  TN2 FN14 MN28  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6878,6 +7096,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  290  t=31.281s  TN3 FN14 MN28  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6898,6 +7117,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  291  t=31.295s  TN4 FN14 MN28  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6953,6 +7173,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  293  t=31.323s  TN2 FN15 MN28  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6973,6 +7194,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  294  t=31.337s  TN3 FN15 MN28  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -6993,6 +7215,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  295  t=31.352s  TN4 FN15 MN28  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7048,6 +7271,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  297  t=31.380s  TN2 FN16 MN28  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7068,6 +7292,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  298  t=31.394s  TN3 FN16 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7088,6 +7313,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  299  t=31.408s  TN4 FN16 MN28  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7143,6 +7369,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  301  t=31.437s  TN2 FN17 MN28  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7163,6 +7390,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  302  t=31.451s  TN3 FN17 MN28  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7183,6 +7411,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  303  t=31.465s  TN4 FN17 MN28  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7236,6 +7465,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  305  t=31.493s  TN2 FN18 MN28  SB  corr=0.990
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -7256,6 +7486,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  306  t=31.507s  TN3 FN18 MN28 BSCH  SB  corr=0.990
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -7276,6 +7507,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  307  t=31.522s  TN4 FN18 MN28  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -7331,6 +7563,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  309  t=31.550s  TN2 FN01 MN29  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7351,6 +7584,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  310  t=31.564s  TN3 FN01 MN29  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7371,6 +7605,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  311  t=31.578s  TN4 FN01 MN29  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7426,6 +7661,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  313  t=31.607s  TN2 FN02 MN29  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7446,6 +7682,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  314  t=31.621s  TN3 FN02 MN29  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7466,6 +7703,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  315  t=31.635s  TN4 FN02 MN29  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7521,6 +7759,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  317  t=31.663s  TN2 FN03 MN29  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7541,6 +7780,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  318  t=31.677s  TN3 FN03 MN29  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7561,6 +7801,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  319  t=31.692s  TN4 FN03 MN29  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7616,6 +7857,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  321  t=31.720s  TN2 FN04 MN29  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7636,6 +7878,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  322  t=31.734s  TN3 FN04 MN29  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7656,6 +7899,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  323  t=31.748s  TN4 FN04 MN29  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7711,6 +7955,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  325  t=31.777s  TN2 FN05 MN29  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7731,6 +7976,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  326  t=31.791s  TN3 FN05 MN29  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7751,6 +7997,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  327  t=31.805s  TN4 FN05 MN29  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7806,6 +8053,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  329  t=31.833s  TN2 FN06 MN29  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7826,6 +8074,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  330  t=31.847s  TN3 FN06 MN29  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7846,6 +8095,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  331  t=31.862s  TN4 FN06 MN29  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7901,6 +8151,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  333  t=31.890s  TN2 FN07 MN29  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7921,6 +8172,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  334  t=31.904s  TN3 FN07 MN29  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7941,6 +8193,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  335  t=31.918s  TN4 FN07 MN29  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -7996,6 +8249,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  337  t=31.947s  TN2 FN08 MN29  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8016,6 +8270,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  338  t=31.961s  TN3 FN08 MN29  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8036,6 +8291,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  339  t=31.975s  TN4 FN08 MN29  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8091,6 +8347,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  341  t=32.003s  TN2 FN09 MN29  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8111,6 +8368,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  342  t=32.017s  TN3 FN09 MN29  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8131,6 +8389,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  343  t=32.032s  TN4 FN09 MN29  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8186,6 +8445,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  345  t=32.060s  TN2 FN10 MN29  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8206,6 +8466,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  346  t=32.074s  TN3 FN10 MN29  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8226,6 +8487,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  347  t=32.088s  TN4 FN10 MN29  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8281,6 +8543,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  349  t=32.117s  TN2 FN11 MN29  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8301,6 +8564,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  350  t=32.131s  TN3 FN11 MN29  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8321,6 +8585,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  351  t=32.145s  TN4 FN11 MN29  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8376,6 +8641,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  353  t=32.173s  TN2 FN12 MN29  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8396,6 +8662,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  354  t=32.187s  TN3 FN12 MN29  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8416,6 +8683,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  355  t=32.202s  TN4 FN12 MN29  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8471,6 +8739,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  357  t=32.230s  TN2 FN13 MN29  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8491,6 +8760,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  358  t=32.244s  TN3 FN13 MN29  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8511,6 +8781,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  359  t=32.258s  TN4 FN13 MN29  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8566,6 +8837,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  361  t=32.287s  TN2 FN14 MN29  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8586,6 +8858,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  362  t=32.301s  TN3 FN14 MN29  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8606,6 +8879,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  363  t=32.315s  TN4 FN14 MN29  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8661,6 +8935,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  365  t=32.343s  TN2 FN15 MN29  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8681,6 +8956,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  366  t=32.357s  TN3 FN15 MN29  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8701,6 +8977,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  367  t=32.372s  TN4 FN15 MN29  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8756,6 +9033,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  369  t=32.400s  TN2 FN16 MN29  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8776,6 +9054,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  370  t=32.414s  TN3 FN16 MN29  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8796,6 +9075,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  371  t=32.428s  TN4 FN16 MN29  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8851,6 +9131,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  373  t=32.457s  TN2 FN17 MN29  SB  corr=0.988
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8871,6 +9152,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  374  t=32.471s  TN3 FN17 MN29  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8891,6 +9173,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  375  t=32.485s  TN4 FN17 MN29  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -8944,6 +9227,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  377  t=32.513s  TN2 FN18 MN29 BSCH  SB  corr=0.988
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -8964,6 +9248,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  378  t=32.527s  TN3 FN18 MN29  SB  corr=0.988
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -8984,6 +9269,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  379  t=32.542s  TN4 FN18 MN29 BNCH  SB  corr=0.989
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -9039,6 +9325,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  381  t=32.570s  TN2 FN01 MN30  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9059,6 +9346,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  382  t=32.584s  TN3 FN01 MN30  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9079,6 +9367,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  383  t=32.598s  TN4 FN01 MN30  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9134,6 +9423,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  385  t=32.627s  TN2 FN02 MN30  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9154,6 +9444,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  386  t=32.641s  TN3 FN02 MN30  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9174,6 +9465,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  387  t=32.655s  TN4 FN02 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9229,6 +9521,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  389  t=32.683s  TN2 FN03 MN30  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9249,6 +9542,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  390  t=32.697s  TN3 FN03 MN30  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9269,6 +9563,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  391  t=32.712s  TN4 FN03 MN30  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9324,6 +9619,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  393  t=32.740s  TN2 FN04 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9344,6 +9640,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  394  t=32.754s  TN3 FN04 MN30  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9364,6 +9661,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  395  t=32.768s  TN4 FN04 MN30  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9419,6 +9717,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  397  t=32.797s  TN2 FN05 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9439,6 +9738,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  398  t=32.811s  TN3 FN05 MN30  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9459,6 +9759,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  399  t=32.825s  TN4 FN05 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9514,6 +9815,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  401  t=32.853s  TN2 FN06 MN30  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9534,6 +9836,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  402  t=32.867s  TN3 FN06 MN30  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9554,6 +9857,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  403  t=32.882s  TN4 FN06 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9609,6 +9913,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  405  t=32.910s  TN2 FN07 MN30  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9629,6 +9934,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  406  t=32.924s  TN3 FN07 MN30  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9649,6 +9955,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  407  t=32.938s  TN4 FN07 MN30  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9704,6 +10011,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  409  t=32.967s  TN2 FN08 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9724,6 +10032,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  410  t=32.981s  TN3 FN08 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9744,6 +10053,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  411  t=32.995s  TN4 FN08 MN30  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9799,6 +10109,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  413  t=33.023s  TN2 FN09 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9819,6 +10130,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  414  t=33.037s  TN3 FN09 MN30  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9839,6 +10151,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  415  t=33.052s  TN4 FN09 MN30  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9894,6 +10207,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  417  t=33.080s  TN2 FN10 MN30  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9914,6 +10228,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  418  t=33.094s  TN3 FN10 MN30  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9934,6 +10249,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  419  t=33.108s  TN4 FN10 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -9989,6 +10305,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  421  t=33.137s  TN2 FN11 MN30  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10009,6 +10326,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  422  t=33.151s  TN3 FN11 MN30  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10029,6 +10347,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  423  t=33.165s  TN4 FN11 MN30  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10084,6 +10403,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  425  t=33.193s  TN2 FN12 MN30  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10104,6 +10424,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  426  t=33.207s  TN3 FN12 MN30  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10124,6 +10445,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  427  t=33.222s  TN4 FN12 MN30  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10179,6 +10501,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  429  t=33.250s  TN2 FN13 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10199,6 +10522,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  430  t=33.264s  TN3 FN13 MN30  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10219,6 +10543,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  431  t=33.278s  TN4 FN13 MN30  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10274,6 +10599,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  433  t=33.307s  TN2 FN14 MN30  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10294,6 +10620,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  434  t=33.321s  TN3 FN14 MN30  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10314,6 +10641,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  435  t=33.335s  TN4 FN14 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10369,6 +10697,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  437  t=33.363s  TN2 FN15 MN30  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10389,6 +10718,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  438  t=33.377s  TN3 FN15 MN30  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10409,6 +10739,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  439  t=33.392s  TN4 FN15 MN30  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10464,6 +10795,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  441  t=33.420s  TN2 FN16 MN30  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10484,6 +10816,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  442  t=33.434s  TN3 FN16 MN30  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10504,6 +10837,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  443  t=33.448s  TN4 FN16 MN30  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10559,6 +10893,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  445  t=33.477s  TN2 FN17 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10579,6 +10914,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  446  t=33.491s  TN3 FN17 MN30  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10599,6 +10935,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  447  t=33.505s  TN4 FN17 MN30  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10619,6 +10956,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  448  t=33.519s  TN1 FN18 MN30 BSCH  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=9 f1=1 f2=9 (dist=0)
 - **AACH bb (30 bit onair):** `100000000000011101000100000001`
 - **AACH bb (30 bit descrambled):** `000000010010011101101010010101`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001001001` (hex `0x0049`)
@@ -10639,6 +10977,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  449  t=33.533s  TN2 FN18 MN30  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -10659,6 +10998,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  450  t=33.547s  TN3 FN18 MN30 BNCH  SB  corr=0.990
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -10679,6 +11019,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  451  t=33.562s  TN4 FN18 MN30  SB  corr=0.988
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -10734,6 +11075,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  453  t=33.590s  TN2 FN01 MN31  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10754,6 +11096,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  454  t=33.604s  TN3 FN01 MN31  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10774,6 +11117,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  455  t=33.618s  TN4 FN01 MN31  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10829,6 +11173,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  457  t=33.647s  TN2 FN02 MN31  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10849,6 +11194,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  458  t=33.661s  TN3 FN02 MN31  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10869,6 +11215,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  459  t=33.675s  TN4 FN02 MN31  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10924,6 +11271,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  461  t=33.703s  TN2 FN03 MN31  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10944,6 +11292,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  462  t=33.717s  TN3 FN03 MN31  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -10964,6 +11313,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  463  t=33.732s  TN4 FN03 MN31  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11019,6 +11369,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  465  t=33.760s  TN2 FN04 MN31  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11039,6 +11390,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  466  t=33.774s  TN3 FN04 MN31  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11059,6 +11411,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  467  t=33.788s  TN4 FN04 MN31  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11114,6 +11467,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  469  t=33.817s  TN2 FN05 MN31  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11134,6 +11488,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  470  t=33.831s  TN3 FN05 MN31  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11154,6 +11509,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  471  t=33.845s  TN4 FN05 MN31  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11209,6 +11565,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  473  t=33.873s  TN2 FN06 MN31  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11229,6 +11586,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  474  t=33.887s  TN3 FN06 MN31  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11249,6 +11607,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  475  t=33.902s  TN4 FN06 MN31  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11304,6 +11663,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  477  t=33.930s  TN2 FN07 MN31  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11324,6 +11684,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  478  t=33.944s  TN3 FN07 MN31  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11344,6 +11705,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  479  t=33.958s  TN4 FN07 MN31  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11399,6 +11761,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  481  t=33.987s  TN2 FN08 MN31  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11419,6 +11782,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  482  t=34.001s  TN3 FN08 MN31  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11439,6 +11803,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  483  t=34.015s  TN4 FN08 MN31  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11494,6 +11859,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  485  t=34.043s  TN2 FN09 MN31  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11514,6 +11880,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  486  t=34.057s  TN3 FN09 MN31  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11534,6 +11901,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  487  t=34.072s  TN4 FN09 MN31  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11589,6 +11957,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  489  t=34.100s  TN2 FN10 MN31  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11609,6 +11978,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  490  t=34.114s  TN3 FN10 MN31  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11629,6 +11999,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  491  t=34.128s  TN4 FN10 MN31  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11684,6 +12055,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  493  t=34.157s  TN2 FN11 MN31  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11704,6 +12076,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  494  t=34.171s  TN3 FN11 MN31  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11724,6 +12097,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  495  t=34.185s  TN4 FN11 MN31  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11779,6 +12153,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  497  t=34.213s  TN2 FN12 MN31  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11799,6 +12174,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  498  t=34.227s  TN3 FN12 MN31  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11819,6 +12195,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  499  t=34.242s  TN4 FN12 MN31  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11874,6 +12251,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  501  t=34.270s  TN2 FN13 MN31  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11894,6 +12272,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  502  t=34.284s  TN3 FN13 MN31  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11914,6 +12293,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  503  t=34.298s  TN4 FN13 MN31  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11969,6 +12349,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  505  t=34.327s  TN2 FN14 MN31  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -11989,6 +12370,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  506  t=34.341s  TN3 FN14 MN31  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12009,6 +12391,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  507  t=34.355s  TN4 FN14 MN31  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12064,6 +12447,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  509  t=34.383s  TN2 FN15 MN31  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12084,6 +12468,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  510  t=34.397s  TN3 FN15 MN31  SB  corr=0.988
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12104,6 +12489,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  511  t=34.412s  TN4 FN15 MN31  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12159,6 +12545,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  513  t=34.440s  TN2 FN16 MN31  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12179,6 +12566,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  514  t=34.454s  TN3 FN16 MN31  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12199,6 +12587,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  515  t=34.468s  TN4 FN16 MN31  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12254,6 +12643,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  517  t=34.497s  TN2 FN17 MN31  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12274,6 +12664,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  518  t=34.511s  TN3 FN17 MN31  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12294,6 +12685,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  519  t=34.525s  TN4 FN17 MN31  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12347,6 +12739,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  521  t=34.553s  TN2 FN18 MN31 BNCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -12367,6 +12760,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  522  t=34.567s  TN3 FN18 MN31  SB  corr=0.990
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -12387,6 +12781,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  523  t=34.582s  TN4 FN18 MN31 BSCH  SB  corr=0.988
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -12442,6 +12837,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  525  t=34.610s  TN2 FN01 MN32  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12462,6 +12858,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  526  t=34.624s  TN3 FN01 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12482,6 +12879,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  527  t=34.638s  TN4 FN01 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12537,6 +12935,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  529  t=34.667s  TN2 FN02 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12557,6 +12956,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  530  t=34.681s  TN3 FN02 MN32  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12577,6 +12977,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  531  t=34.695s  TN4 FN02 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12632,6 +13033,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  533  t=34.723s  TN2 FN03 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12652,6 +13054,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  534  t=34.737s  TN3 FN03 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12672,6 +13075,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  535  t=34.752s  TN4 FN03 MN32  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12727,6 +13131,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  537  t=34.780s  TN2 FN04 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12747,6 +13152,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  538  t=34.794s  TN3 FN04 MN32  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12767,6 +13173,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  539  t=34.808s  TN4 FN04 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12822,6 +13229,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  541  t=34.837s  TN2 FN05 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12842,6 +13250,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  542  t=34.851s  TN3 FN05 MN32  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12862,6 +13271,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  543  t=34.865s  TN4 FN05 MN32  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12917,6 +13327,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  545  t=34.893s  TN2 FN06 MN32  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12937,6 +13348,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  546  t=34.907s  TN3 FN06 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -12957,6 +13369,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  547  t=34.922s  TN4 FN06 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13012,6 +13425,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  549  t=34.950s  TN2 FN07 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13032,6 +13446,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  550  t=34.964s  TN3 FN07 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13052,6 +13467,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  551  t=34.978s  TN4 FN07 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13107,6 +13523,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  553  t=35.007s  TN2 FN08 MN32  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13127,6 +13544,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  554  t=35.021s  TN3 FN08 MN32  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13147,6 +13565,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  555  t=35.035s  TN4 FN08 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13202,6 +13621,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  557  t=35.063s  TN2 FN09 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13222,6 +13642,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  558  t=35.077s  TN3 FN09 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13242,6 +13663,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  559  t=35.092s  TN4 FN09 MN32  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13297,6 +13719,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  561  t=35.120s  TN2 FN10 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13317,6 +13740,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  562  t=35.134s  TN3 FN10 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13337,6 +13761,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  563  t=35.148s  TN4 FN10 MN32  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13392,6 +13817,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  565  t=35.177s  TN2 FN11 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13412,6 +13838,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  566  t=35.191s  TN3 FN11 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13432,6 +13859,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  567  t=35.205s  TN4 FN11 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13487,6 +13915,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  569  t=35.233s  TN2 FN12 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13507,6 +13936,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  570  t=35.247s  TN3 FN12 MN32  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13527,6 +13957,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  571  t=35.262s  TN4 FN12 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13582,6 +14013,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  573  t=35.290s  TN2 FN13 MN32  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13602,6 +14034,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  574  t=35.304s  TN3 FN13 MN32  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13622,6 +14055,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  575  t=35.318s  TN4 FN13 MN32  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13677,6 +14111,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  577  t=35.347s  TN2 FN14 MN32  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13697,6 +14132,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  578  t=35.361s  TN3 FN14 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13717,6 +14153,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  579  t=35.375s  TN4 FN14 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13772,6 +14209,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  581  t=35.403s  TN2 FN15 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13792,6 +14230,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  582  t=35.418s  TN3 FN15 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13812,6 +14251,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  583  t=35.432s  TN4 FN15 MN32  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13867,6 +14307,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  585  t=35.460s  TN2 FN16 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13887,6 +14328,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  586  t=35.474s  TN3 FN16 MN32  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13907,6 +14349,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  587  t=35.488s  TN4 FN16 MN32  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13962,6 +14405,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  589  t=35.517s  TN2 FN17 MN32  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -13982,6 +14426,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  590  t=35.531s  TN3 FN17 MN32  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14002,6 +14447,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  591  t=35.545s  TN4 FN17 MN32  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14055,6 +14501,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  593  t=35.573s  TN2 FN18 MN32  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -14075,6 +14522,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  594  t=35.588s  TN3 FN18 MN32 BSCH  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -14095,6 +14543,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  595  t=35.602s  TN4 FN18 MN32  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -14150,6 +14599,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  597  t=35.630s  TN2 FN01 MN33  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14170,6 +14620,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  598  t=35.644s  TN3 FN01 MN33  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14190,6 +14641,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  599  t=35.658s  TN4 FN01 MN33  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14245,6 +14697,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  601  t=35.687s  TN2 FN02 MN33  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14265,6 +14718,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  602  t=35.701s  TN3 FN02 MN33  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14285,6 +14739,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  603  t=35.715s  TN4 FN02 MN33  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14340,6 +14795,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  605  t=35.743s  TN2 FN03 MN33  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14360,6 +14816,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  606  t=35.758s  TN3 FN03 MN33  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14380,6 +14837,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  607  t=35.772s  TN4 FN03 MN33  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14435,6 +14893,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  609  t=35.800s  TN2 FN04 MN33  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14455,6 +14914,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  610  t=35.814s  TN3 FN04 MN33  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14475,6 +14935,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  611  t=35.828s  TN4 FN04 MN33  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14530,6 +14991,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  613  t=35.857s  TN2 FN05 MN33  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14550,6 +15012,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  614  t=35.871s  TN3 FN05 MN33  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14570,6 +15033,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  615  t=35.885s  TN4 FN05 MN33  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14625,6 +15089,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  617  t=35.913s  TN2 FN06 MN33  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14645,6 +15110,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  618  t=35.928s  TN3 FN06 MN33  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14665,6 +15131,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  619  t=35.942s  TN4 FN06 MN33  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14720,6 +15187,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  621  t=35.970s  TN2 FN07 MN33  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14740,6 +15208,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  622  t=35.984s  TN3 FN07 MN33  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14760,6 +15229,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  623  t=35.998s  TN4 FN07 MN33  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14815,6 +15285,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  625  t=36.027s  TN2 FN08 MN33  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14835,6 +15306,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  626  t=36.041s  TN3 FN08 MN33  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14855,6 +15327,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  627  t=36.055s  TN4 FN08 MN33  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14910,6 +15383,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  629  t=36.083s  TN2 FN09 MN33  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14930,6 +15404,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  630  t=36.098s  TN3 FN09 MN33  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -14950,6 +15425,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  631  t=36.112s  TN4 FN09 MN33  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15005,6 +15481,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  633  t=36.140s  TN2 FN10 MN33  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15025,6 +15502,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  634  t=36.154s  TN3 FN10 MN33  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15045,6 +15523,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  635  t=36.168s  TN4 FN10 MN33  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15100,6 +15579,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  637  t=36.197s  TN2 FN11 MN33  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15120,6 +15600,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  638  t=36.211s  TN3 FN11 MN33  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15140,6 +15621,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  639  t=36.225s  TN4 FN11 MN33  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15195,6 +15677,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  641  t=36.253s  TN2 FN12 MN33  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15215,6 +15698,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  642  t=36.268s  TN3 FN12 MN33  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15235,6 +15719,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  643  t=36.282s  TN4 FN12 MN33  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15290,6 +15775,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  645  t=36.310s  TN2 FN13 MN33  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15310,6 +15796,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  646  t=36.324s  TN3 FN13 MN33  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15330,6 +15817,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  647  t=36.338s  TN4 FN13 MN33  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15385,6 +15873,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  649  t=36.367s  TN2 FN14 MN33  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15405,6 +15894,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  650  t=36.381s  TN3 FN14 MN33  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15425,6 +15915,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  651  t=36.395s  TN4 FN14 MN33  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15480,6 +15971,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  653  t=36.423s  TN2 FN15 MN33  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15500,6 +15992,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  654  t=36.438s  TN3 FN15 MN33  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15520,6 +16013,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  655  t=36.452s  TN4 FN15 MN33  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15575,6 +16069,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  657  t=36.480s  TN2 FN16 MN33  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15595,6 +16090,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  658  t=36.494s  TN3 FN16 MN33  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15615,6 +16111,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  659  t=36.508s  TN4 FN16 MN33  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15670,6 +16167,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  661  t=36.537s  TN2 FN17 MN33  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15690,6 +16188,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  662  t=36.551s  TN3 FN17 MN33  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15710,6 +16209,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  663  t=36.565s  TN4 FN17 MN33  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15763,6 +16263,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  665  t=36.593s  TN2 FN18 MN33 BSCH  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -15783,6 +16284,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  666  t=36.608s  TN3 FN18 MN33  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -15803,6 +16305,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  667  t=36.622s  TN4 FN18 MN33 BNCH  SB  corr=0.986
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -15858,6 +16361,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  669  t=36.650s  TN2 FN01 MN34  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15878,6 +16382,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  670  t=36.664s  TN3 FN01 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15898,6 +16403,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  671  t=36.678s  TN4 FN01 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15953,6 +16459,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  673  t=36.707s  TN2 FN02 MN34  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15973,6 +16480,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  674  t=36.721s  TN3 FN02 MN34  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -15993,6 +16501,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  675  t=36.735s  TN4 FN02 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16048,6 +16557,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  677  t=36.763s  TN2 FN03 MN34  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16068,6 +16578,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  678  t=36.778s  TN3 FN03 MN34  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16088,6 +16599,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  679  t=36.792s  TN4 FN03 MN34  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16143,6 +16655,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  681  t=36.820s  TN2 FN04 MN34  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16163,6 +16676,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  682  t=36.834s  TN3 FN04 MN34  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16183,6 +16697,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  683  t=36.848s  TN4 FN04 MN34  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16238,6 +16753,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  685  t=36.877s  TN2 FN05 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16258,6 +16774,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  686  t=36.891s  TN3 FN05 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16278,6 +16795,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  687  t=36.905s  TN4 FN05 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16333,6 +16851,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  689  t=36.933s  TN2 FN06 MN34  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16353,6 +16872,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  690  t=36.948s  TN3 FN06 MN34  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16373,6 +16893,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  691  t=36.962s  TN4 FN06 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16428,6 +16949,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  693  t=36.990s  TN2 FN07 MN34  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16448,6 +16970,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  694  t=37.004s  TN3 FN07 MN34  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16468,6 +16991,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  695  t=37.018s  TN4 FN07 MN34  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16523,6 +17047,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  697  t=37.047s  TN2 FN08 MN34  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16543,6 +17068,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  698  t=37.061s  TN3 FN08 MN34  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16563,6 +17089,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  699  t=37.075s  TN4 FN08 MN34  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16618,6 +17145,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  701  t=37.103s  TN2 FN09 MN34  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16638,6 +17166,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  702  t=37.118s  TN3 FN09 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16658,6 +17187,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  703  t=37.132s  TN4 FN09 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16713,6 +17243,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  705  t=37.160s  TN2 FN10 MN34  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16733,6 +17264,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  706  t=37.174s  TN3 FN10 MN34  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16753,6 +17285,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  707  t=37.188s  TN4 FN10 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16808,6 +17341,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  709  t=37.217s  TN2 FN11 MN34  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16828,6 +17362,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  710  t=37.231s  TN3 FN11 MN34  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16848,6 +17383,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  711  t=37.245s  TN4 FN11 MN34  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16903,6 +17439,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  713  t=37.273s  TN2 FN12 MN34  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16923,6 +17460,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  714  t=37.288s  TN3 FN12 MN34  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16943,6 +17481,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  715  t=37.302s  TN4 FN12 MN34  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -16998,6 +17537,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  717  t=37.330s  TN2 FN13 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17018,6 +17558,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  718  t=37.344s  TN3 FN13 MN34  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17038,6 +17579,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  719  t=37.358s  TN4 FN13 MN34  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17093,6 +17635,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  721  t=37.387s  TN2 FN14 MN34  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17113,6 +17656,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  722  t=37.401s  TN3 FN14 MN34  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17133,6 +17677,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  723  t=37.415s  TN4 FN14 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17188,6 +17733,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  725  t=37.443s  TN2 FN15 MN34  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17208,6 +17754,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  726  t=37.458s  TN3 FN15 MN34  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17228,6 +17775,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  727  t=37.472s  TN4 FN15 MN34  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17283,6 +17831,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  729  t=37.500s  TN2 FN16 MN34  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17303,6 +17852,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  730  t=37.514s  TN3 FN16 MN34  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17323,6 +17873,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  731  t=37.528s  TN4 FN16 MN34  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17378,6 +17929,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  733  t=37.557s  TN2 FN17 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17398,6 +17950,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  734  t=37.571s  TN3 FN17 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17418,6 +17971,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  735  t=37.585s  TN4 FN17 MN34  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17438,6 +17992,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  736  t=37.599s  TN1 FN18 MN34 BSCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=9 f1=1 f2=9 (dist=0)
 - **AACH bb (30 bit onair):** `100000000000011101000100000001`
 - **AACH bb (30 bit descrambled):** `000000010010011101101010010101`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001001001` (hex `0x0049`)
@@ -17458,6 +18013,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  737  t=37.613s  TN2 FN18 MN34  SB  corr=0.990
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -17478,6 +18034,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  738  t=37.628s  TN3 FN18 MN34 BNCH  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -17498,6 +18055,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  739  t=37.642s  TN4 FN18 MN34  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -17553,6 +18111,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  741  t=37.670s  TN2 FN01 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17573,6 +18132,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  742  t=37.684s  TN3 FN01 MN35  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17593,6 +18153,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  743  t=37.698s  TN4 FN01 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17634,6 +18195,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  745  t=37.727s  TN2 FN02 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17654,6 +18216,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  746  t=37.741s  TN3 FN02 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17674,6 +18237,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  747  t=37.755s  TN4 FN02 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17716,6 +18280,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  749  t=37.783s  TN2 FN03 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17736,6 +18301,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  750  t=37.798s  TN3 FN03 MN35  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17756,6 +18322,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  751  t=37.812s  TN4 FN03 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17811,6 +18378,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  753  t=37.840s  TN2 FN04 MN35  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17831,6 +18399,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  754  t=37.854s  TN3 FN04 MN35  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17851,6 +18420,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  755  t=37.868s  TN4 FN04 MN35  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17907,6 +18477,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  757  t=37.897s  TN2 FN05 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17927,6 +18498,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  758  t=37.911s  TN3 FN05 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -17947,6 +18519,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  759  t=37.925s  TN4 FN05 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18002,6 +18575,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  761  t=37.953s  TN2 FN06 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18022,6 +18596,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  762  t=37.968s  TN3 FN06 MN35  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18042,6 +18617,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  763  t=37.982s  TN4 FN06 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18097,6 +18673,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  765  t=38.010s  TN2 FN07 MN35  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18117,6 +18694,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  766  t=38.024s  TN3 FN07 MN35  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18137,6 +18715,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  767  t=38.038s  TN4 FN07 MN35  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18192,6 +18771,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  769  t=38.067s  TN2 FN08 MN35  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18212,6 +18792,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  770  t=38.081s  TN3 FN08 MN35  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18232,6 +18813,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  771  t=38.095s  TN4 FN08 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18287,6 +18869,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  773  t=38.123s  TN2 FN09 MN35  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18307,6 +18890,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  774  t=38.138s  TN3 FN09 MN35  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18327,6 +18911,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  775  t=38.152s  TN4 FN09 MN35  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18382,6 +18967,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  777  t=38.180s  TN2 FN10 MN35  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18402,6 +18988,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  778  t=38.194s  TN3 FN10 MN35  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18422,6 +19009,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  779  t=38.208s  TN4 FN10 MN35  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18477,6 +19065,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  781  t=38.237s  TN2 FN11 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18497,6 +19086,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  782  t=38.251s  TN3 FN11 MN35  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18517,6 +19107,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  783  t=38.265s  TN4 FN11 MN35  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18572,6 +19163,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  785  t=38.293s  TN2 FN12 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18592,6 +19184,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  786  t=38.308s  TN3 FN12 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18612,6 +19205,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  787  t=38.322s  TN4 FN12 MN35  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18667,6 +19261,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  789  t=38.350s  TN2 FN13 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18687,6 +19282,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  790  t=38.364s  TN3 FN13 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18707,6 +19303,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  791  t=38.378s  TN4 FN13 MN35  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18762,6 +19359,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  793  t=38.407s  TN2 FN14 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18782,6 +19380,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  794  t=38.421s  TN3 FN14 MN35  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18802,6 +19401,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  795  t=38.435s  TN4 FN14 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18857,6 +19457,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  797  t=38.463s  TN2 FN15 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18877,6 +19478,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  798  t=38.478s  TN3 FN15 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18897,6 +19499,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  799  t=38.492s  TN4 FN15 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18952,6 +19555,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  801  t=38.520s  TN2 FN16 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18972,6 +19576,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  802  t=38.534s  TN3 FN16 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -18992,6 +19597,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  803  t=38.548s  TN4 FN16 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19047,6 +19653,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  805  t=38.577s  TN2 FN17 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19067,6 +19674,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  806  t=38.591s  TN3 FN17 MN35  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19087,6 +19695,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  807  t=38.605s  TN4 FN17 MN35  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19140,6 +19749,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  809  t=38.633s  TN2 FN18 MN35 BNCH  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -19160,6 +19770,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  810  t=38.648s  TN3 FN18 MN35  SB  corr=0.989
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -19180,6 +19791,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  811  t=38.662s  TN4 FN18 MN35 BSCH  SB  corr=0.986
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -19235,6 +19847,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  813  t=38.690s  TN2 FN01 MN36  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19255,6 +19868,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  814  t=38.704s  TN3 FN01 MN36  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19275,6 +19889,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  815  t=38.718s  TN4 FN01 MN36  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19330,6 +19945,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  817  t=38.747s  TN2 FN02 MN36  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19350,6 +19966,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  818  t=38.761s  TN3 FN02 MN36  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19370,6 +19987,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  819  t=38.775s  TN4 FN02 MN36  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19425,6 +20043,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  821  t=38.803s  TN2 FN03 MN36  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19445,6 +20064,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  822  t=38.818s  TN3 FN03 MN36  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19465,6 +20085,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  823  t=38.832s  TN4 FN03 MN36  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19520,6 +20141,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  825  t=38.860s  TN2 FN04 MN36  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19540,6 +20162,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  826  t=38.874s  TN3 FN04 MN36  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19560,6 +20183,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  827  t=38.888s  TN4 FN04 MN36  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19615,6 +20239,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  829  t=38.917s  TN2 FN05 MN36  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19635,6 +20260,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  830  t=38.931s  TN3 FN05 MN36  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19655,6 +20281,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  831  t=38.945s  TN4 FN05 MN36  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19710,6 +20337,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  833  t=38.973s  TN2 FN06 MN36  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19730,6 +20358,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  834  t=38.988s  TN3 FN06 MN36  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19750,6 +20379,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  835  t=39.002s  TN4 FN06 MN36  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19805,6 +20435,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  837  t=39.030s  TN2 FN07 MN36  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19825,6 +20456,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  838  t=39.044s  TN3 FN07 MN36  SB  corr=0.987
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19845,6 +20477,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  839  t=39.058s  TN4 FN07 MN36  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19900,6 +20533,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  841  t=39.087s  TN2 FN08 MN36  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19920,6 +20554,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  842  t=39.101s  TN3 FN08 MN36  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19940,6 +20575,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  843  t=39.115s  TN4 FN08 MN36  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -19995,6 +20631,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  845  t=39.143s  TN2 FN09 MN36  SB  corr=0.988
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20015,6 +20652,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  846  t=39.158s  TN3 FN09 MN36  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20035,6 +20673,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  847  t=39.172s  TN4 FN09 MN36  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20090,6 +20729,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  849  t=39.200s  TN2 FN10 MN36  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20110,6 +20750,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  850  t=39.214s  TN3 FN10 MN36  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20130,6 +20771,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  851  t=39.228s  TN4 FN10 MN36  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20185,6 +20827,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  853  t=39.257s  TN2 FN11 MN36  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20205,6 +20848,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  854  t=39.271s  TN3 FN11 MN36  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20225,6 +20869,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  855  t=39.285s  TN4 FN11 MN36  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20280,6 +20925,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  857  t=39.313s  TN2 FN12 MN36  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20300,6 +20946,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  858  t=39.328s  TN3 FN12 MN36  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20320,6 +20967,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  859  t=39.342s  TN4 FN12 MN36  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20375,6 +21023,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  861  t=39.370s  TN2 FN13 MN36  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20395,6 +21044,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  862  t=39.384s  TN3 FN13 MN36  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20415,6 +21065,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  863  t=39.398s  TN4 FN13 MN36  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20470,6 +21121,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  865  t=39.427s  TN2 FN14 MN36  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20490,6 +21142,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  866  t=39.441s  TN3 FN14 MN36  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20510,6 +21163,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  867  t=39.455s  TN4 FN14 MN36  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20565,6 +21219,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  869  t=39.483s  TN2 FN15 MN36  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20585,6 +21240,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  870  t=39.498s  TN3 FN15 MN36  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20605,6 +21261,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  871  t=39.512s  TN4 FN15 MN36  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20660,6 +21317,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  873  t=39.540s  TN2 FN16 MN36  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20680,6 +21338,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  874  t=39.554s  TN3 FN16 MN36  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20700,6 +21359,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  875  t=39.568s  TN4 FN16 MN36  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20755,6 +21415,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  877  t=39.597s  TN2 FN17 MN36  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20775,6 +21436,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  878  t=39.611s  TN3 FN17 MN36  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20795,6 +21457,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  879  t=39.625s  TN4 FN17 MN36  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20848,6 +21511,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  881  t=39.653s  TN2 FN18 MN36  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -20868,6 +21532,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  882  t=39.668s  TN3 FN18 MN36 BSCH  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -20888,6 +21553,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  883  t=39.682s  TN4 FN18 MN36  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -20943,6 +21609,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  885  t=39.710s  TN2 FN01 MN37  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20963,6 +21630,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  886  t=39.724s  TN3 FN01 MN37  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -20983,6 +21651,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  887  t=39.738s  TN4 FN01 MN37  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21038,6 +21707,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  889  t=39.767s  TN2 FN02 MN37  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21058,6 +21728,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  890  t=39.781s  TN3 FN02 MN37  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21078,6 +21749,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  891  t=39.795s  TN4 FN02 MN37  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21133,6 +21805,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  893  t=39.823s  TN2 FN03 MN37  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21153,6 +21826,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  894  t=39.838s  TN3 FN03 MN37  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21173,6 +21847,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  895  t=39.852s  TN4 FN03 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21228,6 +21903,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  897  t=39.880s  TN2 FN04 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21248,6 +21924,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  898  t=39.894s  TN3 FN04 MN37  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21268,6 +21945,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  899  t=39.908s  TN4 FN04 MN37  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21323,6 +22001,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  901  t=39.937s  TN2 FN05 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21343,6 +22022,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  902  t=39.951s  TN3 FN05 MN37  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21363,6 +22043,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  903  t=39.965s  TN4 FN05 MN37  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21418,6 +22099,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  905  t=39.993s  TN2 FN06 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21438,6 +22120,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  906  t=40.008s  TN3 FN06 MN37  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21458,6 +22141,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  907  t=40.022s  TN4 FN06 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21513,6 +22197,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  909  t=40.050s  TN2 FN07 MN37  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21533,6 +22218,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  910  t=40.064s  TN3 FN07 MN37  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21553,6 +22239,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  911  t=40.078s  TN4 FN07 MN37  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21608,6 +22295,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  913  t=40.107s  TN2 FN08 MN37  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21628,6 +22316,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  914  t=40.121s  TN3 FN08 MN37  SB  corr=0.988
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21648,6 +22337,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  915  t=40.135s  TN4 FN08 MN37  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21703,6 +22393,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  917  t=40.163s  TN2 FN09 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21723,6 +22414,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  918  t=40.178s  TN3 FN09 MN37  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21743,6 +22435,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  919  t=40.192s  TN4 FN09 MN37  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21798,6 +22491,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  921  t=40.220s  TN2 FN10 MN37  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21818,6 +22512,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  922  t=40.234s  TN3 FN10 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21838,6 +22533,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  923  t=40.248s  TN4 FN10 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21893,6 +22589,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  925  t=40.277s  TN2 FN11 MN37  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21913,6 +22610,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  926  t=40.291s  TN3 FN11 MN37  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21933,6 +22631,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  927  t=40.305s  TN4 FN11 MN37  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -21988,6 +22687,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  929  t=40.333s  TN2 FN12 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22008,6 +22708,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  930  t=40.348s  TN3 FN12 MN37  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22028,6 +22729,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  931  t=40.362s  TN4 FN12 MN37  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22083,6 +22785,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  933  t=40.390s  TN2 FN13 MN37  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22103,6 +22806,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  934  t=40.404s  TN3 FN13 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22123,6 +22827,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  935  t=40.418s  TN4 FN13 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22178,6 +22883,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  937  t=40.447s  TN2 FN14 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22198,6 +22904,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  938  t=40.461s  TN3 FN14 MN37  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22218,6 +22925,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  939  t=40.475s  TN4 FN14 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22273,6 +22981,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  941  t=40.503s  TN2 FN15 MN37  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22293,6 +23002,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  942  t=40.518s  TN3 FN15 MN37  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22313,6 +23023,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  943  t=40.532s  TN4 FN15 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22368,6 +23079,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  945  t=40.560s  TN2 FN16 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22388,6 +23100,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  946  t=40.574s  TN3 FN16 MN37  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22408,6 +23121,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  947  t=40.588s  TN4 FN16 MN37  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22463,6 +23177,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  949  t=40.617s  TN2 FN17 MN37  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22483,6 +23198,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  950  t=40.631s  TN3 FN17 MN37  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22503,6 +23219,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  951  t=40.645s  TN4 FN17 MN37  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22556,6 +23273,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  953  t=40.673s  TN2 FN18 MN37 BSCH  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -22576,6 +23294,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  954  t=40.688s  TN3 FN18 MN37  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -22596,6 +23315,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  955  t=40.702s  TN4 FN18 MN37 BNCH  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -22651,6 +23371,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  957  t=40.730s  TN2 FN01 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22671,6 +23392,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  958  t=40.744s  TN3 FN01 MN38  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22691,6 +23413,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  959  t=40.758s  TN4 FN01 MN38  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22746,6 +23469,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  961  t=40.787s  TN2 FN02 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22766,6 +23490,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  962  t=40.801s  TN3 FN02 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22786,6 +23511,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  963  t=40.815s  TN4 FN02 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22841,6 +23567,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  965  t=40.843s  TN2 FN03 MN38  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22861,6 +23588,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  966  t=40.858s  TN3 FN03 MN38  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22881,6 +23609,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  967  t=40.872s  TN4 FN03 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22936,6 +23665,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  969  t=40.900s  TN2 FN04 MN38  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22956,6 +23686,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  970  t=40.914s  TN3 FN04 MN38  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -22976,6 +23707,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  971  t=40.928s  TN4 FN04 MN38  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23031,6 +23763,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  973  t=40.957s  TN2 FN05 MN38  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23051,6 +23784,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  974  t=40.971s  TN3 FN05 MN38  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23071,6 +23805,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  975  t=40.985s  TN4 FN05 MN38  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23126,6 +23861,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  977  t=41.013s  TN2 FN06 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23146,6 +23882,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  978  t=41.028s  TN3 FN06 MN38  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23166,6 +23903,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  979  t=41.042s  TN4 FN06 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23221,6 +23959,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  981  t=41.070s  TN2 FN07 MN38  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23241,6 +23980,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  982  t=41.084s  TN3 FN07 MN38  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23261,6 +24001,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  983  t=41.098s  TN4 FN07 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23316,6 +24057,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  985  t=41.127s  TN2 FN08 MN38  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23336,6 +24078,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  986  t=41.141s  TN3 FN08 MN38  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23356,6 +24099,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  987  t=41.155s  TN4 FN08 MN38  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23411,6 +24155,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  989  t=41.183s  TN2 FN09 MN38  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23431,6 +24176,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  990  t=41.198s  TN3 FN09 MN38  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23451,6 +24197,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  991  t=41.212s  TN4 FN09 MN38  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23506,6 +24253,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  993  t=41.240s  TN2 FN10 MN38  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23526,6 +24274,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  994  t=41.254s  TN3 FN10 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23546,6 +24295,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  995  t=41.268s  TN4 FN10 MN38  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23601,6 +24351,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  997  t=41.297s  TN2 FN11 MN38  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23621,6 +24372,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  998  t=41.311s  TN3 FN11 MN38  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23641,6 +24393,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## #  999  t=41.325s  TN4 FN11 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23696,6 +24449,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1001  t=41.353s  TN2 FN12 MN38  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23716,6 +24470,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1002  t=41.368s  TN3 FN12 MN38  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23736,6 +24491,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1003  t=41.382s  TN4 FN12 MN38  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23791,6 +24547,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1005  t=41.410s  TN2 FN13 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23811,6 +24568,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1006  t=41.424s  TN3 FN13 MN38  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23831,6 +24589,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1007  t=41.438s  TN4 FN13 MN38  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23886,6 +24645,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1009  t=41.467s  TN2 FN14 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23906,6 +24666,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1010  t=41.481s  TN3 FN14 MN38  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23926,6 +24687,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1011  t=41.495s  TN4 FN14 MN38  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -23981,6 +24743,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1013  t=41.523s  TN2 FN15 MN38  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24001,6 +24764,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1014  t=41.538s  TN3 FN15 MN38  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24021,6 +24785,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1015  t=41.552s  TN4 FN15 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24076,6 +24841,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1017  t=41.580s  TN2 FN16 MN38  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24096,6 +24862,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1018  t=41.594s  TN3 FN16 MN38  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24116,6 +24883,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1019  t=41.608s  TN4 FN16 MN38  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24171,6 +24939,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1021  t=41.637s  TN2 FN17 MN38  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24191,6 +24960,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1022  t=41.651s  TN3 FN17 MN38  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24211,6 +24981,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1023  t=41.665s  TN4 FN17 MN38  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24231,6 +25002,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1024  t=41.679s  TN1 FN18 MN38 BSCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=9 f1=1 f2=9 (dist=0)
 - **AACH bb (30 bit onair):** `100000000000011101000100000001`
 - **AACH bb (30 bit descrambled):** `000000010010011101101010010101`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001001001` (hex `0x0049`)
@@ -24251,6 +25023,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1025  t=41.693s  TN2 FN18 MN38  SB  corr=0.990
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -24271,6 +25044,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1026  t=41.708s  TN3 FN18 MN38 BNCH  SB  corr=0.989
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -24291,6 +25065,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1027  t=41.722s  TN4 FN18 MN38  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -24346,6 +25121,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1029  t=41.750s  TN2 FN01 MN39  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24366,6 +25142,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1030  t=41.764s  TN3 FN01 MN39  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24386,6 +25163,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1031  t=41.778s  TN4 FN01 MN39  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24441,6 +25219,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1033  t=41.807s  TN2 FN02 MN39  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24461,6 +25240,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1034  t=41.821s  TN3 FN02 MN39  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24481,6 +25261,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1035  t=41.835s  TN4 FN02 MN39  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24536,6 +25317,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1037  t=41.863s  TN2 FN03 MN39  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24556,6 +25338,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1038  t=41.878s  TN3 FN03 MN39  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24576,6 +25359,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1039  t=41.892s  TN4 FN03 MN39  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24631,6 +25415,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1041  t=41.920s  TN2 FN04 MN39  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24651,6 +25436,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1042  t=41.934s  TN3 FN04 MN39  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24671,6 +25457,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1043  t=41.948s  TN4 FN04 MN39  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24726,6 +25513,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1045  t=41.977s  TN2 FN05 MN39  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24746,6 +25534,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1046  t=41.991s  TN3 FN05 MN39  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24766,6 +25555,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1047  t=42.005s  TN4 FN05 MN39  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24821,6 +25611,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1049  t=42.033s  TN2 FN06 MN39  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24841,6 +25632,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1050  t=42.048s  TN3 FN06 MN39  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24861,6 +25653,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1051  t=42.062s  TN4 FN06 MN39  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24916,6 +25709,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1053  t=42.090s  TN2 FN07 MN39  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24936,6 +25730,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1054  t=42.104s  TN3 FN07 MN39  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -24956,6 +25751,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1055  t=42.118s  TN4 FN07 MN39  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25011,6 +25807,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1057  t=42.147s  TN2 FN08 MN39  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25031,6 +25828,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1058  t=42.161s  TN3 FN08 MN39  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25051,6 +25849,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1059  t=42.175s  TN4 FN08 MN39  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25106,6 +25905,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1061  t=42.203s  TN2 FN09 MN39  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25126,6 +25926,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1062  t=42.218s  TN3 FN09 MN39  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25146,6 +25947,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1063  t=42.232s  TN4 FN09 MN39  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25201,6 +26003,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1065  t=42.260s  TN2 FN10 MN39  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25221,6 +26024,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1066  t=42.274s  TN3 FN10 MN39  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25241,6 +26045,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1067  t=42.288s  TN4 FN10 MN39  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25296,6 +26101,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1069  t=42.317s  TN2 FN11 MN39  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25316,6 +26122,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1070  t=42.331s  TN3 FN11 MN39  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25336,6 +26143,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1071  t=42.345s  TN4 FN11 MN39  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25391,6 +26199,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1073  t=42.373s  TN2 FN12 MN39  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25411,6 +26220,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1074  t=42.388s  TN3 FN12 MN39  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25431,6 +26241,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1075  t=42.402s  TN4 FN12 MN39  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25486,6 +26297,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1077  t=42.430s  TN2 FN13 MN39  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25506,6 +26318,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1078  t=42.444s  TN3 FN13 MN39  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25526,6 +26339,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1079  t=42.458s  TN4 FN13 MN39  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25581,6 +26395,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1081  t=42.487s  TN2 FN14 MN39  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25601,6 +26416,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1082  t=42.501s  TN3 FN14 MN39  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25621,6 +26437,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1083  t=42.515s  TN4 FN14 MN39  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25676,6 +26493,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1085  t=42.544s  TN2 FN15 MN39  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25696,6 +26514,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1086  t=42.558s  TN3 FN15 MN39  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25716,6 +26535,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1087  t=42.572s  TN4 FN15 MN39  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25771,6 +26591,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1089  t=42.600s  TN2 FN16 MN39  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25791,6 +26612,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1090  t=42.614s  TN3 FN16 MN39  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25811,6 +26633,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1091  t=42.629s  TN4 FN16 MN39  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25866,6 +26689,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1093  t=42.657s  TN2 FN17 MN39  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25886,6 +26710,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1094  t=42.671s  TN3 FN17 MN39  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25906,6 +26731,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1095  t=42.685s  TN4 FN17 MN39  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -25959,6 +26785,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1097  t=42.714s  TN2 FN18 MN39 BNCH  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -25979,6 +26806,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1098  t=42.728s  TN3 FN18 MN39  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -25999,6 +26827,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1099  t=42.742s  TN4 FN18 MN39 BSCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -26054,6 +26883,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1101  t=42.770s  TN2 FN01 MN40  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26074,6 +26904,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1102  t=42.784s  TN3 FN01 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26094,6 +26925,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1103  t=42.799s  TN4 FN01 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26149,6 +26981,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1105  t=42.827s  TN2 FN02 MN40  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26169,6 +27002,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1106  t=42.841s  TN3 FN02 MN40  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26189,6 +27023,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1107  t=42.855s  TN4 FN02 MN40  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26244,6 +27079,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1109  t=42.884s  TN2 FN03 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26264,6 +27100,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1110  t=42.898s  TN3 FN03 MN40  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26284,6 +27121,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1111  t=42.912s  TN4 FN03 MN40  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26339,6 +27177,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1113  t=42.940s  TN2 FN04 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26359,6 +27198,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1114  t=42.954s  TN3 FN04 MN40  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26379,6 +27219,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1115  t=42.969s  TN4 FN04 MN40  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26434,6 +27275,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1117  t=42.997s  TN2 FN05 MN40  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26454,6 +27296,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1118  t=43.011s  TN3 FN05 MN40  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26474,6 +27317,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1119  t=43.025s  TN4 FN05 MN40  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26529,6 +27373,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1121  t=43.054s  TN2 FN06 MN40  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26549,6 +27394,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1122  t=43.068s  TN3 FN06 MN40  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26569,6 +27415,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1123  t=43.082s  TN4 FN06 MN40  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26624,6 +27471,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1125  t=43.110s  TN2 FN07 MN40  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26644,6 +27492,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1126  t=43.124s  TN3 FN07 MN40  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26664,6 +27513,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1127  t=43.139s  TN4 FN07 MN40  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26719,6 +27569,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1129  t=43.167s  TN2 FN08 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26739,6 +27590,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1130  t=43.181s  TN3 FN08 MN40  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26759,6 +27611,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1131  t=43.195s  TN4 FN08 MN40  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26814,6 +27667,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1133  t=43.224s  TN2 FN09 MN40  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26834,6 +27688,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1134  t=43.238s  TN3 FN09 MN40  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26854,6 +27709,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1135  t=43.252s  TN4 FN09 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26909,6 +27765,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1137  t=43.280s  TN2 FN10 MN40  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26929,6 +27786,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1138  t=43.294s  TN3 FN10 MN40  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -26949,6 +27807,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1139  t=43.309s  TN4 FN10 MN40  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27004,6 +27863,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1141  t=43.337s  TN2 FN11 MN40  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27024,6 +27884,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1142  t=43.351s  TN3 FN11 MN40  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27044,6 +27905,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1143  t=43.365s  TN4 FN11 MN40  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27099,6 +27961,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1145  t=43.394s  TN2 FN12 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27119,6 +27982,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1146  t=43.408s  TN3 FN12 MN40  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27139,6 +28003,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1147  t=43.422s  TN4 FN12 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27194,6 +28059,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1149  t=43.450s  TN2 FN13 MN40  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27214,6 +28080,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1150  t=43.464s  TN3 FN13 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27234,6 +28101,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1151  t=43.479s  TN4 FN13 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27289,6 +28157,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1153  t=43.507s  TN2 FN14 MN40  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27309,6 +28178,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1154  t=43.521s  TN3 FN14 MN40  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27329,6 +28199,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1155  t=43.535s  TN4 FN14 MN40  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27384,6 +28255,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1157  t=43.564s  TN2 FN15 MN40  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27404,6 +28276,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1158  t=43.578s  TN3 FN15 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27424,6 +28297,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1159  t=43.592s  TN4 FN15 MN40  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27479,6 +28353,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1161  t=43.620s  TN2 FN16 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27499,6 +28374,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1162  t=43.634s  TN3 FN16 MN40  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27519,6 +28395,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1163  t=43.649s  TN4 FN16 MN40  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27574,6 +28451,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1165  t=43.677s  TN2 FN17 MN40  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27594,6 +28472,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1166  t=43.691s  TN3 FN17 MN40  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27614,6 +28493,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1167  t=43.705s  TN4 FN17 MN40  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27667,6 +28547,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1169  t=43.734s  TN2 FN18 MN40  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -27687,6 +28568,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1170  t=43.748s  TN3 FN18 MN40 BSCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -27707,6 +28589,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1171  t=43.762s  TN4 FN18 MN40  SB  corr=0.984
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -27762,6 +28645,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1173  t=43.790s  TN2 FN01 MN41  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27782,6 +28666,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1174  t=43.804s  TN3 FN01 MN41  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27802,6 +28687,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1175  t=43.819s  TN4 FN01 MN41  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27857,6 +28743,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1177  t=43.847s  TN2 FN02 MN41  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27877,6 +28764,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1178  t=43.861s  TN3 FN02 MN41  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27897,6 +28785,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1179  t=43.875s  TN4 FN02 MN41  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27952,6 +28841,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1181  t=43.904s  TN2 FN03 MN41  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27972,6 +28862,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1182  t=43.918s  TN3 FN03 MN41  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -27992,6 +28883,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1183  t=43.932s  TN4 FN03 MN41  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28047,6 +28939,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1185  t=43.960s  TN2 FN04 MN41  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28067,6 +28960,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1186  t=43.974s  TN3 FN04 MN41  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28087,6 +28981,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1187  t=43.989s  TN4 FN04 MN41  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28142,6 +29037,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1189  t=44.017s  TN2 FN05 MN41  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28162,6 +29058,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1190  t=44.031s  TN3 FN05 MN41  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28182,6 +29079,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1191  t=44.045s  TN4 FN05 MN41  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28237,6 +29135,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1193  t=44.074s  TN2 FN06 MN41  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28257,6 +29156,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1194  t=44.088s  TN3 FN06 MN41  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28277,6 +29177,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1195  t=44.102s  TN4 FN06 MN41  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28332,6 +29233,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1197  t=44.130s  TN2 FN07 MN41  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28352,6 +29254,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1198  t=44.144s  TN3 FN07 MN41  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28372,6 +29275,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1199  t=44.159s  TN4 FN07 MN41  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28427,6 +29331,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1201  t=44.187s  TN2 FN08 MN41  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28447,6 +29352,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1202  t=44.201s  TN3 FN08 MN41  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28467,6 +29373,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1203  t=44.215s  TN4 FN08 MN41  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28522,6 +29429,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1205  t=44.244s  TN2 FN09 MN41  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28542,6 +29450,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1206  t=44.258s  TN3 FN09 MN41  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28562,6 +29471,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1207  t=44.272s  TN4 FN09 MN41  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28617,6 +29527,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1209  t=44.300s  TN2 FN10 MN41  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28637,6 +29548,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1210  t=44.314s  TN3 FN10 MN41  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28657,6 +29569,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1211  t=44.329s  TN4 FN10 MN41  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28712,6 +29625,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1213  t=44.357s  TN2 FN11 MN41  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28732,6 +29646,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1214  t=44.371s  TN3 FN11 MN41  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28752,6 +29667,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1215  t=44.385s  TN4 FN11 MN41  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28807,6 +29723,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1217  t=44.414s  TN2 FN12 MN41  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28827,6 +29744,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1218  t=44.428s  TN3 FN12 MN41  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28847,6 +29765,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1219  t=44.442s  TN4 FN12 MN41  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28902,6 +29821,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1221  t=44.470s  TN2 FN13 MN41  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28922,6 +29842,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1222  t=44.484s  TN3 FN13 MN41  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28942,6 +29863,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1223  t=44.499s  TN4 FN13 MN41  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -28997,6 +29919,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1225  t=44.527s  TN2 FN14 MN41  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29017,6 +29940,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1226  t=44.541s  TN3 FN14 MN41  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29037,6 +29961,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1227  t=44.555s  TN4 FN14 MN41  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29092,6 +30017,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1229  t=44.584s  TN2 FN15 MN41  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29112,6 +30038,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1230  t=44.598s  TN3 FN15 MN41  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29132,6 +30059,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1231  t=44.612s  TN4 FN15 MN41  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29187,6 +30115,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1233  t=44.640s  TN2 FN16 MN41  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29207,6 +30136,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1234  t=44.654s  TN3 FN16 MN41  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29227,6 +30157,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1235  t=44.669s  TN4 FN16 MN41  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29282,6 +30213,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1237  t=44.697s  TN2 FN17 MN41  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29302,6 +30234,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1238  t=44.711s  TN3 FN17 MN41  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29322,6 +30255,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1239  t=44.725s  TN4 FN17 MN41  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29375,6 +30309,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1241  t=44.754s  TN2 FN18 MN41 BSCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -29395,6 +30330,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1242  t=44.768s  TN3 FN18 MN41  SB  corr=0.989
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -29415,6 +30351,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1243  t=44.782s  TN4 FN18 MN41 BNCH  SB  corr=0.988
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -29470,6 +30407,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1245  t=44.810s  TN2 FN01 MN42  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29490,6 +30428,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1246  t=44.824s  TN3 FN01 MN42  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29510,6 +30449,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1247  t=44.839s  TN4 FN01 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29565,6 +30505,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1249  t=44.867s  TN2 FN02 MN42  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29585,6 +30526,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1250  t=44.881s  TN3 FN02 MN42  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29605,6 +30547,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1251  t=44.895s  TN4 FN02 MN42  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29660,6 +30603,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1253  t=44.924s  TN2 FN03 MN42  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29680,6 +30624,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1254  t=44.938s  TN3 FN03 MN42  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29700,6 +30645,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1255  t=44.952s  TN4 FN03 MN42  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29755,6 +30701,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1257  t=44.980s  TN2 FN04 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29775,6 +30722,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1258  t=44.994s  TN3 FN04 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29795,6 +30743,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1259  t=45.009s  TN4 FN04 MN42  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29850,6 +30799,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1261  t=45.037s  TN2 FN05 MN42  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29870,6 +30820,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1262  t=45.051s  TN3 FN05 MN42  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29890,6 +30841,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1263  t=45.065s  TN4 FN05 MN42  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29945,6 +30897,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1265  t=45.094s  TN2 FN06 MN42  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29965,6 +30918,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1266  t=45.108s  TN3 FN06 MN42  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -29985,6 +30939,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1267  t=45.122s  TN4 FN06 MN42  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30040,6 +30995,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1269  t=45.150s  TN2 FN07 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30060,6 +31016,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1270  t=45.164s  TN3 FN07 MN42  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30080,6 +31037,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1271  t=45.179s  TN4 FN07 MN42  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30135,6 +31093,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1273  t=45.207s  TN2 FN08 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30155,6 +31114,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1274  t=45.221s  TN3 FN08 MN42  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30175,6 +31135,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1275  t=45.235s  TN4 FN08 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30230,6 +31191,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1277  t=45.264s  TN2 FN09 MN42  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30250,6 +31212,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1278  t=45.278s  TN3 FN09 MN42  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30270,6 +31233,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1279  t=45.292s  TN4 FN09 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30325,6 +31289,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1281  t=45.320s  TN2 FN10 MN42  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30345,6 +31310,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1282  t=45.334s  TN3 FN10 MN42  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30365,6 +31331,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1283  t=45.349s  TN4 FN10 MN42  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30420,6 +31387,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1285  t=45.377s  TN2 FN11 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30440,6 +31408,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1286  t=45.391s  TN3 FN11 MN42  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30460,6 +31429,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1287  t=45.405s  TN4 FN11 MN42  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30515,6 +31485,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1289  t=45.434s  TN2 FN12 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30535,6 +31506,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1290  t=45.448s  TN3 FN12 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30555,6 +31527,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1291  t=45.462s  TN4 FN12 MN42  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30610,6 +31583,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1293  t=45.490s  TN2 FN13 MN42  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30630,6 +31604,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1294  t=45.504s  TN3 FN13 MN42  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30650,6 +31625,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1295  t=45.519s  TN4 FN13 MN42  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30705,6 +31681,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1297  t=45.547s  TN2 FN14 MN42  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30725,6 +31702,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1298  t=45.561s  TN3 FN14 MN42  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30745,6 +31723,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1299  t=45.575s  TN4 FN14 MN42  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30800,6 +31779,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1301  t=45.604s  TN2 FN15 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30820,6 +31800,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1302  t=45.618s  TN3 FN15 MN42  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30840,6 +31821,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1303  t=45.632s  TN4 FN15 MN42  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30895,6 +31877,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1305  t=45.660s  TN2 FN16 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30915,6 +31898,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1306  t=45.674s  TN3 FN16 MN42  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30935,6 +31919,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1307  t=45.689s  TN4 FN16 MN42  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -30990,6 +31975,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1309  t=45.717s  TN2 FN17 MN42  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31010,6 +31996,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1310  t=45.731s  TN3 FN17 MN42  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31030,6 +32017,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1311  t=45.745s  TN4 FN17 MN42  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31050,6 +32038,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1312  t=45.759s  TN1 FN18 MN42 BSCH  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=9 f1=1 f2=9 (dist=0)
 - **AACH bb (30 bit onair):** `100000000000011101000100000001`
 - **AACH bb (30 bit descrambled):** `000000010010011101101010010101`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001001001` (hex `0x0049`)
@@ -31070,6 +32059,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1313  t=45.774s  TN2 FN18 MN42  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -31090,6 +32080,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1314  t=45.788s  TN3 FN18 MN42 BNCH  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -31110,6 +32101,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1315  t=45.802s  TN4 FN18 MN42  SB  corr=0.989
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -31165,6 +32157,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1317  t=45.830s  TN2 FN01 MN43  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31185,6 +32178,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1318  t=45.844s  TN3 FN01 MN43  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31205,6 +32199,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1319  t=45.859s  TN4 FN01 MN43  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31260,6 +32255,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1321  t=45.887s  TN2 FN02 MN43  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31280,6 +32276,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1322  t=45.901s  TN3 FN02 MN43  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31300,6 +32297,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1323  t=45.915s  TN4 FN02 MN43  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31355,6 +32353,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1325  t=45.944s  TN2 FN03 MN43  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31375,6 +32374,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1326  t=45.958s  TN3 FN03 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31395,6 +32395,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1327  t=45.972s  TN4 FN03 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31450,6 +32451,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1329  t=46.000s  TN2 FN04 MN43  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31470,6 +32472,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1330  t=46.014s  TN3 FN04 MN43  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31490,6 +32493,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1331  t=46.029s  TN4 FN04 MN43  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31545,6 +32549,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1333  t=46.057s  TN2 FN05 MN43  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31565,6 +32570,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1334  t=46.071s  TN3 FN05 MN43  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31585,6 +32591,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1335  t=46.085s  TN4 FN05 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31640,6 +32647,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1337  t=46.114s  TN2 FN06 MN43  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31660,6 +32668,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1338  t=46.128s  TN3 FN06 MN43  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31680,6 +32689,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1339  t=46.142s  TN4 FN06 MN43  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31735,6 +32745,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1341  t=46.170s  TN2 FN07 MN43  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31755,6 +32766,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1342  t=46.184s  TN3 FN07 MN43  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31775,6 +32787,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1343  t=46.199s  TN4 FN07 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31830,6 +32843,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1345  t=46.227s  TN2 FN08 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31850,6 +32864,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1346  t=46.241s  TN3 FN08 MN43  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31870,6 +32885,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1347  t=46.255s  TN4 FN08 MN43  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31925,6 +32941,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1349  t=46.284s  TN2 FN09 MN43  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31945,6 +32962,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1350  t=46.298s  TN3 FN09 MN43  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -31965,6 +32983,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1351  t=46.312s  TN4 FN09 MN43  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32020,6 +33039,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1353  t=46.340s  TN2 FN10 MN43  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32040,6 +33060,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1354  t=46.354s  TN3 FN10 MN43  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32060,6 +33081,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1355  t=46.369s  TN4 FN10 MN43  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32115,6 +33137,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1357  t=46.397s  TN2 FN11 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32135,6 +33158,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1358  t=46.411s  TN3 FN11 MN43  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32155,6 +33179,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1359  t=46.425s  TN4 FN11 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32210,6 +33235,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1361  t=46.454s  TN2 FN12 MN43  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32230,6 +33256,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1362  t=46.468s  TN3 FN12 MN43  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32250,6 +33277,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1363  t=46.482s  TN4 FN12 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32305,6 +33333,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1365  t=46.510s  TN2 FN13 MN43  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32325,6 +33354,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1366  t=46.524s  TN3 FN13 MN43  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32345,6 +33375,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1367  t=46.539s  TN4 FN13 MN43  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32400,6 +33431,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1369  t=46.567s  TN2 FN14 MN43  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32420,6 +33452,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1370  t=46.581s  TN3 FN14 MN43  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32440,6 +33473,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1371  t=46.595s  TN4 FN14 MN43  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32495,6 +33529,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1373  t=46.624s  TN2 FN15 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32515,6 +33550,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1374  t=46.638s  TN3 FN15 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32535,6 +33571,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1375  t=46.652s  TN4 FN15 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32590,6 +33627,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1377  t=46.680s  TN2 FN16 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32610,6 +33648,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1378  t=46.694s  TN3 FN16 MN43  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32630,6 +33669,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1379  t=46.709s  TN4 FN16 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32685,6 +33725,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1381  t=46.737s  TN2 FN17 MN43  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32705,6 +33746,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1382  t=46.751s  TN3 FN17 MN43  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32725,6 +33767,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1383  t=46.765s  TN4 FN17 MN43  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32778,6 +33821,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1385  t=46.794s  TN2 FN18 MN43 BNCH  SB  corr=0.990
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -32798,6 +33842,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1386  t=46.808s  TN3 FN18 MN43  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -32818,6 +33863,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1387  t=46.822s  TN4 FN18 MN43 BSCH  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -32873,6 +33919,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1389  t=46.850s  TN2 FN01 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32893,6 +33940,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1390  t=46.864s  TN3 FN01 MN44  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32913,6 +33961,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1391  t=46.879s  TN4 FN01 MN44  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32968,6 +34017,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1393  t=46.907s  TN2 FN02 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -32988,6 +34038,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1394  t=46.921s  TN3 FN02 MN44  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33008,6 +34059,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1395  t=46.935s  TN4 FN02 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33063,6 +34115,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1397  t=46.964s  TN2 FN03 MN44  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33083,6 +34136,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1398  t=46.978s  TN3 FN03 MN44  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33103,6 +34157,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1399  t=46.992s  TN4 FN03 MN44  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33158,6 +34213,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1401  t=47.020s  TN2 FN04 MN44  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33178,6 +34234,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1402  t=47.034s  TN3 FN04 MN44  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33198,6 +34255,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1403  t=47.049s  TN4 FN04 MN44  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33253,6 +34311,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1405  t=47.077s  TN2 FN05 MN44  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33273,6 +34332,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1406  t=47.091s  TN3 FN05 MN44  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33293,6 +34353,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1407  t=47.105s  TN4 FN05 MN44  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33348,6 +34409,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1409  t=47.134s  TN2 FN06 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33368,6 +34430,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1410  t=47.148s  TN3 FN06 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33388,6 +34451,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1411  t=47.162s  TN4 FN06 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33443,6 +34507,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1413  t=47.190s  TN2 FN07 MN44  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33463,6 +34528,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1414  t=47.204s  TN3 FN07 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33483,6 +34549,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1415  t=47.219s  TN4 FN07 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33538,6 +34605,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1417  t=47.247s  TN2 FN08 MN44  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33558,6 +34626,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1418  t=47.261s  TN3 FN08 MN44  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33578,6 +34647,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1419  t=47.275s  TN4 FN08 MN44  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33633,6 +34703,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1421  t=47.304s  TN2 FN09 MN44  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33653,6 +34724,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1422  t=47.318s  TN3 FN09 MN44  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33673,6 +34745,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1423  t=47.332s  TN4 FN09 MN44  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33728,6 +34801,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1425  t=47.360s  TN2 FN10 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33748,6 +34822,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1426  t=47.374s  TN3 FN10 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33768,6 +34843,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1427  t=47.389s  TN4 FN10 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33823,6 +34899,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1429  t=47.417s  TN2 FN11 MN44  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33843,6 +34920,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1430  t=47.431s  TN3 FN11 MN44  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33863,6 +34941,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1431  t=47.445s  TN4 FN11 MN44  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33918,6 +34997,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1433  t=47.474s  TN2 FN12 MN44  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33938,6 +35018,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1434  t=47.488s  TN3 FN12 MN44  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -33958,6 +35039,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1435  t=47.502s  TN4 FN12 MN44  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34013,6 +35095,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1437  t=47.530s  TN2 FN13 MN44  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34033,6 +35116,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1438  t=47.544s  TN3 FN13 MN44  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34053,6 +35137,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1439  t=47.559s  TN4 FN13 MN44  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34108,6 +35193,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1441  t=47.587s  TN2 FN14 MN44  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34128,6 +35214,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1442  t=47.601s  TN3 FN14 MN44  SB  corr=0.988
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34148,6 +35235,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1443  t=47.615s  TN4 FN14 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34203,6 +35291,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1445  t=47.644s  TN2 FN15 MN44  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34223,6 +35312,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1446  t=47.658s  TN3 FN15 MN44  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34243,6 +35333,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1447  t=47.672s  TN4 FN15 MN44  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34285,6 +35376,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1449  t=47.700s  TN2 FN16 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34305,6 +35397,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1450  t=47.714s  TN3 FN16 MN44  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34325,6 +35418,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1451  t=47.729s  TN4 FN16 MN44  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34380,6 +35474,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1453  t=47.757s  TN2 FN17 MN44  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34400,6 +35495,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1454  t=47.771s  TN3 FN17 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34420,6 +35516,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1455  t=47.785s  TN4 FN17 MN44  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34473,6 +35570,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1457  t=47.814s  TN2 FN18 MN44  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -34493,6 +35591,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1458  t=47.828s  TN3 FN18 MN44 BSCH  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -34513,6 +35612,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1459  t=47.842s  TN4 FN18 MN44  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -34568,6 +35668,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1461  t=47.870s  TN2 FN01 MN45  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34588,6 +35689,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1462  t=47.884s  TN3 FN01 MN45  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34608,6 +35710,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1463  t=47.899s  TN4 FN01 MN45  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34663,6 +35766,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1465  t=47.927s  TN2 FN02 MN45  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34683,6 +35787,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1466  t=47.941s  TN3 FN02 MN45  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34703,6 +35808,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1467  t=47.955s  TN4 FN02 MN45  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34758,6 +35864,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1469  t=47.984s  TN2 FN03 MN45  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34778,6 +35885,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1470  t=47.998s  TN3 FN03 MN45  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34798,6 +35906,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1471  t=48.012s  TN4 FN03 MN45  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34853,6 +35962,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1473  t=48.040s  TN2 FN04 MN45  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34873,6 +35983,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1474  t=48.054s  TN3 FN04 MN45  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34893,6 +36004,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1475  t=48.069s  TN4 FN04 MN45  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34948,6 +36060,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1477  t=48.097s  TN2 FN05 MN45  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34968,6 +36081,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1478  t=48.111s  TN3 FN05 MN45  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -34988,6 +36102,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1479  t=48.125s  TN4 FN05 MN45  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35043,6 +36158,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1481  t=48.154s  TN2 FN06 MN45  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35063,6 +36179,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1482  t=48.168s  TN3 FN06 MN45  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35083,6 +36200,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1483  t=48.182s  TN4 FN06 MN45  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35138,6 +36256,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1485  t=48.210s  TN2 FN07 MN45  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35158,6 +36277,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1486  t=48.224s  TN3 FN07 MN45  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35178,6 +36298,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1487  t=48.239s  TN4 FN07 MN45  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35233,6 +36354,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1489  t=48.267s  TN2 FN08 MN45  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35253,6 +36375,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1490  t=48.281s  TN3 FN08 MN45  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35273,6 +36396,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1491  t=48.295s  TN4 FN08 MN45  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35328,6 +36452,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1493  t=48.324s  TN2 FN09 MN45  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35348,6 +36473,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1494  t=48.338s  TN3 FN09 MN45  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35368,6 +36494,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1495  t=48.352s  TN4 FN09 MN45  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35423,6 +36550,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1497  t=48.380s  TN2 FN10 MN45  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35443,6 +36571,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1498  t=48.394s  TN3 FN10 MN45  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35463,6 +36592,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1499  t=48.409s  TN4 FN10 MN45  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35518,6 +36648,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1501  t=48.437s  TN2 FN11 MN45  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35538,6 +36669,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1502  t=48.451s  TN3 FN11 MN45  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35558,6 +36690,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1503  t=48.465s  TN4 FN11 MN45  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35613,6 +36746,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1505  t=48.494s  TN2 FN12 MN45  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35633,6 +36767,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1506  t=48.508s  TN3 FN12 MN45  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35653,6 +36788,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1507  t=48.522s  TN4 FN12 MN45  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35708,6 +36844,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1509  t=48.550s  TN2 FN13 MN45  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35728,6 +36865,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1510  t=48.564s  TN3 FN13 MN45  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35748,6 +36886,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1511  t=48.579s  TN4 FN13 MN45  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35803,6 +36942,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1513  t=48.607s  TN2 FN14 MN45  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35823,6 +36963,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1514  t=48.621s  TN3 FN14 MN45  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35843,6 +36984,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1515  t=48.635s  TN4 FN14 MN45  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35898,6 +37040,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1517  t=48.664s  TN2 FN15 MN45  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35918,6 +37061,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1518  t=48.678s  TN3 FN15 MN45  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35938,6 +37082,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1519  t=48.692s  TN4 FN15 MN45  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -35993,6 +37138,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1521  t=48.720s  TN2 FN16 MN45  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36013,6 +37159,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1522  t=48.734s  TN3 FN16 MN45  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36033,6 +37180,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1523  t=48.749s  TN4 FN16 MN45  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36088,6 +37236,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1525  t=48.777s  TN2 FN17 MN45  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36108,6 +37257,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1526  t=48.791s  TN3 FN17 MN45  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36128,6 +37278,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1527  t=48.805s  TN4 FN17 MN45  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36181,6 +37332,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1529  t=48.834s  TN2 FN18 MN45 BSCH  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -36201,6 +37353,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1530  t=48.848s  TN3 FN18 MN45  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -36221,6 +37374,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1531  t=48.862s  TN4 FN18 MN45 BNCH  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -36298,6 +37452,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1534  t=48.904s  TN3 FN01 MN46  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36318,6 +37473,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1535  t=48.919s  TN4 FN01 MN46  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36391,6 +37547,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1538  t=48.961s  TN3 FN02 MN46  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36411,6 +37568,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1539  t=48.975s  TN4 FN02 MN46  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36487,6 +37645,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1542  t=49.018s  TN3 FN03 MN46  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36507,6 +37666,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1543  t=49.032s  TN4 FN03 MN46  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36583,6 +37743,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1546  t=49.074s  TN3 FN04 MN46  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36603,6 +37764,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1547  t=49.089s  TN4 FN04 MN46  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36692,6 +37854,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1550  t=49.131s  TN3 FN05 MN46  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36712,6 +37875,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1551  t=49.145s  TN4 FN05 MN46  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36798,6 +37962,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1554  t=49.188s  TN3 FN06 MN46  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36818,6 +37983,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1555  t=49.202s  TN4 FN06 MN46  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36904,6 +38070,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1558  t=49.244s  TN3 FN07 MN46  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -36924,6 +38091,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1559  t=49.259s  TN4 FN07 MN46  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37010,6 +38178,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1562  t=49.301s  TN3 FN08 MN46  SB  corr=0.987
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37030,6 +38199,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1563  t=49.315s  TN4 FN08 MN46  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37120,6 +38290,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1566  t=49.358s  TN3 FN09 MN46  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37140,6 +38311,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1567  t=49.372s  TN4 FN09 MN46  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37231,6 +38403,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1570  t=49.414s  TN3 FN10 MN46  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37251,6 +38424,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1571  t=49.429s  TN4 FN10 MN46  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37341,6 +38515,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1574  t=49.471s  TN3 FN11 MN46  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37361,6 +38536,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1575  t=49.485s  TN4 FN11 MN46  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37451,6 +38627,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1578  t=49.528s  TN3 FN12 MN46  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37471,6 +38648,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1579  t=49.542s  TN4 FN12 MN46  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37561,6 +38739,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1582  t=49.585s  TN3 FN13 MN46  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37581,6 +38760,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1583  t=49.599s  TN4 FN13 MN46  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37671,6 +38851,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1586  t=49.641s  TN3 FN14 MN46  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37691,6 +38872,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1587  t=49.655s  TN4 FN14 MN46  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37781,6 +38963,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1590  t=49.698s  TN3 FN15 MN46  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37801,6 +38984,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1591  t=49.712s  TN4 FN15 MN46  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37891,6 +39075,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1594  t=49.755s  TN3 FN16 MN46  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -37911,6 +39096,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1595  t=49.769s  TN4 FN16 MN46  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38001,6 +39187,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1598  t=49.811s  TN3 FN17 MN46  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38021,6 +39208,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1599  t=49.825s  TN4 FN17 MN46  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38041,6 +39229,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1600  t=49.840s  TN1 FN18 MN46 BSCH  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=9 f1=1 f2=9 (dist=0)
 - **AACH bb (30 bit onair):** `100000000000011101000100000001`
 - **AACH bb (30 bit descrambled):** `000000010010011101101010010101`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001001001` (hex `0x0049`)
@@ -38096,6 +39285,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1602  t=49.868s  TN3 FN18 MN46 BNCH  SB  corr=0.990
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -38116,6 +39306,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1603  t=49.882s  TN4 FN18 MN46  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -38206,6 +39397,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1606  t=49.925s  TN3 FN01 MN47  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38226,6 +39418,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1607  t=49.939s  TN4 FN01 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38316,6 +39509,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1610  t=49.981s  TN3 FN02 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38336,6 +39530,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1611  t=49.995s  TN4 FN02 MN47  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38426,6 +39621,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1614  t=50.038s  TN3 FN03 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38446,6 +39642,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1615  t=50.052s  TN4 FN03 MN47  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38536,6 +39733,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1618  t=50.095s  TN3 FN04 MN47  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38556,6 +39754,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1619  t=50.109s  TN4 FN04 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38646,6 +39845,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1622  t=50.151s  TN3 FN05 MN47  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38666,6 +39866,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1623  t=50.165s  TN4 FN05 MN47  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38756,6 +39957,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1626  t=50.208s  TN3 FN06 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38776,6 +39978,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1627  t=50.222s  TN4 FN06 MN47  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38866,6 +40069,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1630  t=50.265s  TN3 FN07 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38886,6 +40090,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1631  t=50.279s  TN4 FN07 MN47  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38976,6 +40181,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1634  t=50.321s  TN3 FN08 MN47  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -38996,6 +40202,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1635  t=50.335s  TN4 FN08 MN47  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39086,6 +40293,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1638  t=50.378s  TN3 FN09 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39106,6 +40314,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1639  t=50.392s  TN4 FN09 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39196,6 +40405,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1642  t=50.435s  TN3 FN10 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39216,6 +40426,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1643  t=50.449s  TN4 FN10 MN47  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39306,6 +40517,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1646  t=50.491s  TN3 FN11 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39326,6 +40538,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1647  t=50.505s  TN4 FN11 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39416,6 +40629,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1650  t=50.548s  TN3 FN12 MN47  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39436,6 +40650,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1651  t=50.562s  TN4 FN12 MN47  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39526,6 +40741,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1654  t=50.605s  TN3 FN13 MN47  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39546,6 +40762,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1655  t=50.619s  TN4 FN13 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39636,6 +40853,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1658  t=50.661s  TN3 FN14 MN47  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39656,6 +40874,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1659  t=50.675s  TN4 FN14 MN47  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39746,6 +40965,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1662  t=50.718s  TN3 FN15 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39766,6 +40986,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1663  t=50.732s  TN4 FN15 MN47  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39856,6 +41077,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1666  t=50.775s  TN3 FN16 MN47  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39876,6 +41098,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1667  t=50.789s  TN4 FN16 MN47  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39966,6 +41189,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1670  t=50.831s  TN3 FN17 MN47  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -39986,6 +41210,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1671  t=50.845s  TN4 FN17 MN47  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40074,6 +41299,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1674  t=50.888s  TN3 FN18 MN47  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -40094,6 +41320,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1675  t=50.902s  TN4 FN18 MN47 BSCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -40184,6 +41411,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1678  t=50.945s  TN3 FN01 MN48  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40204,6 +41432,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1679  t=50.959s  TN4 FN01 MN48  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40294,6 +41523,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1682  t=51.001s  TN3 FN02 MN48  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40314,6 +41544,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1683  t=51.015s  TN4 FN02 MN48  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40404,6 +41635,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1686  t=51.058s  TN3 FN03 MN48  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40424,6 +41656,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1687  t=51.072s  TN4 FN03 MN48  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40514,6 +41747,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1690  t=51.115s  TN3 FN04 MN48  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40534,6 +41768,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1691  t=51.129s  TN4 FN04 MN48  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40624,6 +41859,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1694  t=51.171s  TN3 FN05 MN48  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40644,6 +41880,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1695  t=51.185s  TN4 FN05 MN48  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40734,6 +41971,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1698  t=51.228s  TN3 FN06 MN48  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40754,6 +41992,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1699  t=51.242s  TN4 FN06 MN48  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40844,6 +42083,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1702  t=51.285s  TN3 FN07 MN48  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40864,6 +42104,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1703  t=51.299s  TN4 FN07 MN48  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40954,6 +42195,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1706  t=51.341s  TN3 FN08 MN48  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -40974,6 +42216,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1707  t=51.355s  TN4 FN08 MN48  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41064,6 +42307,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1710  t=51.398s  TN3 FN09 MN48  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41084,6 +42328,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1711  t=51.412s  TN4 FN09 MN48  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41174,6 +42419,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1714  t=51.455s  TN3 FN10 MN48  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41194,6 +42440,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1715  t=51.469s  TN4 FN10 MN48  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41284,6 +42531,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1718  t=51.511s  TN3 FN11 MN48  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41304,6 +42552,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1719  t=51.525s  TN4 FN11 MN48  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41394,6 +42643,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1722  t=51.568s  TN3 FN12 MN48  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41414,6 +42664,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1723  t=51.582s  TN4 FN12 MN48  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41504,6 +42755,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1726  t=51.625s  TN3 FN13 MN48  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41524,6 +42776,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1727  t=51.639s  TN4 FN13 MN48  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41614,6 +42867,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1730  t=51.681s  TN3 FN14 MN48  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41634,6 +42888,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1731  t=51.695s  TN4 FN14 MN48  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41724,6 +42979,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1734  t=51.738s  TN3 FN15 MN48  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41744,6 +43000,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1735  t=51.752s  TN4 FN15 MN48  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41834,6 +43091,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1738  t=51.795s  TN3 FN16 MN48  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41854,6 +43112,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1739  t=51.809s  TN4 FN16 MN48  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41944,6 +43203,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1742  t=51.851s  TN3 FN17 MN48  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -41964,6 +43224,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1743  t=51.865s  TN4 FN17 MN48  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42052,6 +43313,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1746  t=51.908s  TN3 FN18 MN48 BSCH  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -42072,6 +43334,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1747  t=51.922s  TN4 FN18 MN48  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -42162,6 +43425,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1750  t=51.965s  TN3 FN01 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42182,6 +43446,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1751  t=51.979s  TN4 FN01 MN49  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42272,6 +43537,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1754  t=52.021s  TN3 FN02 MN49  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42292,6 +43558,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1755  t=52.035s  TN4 FN02 MN49  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42382,6 +43649,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1758  t=52.078s  TN3 FN03 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42402,6 +43670,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1759  t=52.092s  TN4 FN03 MN49  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42492,6 +43761,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1762  t=52.135s  TN3 FN04 MN49  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42512,6 +43782,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1763  t=52.149s  TN4 FN04 MN49  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42602,6 +43873,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1766  t=52.191s  TN3 FN05 MN49  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42622,6 +43894,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1767  t=52.205s  TN4 FN05 MN49  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42712,6 +43985,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1770  t=52.248s  TN3 FN06 MN49  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42732,6 +44006,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1771  t=52.262s  TN4 FN06 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42822,6 +44097,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1774  t=52.305s  TN3 FN07 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42842,6 +44118,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1775  t=52.319s  TN4 FN07 MN49  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42932,6 +44209,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1778  t=52.361s  TN3 FN08 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -42952,6 +44230,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1779  t=52.375s  TN4 FN08 MN49  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43042,6 +44321,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1782  t=52.418s  TN3 FN09 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43062,6 +44342,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1783  t=52.432s  TN4 FN09 MN49  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43152,6 +44433,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1786  t=52.475s  TN3 FN10 MN49  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43172,6 +44454,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1787  t=52.489s  TN4 FN10 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43262,6 +44545,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1790  t=52.531s  TN3 FN11 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43282,6 +44566,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1791  t=52.545s  TN4 FN11 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43372,6 +44657,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1794  t=52.588s  TN3 FN12 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43392,6 +44678,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1795  t=52.602s  TN4 FN12 MN49  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43482,6 +44769,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1798  t=52.645s  TN3 FN13 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43502,6 +44790,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1799  t=52.659s  TN4 FN13 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43592,6 +44881,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1802  t=52.701s  TN3 FN14 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43612,6 +44902,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1803  t=52.715s  TN4 FN14 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43702,6 +44993,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1806  t=52.758s  TN3 FN15 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43722,6 +45014,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1807  t=52.772s  TN4 FN15 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43812,6 +45105,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1810  t=52.815s  TN3 FN16 MN49  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43832,6 +45126,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1811  t=52.829s  TN4 FN16 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43922,6 +45217,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1814  t=52.871s  TN3 FN17 MN49  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43942,6 +45238,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1815  t=52.885s  TN4 FN17 MN49  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -43995,6 +45292,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1817  t=52.914s  TN2 FN18 MN49 BSCH  SB  corr=0.994
 
+- **AACH:** `Reserved` raw=`0x2049` dist=0 · f1=1 f2=9 raw=0x2049 (dist=0)
 - **AACH bb (30 bit onair):** `000000000000010100101001100001`
 - **AACH bb (30 bit descrambled):** `100000010010010100000111110101`
 - **AACH info (14 bit, post-RM(30,14)):** `10000001001001` (hex `0x2049`)
@@ -44015,6 +45313,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1818  t=52.928s  TN3 FN18 MN49  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -44035,6 +45334,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1819  t=52.942s  TN4 FN18 MN49 BNCH  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -44125,6 +45425,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1822  t=52.985s  TN3 FN01 MN50  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44145,6 +45446,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1823  t=52.999s  TN4 FN01 MN50  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44235,6 +45537,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1826  t=53.041s  TN3 FN02 MN50  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44255,6 +45558,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1827  t=53.055s  TN4 FN02 MN50  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44345,6 +45649,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1830  t=53.098s  TN3 FN03 MN50  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44365,6 +45670,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1831  t=53.112s  TN4 FN03 MN50  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44455,6 +45761,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1834  t=53.155s  TN3 FN04 MN50  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44475,6 +45782,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1835  t=53.169s  TN4 FN04 MN50  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44565,6 +45873,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1838  t=53.211s  TN3 FN05 MN50  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44585,6 +45894,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1839  t=53.225s  TN4 FN05 MN50  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44675,6 +45985,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1842  t=53.268s  TN3 FN06 MN50  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44695,6 +46006,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1843  t=53.282s  TN4 FN06 MN50  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44785,6 +46097,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1846  t=53.325s  TN3 FN07 MN50  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44805,6 +46118,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1847  t=53.339s  TN4 FN07 MN50  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44895,6 +46209,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1850  t=53.381s  TN3 FN08 MN50  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -44915,6 +46230,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1851  t=53.395s  TN4 FN08 MN50  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45005,6 +46321,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1854  t=53.438s  TN3 FN09 MN50  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45025,6 +46342,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1855  t=53.452s  TN4 FN09 MN50  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45115,6 +46433,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1858  t=53.495s  TN3 FN10 MN50  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45135,6 +46454,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1859  t=53.509s  TN4 FN10 MN50  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45225,6 +46545,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1862  t=53.551s  TN3 FN11 MN50  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45245,6 +46566,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1863  t=53.565s  TN4 FN11 MN50  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45335,6 +46657,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1866  t=53.608s  TN3 FN12 MN50  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45355,6 +46678,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1867  t=53.622s  TN4 FN12 MN50  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45445,6 +46769,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1870  t=53.665s  TN3 FN13 MN50  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45465,6 +46790,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1871  t=53.679s  TN4 FN13 MN50  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45555,6 +46881,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1874  t=53.721s  TN3 FN14 MN50  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45575,6 +46902,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1875  t=53.735s  TN4 FN14 MN50  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45665,6 +46993,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1878  t=53.778s  TN3 FN15 MN50  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45685,6 +47014,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1879  t=53.792s  TN4 FN15 MN50  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45762,6 +47092,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1882  t=53.835s  TN3 FN16 MN50  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45782,6 +47113,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1883  t=53.849s  TN4 FN16 MN50  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45872,6 +47204,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1886  t=53.891s  TN3 FN17 MN50  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45892,6 +47225,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1887  t=53.905s  TN4 FN17 MN50  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -45912,6 +47246,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1888  t=53.920s  TN1 FN18 MN50 BSCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=9 f1=1 f2=9 (dist=0)
 - **AACH bb (30 bit onair):** `100000000000011101000100000001`
 - **AACH bb (30 bit descrambled):** `000000010010011101101010010101`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001001001` (hex `0x0049`)
@@ -45954,6 +47289,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1890  t=53.948s  TN3 FN18 MN50 BNCH  SB  corr=0.988
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -45974,6 +47310,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1891  t=53.962s  TN4 FN18 MN50  SB  corr=0.989
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -46065,6 +47402,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1894  t=54.005s  TN3 FN01 MN51  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46085,6 +47423,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1895  t=54.019s  TN4 FN01 MN51  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46174,6 +47513,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1898  t=54.061s  TN3 FN02 MN51  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46194,6 +47534,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1899  t=54.075s  TN4 FN02 MN51  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46283,6 +47624,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1902  t=54.118s  TN3 FN03 MN51  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46303,6 +47645,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1903  t=54.132s  TN4 FN03 MN51  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46375,6 +47718,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1906  t=54.175s  TN3 FN04 MN51  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46395,6 +47739,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1907  t=54.189s  TN4 FN04 MN51  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46467,6 +47812,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1910  t=54.231s  TN3 FN05 MN51  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46487,6 +47833,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1911  t=54.245s  TN4 FN05 MN51  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46559,6 +47906,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1914  t=54.288s  TN3 FN06 MN51  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46579,6 +47927,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1915  t=54.302s  TN4 FN06 MN51  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46651,6 +48000,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1918  t=54.345s  TN3 FN07 MN51  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46671,6 +48021,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1919  t=54.359s  TN4 FN07 MN51  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46743,6 +48094,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1922  t=54.401s  TN3 FN08 MN51  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46763,6 +48115,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1923  t=54.415s  TN4 FN08 MN51  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46835,6 +48188,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1926  t=54.458s  TN3 FN09 MN51  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46855,6 +48209,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1927  t=54.472s  TN4 FN09 MN51  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46927,6 +48282,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1930  t=54.515s  TN3 FN10 MN51  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -46947,6 +48303,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1931  t=54.529s  TN4 FN10 MN51  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47019,6 +48376,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1934  t=54.571s  TN3 FN11 MN51  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47039,6 +48397,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1935  t=54.585s  TN4 FN11 MN51  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47111,6 +48470,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1938  t=54.628s  TN3 FN12 MN51  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47131,6 +48491,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1939  t=54.642s  TN4 FN12 MN51  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47203,6 +48564,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1942  t=54.685s  TN3 FN13 MN51  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47223,6 +48585,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1943  t=54.699s  TN4 FN13 MN51  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47295,6 +48658,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1946  t=54.741s  TN3 FN14 MN51  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47315,6 +48679,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1947  t=54.755s  TN4 FN14 MN51  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47387,6 +48752,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1950  t=54.798s  TN3 FN15 MN51  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47407,6 +48773,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1951  t=54.812s  TN4 FN15 MN51  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47479,6 +48846,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1954  t=54.855s  TN3 FN16 MN51  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47499,6 +48867,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1955  t=54.869s  TN4 FN16 MN51  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47571,6 +48940,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1958  t=54.911s  TN3 FN17 MN51  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47591,6 +48961,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1959  t=54.925s  TN4 FN17 MN51  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47679,6 +49050,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1962  t=54.968s  TN3 FN18 MN51  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -47699,6 +49071,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1963  t=54.982s  TN4 FN18 MN51 BSCH  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -47771,6 +49144,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1966  t=55.025s  TN3 FN01 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47791,6 +49165,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1967  t=55.039s  TN4 FN01 MN52  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47863,6 +49238,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1970  t=55.081s  TN3 FN02 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47883,6 +49259,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1971  t=55.095s  TN4 FN02 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47955,6 +49332,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1974  t=55.138s  TN3 FN03 MN52  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -47975,6 +49353,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1975  t=55.152s  TN4 FN03 MN52  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48047,6 +49426,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1978  t=55.195s  TN3 FN04 MN52  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48067,6 +49447,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1979  t=55.209s  TN4 FN04 MN52  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48139,6 +49520,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1982  t=55.251s  TN3 FN05 MN52  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48159,6 +49541,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1983  t=55.265s  TN4 FN05 MN52  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48245,6 +49628,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1986  t=55.308s  TN3 FN06 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48265,6 +49649,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1987  t=55.322s  TN4 FN06 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48351,6 +49736,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1990  t=55.365s  TN3 FN07 MN52  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48371,6 +49757,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1991  t=55.379s  TN4 FN07 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48457,6 +49844,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1994  t=55.421s  TN3 FN08 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48477,6 +49865,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1995  t=55.435s  TN4 FN08 MN52  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48567,6 +49956,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1998  t=55.478s  TN3 FN09 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48587,6 +49977,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 1999  t=55.492s  TN4 FN09 MN52  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48678,6 +50069,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2002  t=55.535s  TN3 FN10 MN52  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48698,6 +50090,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2003  t=55.549s  TN4 FN10 MN52  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48788,6 +50181,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2006  t=55.591s  TN3 FN11 MN52  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48808,6 +50202,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2007  t=55.605s  TN4 FN11 MN52  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48898,6 +50293,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2010  t=55.648s  TN3 FN12 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -48918,6 +50314,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2011  t=55.662s  TN4 FN12 MN52  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49008,6 +50405,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2014  t=55.705s  TN3 FN13 MN52  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49028,6 +50426,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2015  t=55.719s  TN4 FN13 MN52  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49118,6 +50517,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2018  t=55.761s  TN3 FN14 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49138,6 +50538,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2019  t=55.775s  TN4 FN14 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49228,6 +50629,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2022  t=55.818s  TN3 FN15 MN52  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49248,6 +50650,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2023  t=55.832s  TN4 FN15 MN52  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49338,6 +50741,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2026  t=55.875s  TN3 FN16 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49358,6 +50762,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2027  t=55.889s  TN4 FN16 MN52  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49448,6 +50853,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2030  t=55.931s  TN3 FN17 MN52  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49468,6 +50874,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2031  t=55.945s  TN4 FN17 MN52  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49556,6 +50963,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2034  t=55.988s  TN3 FN18 MN52 BSCH  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -49576,6 +50984,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2035  t=56.002s  TN4 FN18 MN52  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -49666,6 +51075,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2038  t=56.045s  TN3 FN01 MN53  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49686,6 +51096,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2039  t=56.059s  TN4 FN01 MN53  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49776,6 +51187,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2042  t=56.101s  TN3 FN02 MN53  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49796,6 +51208,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2043  t=56.115s  TN4 FN02 MN53  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49886,6 +51299,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2046  t=56.158s  TN3 FN03 MN53  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49906,6 +51320,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2047  t=56.172s  TN4 FN03 MN53  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -49996,6 +51411,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2050  t=56.215s  TN3 FN04 MN53  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50016,6 +51432,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2051  t=56.229s  TN4 FN04 MN53  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50106,6 +51523,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2054  t=56.271s  TN3 FN05 MN53  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50126,6 +51544,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2055  t=56.285s  TN4 FN05 MN53  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50216,6 +51635,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2058  t=56.328s  TN3 FN06 MN53  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50236,6 +51656,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2059  t=56.342s  TN4 FN06 MN53  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50326,6 +51747,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2062  t=56.385s  TN3 FN07 MN53  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50346,6 +51768,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2063  t=56.399s  TN4 FN07 MN53  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50436,6 +51859,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2066  t=56.441s  TN3 FN08 MN53  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50456,6 +51880,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2067  t=56.455s  TN4 FN08 MN53  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50546,6 +51971,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2070  t=56.498s  TN3 FN09 MN53  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50566,6 +51992,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2071  t=56.512s  TN4 FN09 MN53  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50656,6 +52083,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2074  t=56.555s  TN3 FN10 MN53  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50676,6 +52104,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2075  t=56.569s  TN4 FN10 MN53  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50766,6 +52195,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2078  t=56.611s  TN3 FN11 MN53  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50786,6 +52216,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2079  t=56.625s  TN4 FN11 MN53  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50876,6 +52307,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2082  t=56.668s  TN3 FN12 MN53  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50896,6 +52328,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2083  t=56.682s  TN4 FN12 MN53  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -50986,6 +52419,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2086  t=56.725s  TN3 FN13 MN53  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51006,6 +52440,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2087  t=56.739s  TN4 FN13 MN53  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51096,6 +52531,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2090  t=56.781s  TN3 FN14 MN53  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51116,6 +52552,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2091  t=56.796s  TN4 FN14 MN53  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51206,6 +52643,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2094  t=56.838s  TN3 FN15 MN53  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51226,6 +52664,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2095  t=56.852s  TN4 FN15 MN53  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51316,6 +52755,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2098  t=56.895s  TN3 FN16 MN53  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51336,6 +52776,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2099  t=56.909s  TN4 FN16 MN53  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51426,6 +52867,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2102  t=56.951s  TN3 FN17 MN53  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51446,6 +52888,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2103  t=56.966s  TN4 FN17 MN53  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51499,6 +52942,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2105  t=56.994s  TN2 FN18 MN53 BSCH  SB  corr=0.995
 
+- **AACH:** `Reserved` raw=`0x2049` dist=0 · f1=1 f2=9 raw=0x2049 (dist=0)
 - **AACH bb (30 bit onair):** `000000000000010100101001100001`
 - **AACH bb (30 bit descrambled):** `100000010010010100000111110101`
 - **AACH info (14 bit, post-RM(30,14)):** `10000001001001` (hex `0x2049`)
@@ -51519,6 +52963,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2106  t=57.008s  TN3 FN18 MN53  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -51539,6 +52984,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2107  t=57.022s  TN4 FN18 MN53 BNCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -51629,6 +53075,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2110  t=57.065s  TN3 FN01 MN54  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51649,6 +53096,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2111  t=57.079s  TN4 FN01 MN54  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51739,6 +53187,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2114  t=57.121s  TN3 FN02 MN54  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51759,6 +53208,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2115  t=57.136s  TN4 FN02 MN54  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51849,6 +53299,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2118  t=57.178s  TN3 FN03 MN54  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51869,6 +53320,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2119  t=57.192s  TN4 FN03 MN54  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51959,6 +53411,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2122  t=57.235s  TN3 FN04 MN54  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -51979,6 +53432,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2123  t=57.249s  TN4 FN04 MN54  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52069,6 +53523,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2126  t=57.291s  TN3 FN05 MN54  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52089,6 +53544,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2127  t=57.306s  TN4 FN05 MN54  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52179,6 +53635,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2130  t=57.348s  TN3 FN06 MN54  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52199,6 +53656,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2131  t=57.362s  TN4 FN06 MN54  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52289,6 +53747,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2134  t=57.405s  TN3 FN07 MN54  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52309,6 +53768,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2135  t=57.419s  TN4 FN07 MN54  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52386,6 +53846,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2138  t=57.461s  TN3 FN08 MN54  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52406,6 +53867,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2139  t=57.476s  TN4 FN08 MN54  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52496,6 +53958,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2142  t=57.518s  TN3 FN09 MN54  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52516,6 +53979,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2143  t=57.532s  TN4 FN09 MN54  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52606,6 +54070,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2146  t=57.575s  TN3 FN10 MN54  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52626,6 +54091,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2147  t=57.589s  TN4 FN10 MN54  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52717,6 +54183,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2150  t=57.631s  TN3 FN11 MN54  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52737,6 +54204,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2151  t=57.646s  TN4 FN11 MN54  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52828,6 +54296,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2154  t=57.688s  TN3 FN12 MN54  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52848,6 +54317,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2155  t=57.702s  TN4 FN12 MN54  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52907,6 +54377,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2158  t=57.745s  TN3 FN13 MN54  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52927,6 +54398,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2159  t=57.759s  TN4 FN13 MN54  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -52999,6 +54471,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2162  t=57.801s  TN3 FN14 MN54  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53019,6 +54492,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2163  t=57.816s  TN4 FN14 MN54  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53091,6 +54565,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2166  t=57.858s  TN3 FN15 MN54  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53111,6 +54586,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2167  t=57.872s  TN4 FN15 MN54  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53183,6 +54659,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2170  t=57.915s  TN3 FN16 MN54  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53203,6 +54680,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2171  t=57.929s  TN4 FN16 MN54  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53275,6 +54753,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2174  t=57.971s  TN3 FN17 MN54  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53295,6 +54774,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2175  t=57.986s  TN4 FN17 MN54  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53315,6 +54795,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2176  t=58.000s  TN1 FN18 MN54 BSCH  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=9 f1=1 f2=9 (dist=0)
 - **AACH bb (30 bit onair):** `100000000000011101000100000001`
 - **AACH bb (30 bit descrambled):** `000000010010011101101010010101`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001001001` (hex `0x0049`)
@@ -53356,6 +54837,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2178  t=58.028s  TN3 FN18 MN54 BNCH  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -53376,6 +54858,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2179  t=58.042s  TN4 FN18 MN54  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -53448,6 +54931,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2182  t=58.085s  TN3 FN01 MN55  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53468,6 +54952,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2183  t=58.099s  TN4 FN01 MN55  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53540,6 +55025,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2186  t=58.141s  TN3 FN02 MN55  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53560,6 +55046,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2187  t=58.156s  TN4 FN02 MN55  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53632,6 +55119,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2190  t=58.198s  TN3 FN03 MN55  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53652,6 +55140,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2191  t=58.212s  TN4 FN03 MN55  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53724,6 +55213,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2194  t=58.255s  TN3 FN04 MN55  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53744,6 +55234,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2195  t=58.269s  TN4 FN04 MN55  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53816,6 +55307,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2198  t=58.311s  TN3 FN05 MN55  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53836,6 +55328,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2199  t=58.326s  TN4 FN05 MN55  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53908,6 +55401,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2202  t=58.368s  TN3 FN06 MN55  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -53928,6 +55422,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2203  t=58.382s  TN4 FN06 MN55  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54000,6 +55495,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2206  t=58.425s  TN3 FN07 MN55  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54020,6 +55516,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2207  t=58.439s  TN4 FN07 MN55  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54092,6 +55589,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2210  t=58.481s  TN3 FN08 MN55  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54112,6 +55610,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2211  t=58.496s  TN4 FN08 MN55  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54184,6 +55683,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2214  t=58.538s  TN3 FN09 MN55  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54204,6 +55704,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2215  t=58.552s  TN4 FN09 MN55  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54276,6 +55777,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2218  t=58.595s  TN3 FN10 MN55  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54296,6 +55798,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2219  t=58.609s  TN4 FN10 MN55  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54368,6 +55871,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2222  t=58.651s  TN3 FN11 MN55  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54388,6 +55892,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2223  t=58.666s  TN4 FN11 MN55  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54460,6 +55965,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2226  t=58.708s  TN3 FN12 MN55  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54480,6 +55986,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2227  t=58.722s  TN4 FN12 MN55  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54566,6 +56073,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2230  t=58.765s  TN3 FN13 MN55  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54586,6 +56094,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2231  t=58.779s  TN4 FN13 MN55  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54672,6 +56181,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2234  t=58.821s  TN3 FN14 MN55  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54692,6 +56202,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2235  t=58.836s  TN4 FN14 MN55  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54778,6 +56289,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2238  t=58.878s  TN3 FN15 MN55  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54798,6 +56310,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2239  t=58.892s  TN4 FN15 MN55  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54888,6 +56401,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2242  t=58.935s  TN3 FN16 MN55  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54908,6 +56422,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2243  t=58.949s  TN4 FN16 MN55  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -54999,6 +56514,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2246  t=58.991s  TN3 FN17 MN55  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55019,6 +56535,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2247  t=59.006s  TN4 FN17 MN55  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55107,6 +56624,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2250  t=59.048s  TN3 FN18 MN55  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -55127,6 +56645,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2251  t=59.062s  TN4 FN18 MN55 BSCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -55217,6 +56736,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2254  t=59.105s  TN3 FN01 MN56  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55237,6 +56757,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2255  t=59.119s  TN4 FN01 MN56  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55327,6 +56848,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2258  t=59.161s  TN3 FN02 MN56  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55347,6 +56869,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2259  t=59.176s  TN4 FN02 MN56  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55437,6 +56960,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2262  t=59.218s  TN3 FN03 MN56  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55457,6 +56981,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2263  t=59.232s  TN4 FN03 MN56  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55547,6 +57072,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2266  t=59.275s  TN3 FN04 MN56  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55567,6 +57093,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2267  t=59.289s  TN4 FN04 MN56  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55657,6 +57184,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2270  t=59.331s  TN3 FN05 MN56  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55677,6 +57205,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2271  t=59.346s  TN4 FN05 MN56  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55767,6 +57296,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2274  t=59.388s  TN3 FN06 MN56  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55787,6 +57317,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2275  t=59.402s  TN4 FN06 MN56  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55877,6 +57408,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2278  t=59.445s  TN3 FN07 MN56  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55897,6 +57429,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2279  t=59.459s  TN4 FN07 MN56  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -55987,6 +57520,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2282  t=59.501s  TN3 FN08 MN56  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56007,6 +57541,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2283  t=59.516s  TN4 FN08 MN56  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56097,6 +57632,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2286  t=59.558s  TN3 FN09 MN56  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56117,6 +57653,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2287  t=59.572s  TN4 FN09 MN56  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56207,6 +57744,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2290  t=59.615s  TN3 FN10 MN56  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56227,6 +57765,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2291  t=59.629s  TN4 FN10 MN56  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56317,6 +57856,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2294  t=59.671s  TN3 FN11 MN56  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56337,6 +57877,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2295  t=59.686s  TN4 FN11 MN56  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56427,6 +57968,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2298  t=59.728s  TN3 FN12 MN56  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56447,6 +57989,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2299  t=59.742s  TN4 FN12 MN56  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56537,6 +58080,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2302  t=59.785s  TN3 FN13 MN56  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56557,6 +58101,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2303  t=59.799s  TN4 FN13 MN56  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56647,6 +58192,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2306  t=59.841s  TN3 FN14 MN56  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56667,6 +58213,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2307  t=59.856s  TN4 FN14 MN56  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56757,6 +58304,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2310  t=59.898s  TN3 FN15 MN56  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56777,6 +58325,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2311  t=59.912s  TN4 FN15 MN56  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56867,6 +58416,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2314  t=59.955s  TN3 FN16 MN56  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56887,6 +58437,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2315  t=59.969s  TN4 FN16 MN56  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56977,6 +58528,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2318  t=60.011s  TN3 FN17 MN56  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -56997,6 +58549,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2319  t=60.026s  TN4 FN17 MN56  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57085,6 +58638,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2322  t=60.068s  TN3 FN18 MN56 BSCH  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -57105,6 +58659,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2323  t=60.082s  TN4 FN18 MN56  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -57195,6 +58750,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2326  t=60.125s  TN3 FN01 MN57  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57215,6 +58771,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2327  t=60.139s  TN4 FN01 MN57  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57305,6 +58862,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2330  t=60.181s  TN3 FN02 MN57  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57325,6 +58883,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2331  t=60.196s  TN4 FN02 MN57  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57415,6 +58974,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2334  t=60.238s  TN3 FN03 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57435,6 +58995,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2335  t=60.252s  TN4 FN03 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57525,6 +59086,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2338  t=60.295s  TN3 FN04 MN57  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57545,6 +59107,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2339  t=60.309s  TN4 FN04 MN57  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57635,6 +59198,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2342  t=60.351s  TN3 FN05 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57655,6 +59219,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2343  t=60.366s  TN4 FN05 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57745,6 +59310,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2346  t=60.408s  TN3 FN06 MN57  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57765,6 +59331,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2347  t=60.422s  TN4 FN06 MN57  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57855,6 +59422,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2350  t=60.465s  TN3 FN07 MN57  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57875,6 +59443,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2351  t=60.479s  TN4 FN07 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57965,6 +59534,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2354  t=60.521s  TN3 FN08 MN57  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -57985,6 +59555,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2355  t=60.536s  TN4 FN08 MN57  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58075,6 +59646,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2358  t=60.578s  TN3 FN09 MN57  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58095,6 +59667,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2359  t=60.592s  TN4 FN09 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58185,6 +59758,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2362  t=60.635s  TN3 FN10 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58205,6 +59779,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2363  t=60.649s  TN4 FN10 MN57  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58295,6 +59870,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2366  t=60.691s  TN3 FN11 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58315,6 +59891,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2367  t=60.706s  TN4 FN11 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58405,6 +59982,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2370  t=60.748s  TN3 FN12 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58425,6 +60003,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2371  t=60.762s  TN4 FN12 MN57  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58515,6 +60094,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2374  t=60.805s  TN3 FN13 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58535,6 +60115,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2375  t=60.819s  TN4 FN13 MN57  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58625,6 +60206,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2378  t=60.861s  TN3 FN14 MN57  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58645,6 +60227,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2379  t=60.876s  TN4 FN14 MN57  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58735,6 +60318,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2382  t=60.918s  TN3 FN15 MN57  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58755,6 +60339,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2383  t=60.932s  TN4 FN15 MN57  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58845,6 +60430,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2386  t=60.975s  TN3 FN16 MN57  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58865,6 +60451,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2387  t=60.989s  TN4 FN16 MN57  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58955,6 +60542,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2390  t=61.031s  TN3 FN17 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -58975,6 +60563,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2391  t=61.046s  TN4 FN17 MN57  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59028,6 +60617,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2393  t=61.074s  TN2 FN18 MN57 BSCH  SB  corr=0.992
 
+- **AACH:** `Reserved` raw=`0x2049` dist=0 · f1=1 f2=9 raw=0x2049 (dist=0)
 - **AACH bb (30 bit onair):** `000000000000010100101001100001`
 - **AACH bb (30 bit descrambled):** `100000010010010100000111110101`
 - **AACH info (14 bit, post-RM(30,14)):** `10000001001001` (hex `0x2049`)
@@ -59048,6 +60638,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2394  t=61.088s  TN3 FN18 MN57  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -59068,6 +60659,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2395  t=61.102s  TN4 FN18 MN57 BNCH  SB  corr=0.989
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -59158,6 +60750,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2398  t=61.145s  TN3 FN01 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59178,6 +60771,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2399  t=61.159s  TN4 FN01 MN58  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59268,6 +60862,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2402  t=61.201s  TN3 FN02 MN58  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59288,6 +60883,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2403  t=61.216s  TN4 FN02 MN58  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59378,6 +60974,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2406  t=61.258s  TN3 FN03 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59398,6 +60995,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2407  t=61.272s  TN4 FN03 MN58  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59488,6 +61086,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2410  t=61.315s  TN3 FN04 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59508,6 +61107,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2411  t=61.329s  TN4 FN04 MN58  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59598,6 +61198,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2414  t=61.371s  TN3 FN05 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59618,6 +61219,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2415  t=61.386s  TN4 FN05 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59708,6 +61310,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2418  t=61.428s  TN3 FN06 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59728,6 +61331,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2419  t=61.442s  TN4 FN06 MN58  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59818,6 +61422,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2422  t=61.485s  TN3 FN07 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59838,6 +61443,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2423  t=61.499s  TN4 FN07 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59928,6 +61534,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2426  t=61.541s  TN3 FN08 MN58  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -59948,6 +61555,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2427  t=61.556s  TN4 FN08 MN58  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60038,6 +61646,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2430  t=61.598s  TN3 FN09 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60058,6 +61667,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2431  t=61.612s  TN4 FN09 MN58  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60148,6 +61758,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2434  t=61.655s  TN3 FN10 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60168,6 +61779,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2435  t=61.669s  TN4 FN10 MN58  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60258,6 +61870,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2438  t=61.711s  TN3 FN11 MN58  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60278,6 +61891,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2439  t=61.726s  TN4 FN11 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60368,6 +61982,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2442  t=61.768s  TN3 FN12 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60388,6 +62003,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2443  t=61.782s  TN4 FN12 MN58  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60478,6 +62094,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2446  t=61.825s  TN3 FN13 MN58  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60498,6 +62115,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2447  t=61.839s  TN4 FN13 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60588,6 +62206,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2450  t=61.881s  TN3 FN14 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60608,6 +62227,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2451  t=61.896s  TN4 FN14 MN58  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60698,6 +62318,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2454  t=61.938s  TN3 FN15 MN58  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60718,6 +62339,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2455  t=61.952s  TN4 FN15 MN58  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60808,6 +62430,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2458  t=61.995s  TN3 FN16 MN58  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60828,6 +62451,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2459  t=62.009s  TN4 FN16 MN58  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60918,6 +62542,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2462  t=62.051s  TN3 FN17 MN58  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60938,6 +62563,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2463  t=62.066s  TN4 FN17 MN58  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -60958,6 +62584,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2464  t=62.080s  TN1 FN18 MN58 BSCH  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=9 f1=1 f2=9 (dist=0)
 - **AACH bb (30 bit onair):** `100000000000011101000100000001`
 - **AACH bb (30 bit descrambled):** `000000010010011101101010010101`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001001001` (hex `0x0049`)
@@ -61013,6 +62640,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2466  t=62.108s  TN3 FN18 MN58 BNCH  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -61033,6 +62661,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2467  t=62.122s  TN4 FN18 MN58  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -61123,6 +62752,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2470  t=62.165s  TN3 FN01 MN59  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61143,6 +62773,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2471  t=62.179s  TN4 FN01 MN59  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61233,6 +62864,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2474  t=62.221s  TN3 FN02 MN59  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61253,6 +62885,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2475  t=62.236s  TN4 FN02 MN59  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61343,6 +62976,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2478  t=62.278s  TN3 FN03 MN59  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61363,6 +62997,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2479  t=62.292s  TN4 FN03 MN59  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61453,6 +63088,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2482  t=62.335s  TN3 FN04 MN59  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61473,6 +63109,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2483  t=62.349s  TN4 FN04 MN59  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61563,6 +63200,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2486  t=62.391s  TN3 FN05 MN59  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61583,6 +63221,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2487  t=62.406s  TN4 FN05 MN59  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61673,6 +63312,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2490  t=62.448s  TN3 FN06 MN59  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61693,6 +63333,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2491  t=62.462s  TN4 FN06 MN59  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61783,6 +63424,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2494  t=62.505s  TN3 FN07 MN59  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61803,6 +63445,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2495  t=62.519s  TN4 FN07 MN59  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61893,6 +63536,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2498  t=62.561s  TN3 FN08 MN59  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -61913,6 +63557,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2499  t=62.576s  TN4 FN08 MN59  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62003,6 +63648,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2502  t=62.618s  TN3 FN09 MN59  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62023,6 +63669,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2503  t=62.632s  TN4 FN09 MN59  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62113,6 +63760,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2506  t=62.675s  TN3 FN10 MN59  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62133,6 +63781,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2507  t=62.689s  TN4 FN10 MN59  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62223,6 +63872,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2510  t=62.731s  TN3 FN11 MN59  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62243,6 +63893,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2511  t=62.746s  TN4 FN11 MN59  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62333,6 +63984,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2514  t=62.788s  TN3 FN12 MN59  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62353,6 +64005,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2515  t=62.802s  TN4 FN12 MN59  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62443,6 +64096,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2518  t=62.845s  TN3 FN13 MN59  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62463,6 +64117,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2519  t=62.859s  TN4 FN13 MN59  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62553,6 +64208,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2522  t=62.901s  TN3 FN14 MN59  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62573,6 +64229,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2523  t=62.916s  TN4 FN14 MN59  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62663,6 +64320,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2526  t=62.958s  TN3 FN15 MN59  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62683,6 +64341,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2527  t=62.972s  TN4 FN15 MN59  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62773,6 +64432,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2530  t=63.015s  TN3 FN16 MN59  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62793,6 +64453,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2531  t=63.029s  TN4 FN16 MN59  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62883,6 +64544,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2534  t=63.071s  TN3 FN17 MN59  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62903,6 +64565,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2535  t=63.086s  TN4 FN17 MN59  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -62991,6 +64654,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2538  t=63.128s  TN3 FN18 MN59  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -63011,6 +64675,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2539  t=63.142s  TN4 FN18 MN59 BSCH  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -63101,6 +64766,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2542  t=63.185s  TN3 FN01 MN60  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63121,6 +64787,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2543  t=63.199s  TN4 FN01 MN60  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63211,6 +64878,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2546  t=63.241s  TN3 FN02 MN60  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63231,6 +64899,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2547  t=63.256s  TN4 FN02 MN60  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63321,6 +64990,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2550  t=63.298s  TN3 FN03 MN60  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63341,6 +65011,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2551  t=63.312s  TN4 FN03 MN60  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63431,6 +65102,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2554  t=63.355s  TN3 FN04 MN60  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63451,6 +65123,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2555  t=63.369s  TN4 FN04 MN60  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63541,6 +65214,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2558  t=63.411s  TN3 FN05 MN60  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63561,6 +65235,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2559  t=63.426s  TN4 FN05 MN60  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63651,6 +65326,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2562  t=63.468s  TN3 FN06 MN60  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63671,6 +65347,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2563  t=63.482s  TN4 FN06 MN60  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63761,6 +65438,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2566  t=63.525s  TN3 FN07 MN60  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63781,6 +65459,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2567  t=63.539s  TN4 FN07 MN60  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63871,6 +65550,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2570  t=63.581s  TN3 FN08 MN60  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63891,6 +65571,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2571  t=63.596s  TN4 FN08 MN60  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -63981,6 +65662,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2574  t=63.638s  TN3 FN09 MN60  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64001,6 +65683,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2575  t=63.652s  TN4 FN09 MN60  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64078,6 +65761,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2578  t=63.695s  TN3 FN10 MN60  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64098,6 +65782,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2579  t=63.709s  TN4 FN10 MN60  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64175,6 +65860,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2582  t=63.752s  TN3 FN11 MN60  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64195,6 +65881,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2583  t=63.766s  TN4 FN11 MN60  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64272,6 +65959,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2586  t=63.808s  TN3 FN12 MN60  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64292,6 +65980,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2587  t=63.822s  TN4 FN12 MN60  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64369,6 +66058,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2590  t=63.865s  TN3 FN13 MN60  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64389,6 +66079,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2591  t=63.879s  TN4 FN13 MN60  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64466,6 +66157,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2594  t=63.922s  TN3 FN14 MN60  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64486,6 +66178,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2595  t=63.936s  TN4 FN14 MN60  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64563,6 +66256,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2598  t=63.978s  TN3 FN15 MN60  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64583,6 +66277,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2599  t=63.992s  TN4 FN15 MN60  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64674,6 +66369,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2602  t=64.035s  TN3 FN16 MN60  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64694,6 +66390,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2603  t=64.049s  TN4 FN16 MN60  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64749,6 +66446,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2605  t=64.077s  TN2 FN17 MN60  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64769,6 +66467,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2606  t=64.092s  TN3 FN17 MN60  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64789,6 +66488,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2607  t=64.106s  TN4 FN17 MN60  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64842,6 +66542,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2609  t=64.134s  TN2 FN18 MN60  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -64862,6 +66563,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2610  t=64.148s  TN3 FN18 MN60 BSCH  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -64882,6 +66584,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2611  t=64.162s  TN4 FN18 MN60  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -64937,6 +66640,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2613  t=64.191s  TN2 FN01 MN01  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64957,6 +66661,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2614  t=64.205s  TN3 FN01 MN01  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -64977,6 +66682,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2615  t=64.219s  TN4 FN01 MN01  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65032,6 +66738,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2617  t=64.247s  TN2 FN02 MN01  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65052,6 +66759,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2618  t=64.262s  TN3 FN02 MN01  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65072,6 +66780,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2619  t=64.276s  TN4 FN02 MN01  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65127,6 +66836,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2621  t=64.304s  TN2 FN03 MN01  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65147,6 +66857,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2622  t=64.318s  TN3 FN03 MN01  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65167,6 +66878,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2623  t=64.332s  TN4 FN03 MN01  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65222,6 +66934,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2625  t=64.361s  TN2 FN04 MN01  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65242,6 +66955,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2626  t=64.375s  TN3 FN04 MN01  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65262,6 +66976,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2627  t=64.389s  TN4 FN04 MN01  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65317,6 +67032,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2629  t=64.417s  TN2 FN05 MN01  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65337,6 +67053,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2630  t=64.432s  TN3 FN05 MN01  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65357,6 +67074,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2631  t=64.446s  TN4 FN05 MN01  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65412,6 +67130,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2633  t=64.474s  TN2 FN06 MN01  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65432,6 +67151,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2634  t=64.488s  TN3 FN06 MN01  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65452,6 +67172,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2635  t=64.502s  TN4 FN06 MN01  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65507,6 +67228,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2637  t=64.531s  TN2 FN07 MN01  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65527,6 +67249,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2638  t=64.545s  TN3 FN07 MN01  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65547,6 +67270,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2639  t=64.559s  TN4 FN07 MN01  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65602,6 +67326,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2641  t=64.587s  TN2 FN08 MN01  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65622,6 +67347,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2642  t=64.602s  TN3 FN08 MN01  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65642,6 +67368,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2643  t=64.616s  TN4 FN08 MN01  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65697,6 +67424,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2645  t=64.644s  TN2 FN09 MN01  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65717,6 +67445,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2646  t=64.658s  TN3 FN09 MN01  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65737,6 +67466,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2647  t=64.672s  TN4 FN09 MN01  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65792,6 +67522,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2649  t=64.701s  TN2 FN10 MN01  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65812,6 +67543,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2650  t=64.715s  TN3 FN10 MN01  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65832,6 +67564,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2651  t=64.729s  TN4 FN10 MN01  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65887,6 +67620,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2653  t=64.757s  TN2 FN11 MN01  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65907,6 +67641,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2654  t=64.772s  TN3 FN11 MN01  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65927,6 +67662,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2655  t=64.786s  TN4 FN11 MN01  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -65982,6 +67718,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2657  t=64.814s  TN2 FN12 MN01  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66002,6 +67739,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2658  t=64.828s  TN3 FN12 MN01  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66022,6 +67760,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2659  t=64.842s  TN4 FN12 MN01  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66077,6 +67816,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2661  t=64.871s  TN2 FN13 MN01  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66097,6 +67837,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2662  t=64.885s  TN3 FN13 MN01  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66117,6 +67858,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2663  t=64.899s  TN4 FN13 MN01  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66172,6 +67914,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2665  t=64.927s  TN2 FN14 MN01  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66192,6 +67935,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2666  t=64.942s  TN3 FN14 MN01  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66212,6 +67956,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2667  t=64.956s  TN4 FN14 MN01  SB  corr=0.988
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66267,6 +68012,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2669  t=64.984s  TN2 FN15 MN01  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66287,6 +68033,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2670  t=64.998s  TN3 FN15 MN01  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66307,6 +68054,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2671  t=65.012s  TN4 FN15 MN01  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66362,6 +68110,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2673  t=65.041s  TN2 FN16 MN01  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66382,6 +68131,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2674  t=65.055s  TN3 FN16 MN01  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66402,6 +68152,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2675  t=65.069s  TN4 FN16 MN01  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66457,6 +68208,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2677  t=65.097s  TN2 FN17 MN01  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66477,6 +68229,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2678  t=65.112s  TN3 FN17 MN01  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66497,6 +68250,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2679  t=65.126s  TN4 FN17 MN01  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66550,6 +68304,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2681  t=65.154s  TN2 FN18 MN01 BSCH  SB  corr=0.990
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -66570,6 +68325,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2682  t=65.168s  TN3 FN18 MN01  SB  corr=0.992
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -66590,6 +68346,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2683  t=65.182s  TN4 FN18 MN01 BNCH  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -66645,6 +68402,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2685  t=65.211s  TN2 FN01 MN02  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66665,6 +68423,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2686  t=65.225s  TN3 FN01 MN02  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66685,6 +68444,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2687  t=65.239s  TN4 FN01 MN02  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66740,6 +68500,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2689  t=65.267s  TN2 FN02 MN02  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66760,6 +68521,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2690  t=65.282s  TN3 FN02 MN02  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66780,6 +68542,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2691  t=65.296s  TN4 FN02 MN02  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66835,6 +68598,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2693  t=65.324s  TN2 FN03 MN02  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66855,6 +68619,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2694  t=65.338s  TN3 FN03 MN02  SB  corr=0.984
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66875,6 +68640,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2695  t=65.352s  TN4 FN03 MN02  SB  corr=0.986
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66930,6 +68696,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2697  t=65.381s  TN2 FN04 MN02  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66950,6 +68717,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2698  t=65.395s  TN3 FN04 MN02  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -66970,6 +68738,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2699  t=65.409s  TN4 FN04 MN02  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67025,6 +68794,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2701  t=65.437s  TN2 FN05 MN02  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67045,6 +68815,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2702  t=65.452s  TN3 FN05 MN02  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67065,6 +68836,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2703  t=65.466s  TN4 FN05 MN02  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67120,6 +68892,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2705  t=65.494s  TN2 FN06 MN02  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67140,6 +68913,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2706  t=65.508s  TN3 FN06 MN02  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67160,6 +68934,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2707  t=65.522s  TN4 FN06 MN02  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67215,6 +68990,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2709  t=65.551s  TN2 FN07 MN02  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67235,6 +69011,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2710  t=65.565s  TN3 FN07 MN02  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67255,6 +69032,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2711  t=65.579s  TN4 FN07 MN02  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67310,6 +69088,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2713  t=65.607s  TN2 FN08 MN02  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67330,6 +69109,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2714  t=65.622s  TN3 FN08 MN02  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67350,6 +69130,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2715  t=65.636s  TN4 FN08 MN02  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67405,6 +69186,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2717  t=65.664s  TN2 FN09 MN02  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67425,6 +69207,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2718  t=65.678s  TN3 FN09 MN02  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67445,6 +69228,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2719  t=65.692s  TN4 FN09 MN02  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67500,6 +69284,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2721  t=65.721s  TN2 FN10 MN02  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67520,6 +69305,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2722  t=65.735s  TN3 FN10 MN02  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67540,6 +69326,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2723  t=65.749s  TN4 FN10 MN02  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67595,6 +69382,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2725  t=65.777s  TN2 FN11 MN02  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67615,6 +69403,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2726  t=65.792s  TN3 FN11 MN02  SB  corr=0.987
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67635,6 +69424,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2727  t=65.806s  TN4 FN11 MN02  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67690,6 +69480,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2729  t=65.834s  TN2 FN12 MN02  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67710,6 +69501,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2730  t=65.848s  TN3 FN12 MN02  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67730,6 +69522,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2731  t=65.862s  TN4 FN12 MN02  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67785,6 +69578,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2733  t=65.891s  TN2 FN13 MN02  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67805,6 +69599,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2734  t=65.905s  TN3 FN13 MN02  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67825,6 +69620,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2735  t=65.919s  TN4 FN13 MN02  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67880,6 +69676,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2737  t=65.947s  TN2 FN14 MN02  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67900,6 +69697,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2738  t=65.962s  TN3 FN14 MN02  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67920,6 +69718,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2739  t=65.976s  TN4 FN14 MN02  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67975,6 +69774,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2741  t=66.004s  TN2 FN15 MN02  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -67995,6 +69795,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2742  t=66.018s  TN3 FN15 MN02  SB  corr=0.987
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68015,6 +69816,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2743  t=66.032s  TN4 FN15 MN02  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68070,6 +69872,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2745  t=66.061s  TN2 FN16 MN02  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68090,6 +69893,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2746  t=66.075s  TN3 FN16 MN02  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68110,6 +69914,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2747  t=66.089s  TN4 FN16 MN02  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68165,6 +69970,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2749  t=66.117s  TN2 FN17 MN02  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68185,6 +69991,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2750  t=66.132s  TN3 FN17 MN02  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68205,6 +70012,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2751  t=66.146s  TN4 FN17 MN02  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68225,6 +70033,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2752  t=66.160s  TN1 FN18 MN02 BSCH  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=9 f1=1 f2=9 (dist=0)
 - **AACH bb (30 bit onair):** `100000000000011101000100000001`
 - **AACH bb (30 bit descrambled):** `000000010010011101101010010101`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001001001` (hex `0x0049`)
@@ -68245,6 +70054,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2753  t=66.174s  TN2 FN18 MN02  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -68265,6 +70075,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2754  t=66.188s  TN3 FN18 MN02 BNCH  SB  corr=0.994
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -68285,6 +70096,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2755  t=66.202s  TN4 FN18 MN02  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -68340,6 +70152,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2757  t=66.231s  TN2 FN01 MN03  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68360,6 +70173,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2758  t=66.245s  TN3 FN01 MN03  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68380,6 +70194,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2759  t=66.259s  TN4 FN01 MN03  SB  corr=0.988
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68435,6 +70250,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2761  t=66.287s  TN2 FN02 MN03  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68455,6 +70271,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2762  t=66.302s  TN3 FN02 MN03  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68475,6 +70292,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2763  t=66.316s  TN4 FN02 MN03  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68530,6 +70348,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2765  t=66.344s  TN2 FN03 MN03  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68550,6 +70369,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2766  t=66.358s  TN3 FN03 MN03  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68570,6 +70390,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2767  t=66.372s  TN4 FN03 MN03  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68625,6 +70446,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2769  t=66.401s  TN2 FN04 MN03  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68645,6 +70467,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2770  t=66.415s  TN3 FN04 MN03  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68665,6 +70488,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2771  t=66.429s  TN4 FN04 MN03  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68720,6 +70544,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2773  t=66.457s  TN2 FN05 MN03  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68740,6 +70565,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2774  t=66.472s  TN3 FN05 MN03  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68760,6 +70586,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2775  t=66.486s  TN4 FN05 MN03  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68815,6 +70642,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2777  t=66.514s  TN2 FN06 MN03  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68835,6 +70663,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2778  t=66.528s  TN3 FN06 MN03  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68855,6 +70684,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2779  t=66.542s  TN4 FN06 MN03  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68910,6 +70740,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2781  t=66.571s  TN2 FN07 MN03  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68930,6 +70761,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2782  t=66.585s  TN3 FN07 MN03  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -68950,6 +70782,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2783  t=66.599s  TN4 FN07 MN03  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69005,6 +70838,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2785  t=66.627s  TN2 FN08 MN03  SB  corr=0.987
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69025,6 +70859,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2786  t=66.642s  TN3 FN08 MN03  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69045,6 +70880,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2787  t=66.656s  TN4 FN08 MN03  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69100,6 +70936,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2789  t=66.684s  TN2 FN09 MN03  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69120,6 +70957,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2790  t=66.698s  TN3 FN09 MN03  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69140,6 +70978,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2791  t=66.712s  TN4 FN09 MN03  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69195,6 +71034,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2793  t=66.741s  TN2 FN10 MN03  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69215,6 +71055,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2794  t=66.755s  TN3 FN10 MN03  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69235,6 +71076,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2795  t=66.769s  TN4 FN10 MN03  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69290,6 +71132,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2797  t=66.797s  TN2 FN11 MN03  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69310,6 +71153,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2798  t=66.812s  TN3 FN11 MN03  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69330,6 +71174,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2799  t=66.826s  TN4 FN11 MN03  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69385,6 +71230,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2801  t=66.854s  TN2 FN12 MN03  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69405,6 +71251,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2802  t=66.868s  TN3 FN12 MN03  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69425,6 +71272,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2803  t=66.882s  TN4 FN12 MN03  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69480,6 +71328,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2805  t=66.911s  TN2 FN13 MN03  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69500,6 +71349,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2806  t=66.925s  TN3 FN13 MN03  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69520,6 +71370,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2807  t=66.939s  TN4 FN13 MN03  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69575,6 +71426,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2809  t=66.967s  TN2 FN14 MN03  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69595,6 +71447,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2810  t=66.982s  TN3 FN14 MN03  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69615,6 +71468,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2811  t=66.996s  TN4 FN14 MN03  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69670,6 +71524,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2813  t=67.024s  TN2 FN15 MN03  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69690,6 +71545,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2814  t=67.038s  TN3 FN15 MN03  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69710,6 +71566,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2815  t=67.052s  TN4 FN15 MN03  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69765,6 +71622,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2817  t=67.081s  TN2 FN16 MN03  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69785,6 +71643,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2818  t=67.095s  TN3 FN16 MN03  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69805,6 +71664,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2819  t=67.109s  TN4 FN16 MN03  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69860,6 +71720,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2821  t=67.137s  TN2 FN17 MN03  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69880,6 +71741,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2822  t=67.152s  TN3 FN17 MN03  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69900,6 +71762,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2823  t=67.166s  TN4 FN17 MN03  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -69953,6 +71816,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2825  t=67.194s  TN2 FN18 MN03 BNCH  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -69973,6 +71837,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2826  t=67.208s  TN3 FN18 MN03  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -69993,6 +71858,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2827  t=67.222s  TN4 FN18 MN03 BSCH  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -70048,6 +71914,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2829  t=67.251s  TN2 FN01 MN04  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70068,6 +71935,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2830  t=67.265s  TN3 FN01 MN04  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70088,6 +71956,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2831  t=67.279s  TN4 FN01 MN04  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70143,6 +72012,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2833  t=67.307s  TN2 FN02 MN04  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70163,6 +72033,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2834  t=67.322s  TN3 FN02 MN04  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70183,6 +72054,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2835  t=67.336s  TN4 FN02 MN04  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70238,6 +72110,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2837  t=67.364s  TN2 FN03 MN04  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70258,6 +72131,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2838  t=67.378s  TN3 FN03 MN04  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70278,6 +72152,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2839  t=67.392s  TN4 FN03 MN04  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70333,6 +72208,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2841  t=67.421s  TN2 FN04 MN04  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70353,6 +72229,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2842  t=67.435s  TN3 FN04 MN04  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70373,6 +72250,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2843  t=67.449s  TN4 FN04 MN04  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70428,6 +72306,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2845  t=67.477s  TN2 FN05 MN04  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70448,6 +72327,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2846  t=67.492s  TN3 FN05 MN04  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70468,6 +72348,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2847  t=67.506s  TN4 FN05 MN04  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70523,6 +72404,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2849  t=67.534s  TN2 FN06 MN04  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70543,6 +72425,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2850  t=67.548s  TN3 FN06 MN04  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70563,6 +72446,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2851  t=67.562s  TN4 FN06 MN04  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70618,6 +72502,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2853  t=67.591s  TN2 FN07 MN04  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70638,6 +72523,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2854  t=67.605s  TN3 FN07 MN04  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70658,6 +72544,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2855  t=67.619s  TN4 FN07 MN04  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70713,6 +72600,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2857  t=67.647s  TN2 FN08 MN04  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70733,6 +72621,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2858  t=67.662s  TN3 FN08 MN04  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70753,6 +72642,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2859  t=67.676s  TN4 FN08 MN04  SB  corr=0.988
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70795,6 +72685,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2861  t=67.704s  TN2 FN09 MN04  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70815,6 +72706,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2862  t=67.718s  TN3 FN09 MN04  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70835,6 +72727,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2863  t=67.732s  TN4 FN09 MN04  SB  corr=0.987
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70890,6 +72783,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2865  t=67.761s  TN2 FN10 MN04  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70910,6 +72804,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2866  t=67.775s  TN3 FN10 MN04  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70930,6 +72825,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2867  t=67.789s  TN4 FN10 MN04  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -70985,6 +72881,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2869  t=67.817s  TN2 FN11 MN04  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71005,6 +72902,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2870  t=67.832s  TN3 FN11 MN04  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71025,6 +72923,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2871  t=67.846s  TN4 FN11 MN04  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71080,6 +72979,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2873  t=67.874s  TN2 FN12 MN04  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71100,6 +73000,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2874  t=67.888s  TN3 FN12 MN04  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71120,6 +73021,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2875  t=67.902s  TN4 FN12 MN04  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71175,6 +73077,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2877  t=67.931s  TN2 FN13 MN04  SB  corr=0.987
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71195,6 +73098,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2878  t=67.945s  TN3 FN13 MN04  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71215,6 +73119,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2879  t=67.959s  TN4 FN13 MN04  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71270,6 +73175,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2881  t=67.987s  TN2 FN14 MN04  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71290,6 +73196,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2882  t=68.002s  TN3 FN14 MN04  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71310,6 +73217,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2883  t=68.016s  TN4 FN14 MN04  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71365,6 +73273,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2885  t=68.044s  TN2 FN15 MN04  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71385,6 +73294,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2886  t=68.058s  TN3 FN15 MN04  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71405,6 +73315,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2887  t=68.072s  TN4 FN15 MN04  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71460,6 +73371,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2889  t=68.101s  TN2 FN16 MN04  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71480,6 +73392,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2890  t=68.115s  TN3 FN16 MN04  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71500,6 +73413,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2891  t=68.129s  TN4 FN16 MN04  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71555,6 +73469,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2893  t=68.157s  TN2 FN17 MN04  SB  corr=0.987
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71575,6 +73490,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2894  t=68.172s  TN3 FN17 MN04  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71595,6 +73511,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2895  t=68.186s  TN4 FN17 MN04  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71648,6 +73565,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2897  t=68.214s  TN2 FN18 MN04  SB  corr=0.990
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -71668,6 +73586,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2898  t=68.228s  TN3 FN18 MN04 BSCH  SB  corr=0.991
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -71688,6 +73607,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2899  t=68.242s  TN4 FN18 MN04  SB  corr=0.989
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -71743,6 +73663,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2901  t=68.271s  TN2 FN01 MN05  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71763,6 +73684,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2902  t=68.285s  TN3 FN01 MN05  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71783,6 +73705,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2903  t=68.299s  TN4 FN01 MN05  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71838,6 +73761,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2905  t=68.327s  TN2 FN02 MN05  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71858,6 +73782,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2906  t=68.342s  TN3 FN02 MN05  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71878,6 +73803,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2907  t=68.356s  TN4 FN02 MN05  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71933,6 +73859,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2909  t=68.384s  TN2 FN03 MN05  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71953,6 +73880,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2910  t=68.398s  TN3 FN03 MN05  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -71973,6 +73901,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2911  t=68.412s  TN4 FN03 MN05  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72028,6 +73957,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2913  t=68.441s  TN2 FN04 MN05  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72048,6 +73978,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2914  t=68.455s  TN3 FN04 MN05  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72068,6 +73999,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2915  t=68.469s  TN4 FN04 MN05  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72123,6 +74055,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2917  t=68.497s  TN2 FN05 MN05  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72143,6 +74076,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2918  t=68.512s  TN3 FN05 MN05  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72163,6 +74097,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2919  t=68.526s  TN4 FN05 MN05  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72218,6 +74153,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2921  t=68.554s  TN2 FN06 MN05  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72238,6 +74174,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2922  t=68.568s  TN3 FN06 MN05  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72258,6 +74195,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2923  t=68.582s  TN4 FN06 MN05  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72313,6 +74251,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2925  t=68.611s  TN2 FN07 MN05  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72333,6 +74272,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2926  t=68.625s  TN3 FN07 MN05  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72353,6 +74293,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2927  t=68.639s  TN4 FN07 MN05  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72408,6 +74349,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2929  t=68.667s  TN2 FN08 MN05  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72428,6 +74370,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2930  t=68.682s  TN3 FN08 MN05  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72448,6 +74391,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2931  t=68.696s  TN4 FN08 MN05  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72503,6 +74447,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2933  t=68.724s  TN2 FN09 MN05  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72523,6 +74468,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2934  t=68.738s  TN3 FN09 MN05  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72543,6 +74489,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2935  t=68.752s  TN4 FN09 MN05  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72598,6 +74545,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2937  t=68.781s  TN2 FN10 MN05  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72618,6 +74566,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2938  t=68.795s  TN3 FN10 MN05  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72638,6 +74587,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2939  t=68.809s  TN4 FN10 MN05  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72693,6 +74643,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2941  t=68.837s  TN2 FN11 MN05  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72713,6 +74664,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2942  t=68.852s  TN3 FN11 MN05  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72733,6 +74685,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2943  t=68.866s  TN4 FN11 MN05  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72788,6 +74741,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2945  t=68.894s  TN2 FN12 MN05  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72808,6 +74762,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2946  t=68.908s  TN3 FN12 MN05  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72828,6 +74783,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2947  t=68.922s  TN4 FN12 MN05  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72883,6 +74839,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2949  t=68.951s  TN2 FN13 MN05  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72903,6 +74860,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2950  t=68.965s  TN3 FN13 MN05  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72923,6 +74881,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2951  t=68.979s  TN4 FN13 MN05  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72978,6 +74937,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2953  t=69.007s  TN2 FN14 MN05  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -72998,6 +74958,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2954  t=69.022s  TN3 FN14 MN05  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73018,6 +74979,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2955  t=69.036s  TN4 FN14 MN05  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73073,6 +75035,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2957  t=69.064s  TN2 FN15 MN05  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73093,6 +75056,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2958  t=69.078s  TN3 FN15 MN05  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73113,6 +75077,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2959  t=69.092s  TN4 FN15 MN05  SB  corr=0.992
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73168,6 +75133,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2961  t=69.121s  TN2 FN16 MN05  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73188,6 +75154,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2962  t=69.135s  TN3 FN16 MN05  SB  corr=0.996
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73208,6 +75175,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2963  t=69.149s  TN4 FN16 MN05  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73263,6 +75231,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2965  t=69.177s  TN2 FN17 MN05  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73283,6 +75252,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2966  t=69.192s  TN3 FN17 MN05  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73303,6 +75273,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2967  t=69.206s  TN4 FN17 MN05  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73356,6 +75327,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2969  t=69.234s  TN2 FN18 MN05 BSCH  SB  corr=0.990
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -73376,6 +75348,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2970  t=69.248s  TN3 FN18 MN05  SB  corr=0.993
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -73396,6 +75369,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2971  t=69.262s  TN4 FN18 MN05 BNCH  SB  corr=0.995
 
+- **AACH:** `DL/UL-Assign` dist=0 · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
 - **AACH bb (30 bit onair):** `100000000010001111010001001011`
 - **AACH bb (30 bit descrambled):** `000000010000001111111111011111`
 - **AACH info (14 bit, post-RM(30,14)):** `00000001000000` (hex `0x0040`)
@@ -73451,6 +75425,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2973  t=69.291s  TN2 FN01 MN06  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73471,6 +75446,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2974  t=69.305s  TN3 FN01 MN06  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73491,6 +75467,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2975  t=69.319s  TN4 FN01 MN06  SB  corr=0.994
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73546,6 +75523,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2977  t=69.347s  TN2 FN02 MN06  SB  corr=0.995
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73566,6 +75544,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2978  t=69.362s  TN3 FN02 MN06  SB  corr=0.993
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73586,6 +75565,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2979  t=69.376s  TN4 FN02 MN06  SB  corr=0.989
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73641,6 +75621,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2981  t=69.404s  TN2 FN03 MN06  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73661,6 +75642,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2982  t=69.418s  TN3 FN03 MN06  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73681,6 +75663,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2983  t=69.432s  TN4 FN03 MN06  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73736,6 +75719,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2985  t=69.461s  TN2 FN04 MN06  SB  corr=0.991
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)
@@ -73756,6 +75740,7 @@ type-5 (onair, 432 bit) ─XOR scramb→ type-4 (descrambled, 432 bit)
 
 ## # 2986  t=69.475s  TN3 FN04 MN06  SB  corr=0.990
 
+- **AACH:** `CapAlloc` raw=`0x3000` dist=0 · f1=0 f2=0 raw=0x3000 (dist=0)
 - **AACH bb (30 bit onair):** `010000010010001011110100010100`
 - **AACH bb (30 bit descrambled):** `110000000000001011011010000000`
 - **AACH info (14 bit, post-RM(30,14)):** `11000000000000` (hex `0x3000`)

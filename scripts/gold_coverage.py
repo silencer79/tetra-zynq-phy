@@ -29,6 +29,28 @@ beide Faelle, indem es fuer jede Zelle einen *Rundlauf-Nachweis* fuehrt:
 
 Ohne E1 und ohne E2 ist die Zelle "unbekannt".
 
+Zwei weitere Zustaende trennen Faelle, die sonst faelschlich als Nullbefund
+durchgehen wuerden:
+
+  "-"  nicht zutreffend. Die Schicht existiert fuer diesen Bursttyp/Block laut
+       NORM nicht. Das ist eine Aussage ueber die Norm, nicht ueber das
+       Werkzeug, und braucht deshalb einen Normbeleg mit Fundstelle UND
+       Wortlaut (siehe NotApplicable/NormCite). Fehlt der Beleg - oder steht
+       der Wortlaut bei gesetztem --norm-text nicht wortgleich im Normtext -
+       faellt die Zelle auf "?" zurueck und der Bericht nennt zusaetzlich, wie
+       die Zelle ohne die Behauptung dastuende. Andernfalls waere "-" nur eine
+       bequemere Schreibweise fuer "unbekannt".
+
+  "0?" nicht nachgemessen. Der Rundlauf ist nachgewiesen, aber die Stufe steht
+       in DIESER Aufzeichnung nicht - erkennbar daran, dass eine andere Schicht
+       desselben Blocks Treffer hat, obwohl die Kanalkodierkette determini-
+       stisch ist (jeder Burst, der Stufe k erreicht, hat Stufe k-1 durch-
+       laufen). Solche Zellen als "0*" auszuweisen waere dieselbe Verwechslung
+       wie in V1, nur in die andere Richtung: aus einer nicht mitgeschriebenen
+       Stufe wuerde ein Nullbefund. Sie sind KEINE Werkzeuglueecke und aendern
+       den Rueckgabewert nicht; die Abhilfe ist, die Aufzeichnung neu zu
+       erzeugen.
+
 Nur die Bitebenen und Schichten, die die Ereignisdateien (`*_events.jsonl`)
 tragen, koennen zaehlen — die Ereignisdatei ist laut Spezifikation die primaere
 Schnittstelle, die Textdatei ist Ansichtssache.
@@ -54,6 +76,9 @@ EXIT_TOOL_ERROR = 2
 # Reihenfolge nach 14_VERIFICATION.md §3.6.2 Punkt 2.
 # --------------------------------------------------------------------------
 LAYERS = ['onair', 'descr', 'deint', 'info', 'mac', 'llc', 'mle', 'app']
+# Die deterministische Kanalkodierkette (jede Stufe folgt zwingend aus der
+# vorigen). Oberhalb davon ist eine 0 eine legitime Aussage ueber die Luft.
+CHAIN = ('onair', 'descr', 'deint', 'info')
 LAYER_LABELS = {
     'onair': 'Sendebits',
     'descr': 'entschl.',
@@ -69,13 +94,95 @@ STATE_HIT = 'belegt'
 STATE_NULL = 'null'
 STATE_UNKNOWN = 'unbekannt'
 STATE_NA = 'nicht_zutreffend'
+STATE_STALE = 'nicht_nachgemessen'
 
 STATE_SYMBOL = {
     STATE_HIT: '',        # Zahl steht fuer sich
     STATE_NULL: '0*',
     STATE_UNKNOWN: '?',
     STATE_NA: '-',
+    STATE_STALE: '0?',
 }
+
+# --------------------------------------------------------------------------
+# Normbelege fuer "nicht zutreffend"
+# --------------------------------------------------------------------------
+# Eine Zelle darf nur dann als "-" gefuehrt werden, wenn die Schicht fuer
+# diesen Bursttyp/Block laut Norm gar nicht existiert. Das ist eine Aussage
+# ueber die Norm, nicht ueber das Werkzeug - also braucht sie einen Normbeleg
+# mit Fundstelle UND Wortlaut. Fehlt der Beleg, bleibt die Zelle "?"; sonst
+# waere "-" nur eine bequemere Schreibweise fuer "unbekannt" und wuerde genau
+# die falsche Sicherheit erzeugen, gegen die dieses Werkzeug gebaut ist.
+#
+# Der Wortlaut wird, wenn --norm-text auf den Normtext zeigt, wortgleich
+# gegengeprueft. Schlaegt die Gegenprobe fehl, faellt die Zelle auf "?" zurueck.
+# --------------------------------------------------------------------------
+
+NORM_DOC = 'ETSI EN 300 392-2 V3.8.1'
+
+
+class NormCite(object):
+    """Eine Fundstelle: Dokument, Klausel, Wortlaut."""
+
+    def __init__(self, clause, quote, doc=NORM_DOC):
+        self.doc = doc
+        self.clause = clause
+        self.quote = quote
+
+    def problems(self):
+        out = []
+        if not (self.doc or '').strip():
+            out.append('Dokument fehlt')
+        if not (self.clause or '').strip():
+            out.append('Fundstelle (Klausel) fehlt')
+        if len((self.quote or '').strip()) < 20:
+            out.append('Wortlaut fehlt oder ist zu kurz, um pruefbar zu sein')
+        return out
+
+    def text(self):
+        return '%s %s: "%s"' % (self.doc, self.clause, self.quote)
+
+
+class NotApplicable(object):
+    """Begruendung fuer eine strukturell nicht anwendbare Zelle."""
+
+    def __init__(self, reason, cites):
+        self.reason = reason
+        self.cites = list(cites)
+
+    def problems(self, norm_text=None):
+        """Leere Liste = Beleg tragfaehig. norm_text: normalisierter Normtext."""
+        out = []
+        if not (self.reason or '').strip():
+            out.append('keine ausgeschriebene Begruendung')
+        if not self.cites:
+            out.append('kein Normbeleg angegeben')
+        for cite in self.cites:
+            for p in cite.problems():
+                out.append('%s: %s' % (cite.clause or '(ohne Klausel)', p))
+        if norm_text:
+            for cite in self.cites:
+                needle = _norm_ws(cite.quote)
+                if needle and needle not in norm_text:
+                    out.append('Wortlaut zu %s steht nicht wortgleich im '
+                               'Normtext' % (cite.clause or '(ohne Klausel)'))
+        return out
+
+    def text(self):
+        return '%s [%s]' % (self.reason,
+                            ' | '.join(c.text() for c in self.cites))
+
+
+def _norm_ws(text):
+    """Whitespace normalisieren, damit Zeilenumbrueche im Normtext nicht stoeren."""
+    return re.sub(r'\s+', ' ', text or '').strip()
+
+
+def load_norm_text(path):
+    if not path:
+        return None
+    with open(path, encoding='utf-8', errors='replace') as fh:
+        return _norm_ws(fh.read())
 
 # --------------------------------------------------------------------------
 # Zeilen der Matrix: Bursttyp x Block.
@@ -92,8 +199,16 @@ STATE_SYMBOL = {
 #   mac_tag     Ersatzwert fuer f-String-Platzhalter im MAC-Praefix
 #   bits        Schicht -> Feldname in der Ereignisdatei (None = kein Feld)
 #   dumpkey     Schicht -> Schluessel im ROUNDTRIP_DUMP (falls != Feldname)
-#   top         oberste erwartete Schicht (14_VERIFICATION §3.6.4)
-#   na_reason   ausgeschriebene Begruendung fuer die Schichten oberhalb `top`
+#   na          Schicht -> NotApplicable(...) — strukturell nicht anwendbar,
+#               EINZELN je Schicht und nur mit Normbeleg. Frueher stand hier
+#               ein pauschales "alles oberhalb von `top`"; genau das hatte vier
+#               Zellen als "-" gefuehrt, fuer die die Norm das Gegenteil sagt
+#               (SYNC- und ACCESS-ASSIGN-PDU SIND MAC-PDUs, D-MLE-SYNC IST eine
+#               MLE-PDU). Pauschal geht hier deshalb nichts mehr.
+#   layer_field Schicht -> Messung an einem eigenen Feld der Ereignisdatei
+#               (fuer Bloecke, deren PDU nicht in der mac[]/llc[]-Liste steht)
+#   mac_is_info True, wenn die MAC-PDU dieses Blocks das Infowort SELBST ist
+#               (AACH); dann gehoert die MAC-Stufe zur deterministischen Kette
 # --------------------------------------------------------------------------
 
 DL_REGIONS = [
@@ -106,23 +221,116 @@ UL_REGIONS = [
     ('UL_ALL', r"^\s*def\s+\w*decode\w*\s*\(|^\s*#\s*ROUNDTRIP_DUMP"),
 ]
 
-AACH_DEINT_NA = ("Zugriffszuweisungsblock ist blockcodiert (Reed-Muller 30/14) "
-                 "und wird nicht interleavt - der Decoder fuehrt "
-                 "entschleierte Bits direkt in rm3014_decode(), es gibt keine "
-                 "Deinterleave-Stufe [CODE scripts/decode_dl.py]")
-AACH_UPPER_NA = ("Zugriffszuweisungsblock traegt ein 14-bit-Infowort, keine "
-                 "MAC-PDU-Kette; erwarteter Endpunkt laut 14_VERIFICATION "
-                 "§3.6.4 = 'Infowort geparst'")
-BSCH_UPPER_NA = ("Broadcast-Synchronisationsblock traegt die Sync-PDU, keine "
-                 "MAC-PDU-Kette; erwarteter Endpunkt laut 14_VERIFICATION "
-                 "§3.6.4 = 'Systeminformation geparst'")
+AACH_DEINT_NA = NotApplicable(
+    "Der Zugriffszuweisungsblock hat keine Deinterleave-Stufe. Ein "
+    "Blockinterleaver ordnet type-3-Bits auf type-4-Bits um; fuer die AACH "
+    "sind die type-4-Bits aber unmittelbar die type-2-Bits des "
+    "RM(30,14)-Blockcodes. Eine type-3-Ebene existiert fuer diesen Block "
+    "damit nicht - es gibt nichts zu deinterleaven.",
+    [NormCite('§8.3.1.1 (AACH)',
+              'The type-4 bits shall be the same as the type-2 bits'),
+     NormCite('§8.2.4.1',
+              'A (K,a) block interleaver shall re-order K3 type-3 bits')])
+
+AACH_UPPER_NA = NotApplicable(
+    "Ueber der MAC-Schicht liegt fuer diesen Block keine weitere Schicht: die "
+    "ACCESS-ASSIGN-PDU wird von der MAC selbst erzeugt und traegt keinen "
+    "TM-SDU. Damit existiert fuer die AACH weder eine LLC- noch eine MLE- "
+    "noch eine MM-/CMCE-/SDS-PDU.",
+    [NormCite('§21.4.7.2 (ACCESS-ASSIGN)',
+              'The ACCESS-ASSIGN PDU is generated by the MAC and so shall not '
+              'contain any TM-SDU from the layer above.'),
+     NormCite('§9.2.3.5 (AACH)',
+              'The AACH shall be internal to the MAC.')])
+
+BSCH_LLC_NA = NotApplicable(
+    "Der Broadcast-Synchronisationsblock traegt Rundspruch unter dem "
+    "TLB-/TMB-SAP. Dort gibt es keine LLC-Instanz - die MLE-SDU geht "
+    "unmittelbar zum TMB-SAP; eine LLC-PDU existiert fuer den Rundspruch "
+    "nicht. Zwischen MAC-SYNC-PDU und D-MLE-SYNC-PDU liegt also keine "
+    "LLC-Schicht, die man messen koennte.",
+    [NormCite('§19.2.3.1',
+              'Under the TLB-SAP, there is no LLC functionality and the MLE '
+              'SDU is passed directly to/from the TMB-SAP.'),
+     NormCite('§19.2.3.1',
+              'there exists no LLC PDU for the broadcast under the TLB-SAP'),
+     NormCite('§20.3.2',
+              'In the protocol model there are no LLC functions under the '
+              'TLB-SAP, and the LLC shall convey information directly to the '
+              'MAC using the TMB-SAP.'),
+     NormCite('§23.4.1.3',
+              'The LLC shall be transparent for system broadcasts.')])
+
+BSCH_APP_NA = NotApplicable(
+    "Der TM-SDU der SYNC-PDU ist die D-MLE-SYNC-PDU. Deren Elementliste ist "
+    "abgeschlossen (MCC 10 + MNC 14 + Neighbour cell broadcast 2 + Cell load "
+    "CA 2 + Late entry supported 1 = 29 Bit) und enthaelt keinen weiteren "
+    "TM-SDU. Dieser Block kann oberhalb der MLE-Schicht deshalb keine MM-, "
+    "CMCE- oder SDS-PDU tragen.",
+    [NormCite('§18.4.2.0',
+              'D-MLE-SYNC shall use the SYNC PDU'),
+     NormCite('§18.4.2.1 (Tabelle 18.17)',
+              'This PDU shall not contain an "O" bit and shall be 29 bits in '
+              'length.'),
+     NormCite('§23.4.1.3',
+              'Broadcast messages under the TMB-SAP comprise only the SYNC '
+              'PDU (contained in the BSCH)')])
+
+# --------------------------------------------------------------------------
+# Schichten, die an einem eigenen Feld gemessen werden.
+#
+# Die MAC-PDU des Broadcast-Synchronisationsblocks und des
+# Zugriffszuweisungsblocks steht NICHT in der mac[]-Liste der Ereignisdatei
+# (die fuehrt nur die PDUs unter dem TMA-SAP). Sie sind aber laut Norm MAC-PDUs
+# und werden vom Decoder ausgewertet - "nicht zutreffend" waere hier also
+# schlicht falsch. Gemessen wird deshalb am jeweils zustaendigen Feld.
+# --------------------------------------------------------------------------
+
+BSCH_MAC_FIELD = dict(
+    field='cell',
+    src_call='print', src_re=r'^SB1 CRC OK \[',
+    sample='SB1 CRC OK [TMO] MCC=262 MNC=1010 CC=1 FN(air)=1 MF(air)=1 '
+           'TN(air)=0 → TN1 FN1 MN1',
+    agg=[('SB1CRC', 'match')],
+    cite=NormCite('§21.4.4.2 (Tabelle 21.76)',
+                  'The SYNC PDU shall be transmitted using the BSCH'),
+    note='Die MAC-PDU dieses Blocks IST die SYNC-PDU; ihr Element "Colour '
+         'code" (Tabelle 21.76) landet als cell.cc in der Ereignisdatei')
+
+BSCH_MLE_FIELD = dict(
+    field='cell',
+    src_call='print', src_re=r'^SB1 CRC OK \[',
+    sample='SB1 CRC OK [TMO] MCC=262 MNC=1010 CC=1 FN(air)=1 MF(air)=1 '
+           'TN(air)=0 → TN1 FN1 MN1',
+    agg=[('SB1CRC', 'match')],
+    cite=NormCite('§18.4.2.1 (Tabelle 18.17)',
+                  'The message is contained within a MAC SYNC PDU.'),
+    note='MCC und MNC sind die ersten beiden Elemente der D-MLE-SYNC-PDU '
+         '(Tabelle 18.17) und landen als cell.mcc/cell.mnc in der '
+         'Ereignisdatei')
+
+AACH_MAC_CITE = NormCite(
+    '§21.4.7.2 (NOTE 1)',
+    'The phase modulation Access Assignment Channel AACH contains a single '
+    'PDU: the ACCESS-ASSIGN PDU')
+AACH_MAC_NOTE = ('Die MAC-PDU dieses Blocks IST das 14-bit-Infowort '
+                 '(ACCESS-ASSIGN, Tabellen 21.82/21.83); parse_aach() liefert '
+                 'ihren Kopf, der als Feld "aach_kind" abgelegt wird')
+# Rumpfvarianten, wie _print_aach() sie erzeugt (Prefix + Rumpf).
+AACH_BODIES = [
+    '  [DL/UL-Assign] DL=Common UL=Random CC=1 f1=9 f2=1 (dist=0)',
+    '  [Reserved] f1=32 f2=9 raw=0x2049 (dist=0)',
+]
 
 ROWS = [
     dict(id='SB/BSCH', burst='Synchronisations-Burst', block='Broadcast-Sync-Block',
          file='dl', btype='SB', region='SB', mac_arg=None, mac_tag=None,
          bits={'onair': 'sb1_t5_onair_120b', 'descr': 'sb1_t4_descr_120b',
                'deint': 'sb1_t3_deint_120b', 'info': 'sb1_info_60b'},
-         top='info', na_reason=BSCH_UPPER_NA,
+         # MAC = SYNC-PDU (§21.4.4.2), MLE = D-MLE-SYNC (§18.4.2.1) —
+         # beide existieren und werden geparst, beide an "cell" gemessen.
+         layer_field={'mac': BSCH_MAC_FIELD, 'mle': BSCH_MLE_FIELD},
+         na={'llc': BSCH_LLC_NA, 'app': BSCH_APP_NA},
          extra_field='cell',
          extra_note='Systeminformation aus dem Sync-Block geparst (Feld "cell")'),
 
@@ -130,55 +338,71 @@ ROWS = [
          file='dl', btype='SB', region='SB', mac_arg=r'^"\s+BKN2"$', mac_tag=None,
          bits={'onair': 'bkn2_onair_216b', 'descr': 'bkn2_descr_216b',
                'deint': 'bkn2_deint_216b', 'info': 'bkn2_info_124b'},
-         top='app', na_reason=None),
+         na={}),
 
     dict(id='SB/BB', burst='Synchronisations-Burst', block='Zugriffszuweisungsblock (AACH)',
          file='dl', btype='SB', region='SB', mac_arg=None, mac_tag=None,
          bits={'onair': 'bb_raw_30b', 'descr': 'bb_descr_30b',
                'deint': None, 'info': 'aach_info_14b'},
-         deint_na=AACH_DEINT_NA,
-         top='info', na_reason=AACH_UPPER_NA),
+         layer_field={'mac': dict(
+             field='aach_kind', src_call='_print_aach', src_re=r'AACH',
+             bodies=AACH_BODIES,
+             agg=[('AACH_LINE', 'match'), ('DL_INLINE_AACH', 'search')],
+             cite=AACH_MAC_CITE, note=AACH_MAC_NOTE)},
+         mac_is_info=True,
+         na={'deint': AACH_DEINT_NA, 'llc': AACH_UPPER_NA,
+             'mle': AACH_UPPER_NA, 'app': AACH_UPPER_NA}),
 
     dict(id='NDB1/SCH-F', burst='Normal-Burst, Vollschlitz', block='Vollschlitzblock (SCH/F)',
          file='dl', btype='NDB1', region='NDB1', mac_arg=r'^"\s+SCH/F"$', mac_tag=None,
          bits={'onair': 'type5_onair_432b', 'descr': 'descr_432b',
                'deint': 'deint_432b', 'info': 'info_268b'},
-         top='app', na_reason=None),
+         na={}),
 
     dict(id='NDB1/FACCH', burst='Normal-Burst mit Kanalstehlen', block='gestohlene Haelfte (SCH/HD-FACCH)',
          file='dl', btype='NDB1', region='NDB1',
          mac_arg=r'half_tag.*SCH/HD-FACCH', mac_tag='BKN1',
          bits={'onair': 'facch_onair_216b', 'descr': 'facch_descr_216b',
                'deint': 'facch_deint_216b', 'info': 'facch_info_124b'},
-         top='app', na_reason=None),
+         na={}),
 
     dict(id='NDB1/BB', burst='Normal-Burst, Vollschlitz', block='Zugriffszuweisungsblock (AACH)',
          file='dl', btype='NDB1', region='NDB_COMMON', mac_arg=None, mac_tag=None,
          bits={'onair': 'bb_raw_30b', 'descr': 'bb_descr_30b',
                'deint': None, 'info': 'aach_info_14b'},
-         deint_na=AACH_DEINT_NA,
-         top='info', na_reason=AACH_UPPER_NA),
+         layer_field={'mac': dict(
+             field='aach_kind', src_call='_print_aach', src_re=r'AACH',
+             bodies=AACH_BODIES, agg=[('DL_INLINE_AACH', 'search')],
+             cite=AACH_MAC_CITE, note=AACH_MAC_NOTE)},
+         mac_is_info=True,
+         na={'deint': AACH_DEINT_NA, 'llc': AACH_UPPER_NA,
+             'mle': AACH_UPPER_NA, 'app': AACH_UPPER_NA}),
 
     dict(id='NDB2/BKN1', burst='Normal-Burst, Halbschlitz', block='Halbschlitzblock 1 (SCH/HD)',
          file='dl', btype='NDB2', region='NDB2',
          mac_arg=r'^"\s+BKN1 SCH/HD"$', mac_tag='BKN1',
          bits={'onair': 'bkn1_onair_216b', 'descr': 'bkn1_descr_216b',
                'deint': 'bkn1_deint_216b', 'info': 'bkn1_info_124b'},
-         top='app', na_reason=None),
+         na={}),
 
     dict(id='NDB2/BKN2', burst='Normal-Burst, Halbschlitz', block='Halbschlitzblock 2 (SCH/HD)',
          file='dl', btype='NDB2', region='NDB2',
          mac_arg=r'bkn2_tag', mac_tag='BKN2 SCH/HD',
          bits={'onair': 'bkn2_onair_216b', 'descr': 'bkn2_descr_216b',
                'deint': 'bkn2_deint_216b', 'info': 'bkn2_info_124b'},
-         top='app', na_reason=None),
+         na={}),
 
     dict(id='NDB2/BB', burst='Normal-Burst, Halbschlitz', block='Zugriffszuweisungsblock (AACH)',
          file='dl', btype='NDB2', region='NDB_COMMON', mac_arg=None, mac_tag=None,
          bits={'onair': 'bb_raw_30b', 'descr': 'bb_descr_30b',
                'deint': None, 'info': 'aach_info_14b'},
-         deint_na=AACH_DEINT_NA,
-         top='info', na_reason=AACH_UPPER_NA),
+         layer_field={'mac': dict(
+             field='aach_kind', src_call='_print_aach', src_re=r'AACH',
+             bodies=AACH_BODIES, agg=[('DL_INLINE_AACH', 'search')],
+             cite=AACH_MAC_CITE, note=AACH_MAC_NOTE)},
+         mac_is_info=True,
+         na={'deint': AACH_DEINT_NA, 'llc': AACH_UPPER_NA,
+             'mle': AACH_UPPER_NA, 'app': AACH_UPPER_NA}),
 
     dict(id='UL/SCH-HU', burst='Uplink-Burst', block='Halbschlitz-Uplink (SCH/HU)',
          file='ul', btype=None, region='UL_ALL', mac_arg=None, mac_tag=None,
@@ -186,7 +410,7 @@ ROWS = [
                'deint': 'type3_deint_168b', 'info': 'info_92b_dump'},
          dumpkey={'onair': 'type5_onair', 'descr': 'type4_descr',
                   'deint': 'type3_deint', 'info': 'info'},
-         top='app', na_reason=None),
+         na={}),
 ]
 
 
@@ -320,15 +544,29 @@ class AggregatorModel(object):
     def has(self, name):
         return name in self.patterns
 
-    def matches(self, name, line):
+    def matches(self, name, line, mode='match'):
         rx = self.patterns.get(name)
         if rx is None:
             return None          # Muster existiert nicht -> nicht entscheidbar
-        return bool(rx.match(line))
+        # `mode` spiegelt, WIE der Aggregator das Muster benutzt: manche Muster
+        # laufen dort mit .search() gegen den Rest einer Zeile.
+        fn = rx.search if mode == 'search' else rx.match
+        return bool(fn(line))
 
     def stores_field(self, field):
         """Kommt der Feldname im Aggregator ueberhaupt als Ziel vor?"""
         return ("'%s'" % field) in self.text or ('"%s"' % field) in self.text
+
+
+def _literal_to_regex(literal, tag='X'):
+    """Aus einem rekonstruierten f-String-Literal ein Muster bauen.
+
+    Die Platzhalter (`tag`) werden zu ".+?". Damit laesst sich pruefen, ob eine
+    Beispielzeile wirklich eine Ausgabe DIESES Formatstrings sein kann - eine
+    frei erfundene Beispielzeile faellt durch.
+    """
+    parts = literal.split(tag)
+    return re.compile('^' + '.+?'.join(re.escape(p) for p in parts))
 
 
 def _concat_str_constants(node):
@@ -408,6 +646,73 @@ class RoundtripProbe(object):
         return True, ('Dump "%s" in %s:%d, Aggregatormuster %s greift, Feld "%s" '
                       'wird abgelegt' % (dumpkey, os.path.basename(src.path),
                                          lineno, pat, field))
+
+    # ---------------- an einem eigenen Feld gemessene Schicht --------------
+    def field_layer(self, row, layer):
+        """Rundlauf-Nachweis fuer eine Schicht, die an einem eigenen Feld haengt.
+
+        Gleiche Beweislast wie sonst: (i) der Decoder hat in der Region einen
+        Ausgabepfad, der diese Schicht ausgibt, (ii) ein echtes Aggregatormuster
+        erkennt die erzeugte Zeile, (iii) der Aggregator legt das Feld ab.
+        """
+        spec = row.get('layer_field', {}).get(layer)
+        if spec is None:
+            return False, 'keine Feldmessung fuer diese Schicht hinterlegt'
+        src = self._src_for(row)
+        region = self._region_for(row)
+        if src is None or region is None:
+            return False, 'Decoder-Quelltext oder Region nicht auffindbar'
+        lo, hi = region
+        rx = re.compile(spec['src_re'])
+
+        lines = []          # Kandidatenzeilen (Decoder-Ausgabe, rekonstruiert)
+        lineno = None
+        if spec['src_call'] == 'print':
+            for call in src.calls.get('print', []):
+                if not (lo <= call.lineno <= hi):
+                    continue
+                lit = _joined_literal(call.args[0] if call.args else None, tag='X')
+                if not lit or not rx.search(lit):
+                    continue
+                # Die Beispielzeile muss zu DIESEM Formatstring passen.
+                if not _literal_to_regex(lit).match(spec['sample']):
+                    continue
+                lineno = call.lineno
+                lines.append(spec['sample'])
+                break
+        else:
+            for call in src.calls_in(spec['src_call'], lo, hi):
+                arg = src.arg_source(call) or ''
+                if not rx.search(arg):
+                    continue
+                prefix = _joined_literal(call.args[0], tag='X')
+                if prefix is None:
+                    continue
+                lineno = call.lineno
+                lines = [prefix + body for body in spec.get('bodies', [''])]
+                break
+        if not lines:
+            return False, ('kein Ausgabepfad fuer diese Schicht in der '
+                           'Decoder-Region %s (%s:%d-%d), gesucht: %s mit /%s/'
+                           % (row['region'], os.path.basename(src.path), lo, hi,
+                              spec['src_call'], spec['src_re']))
+
+        for pat, mode in spec['agg']:
+            hit = any(self.agg.matches(pat, ln, mode) for ln in lines)
+            if self.agg.matches(pat, lines[0], mode) is None:
+                return False, 'Aggregator hat kein Muster %s' % pat
+            if not hit:
+                return False, ('Aggregatormuster %s erkennt die Decoder-Zeile '
+                               '"%s" nicht - die Schicht kommt nie in der '
+                               'Ereignisdatei an' % (pat, lines[0].strip()))
+        if not self.agg.stores_field(spec['field']):
+            return False, ('Aggregator legt das Feld "%s" nicht in der '
+                           'Ereignisdatei ab' % spec['field'])
+        return True, ('Decoder gibt "%s" aus (%s:%s), Aggregatormuster %s '
+                      'greifen, Feld "%s" wird abgelegt; %s [%s]'
+                      % (lines[0].strip(), os.path.basename(src.path), lineno,
+                         '+'.join(p for p, _ in spec['agg']), spec['field'],
+                         spec['note'], spec['cite'].text()))
 
     # ---------------- MAC und darueber ------------------------------------
     def _mac_call(self, row):
@@ -634,6 +939,10 @@ def count_cells(row, events):
             continue
         counts[layer] = sum(1 for e in sel if _nonempty(e.get(field)))
 
+    # Schichten, die an einem eigenen Feld haengen (SYNC-/ACCESS-ASSIGN-PDU).
+    for layer, spec in (row.get('layer_field') or {}).items():
+        counts[layer] = sum(1 for e in sel if _nonempty(e.get(spec['field'])))
+
     if row['file'] == 'ul':
         for e in sel:
             p = e.get('parsed')
@@ -682,23 +991,54 @@ def count_cells(row, events):
 # Matrixaufbau und Bewertung
 # ==========================================================================
 
-def build_matrix(rows, recording, probe, files):
+def _probe_cell(probe, row, layer):
+    """Rundlauf-Nachweis E2 fuer eine Zelle, unabhaengig von der Zaehlung."""
+    if layer in (row.get('layer_field') or {}):
+        return probe.field_layer(row, layer)
+    if layer in ('onair', 'descr', 'deint', 'info'):
+        return probe.bit_layer(row, layer)
+    if layer == 'mac':
+        return probe.mac(row)
+    return probe.upper(row, layer)
+
+
+def build_matrix(rows, recording, probe, files, norm_text=None):
     """files: {'dl': [events], 'ul': [events]}"""
     result = []
     for row in rows:
         events = files.get(row['file']) or []
         counts = count_cells(row, events)
-        top_index = LAYERS.index(row['top'])
         cells = {}
-        for idx, layer in enumerate(LAYERS):
-            # 1) nicht zutreffend?
-            if layer == 'deint' and row.get('deint_na'):
-                cells[layer] = dict(count=0, state=STATE_NA, reason=row['deint_na'])
-                continue
-            if idx > top_index:
-                cells[layer] = dict(count=0, state=STATE_NA,
-                                    reason=row.get('na_reason') or
-                                    'oberhalb des erwarteten Endpunkts')
+        for layer in LAYERS:
+            # 1) strukturell nicht zutreffend? Nur mit tragfaehigem Normbeleg.
+            na = (row.get('na') or {}).get(layer)
+            if na is not None:
+                problems = na.problems(norm_text)
+                if not problems:
+                    cells[layer] = dict(count=0, state=STATE_NA,
+                                        reason=na.text(), na=na)
+                    continue
+                # Beleg nicht tragfaehig -> die Zelle ist NICHT "nicht
+                # zutreffend", sondern unbekannt. Damit die Behauptung keine
+                # echte Luecke verdeckt, wird zusaetzlich ausgewiesen, wie die
+                # Zelle OHNE sie dastehen wuerde.
+                n = counts.get(layer, 0)
+                ok, why = _probe_cell(probe, row, layer)
+                if n > 0:
+                    without = 'es gibt %d Treffer in dieser Aufzeichnung' % n
+                elif ok:
+                    without = 'Rundlauf waere nachgewiesen (%s)' % why
+                else:
+                    without = ('Rundlauf ist NICHT nachgewiesen, hier steckt '
+                               'eine echte Werkzeuglueecke: %s' % why)
+                cells[layer] = dict(
+                    count=n, state=STATE_UNKNOWN,
+                    reason=('als "nicht zutreffend" gefuehrt, aber der '
+                            'Normbeleg traegt nicht (%s) - ohne Normbeleg '
+                            'bleibt die Zelle unbekannt. Behauptung war: "%s". '
+                            'Ohne diese Behauptung: %s'
+                            % ('; '.join(problems), na.reason or '(leer)',
+                               without)))
                 continue
             n = counts.get(layer, 0)
             if n > 0:
@@ -707,15 +1047,43 @@ def build_matrix(rows, recording, probe, files):
                                            'Aufzeichnung' % n)
                 continue
             # 2) kein Treffer -> Rundlauf aus dem Quelltext?
-            if layer in ('onair', 'descr', 'deint', 'info'):
-                ok, why = probe.bit_layer(row, layer)
-            elif layer == 'mac':
-                ok, why = probe.mac(row)
-            else:
-                ok, why = probe.upper(row, layer)
+            ok, why = _probe_cell(probe, row, layer)
             cells[layer] = dict(count=0,
                                 state=STATE_NULL if ok else STATE_UNKNOWN,
                                 reason=why)
+
+        # ------------------------------------------------------------------
+        # Die Kanalkodierkette ist deterministisch: jeder Burst, der eine
+        # Stufe erreicht hat, hat auch jede FRUEHERE Stufe durchlaufen. Wenn
+        # also irgendeine Schicht dieses Blocks Treffer hat, eine Stufe der
+        # Kette aber 0 zeigt, dann kann diese 0 kein Nullbefund sein - die
+        # Stufe ist in dieser Aufzeichnung nur nicht mitgeschrieben worden.
+        # Sie als "0*" (nichts gefunden) auszuweisen waere dieselbe
+        # Verwechslung wie in V1, nur in die andere Richtung.
+        # ------------------------------------------------------------------
+        chain = list(CHAIN)
+        if row.get('mac_is_info'):
+            # Bei der AACH IST das Infowort die MAC-PDU (ACCESS-ASSIGN);
+            # dieselbe Bedingung im Decoder gibt beide aus.
+            chain.append('mac')
+        witness = None
+        for layer in LAYERS:
+            c = cells[layer]
+            if c['state'] == STATE_HIT and (witness is None
+                                            or c['count'] > witness[1]):
+                witness = (layer, c['count'])
+        if witness is not None:
+            for layer in chain:
+                c = cells.get(layer)
+                if c is None or c['state'] != STATE_NULL:
+                    continue
+                c['state'] = STATE_STALE
+                c['witness'] = witness
+                c['reason'] = (
+                    'Schicht "%s" desselben Blocks hat %d Treffer - jeder '
+                    'dieser Bursts hat auch diese Stufe durchlaufen, die 0 ist '
+                    'also eine Eigenschaft der Aufzeichnung. Rundlauf: %s'
+                    % (LAYER_LABELS[witness[0]], witness[1], c['reason']))
 
         # Fortpflanzung nach oben: erreicht schon die MAC-Zeile dieses Blocks
         # die Ereignisdatei nicht, dann ist keine daruberliegende Schicht dem
@@ -752,10 +1120,12 @@ HEADLINE_EXPLAIN = (
 )
 
 
-def render_text(recording, matrix, notes, unknown):
+def render_text(recording, matrix, notes, unknown, norm_text_path=None):
     out = []
     w = out.append
     total = sum(len(m['cells']) for m in matrix)
+    stale = [(m['row']['id'], l) for m in matrix for l in LAYERS
+             if m['cells'][l]['state'] == STATE_STALE]
     w('=' * 78)
     w('WERKZEUG-GATE  Abdeckung Bursttyp x Schicht')
     w('Regel V-17-14 (17_LESSONS_LEARNED.md §5.3, 14_VERIFICATION.md §3.6.4)')
@@ -766,15 +1136,23 @@ def render_text(recording, matrix, notes, unknown):
         w('Fuer diese Zellen ist ein Nullbefund KEIN Befund. Die Aufzeichnung')
         w('taugt an diesen Stellen nicht als Abnahmemassstab.')
     else:
-        w('KERNAUSSAGE: keine unbekannte Zelle - jede Zelle ist entweder belegt')
-        w('oder als echter Nullbefund nachgewiesen.')
+        w('KERNAUSSAGE: keine unbekannte Zelle - keine Werkzeuglueecke offen.')
+    if stale:
+        w('%d Zelle(n) sind in dieser Aufzeichnung NICHT NACHGEMESSEN (0?):'
+          % len(stale))
+        w('das Werkzeug kann sie, die Aufzeichnung enthaelt die Stufe aber')
+        w('nicht. Aus diesen Zellen darf ebenfalls keine Abwesenheit')
+        w('abgeleitet werden. Siehe Abschnitt unten.')
     w('')
     w(HEADLINE_EXPLAIN)
     w('')
     w('Legende: Zahl = Bursts, die die Schicht erreicht haben')
     w('         0*   = echter Nullbefund (Rundlauf nachgewiesen, nichts gefunden)')
+    w('         0?   = Rundlauf nachgewiesen, in dieser Aufzeichnung aber nicht')
+    w('                mitgeschrieben - kein Nullbefund (siehe unten)')
     w('         ?    = UNBEKANNT (kein Rundlauf-Nachweis, Null sagt nichts aus)')
-    w('         -    = nicht zutreffend (mit Begruendung, siehe unten)')
+    w('         -    = nicht zutreffend: die Schicht existiert fuer diesen')
+    w('                Bursttyp laut Norm nicht (Beleg unten, sonst "?")')
     w('')
 
     idw = max([len(m['row']['id']) for m in matrix] + [len('Bursttyp/Block')])
@@ -802,17 +1180,61 @@ def render_text(recording, matrix, notes, unknown):
             w('      %s' % reason)
         w('')
 
-    na = [(m['row']['id'], l, m['cells'][l]['reason'])
+    na = [(m['row']['id'], l, m['cells'][l].get('na'))
           for m in matrix for l in LAYERS if m['cells'][l]['state'] == STATE_NA]
     if na:
-        w('NICHT ZUTREFFENDE ZELLEN (Begruendung geprueft und ausgeschrieben):')
-        seen = set()
-        for row_id, layer, reason in na:
-            key = (row_id, reason)
-            if key in seen:
-                continue
-            seen.add(key)
-            w('  [%s] %s' % (row_id, reason))
+        w('NICHT ZUTREFFENDE ZELLEN ("-") - Schicht existiert laut Norm nicht.')
+        if norm_text_path:
+            w('Der Wortlaut jedes Belegs wurde wortgleich gegen %s geprueft;'
+              % os.path.basename(norm_text_path))
+            w('ein Beleg, der dort nicht steht, laesst die Zelle auf "?" fallen.')
+        else:
+            w('Kein --norm-text angegeben: Fundstelle und Wortlaut stehen im')
+            w('Quelltext, wurden hier aber nicht gegen den Normtext gegengeprueft.')
+        seen = {}
+        for row_id, layer, na_obj in na:
+            seen.setdefault(id(na_obj), (na_obj, []))[1].append((row_id, layer))
+        for na_obj, where in seen.values():
+            w('  Zellen: %s' % ', '.join('%s x %s' % (r, LAYER_LABELS[l])
+                                         for r, l in where))
+            w('      %s' % na_obj.reason)
+            for cite in na_obj.cites:
+                w('      Beleg: %s %s' % (cite.doc, cite.clause))
+                w('             "%s"' % cite.quote)
+        w('')
+
+    if stale:
+        w('NICHT NACHGEMESSENE ZELLEN ("0?") - kein Nullbefund:')
+        w('  Die Kanalkodierkette ist deterministisch: jeder Burst, der eine')
+        w('  Stufe erreicht hat, hat auch jede fruehere durchlaufen. Zeigt eine')
+        w('  solche Stufe hier 0, waehrend eine andere Schicht desselben Blocks')
+        w('  Treffer hat, dann fehlt die Stufe in der AUFZEICHNUNG - sie wurde')
+        w('  vor dieser Werkzeugversion erzeugt. Ein Nullbefund waere das nur,')
+        w('  wenn die Stufe nachweislich mitgeschrieben worden waere.')
+        w('  Abhilfe: Aufzeichnung mit --dump-burst -3 neu dekodieren und mit')
+        w('  parse_reference_decode.py neu aggregieren.')
+        for m in matrix:
+            for l in LAYERS:
+                c = m['cells'][l]
+                if c['state'] == STATE_STALE:
+                    w('  [%s x %s] %s' % (m['row']['id'], LAYER_LABELS[l],
+                                          c['reason']))
+        w('')
+
+    fmeas = [(m['row']['id'], l, m['row']['layer_field'][l])
+             for m in matrix for l in LAYERS
+             if l in (m['row'].get('layer_field') or {})]
+    if fmeas:
+        w('AN EIGENEN FELDERN GEMESSENE SCHICHTEN:')
+        w('  Die MAC-PDU des Broadcast-Sync-Blocks (SYNC) und des')
+        w('  Zugriffszuweisungsblocks (ACCESS-ASSIGN) stehen nicht in der')
+        w('  mac[]-Liste der Ereignisdatei - diese fuehrt nur die PDUs unter dem')
+        w('  TMA-SAP. Sie sind laut Norm dennoch MAC-PDUs, "nicht zutreffend"')
+        w('  waere hier also falsch. Gemessen wird am jeweils zustaendigen Feld:')
+        for row_id, layer, spec in fmeas:
+            w('  [%s x %s] Feld "%s" - %s'
+              % (row_id, LAYER_LABELS[layer], spec['field'], spec['note']))
+            w('      Beleg: %s' % spec['cite'].text())
         w('')
 
     nulls = [(m['row']['id'], l, m['cells'][l]['reason'])
@@ -835,7 +1257,7 @@ def render_text(recording, matrix, notes, unknown):
 # Hauptlauf
 # ==========================================================================
 
-def analyse(recording, tools_dir, rows=None):
+def analyse(recording, tools_dir, rows=None, norm_text=None):
     rows = rows if rows is not None else ROWS
     dl_path = os.path.join(recording, 'dl_events.jsonl')
     ul_path = os.path.join(recording, 'ul_events.jsonl')
@@ -860,7 +1282,7 @@ def analyse(recording, tools_dir, rows=None):
     agg = AggregatorModel(agg_path)
     probe = RoundtripProbe(dl_src, ul_src, agg)
 
-    matrix = build_matrix(rows, recording, probe, files)
+    matrix = build_matrix(rows, recording, probe, files, norm_text)
 
     unknown = []
     for m in matrix:
@@ -925,6 +1347,16 @@ def to_json(recording, matrix, unknown, notes, exit_code):
         if unknown else 'keine unbekannte Zelle',
         layers=LAYERS,
         unknown_cells=[dict(row=r, layer=l, reason=w) for r, l, w in unknown],
+        stale_cells=[dict(row=m['row']['id'], layer=l,
+                          reason=m['cells'][l]['reason'])
+                     for m in matrix for l in LAYERS
+                     if m['cells'][l]['state'] == STATE_STALE],
+        na_cells=[dict(row=m['row']['id'], layer=l,
+                       reason=m['cells'][l]['na'].reason,
+                       cites=[dict(doc=c.doc, clause=c.clause, quote=c.quote)
+                              for c in m['cells'][l]['na'].cites])
+                  for m in matrix for l in LAYERS
+                  if m['cells'][l]['state'] == STATE_NA],
         notes=notes,
         matrix=[dict(
             id=m['row']['id'],
@@ -950,7 +1382,7 @@ def _dump_block(rows, region, marker, indent):
         if row['region'] != region:
             continue
         for layer in ('onair', 'descr', 'deint', 'info'):
-            if layer == 'deint' and row.get('deint_na'):
+            if (row.get('na') or {}).get(layer) is not None:
                 continue
             field = row['bits'].get(layer)
             if not field:
@@ -1003,8 +1435,13 @@ def decode(bursts):
         if btype == 'SB':
             if _dump_this(idx):
 %(SB_BSCH_DUMP)s
+            # MAC-SYNC-PDU + D-MLE-SYNC-PDU des Broadcast-Sync-Blocks
+            print(f"SB1 CRC OK [{mode}] MCC={mcc} MNC={mnc} CC={cc} "
+                  f"FN(air)={fn} MF(air)={mf_str} TN(air)={tn} → {nt}")
             if _dump_this(idx):
 %(AACH_DUMP)s
+            # ACCESS-ASSIGN-PDU des Zugriffszuweisungsblocks (eigene Zeile)
+            _print_aach("  AACH", aach, aach_dist)
             if _dump_this(idx):
 %(SB_BKN2_DUMP)s
             mac = parse_mac_pdu(bkn2_info, 124)
@@ -1014,6 +1451,8 @@ def decode(bursts):
             # --- Normal Burst (NDB1/NDB2) ---
             if _dump_this(idx):
 %(NDB_AACH_DUMP)s
+            # ACCESS-ASSIGN-PDU, haengt hier an der Burst-Kopfzeile
+            _print_aach("AACH", aach, aach_dist)
             if btype == 'NDB1':
                 if _dump_this(idx):
 %(NDB1_DUMP)s
@@ -1071,7 +1510,9 @@ def decode_ul(bursts):
 def _fake_agg(real_agg, rows):
     """Aggregator des Selbsttests: die ECHTEN Suchmuster (sie sind der Vertrag),
     ergaenzt um die Feldnamen, die ein vollstaendiger Aggregator ablegen wuerde."""
-    fields = sorted({f for r in rows for f in r['bits'].values() if f})
+    fields = sorted({f for r in rows for f in r['bits'].values() if f} |
+                    {sp['field'] for r in rows
+                     for sp in (r.get('layer_field') or {}).values()})
     tail = ('\n\n# --- Selbsttest: Felder eines vollstaendigen Aggregators ---\n'
             'SELFTEST_FIELDS = %r\n' % (fields,))
     return real_agg + tail
@@ -1085,7 +1526,7 @@ def _fake_events(rows, with_upper):
             if row['file'] != 'dl' or row['btype'] != btype:
                 continue
             for layer in ('onair', 'descr', 'deint', 'info'):
-                if layer == 'deint' and row.get('deint_na'):
+                if (row.get('na') or {}).get(layer) is not None:
                     continue
                 field = row['bits'].get(layer)
                 if field:
@@ -1093,7 +1534,10 @@ def _fake_events(rows, with_upper):
         return out
 
     dl = []
-    sb = dict(type='SB', cell={'mcc': 262},
+    # cell    = SYNC-PDU (MAC) + D-MLE-SYNC (MLE) des Broadcast-Sync-Blocks
+    # aach_*  = ACCESS-ASSIGN-PDU (MAC) des Zugriffszuweisungsblocks
+    sb = dict(type='SB', cell={'mcc': 262, 'mnc': 1010, 'cc': 1},
+              aach_kind='DL/UL-Assign', aach_raw='0x2049',
               mac=[{'fmt': 'BCAST', 'bkn': '2', 'sub': 'SYSINFO'}],
               llc=[], mle=[], cmce=[], mm=[])
     sb.update(bits_for('SB'))
@@ -1102,21 +1546,23 @@ def _fake_events(rows, with_upper):
         sb['mle'] = [{'disc': 'MM', 'msg': '-> D-LOC-UPD-ACCEPT'}]
     dl.append(sb)
 
-    ndb1 = dict(type='NDB1', mac=[{'fmt': 'SCH/F', 'pdu': 'MAC-RESOURCE'}],
+    ndb1 = dict(type='NDB1', aach_kind='DL/UL-Assign',
+                mac=[{'fmt': 'SCH/F', 'pdu': 'MAC-RESOURCE'}],
                 llc=['BL-ADATA'],
                 mle=[{'disc': 'MM', 'msg': '-> D-LOC-UPD-ACCEPT'}],
                 cmce=[], mm=[])
     ndb1.update(bits_for('NDB1'))
     dl.append(ndb1)
 
-    facch = dict(type='NDB1', mac=[{'fmt': 'SCH/HD-FACCH', 'pdu': 'MAC-RESOURCE'}],
+    facch = dict(type='NDB1', aach_kind='DL/UL-Assign',
+                 mac=[{'fmt': 'SCH/HD-FACCH', 'pdu': 'MAC-RESOURCE'}],
                  llc=['BL-ADATA'],
                  mle=[{'disc': 'CMCE', 'msg': '-> D-TX-CEASED'}],
                  cmce=[], mm=[])
     facch.update(bits_for('NDB1'))
     dl.append(facch)
 
-    ndb2 = dict(type='NDB2',
+    ndb2 = dict(type='NDB2', aach_kind='DL/UL-Assign',
                 mac=[{'fmt': 'SCH/HD', 'bkn': 1, 'pdu': 'MAC-RESOURCE'},
                      {'fmt': 'SCH/HD', 'bkn': 2, 'pdu': 'MAC-RESOURCE'}],
                 llc=[], mle=[], cmce=[], mm=[])
@@ -1155,12 +1601,13 @@ def _write_case(base, name, dl_src, ul_src, agg_src, dl_events, ul_events):
     return tools, rec
 
 
-def selftest(tools_dir):
+def selftest(tools_dir, norm_path_real=None):
     """Beweist, dass die Pruefung wirklich anschlaegt.
 
     Der Aggregator ist in allen Faellen der ECHTE (er definiert den Vertrag,
     welche Ausgabezeilen in der Ereignisdatei landen). Variiert wird der
-    Decoder und der Inhalt der Aufzeichnung.
+    Decoder, der Inhalt der Aufzeichnung und - fuer die Faelle 5 bis 7 - die
+    Belegbarkeit einer "nicht zutreffend"-Behauptung.
     """
     agg_path = os.path.join(tools_dir, 'parse_reference_decode.py')
     if not os.path.exists(agg_path):
@@ -1230,6 +1677,110 @@ def selftest(tools_dir):
         failures.append('Fall 4 (SB/BKN2 ohne oberen Pfad) haette scheitern muessen, '
                         'meldet aber keine unbekannte SB/BKN2-Zelle')
 
+    # --- Faelle 5 und 6: die Unterscheidung "-" gegen "?" haengt am Normbeleg.
+    #
+    # Eine als "nicht zutreffend" gefuehrte Zelle behauptet eine Aussage ueber
+    # die NORM ("diese Schicht existiert fuer diesen Bursttyp nicht"), nicht
+    # ueber das Werkzeug. Waere die Markierung frei setzbar, koennte sie eine
+    # echte Werkzeuglueecke zudecken und der Leser saehe nur ein harmloses "-".
+    # Beide Faelle greifen deshalb eine Zelle an, die ohne die Behauptung eine
+    # NACHWEISBARE Luecke ist (SB/BB x LLC: der Zugriffszuweisungsblock hat
+    # keinen _print_mac()-Pfad, der Rundlauf ist dort also nicht zu fuehren).
+    victim_row, victim_layer = 'SB/BB', 'llc'
+
+    def _rows_with_na(base_rows, row_id, layer, na):
+        out = []
+        for r_ in base_rows:
+            if r_['id'] == row_id:
+                r_ = dict(r_)
+                r_['na'] = dict(r_.get('na') or {})
+                if na is None:
+                    r_['na'].pop(layer, None)
+                else:
+                    r_['na'][layer] = na
+            out.append(r_)
+        return out
+
+    def _cell_state(matrix, row_id, layer):
+        for m in matrix:
+            if m['row']['id'] == row_id:
+                return m['cells'][layer]
+        return None
+
+    dl_ev, ul_ev = _fake_events(rows, with_upper=True)
+    t, r = _write_case(base, 'fall5', _fake_dl(rows, True, True), ul_src, agg_src,
+                       dl_ev, ul_ev)
+
+    # 5a) Kontrolle: mit dem echten (belegten) NA steht die Zelle auf "-".
+    m5a, _u5a, _ = analyse(r, t, rows=rows)
+    c5a = _cell_state(m5a, victim_row, victim_layer)
+    # 5b) dieselbe Zelle, Behauptung ohne jeden Normbeleg -> MUSS "?" werden
+    rows_bare = _rows_with_na(rows, victim_row, victim_layer, NotApplicable(
+        'Diese Schicht gibt es hier einfach nicht.', []))
+    m5b, u5b, _ = analyse(r, t, rows=rows_bare)
+    c5b = _cell_state(m5b, victim_row, victim_layer)
+    hit5 = [(a, b) for a, b, _ in u5b if (a, b) == (victim_row, victim_layer)]
+    ok5 = (c5a is not None and c5a['state'] == STATE_NA
+           and c5b is not None and c5b['state'] == STATE_UNKNOWN
+           and hit5 and 'Normbeleg' in c5b['reason']
+           # die verdeckte Luecke muss im Klartext benannt werden
+           and 'Werkzeuglueecke' in c5b['reason'])
+    if not ok5:
+        failures.append(
+            'Fall 5: eine Behauptung "nicht zutreffend" OHNE Normbeleg muss auf '
+            '"?" zurueckfallen und die verdeckte Luecke benennen. Zustand mit '
+            'Beleg=%s, ohne Beleg=%s, Begruendung=%r'
+            % (c5a and c5a['state'], c5b and c5b['state'],
+               (c5b or {}).get('reason', '')[:200]))
+
+    # 6) Beleg vorhanden, Wortlaut steht aber nicht im Normtext -> MUSS "?"
+    #    werden. Das trennt "belegt" von "behauptet": der Selbsttest legt einen
+    #    Normtext an, der GENAU die echten Wortlaute enthaelt.
+    real_quotes = []
+    for r_ in rows:
+        for na_ in (r_.get('na') or {}).values():
+            for cite in na_.cites:
+                real_quotes.append(cite.quote)
+    norm_path = os.path.join(base, 'kunst_normtext.txt')
+    with open(norm_path, 'w', encoding='utf-8') as fh:
+        fh.write('\n'.join(real_quotes) + '\n')
+    synth_norm = load_norm_text(norm_path)
+
+    m6a, u6a, _ = analyse(r, t, rows=rows, norm_text=synth_norm)
+    n_na6 = sum(1 for m in m6a for l in LAYERS
+                if m['cells'][l]['state'] == STATE_NA)
+    rows_fake = _rows_with_na(rows, victim_row, victim_layer, NotApplicable(
+        'Diese Schicht gibt es hier laut Norm nicht.',
+        [NormCite('§99.9.9 (erfunden)',
+                  'This layer shall not exist for the access assignment '
+                  'block, obviously.')]))
+    m6b, u6b, _ = analyse(r, t, rows=rows_fake, norm_text=synth_norm)
+    c6b = _cell_state(m6b, victim_row, victim_layer)
+    hit6 = [(a, b) for a, b, _ in u6b if (a, b) == (victim_row, victim_layer)]
+    ok6 = (not u6a and n_na6 > 0 and c6b is not None
+           and c6b['state'] == STATE_UNKNOWN and hit6
+           and 'wortgleich' in c6b['reason'])
+    if not ok6:
+        failures.append(
+            'Fall 6: ein Normbeleg, dessen Wortlaut nicht im Normtext steht, '
+            'muss auf "?" zurueckfallen, waehrend die echten Belege bestehen. '
+            'echte Belege: %d "-"-Zellen / %d unbekannt; erfundener Beleg: %s'
+            % (n_na6, len(u6a), c6b and c6b['state']))
+
+    # 7) optional: die echten Normbelege gegen den ECHTEN Normtext
+    ok7 = None
+    bad7 = []
+    if norm_path_real:
+        real_norm = load_norm_text(norm_path_real)
+        for r_ in rows:
+            for layer, na_ in (r_.get('na') or {}).items():
+                for p in na_.problems(real_norm):
+                    bad7.append('%s x %s: %s' % (r_['id'], layer, p))
+        ok7 = not bad7
+        if bad7:
+            failures.append('Fall 7: Normbelege halten dem echten Normtext '
+                            'nicht stand: %s' % '; '.join(bad7[:5]))
+
     print('SELBSTTEST gold_coverage.py')
     print('  Fall 1  vollstaendiges Werkzeug + Treffer ueberall .... %s (%d unbekannt)'
           % ('BESTANDEN' if not u1 else 'FEHLSCHLAG', len(u1)))
@@ -1242,6 +1793,21 @@ def selftest(tools_dir):
     print('  Fall 4  SB/BKN2 ohne oberen Pfad (V1-Fehler F10.1 a) .. %s (%d unbekannt, '
           'darunter %s)'
           % ('ERKANNT' if hit4 else 'NICHT ERKANNT', len(u4), hit4[:4]))
+    print('  Fall 5  "-" ohne Normbeleg -> "?" (%s x %s) ......... %s'
+          % (victim_row, LAYER_LABELS[victim_layer],
+             'ERKANNT' if ok5 else 'NICHT ERKANNT'))
+    print('          mit Beleg: %s, ohne Beleg: %s'
+          % (STATE_SYMBOL.get(c5a and c5a['state'], '?') or 'Zahl',
+             STATE_SYMBOL.get(c5b and c5b['state'], '?')))
+    print('  Fall 6  "-" mit unbelegtem Wortlaut -> "?" ............ %s '
+          '(echte Belege: %d Zellen "-", %d unbekannt)'
+          % ('ERKANNT' if ok6 else 'NICHT ERKANNT', n_na6, len(u6a)))
+    if ok7 is None:
+        print('  Fall 7  Normbelege gegen echten Normtext ............. '
+              'UEBERSPRUNGEN (kein --norm-text)')
+    else:
+        print('  Fall 7  Normbelege gegen echten Normtext ............. %s'
+              % ('BESTANDEN' if ok7 else 'FEHLSCHLAG: %s' % bad7[:3]))
     print('  Arbeitsverzeichnis: %s' % base)
     if failures:
         print('')
@@ -1269,12 +1835,17 @@ def main(argv=None):
                     help='Verzeichnis mit decode_dl.py, decode_ul.py, '
                          'parse_reference_decode.py (Vorgabe: scripts/)')
     ap.add_argument('--json', action='store_true', help='Ausgabe als JSON')
+    ap.add_argument('--norm-text',
+                    help='Textfassung von ' + NORM_DOC + '. Ist sie angegeben, '
+                         'wird der Wortlaut JEDES Normbelegs fuer eine "-"-Zelle '
+                         'wortgleich gegengeprueft; faellt die Probe durch, wird '
+                         'die Zelle als "?" gefuehrt.')
     ap.add_argument('--selftest', action='store_true',
                     help='Selbsttest mit kuenstlich erzeugten Eingaben')
     args = ap.parse_args(argv)
 
     if args.selftest:
-        return selftest(args.tools_dir)
+        return selftest(args.tools_dir, args.norm_text)
 
     if not args.recording:
         ap.error('Aufzeichnungsverzeichnis fehlt (oder --selftest verwenden)')
@@ -1283,7 +1854,9 @@ def main(argv=None):
         return EXIT_TOOL_ERROR
 
     try:
-        matrix, unknown, notes = analyse(args.recording, args.tools_dir)
+        norm_text = load_norm_text(args.norm_text)
+        matrix, unknown, notes = analyse(args.recording, args.tools_dir,
+                                        norm_text=norm_text)
     except (IOError, OSError, ValueError, SyntaxError) as exc:
         print('WERKZEUGFEHLER: %s' % exc, file=sys.stderr)
         return EXIT_TOOL_ERROR
@@ -1293,7 +1866,8 @@ def main(argv=None):
         print(json.dumps(to_json(args.recording, matrix, unknown, notes, code),
                          ensure_ascii=False, indent=2))
     else:
-        print(render_text(args.recording, matrix, notes, unknown))
+        print(render_text(args.recording, matrix, notes, unknown,
+                          args.norm_text))
         print('ERGEBNIS: %s (Rueckgabewert %d)'
               % ('EINGESCHRAENKT - %d unbekannte Zellen' % len(unknown)
                  if unknown else 'vollstaendig abgedeckt', code))

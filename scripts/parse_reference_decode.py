@@ -116,6 +116,15 @@ DL_HDR = re.compile(
     r'corr=(?P<corr>[\d.]+)'
 )
 DL_INLINE_AACH = re.compile(r'AACH\s+\[(?P<kind>[^\]]+)\]\s*(?P<rest>.*)$')
+# Eigenstaendige AACH-Zeile. Beim Normal-Burst haengt _print_aach() an der
+# Burst-Kopfzeile (die dortige print() endet mit end=''), beim
+# Synchronisations-Burst NICHT: dort steht die geparste ACCESS-ASSIGN-PDU als
+# eigene, eingerueckte Zeile ("  AACH  [DL/UL-Assign] ...", decode_dl.py:2036).
+# Ohne dieses Muster ging genau dieser Fall verloren - in der Aufzeichnung vom
+# 2026-06-21 traegt kein einziger der 1985 SB-Bursts ein Feld "aach_kind",
+# obwohl alle 1985 ein "aach_info_14b" haben. Die AACH ist laut
+# EN 300 392-2 §9.5.1 Tabelle 9.27 auch auf dem SB abgebildet.
+AACH_LINE = re.compile(r'^\s+AACH\s+(?:\[|decode fail)')
 RAW_LINE = re.compile(r'^\s+ROUNDTRIP_DUMP(?:_SB|_HD|_AACH)?\s+(\S+)=(\S+)')
 SB1CRC = re.compile(r'^SB1 CRC OK \[TMO\] MCC=(\d+) MNC=(\d+) CC=(\d+) FN\(air\)=(\d+) MF\(air\)=(\d+) TN\(air\)=(\d+)')
 SCHF_MAC = re.compile(r'^\s*SCH/F\s+(MAC-\S+)\s+addr=(\S+)(?:\s+ID=(-?\d+))?(?:\s+LI=(\d+))?')
@@ -147,6 +156,30 @@ MM_LINE = re.compile(
     r'MM\s+(?P<body>.+)$')
 
 
+def _apply_aach(cur, text):
+    """Geparste ACCESS-ASSIGN-PDU (AACH) aus einer Decoder-Zeile uebernehmen.
+
+    `text` ist entweder der Rest der Burst-Kopfzeile (Normal-Burst) oder eine
+    eigenstaendige AACH-Zeile (Synchronisations-Burst). Ein bereits gesetztes
+    Feld wird nicht ueberschrieben, damit die Kopfzeile weiterhin Vorrang hat
+    und das Verhalten fuer NDB-Bursts unveraendert bleibt.
+    """
+    inl = DL_INLINE_AACH.search(text)
+    if not inl:
+        return False
+    if cur.get('aach_kind') is not None:
+        return False
+    cur['aach_kind'] = inl.group('kind')
+    cur['aach_extra'] = inl.group('rest')
+    rm = re.search(r'raw=0x([0-9A-Fa-f]+)', cur['aach_extra'] or '')
+    if rm:
+        cur['aach_raw'] = '0x' + rm.group(1).upper()
+    dm = re.search(r'dist=(\d+)', cur['aach_extra'] or '')
+    if dm:
+        cur['aach_dist'] = int(dm.group(1))
+    return True
+
+
 def _new_dl_event(m):
     return {
         'idx': int(m.group('idx')),
@@ -159,9 +192,15 @@ def _new_dl_event(m):
         'aach_kind': None, 'aach_raw': None, 'aach_dist': None, 'aach_extra': None,
         'sb_dibits': None, 'sb1_info_60b': None,
         'sb1_t5_onair_120b': None, 'sb1_t4_descr_120b': None, 'sb1_t3_deint_120b': None,
-        'type5_onair_432b': None, 'info_268b': None, 'info_hex': None,
+        'type5_onair_432b': None, 'descr_432b': None, 'deint_432b': None,
+        'info_268b': None, 'info_hex': None,
         'bkn1_onair_216b': None, 'bkn2_onair_216b': None,
+        'bkn1_descr_216b': None, 'bkn2_descr_216b': None,
+        'bkn1_deint_216b': None, 'bkn2_deint_216b': None,
         'bkn1_info_124b': None, 'bkn2_info_124b': None,
+        # gestohlene Halbschlitz-Haelfte (SCH/HD-FACCH) im NDB1-Pfad
+        'facch_onair_216b': None, 'facch_descr_216b': None,
+        'facch_deint_216b': None, 'facch_info_124b': None,
         'bb_raw_30b': None, 'bb_descr_30b': None, 'aach_info_14b': None,
         'scramb_code': None,
         'crc_ok': None, 'cell': None,
@@ -186,16 +225,7 @@ def parse_dl():
                     events.append(cur)
                 cur = _new_dl_event(m)
                 tail = line[m.end():]
-                inl = DL_INLINE_AACH.search(tail)
-                if inl:
-                    cur['aach_kind'] = inl.group('kind')
-                    cur['aach_extra'] = inl.group('rest')
-                    rm = re.search(r'raw=0x([0-9A-Fa-f]+)', cur['aach_extra'] or '')
-                    if rm:
-                        cur['aach_raw'] = '0x' + rm.group(1).upper()
-                    dm = re.search(r'dist=(\d+)', cur['aach_extra'] or '')
-                    if dm:
-                        cur['aach_dist'] = int(dm.group(1))
+                _apply_aach(cur, tail)
                 # Detect inline ROUNDTRIP_DUMP_SB on the same line as the header (SB bursts)
                 rm = re.search(r'ROUNDTRIP_DUMP_SB\s+(\S+)=(\S+)', tail)
                 if rm:
@@ -213,16 +243,30 @@ def parse_dl():
                 elif key == 'sb1_t4_descr_120b':    cur['sb1_t4_descr_120b'] = val
                 elif key == 'sb1_t3_deint_120b':    cur['sb1_t3_deint_120b'] = val
                 elif key == 'type5_onair_432b':     cur['type5_onair_432b'] = val
+                elif key == 'descr_432b':           cur['descr_432b'] = val
+                elif key == 'deint_432b':           cur['deint_432b'] = val
                 elif key == 'info_268b':            cur['info_268b'] = val
                 elif key == 'info_hex':             cur['info_hex'] = val
                 elif key == 'scramb_code':          cur['scramb_code'] = val
                 elif key == 'bkn1_onair_216b':      cur['bkn1_onair_216b'] = val
                 elif key == 'bkn2_onair_216b':      cur['bkn2_onair_216b'] = val
+                elif key == 'bkn1_descr_216b':      cur['bkn1_descr_216b'] = val
+                elif key == 'bkn2_descr_216b':      cur['bkn2_descr_216b'] = val
+                elif key == 'bkn1_deint_216b':      cur['bkn1_deint_216b'] = val
+                elif key == 'bkn2_deint_216b':      cur['bkn2_deint_216b'] = val
                 elif key == 'bkn1_info_124b':       cur['bkn1_info_124b'] = val
                 elif key == 'bkn2_info_124b':       cur['bkn2_info_124b'] = val
+                elif key == 'facch_onair_216b':     cur['facch_onair_216b'] = val
+                elif key == 'facch_descr_216b':     cur['facch_descr_216b'] = val
+                elif key == 'facch_deint_216b':     cur['facch_deint_216b'] = val
+                elif key == 'facch_info_124b':      cur['facch_info_124b'] = val
                 elif key == 'bb_raw_30b':           cur['bb_raw_30b'] = val
                 elif key == 'bb_descr_30b':         cur['bb_descr_30b'] = val
                 elif key == 'aach_info_14b':        cur['aach_info_14b'] = val
+                continue
+            if AACH_LINE.match(line):
+                # eigenstaendige AACH-Zeile (SB-Pfad, decode_dl.py:2036/2038)
+                _apply_aach(cur, line)
                 continue
             mr = SB1CRC.match(line)
             if mr:
@@ -320,6 +364,7 @@ def parse_ul():
                 'skip_reason': None,
                 'type5_onair_168b': None,
                 'type4_descr_168b': None,
+                'type3_deint_168b': None,
                 'info_92b_dump': None,
                 'scramb_code': None,
                 'variant': None,
@@ -342,6 +387,7 @@ def parse_ul():
                 'skip_reason': m.group('reason'),
                 'type5_onair_168b': None,
                 'type4_descr_168b': None,
+                'type3_deint_168b': None,
                 'info_92b_dump': None,
                 'scramb_code': None,
                 'variant': None,
@@ -354,6 +400,7 @@ def parse_ul():
                 key, val = m.group(1), m.group(2)
                 if key == 'type5_onair':    cur['type5_onair_168b'] = val
                 elif key == 'type4_descr':  cur['type4_descr_168b'] = val
+                elif key == 'type3_deint':  cur['type3_deint_168b'] = val
                 elif key == 'info':         cur['info_92b_dump']    = val
                 elif key == 'scramb_code':  cur['scramb_code']      = val
                 elif key == 'variant':      cur['variant']          = val
@@ -795,8 +842,10 @@ def write_ul_full(ul):
             if u.get('type4_descr_168b'):
                 t4 = u['type4_descr_168b']
                 f.write(f'- **type-4 descrambled (XOR scramb=`{u.get("scramb_code","?")}`, 168 bit):**\n  - bin: `{t4}`\n  - hex: `0x{bits_to_hex(t4)}`\n')
-                # Compute type-3 deinterleaved (a=13) on the fly
-                t3 = deinterleave_perm(t4, K=168, a=13)
+                # type-3 deinterleaved: prefer the decoder's own dump
+                # (ROUNDTRIP_DUMP_HU type3_deint); recompute only for older
+                # logs that do not carry the stage yet.
+                t3 = u.get('type3_deint_168b') or deinterleave_perm(t4, K=168, a=13)
                 f.write(f'- **type-3 deinterleaved (a=13, 168 bit):**\n  - bin: `{t3}`\n  - hex: `0x{bits_to_hex(t3)}`\n')
             if u.get('bits92'):
                 bits = u['bits92']

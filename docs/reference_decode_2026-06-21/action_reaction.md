@@ -15,8 +15,8 @@
 **AACH-Kontext (±0.2 s):**
 
 - DL #744 dl_t=37.713s (Δ=+0 ms) TN1 FN02 MN35 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #748 dl_t=37.769s (Δ=+57 ms) TN1 FN03 MN35 AACH `DL/UL-Assign` · DL=Unalloc UL=Unalloc CC=0 f1=0 f2=0 (dist=0)
-- DL #740 dl_t=37.656s (Δ=-57 ms) TN1 FN01 MN35 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #743 dl_t=37.698s (Δ=-14 ms) TN4 FN01 MN35 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
+- DL #745 dl_t=37.727s (Δ=+14 ms) TN2 FN02 MN35 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -28,8 +28,8 @@
 **AACH-Kontext (±0.2 s):**
 
 - DL #752 dl_t=37.826s (Δ=+0 ms) TN1 FN04 MN35 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #748 dl_t=37.769s (Δ=-56 ms) TN1 FN03 MN35 AACH `DL/UL-Assign` · DL=Unalloc UL=Unalloc CC=0 f1=0 f2=0 (dist=0)
-- DL #756 dl_t=37.883s (Δ=+57 ms) TN1 FN05 MN35 AACH `DL/UL-Assign` · DL=Unalloc UL=Unalloc CC=9 f1=0 f2=9 (dist=0)
+- DL #751 dl_t=37.812s (Δ=-14 ms) TN4 FN03 MN35 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
+- DL #753 dl_t=37.840s (Δ=+15 ms) TN2 FN04 MN35 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -41,8 +41,8 @@
 **AACH-Kontext (±0.2 s):**
 
 - DL #760 dl_t=37.939s (Δ=+1 ms) TN1 FN06 MN35 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #756 dl_t=37.883s (Δ=-56 ms) TN1 FN05 MN35 AACH `DL/UL-Assign` · DL=Unalloc UL=Unalloc CC=9 f1=0 f2=9 (dist=0)
-- DL #764 dl_t=37.996s (Δ=+57 ms) TN1 FN07 MN35 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #759 dl_t=37.925s (Δ=-13 ms) TN4 FN05 MN35 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
+- DL #761 dl_t=37.953s (Δ=+15 ms) TN2 FN06 MN35 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -54,8 +54,8 @@
 **AACH-Kontext (±0.2 s):**
 
 - DL #1528 dl_t=48.819s (Δ=-6 ms) TN1 FN18 MN45 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1532 dl_t=48.876s (Δ=+51 ms) TN1 FN01 MN46 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1524 dl_t=48.763s (Δ=-63 ms) TN1 FN17 MN45 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1529 dl_t=48.834s (Δ=+8 ms) TN2 FN18 MN45 AACH `DL/UL-Assign` · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
+- DL #1527 dl_t=48.805s (Δ=-20 ms) TN4 FN17 MN45 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -69,7 +69,7 @@
 
 - DL #1545 dl_t=49.060s (Δ=+1 ms) TN2 FN04 MN46 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1544 dl_t=49.046s (Δ=-13 ms) TN1 FN04 MN46 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1548 dl_t=49.103s (Δ=+43 ms) TN1 FN05 MN46 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1546 dl_t=49.074s (Δ=+15 ms) TN3 FN04 MN46 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -83,7 +83,7 @@
 
 - DL #1549 dl_t=49.117s (Δ=+0 ms) TN2 FN05 MN46 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1548 dl_t=49.103s (Δ=-14 ms) TN1 FN05 MN46 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1552 dl_t=49.159s (Δ=+43 ms) TN1 FN06 MN46 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1550 dl_t=49.131s (Δ=+15 ms) TN3 FN05 MN46 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -96,8 +96,8 @@
 **AACH-Kontext (±0.2 s):**
 
 - DL #1552 dl_t=49.159s (Δ=-14 ms) TN1 FN06 MN46 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1556 dl_t=49.216s (Δ=+43 ms) TN1 FN07 MN46 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1549 dl_t=49.117s (Δ=-57 ms) TN2 FN05 MN46 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
+- DL #1554 dl_t=49.188s (Δ=+14 ms) TN3 FN06 MN46 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
+- DL #1551 dl_t=49.145s (Δ=-28 ms) TN4 FN05 MN46 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -109,9 +109,9 @@
 
 **AACH-Kontext (±0.2 s):**
 
+- DL #1878 dl_t=53.778s (Δ=+7 ms) TN3 FN15 MN50 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 - DL #1876 dl_t=53.750s (Δ=-21 ms) TN1 FN15 MN50 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1880 dl_t=53.806s (Δ=+36 ms) TN1 FN16 MN50 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1881 dl_t=53.820s (Δ=+50 ms) TN2 FN16 MN50 AACH `CapAlloc` · f1=1 f2=7 raw=0x3047 (dist=0)
+- DL #1879 dl_t=53.792s (Δ=+22 ms) TN4 FN15 MN50 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -124,7 +124,7 @@
 
 - DL #1897 dl_t=54.047s (Δ=+1 ms) TN2 FN02 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1896 dl_t=54.033s (Δ=-14 ms) TN1 FN02 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1900 dl_t=54.090s (Δ=+43 ms) TN1 FN03 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1898 dl_t=54.061s (Δ=+15 ms) TN3 FN02 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -137,7 +137,7 @@
 
 - DL #1901 dl_t=54.104s (Δ=+0 ms) TN2 FN03 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1900 dl_t=54.090s (Δ=-14 ms) TN1 FN03 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1904 dl_t=54.146s (Δ=+43 ms) TN1 FN04 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1902 dl_t=54.118s (Δ=+14 ms) TN3 FN03 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -150,7 +150,7 @@
 
 - DL #1905 dl_t=54.160s (Δ=+1 ms) TN2 FN04 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1904 dl_t=54.146s (Δ=-13 ms) TN1 FN04 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1908 dl_t=54.203s (Δ=+43 ms) TN1 FN05 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1906 dl_t=54.175s (Δ=+15 ms) TN3 FN04 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -163,7 +163,7 @@
 
 - DL #1909 dl_t=54.217s (Δ=+1 ms) TN2 FN05 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1908 dl_t=54.203s (Δ=-14 ms) TN1 FN05 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1912 dl_t=54.260s (Δ=+43 ms) TN1 FN06 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1910 dl_t=54.231s (Δ=+15 ms) TN3 FN05 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -176,7 +176,7 @@
 
 - DL #1913 dl_t=54.274s (Δ=+0 ms) TN2 FN06 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1912 dl_t=54.260s (Δ=-14 ms) TN1 FN06 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1916 dl_t=54.316s (Δ=+43 ms) TN1 FN07 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1914 dl_t=54.288s (Δ=+14 ms) TN3 FN06 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -189,7 +189,7 @@
 
 - DL #1917 dl_t=54.330s (Δ=+1 ms) TN2 FN07 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1916 dl_t=54.316s (Δ=-13 ms) TN1 FN07 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1920 dl_t=54.373s (Δ=+43 ms) TN1 FN08 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1918 dl_t=54.345s (Δ=+15 ms) TN3 FN07 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -202,7 +202,7 @@
 
 - DL #1921 dl_t=54.387s (Δ=+1 ms) TN2 FN08 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1920 dl_t=54.373s (Δ=-14 ms) TN1 FN08 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1924 dl_t=54.430s (Δ=+43 ms) TN1 FN09 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1922 dl_t=54.401s (Δ=+15 ms) TN3 FN08 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -215,7 +215,7 @@
 
 - DL #1925 dl_t=54.444s (Δ=+0 ms) TN2 FN09 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1924 dl_t=54.430s (Δ=-14 ms) TN1 FN09 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1928 dl_t=54.486s (Δ=+43 ms) TN1 FN10 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1926 dl_t=54.458s (Δ=+14 ms) TN3 FN09 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -228,7 +228,7 @@
 
 - DL #1929 dl_t=54.500s (Δ=+1 ms) TN2 FN10 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1928 dl_t=54.486s (Δ=-13 ms) TN1 FN10 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1932 dl_t=54.543s (Δ=+43 ms) TN1 FN11 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1930 dl_t=54.515s (Δ=+15 ms) TN3 FN10 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -242,7 +242,7 @@
 
 - DL #1933 dl_t=54.557s (Δ=+1 ms) TN2 FN11 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1932 dl_t=54.543s (Δ=-14 ms) TN1 FN11 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1936 dl_t=54.600s (Δ=+43 ms) TN1 FN12 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1934 dl_t=54.571s (Δ=+15 ms) TN3 FN11 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -256,7 +256,7 @@
 
 - DL #1937 dl_t=54.614s (Δ=+0 ms) TN2 FN12 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1936 dl_t=54.600s (Δ=-14 ms) TN1 FN12 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1940 dl_t=54.656s (Δ=+43 ms) TN1 FN13 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1938 dl_t=54.628s (Δ=+14 ms) TN3 FN12 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -270,7 +270,7 @@
 
 - DL #1941 dl_t=54.670s (Δ=+1 ms) TN2 FN13 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1940 dl_t=54.656s (Δ=-13 ms) TN1 FN13 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1944 dl_t=54.713s (Δ=+43 ms) TN1 FN14 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1942 dl_t=54.685s (Δ=+15 ms) TN3 FN13 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -284,7 +284,7 @@
 
 - DL #1945 dl_t=54.727s (Δ=+1 ms) TN2 FN14 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1944 dl_t=54.713s (Δ=-14 ms) TN1 FN14 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1948 dl_t=54.770s (Δ=+43 ms) TN1 FN15 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1946 dl_t=54.741s (Δ=+15 ms) TN3 FN14 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -298,7 +298,7 @@
 
 - DL #1949 dl_t=54.784s (Δ=+0 ms) TN2 FN15 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1948 dl_t=54.770s (Δ=-14 ms) TN1 FN15 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1952 dl_t=54.826s (Δ=+43 ms) TN1 FN16 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1950 dl_t=54.798s (Δ=+14 ms) TN3 FN15 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -312,7 +312,7 @@
 
 - DL #1953 dl_t=54.840s (Δ=+1 ms) TN2 FN16 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1952 dl_t=54.826s (Δ=-13 ms) TN1 FN16 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1956 dl_t=54.883s (Δ=+43 ms) TN1 FN17 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1954 dl_t=54.855s (Δ=+15 ms) TN3 FN16 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -326,7 +326,7 @@
 
 - DL #1957 dl_t=54.897s (Δ=+1 ms) TN2 FN17 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1956 dl_t=54.883s (Δ=-14 ms) TN1 FN17 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1960 dl_t=54.940s (Δ=+43 ms) TN1 FN18 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1958 dl_t=54.911s (Δ=+15 ms) TN3 FN17 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -339,8 +339,8 @@
 **AACH-Kontext (±0.2 s):**
 
 - DL #1960 dl_t=54.940s (Δ=-14 ms) TN1 FN18 MN51 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1964 dl_t=54.996s (Δ=+43 ms) TN1 FN01 MN52 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1957 dl_t=54.897s (Δ=-56 ms) TN2 FN17 MN51 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
+- DL #1962 dl_t=54.968s (Δ=+14 ms) TN3 FN18 MN51 AACH `DL/UL-Assign` · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
+- DL #1959 dl_t=54.925s (Δ=-28 ms) TN4 FN17 MN51 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -354,7 +354,7 @@
 
 - DL #1969 dl_t=55.067s (Δ=+1 ms) TN2 FN02 MN52 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1968 dl_t=55.053s (Δ=-14 ms) TN1 FN02 MN52 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1972 dl_t=55.110s (Δ=+43 ms) TN1 FN03 MN52 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1970 dl_t=55.081s (Δ=+15 ms) TN3 FN02 MN52 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -368,7 +368,7 @@
 
 - DL #1973 dl_t=55.124s (Δ=+0 ms) TN2 FN03 MN52 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1972 dl_t=55.110s (Δ=-14 ms) TN1 FN03 MN52 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1976 dl_t=55.166s (Δ=+43 ms) TN1 FN04 MN52 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1974 dl_t=55.138s (Δ=+14 ms) TN3 FN03 MN52 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -382,7 +382,7 @@
 
 - DL #1977 dl_t=55.180s (Δ=+1 ms) TN2 FN04 MN52 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1976 dl_t=55.166s (Δ=-13 ms) TN1 FN04 MN52 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1980 dl_t=55.223s (Δ=+43 ms) TN1 FN05 MN52 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1978 dl_t=55.195s (Δ=+15 ms) TN3 FN04 MN52 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -396,7 +396,7 @@
 
 - DL #1981 dl_t=55.237s (Δ=+1 ms) TN2 FN05 MN52 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #1980 dl_t=55.223s (Δ=-14 ms) TN1 FN05 MN52 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1984 dl_t=55.280s (Δ=+43 ms) TN1 FN06 MN52 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #1982 dl_t=55.251s (Δ=+15 ms) TN3 FN05 MN52 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -409,8 +409,8 @@
 **AACH-Kontext (±0.2 s):**
 
 - DL #1984 dl_t=55.280s (Δ=-14 ms) TN1 FN06 MN52 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1988 dl_t=55.336s (Δ=+43 ms) TN1 FN07 MN52 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #1981 dl_t=55.237s (Δ=-56 ms) TN2 FN05 MN52 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
+- DL #1986 dl_t=55.308s (Δ=+14 ms) TN3 FN06 MN52 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
+- DL #1983 dl_t=55.265s (Δ=-28 ms) TN4 FN05 MN52 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -422,9 +422,9 @@
 
 **AACH-Kontext (±0.2 s):**
 
+- DL #2134 dl_t=57.405s (Δ=+8 ms) TN3 FN07 MN54 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 - DL #2132 dl_t=57.376s (Δ=-20 ms) TN1 FN07 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2136 dl_t=57.433s (Δ=+36 ms) TN1 FN08 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2137 dl_t=57.447s (Δ=+51 ms) TN2 FN08 MN54 AACH `CapAlloc` · f1=1 f2=7 raw=0x3047 (dist=0)
+- DL #2135 dl_t=57.419s (Δ=+22 ms) TN4 FN07 MN54 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -436,7 +436,7 @@
 
 - DL #2149 dl_t=57.617s (Δ=+1 ms) TN2 FN11 MN54 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2148 dl_t=57.603s (Δ=-14 ms) TN1 FN11 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2152 dl_t=57.660s (Δ=+43 ms) TN1 FN12 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2150 dl_t=57.631s (Δ=+15 ms) TN3 FN11 MN54 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -448,7 +448,7 @@
 
 - DL #2153 dl_t=57.674s (Δ=+0 ms) TN2 FN12 MN54 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2152 dl_t=57.660s (Δ=-14 ms) TN1 FN12 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2156 dl_t=57.716s (Δ=+43 ms) TN1 FN13 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2154 dl_t=57.688s (Δ=+14 ms) TN3 FN12 MN54 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -460,7 +460,7 @@
 
 - DL #2157 dl_t=57.731s (Δ=+1 ms) TN2 FN13 MN54 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2156 dl_t=57.716s (Δ=-13 ms) TN1 FN13 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2160 dl_t=57.773s (Δ=+43 ms) TN1 FN14 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2158 dl_t=57.745s (Δ=+15 ms) TN3 FN13 MN54 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -472,7 +472,7 @@
 
 - DL #2161 dl_t=57.787s (Δ=+1 ms) TN2 FN14 MN54 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2160 dl_t=57.773s (Δ=-14 ms) TN1 FN14 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2164 dl_t=57.830s (Δ=+43 ms) TN1 FN15 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2162 dl_t=57.801s (Δ=+15 ms) TN3 FN14 MN54 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -484,7 +484,7 @@
 
 - DL #2165 dl_t=57.844s (Δ=+0 ms) TN2 FN15 MN54 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2164 dl_t=57.830s (Δ=-14 ms) TN1 FN15 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2168 dl_t=57.886s (Δ=+43 ms) TN1 FN16 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2166 dl_t=57.858s (Δ=+14 ms) TN3 FN15 MN54 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -496,7 +496,7 @@
 
 - DL #2169 dl_t=57.901s (Δ=+1 ms) TN2 FN16 MN54 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2168 dl_t=57.886s (Δ=-13 ms) TN1 FN16 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2172 dl_t=57.943s (Δ=+43 ms) TN1 FN17 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2170 dl_t=57.915s (Δ=+15 ms) TN3 FN16 MN54 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -508,7 +508,7 @@
 
 - DL #2173 dl_t=57.957s (Δ=+1 ms) TN2 FN17 MN54 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2172 dl_t=57.943s (Δ=-14 ms) TN1 FN17 MN54 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2169 dl_t=57.901s (Δ=-56 ms) TN2 FN16 MN54 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
+- DL #2174 dl_t=57.971s (Δ=+15 ms) TN3 FN17 MN54 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -518,9 +518,9 @@
 
 **AACH-Kontext (±0.2 s):**
 
-- DL #2180 dl_t=58.056s (Δ=+43 ms) TN1 FN01 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2173 dl_t=57.957s (Δ=-56 ms) TN2 FN17 MN54 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
-- DL #2181 dl_t=58.071s (Δ=+57 ms) TN2 FN01 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
+- DL #2176 dl_t=58.000s (Δ=-14 ms) TN1 FN18 MN54 AACH `DL/UL-Assign` · DL=Unalloc UL=Random CC=9 f1=1 f2=9 (dist=0)
+- DL #2178 dl_t=58.028s (Δ=+14 ms) TN3 FN18 MN54 AACH `DL/UL-Assign` · DL=Unalloc UL=Random CC=0 f1=1 f2=0 (dist=0)
+- DL #2175 dl_t=57.986s (Δ=-28 ms) TN4 FN17 MN54 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -532,7 +532,7 @@
 
 - DL #2185 dl_t=58.127s (Δ=+1 ms) TN2 FN02 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2184 dl_t=58.113s (Δ=-14 ms) TN1 FN02 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2188 dl_t=58.170s (Δ=+43 ms) TN1 FN03 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2186 dl_t=58.141s (Δ=+15 ms) TN3 FN02 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -544,7 +544,7 @@
 
 - DL #2189 dl_t=58.184s (Δ=+0 ms) TN2 FN03 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2188 dl_t=58.170s (Δ=-14 ms) TN1 FN03 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2192 dl_t=58.226s (Δ=+43 ms) TN1 FN04 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2190 dl_t=58.198s (Δ=+14 ms) TN3 FN03 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -556,7 +556,7 @@
 
 - DL #2193 dl_t=58.241s (Δ=+1 ms) TN2 FN04 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2192 dl_t=58.226s (Δ=-13 ms) TN1 FN04 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2196 dl_t=58.283s (Δ=+43 ms) TN1 FN05 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2194 dl_t=58.255s (Δ=+15 ms) TN3 FN04 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -568,7 +568,7 @@
 
 - DL #2197 dl_t=58.297s (Δ=+1 ms) TN2 FN05 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2196 dl_t=58.283s (Δ=-14 ms) TN1 FN05 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2200 dl_t=58.340s (Δ=+43 ms) TN1 FN06 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2198 dl_t=58.311s (Δ=+15 ms) TN3 FN05 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -580,7 +580,7 @@
 
 - DL #2201 dl_t=58.354s (Δ=+0 ms) TN2 FN06 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2200 dl_t=58.340s (Δ=-14 ms) TN1 FN06 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2204 dl_t=58.396s (Δ=+43 ms) TN1 FN07 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2202 dl_t=58.368s (Δ=+14 ms) TN3 FN06 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -592,7 +592,7 @@
 
 - DL #2205 dl_t=58.411s (Δ=+1 ms) TN2 FN07 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2204 dl_t=58.396s (Δ=-13 ms) TN1 FN07 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2208 dl_t=58.453s (Δ=+43 ms) TN1 FN08 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2206 dl_t=58.425s (Δ=+15 ms) TN3 FN07 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -604,7 +604,7 @@
 
 - DL #2209 dl_t=58.467s (Δ=+1 ms) TN2 FN08 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2208 dl_t=58.453s (Δ=-14 ms) TN1 FN08 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2212 dl_t=58.510s (Δ=+43 ms) TN1 FN09 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2210 dl_t=58.481s (Δ=+15 ms) TN3 FN08 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -616,7 +616,7 @@
 
 - DL #2213 dl_t=58.524s (Δ=+0 ms) TN2 FN09 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2212 dl_t=58.510s (Δ=-14 ms) TN1 FN09 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2216 dl_t=58.566s (Δ=+43 ms) TN1 FN10 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2214 dl_t=58.538s (Δ=+14 ms) TN3 FN09 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -628,7 +628,7 @@
 
 - DL #2217 dl_t=58.581s (Δ=+1 ms) TN2 FN10 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2216 dl_t=58.566s (Δ=-13 ms) TN1 FN10 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2220 dl_t=58.623s (Δ=+43 ms) TN1 FN11 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2218 dl_t=58.595s (Δ=+15 ms) TN3 FN10 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -640,7 +640,7 @@
 
 - DL #2221 dl_t=58.637s (Δ=+1 ms) TN2 FN11 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2220 dl_t=58.623s (Δ=-14 ms) TN1 FN11 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2224 dl_t=58.680s (Δ=+43 ms) TN1 FN12 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2222 dl_t=58.651s (Δ=+15 ms) TN3 FN11 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -652,7 +652,7 @@
 
 - DL #2225 dl_t=58.694s (Δ=+0 ms) TN2 FN12 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
 - DL #2224 dl_t=58.680s (Δ=-14 ms) TN1 FN12 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2228 dl_t=58.736s (Δ=+43 ms) TN1 FN13 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2226 dl_t=58.708s (Δ=+14 ms) TN3 FN12 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -663,8 +663,8 @@
 **AACH-Kontext (±0.2 s):**
 
 - DL #2228 dl_t=58.736s (Δ=-13 ms) TN1 FN13 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2232 dl_t=58.793s (Δ=+43 ms) TN1 FN14 MN55 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2225 dl_t=58.694s (Δ=-56 ms) TN2 FN12 MN55 AACH `CapAlloc` · f1=7 f2=7 raw=0x31C7 (dist=0)
+- DL #2230 dl_t=58.765s (Δ=+15 ms) TN3 FN13 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
+- DL #2227 dl_t=58.722s (Δ=-27 ms) TN4 FN12 MN55 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 
@@ -674,9 +674,9 @@
 
 **AACH-Kontext (±0.2 s):**
 
+- DL #2574 dl_t=63.638s (Δ=+8 ms) TN3 FN09 MN60 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 - DL #2572 dl_t=63.610s (Δ=-21 ms) TN1 FN09 MN60 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2576 dl_t=63.666s (Δ=+36 ms) TN1 FN10 MN60 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
-- DL #2568 dl_t=63.553s (Δ=-77 ms) TN1 FN08 MN60 AACH `DL/UL-Assign` · DL=Common UL=Random CC=9 f1=9 f2=9 (dist=0)
+- DL #2575 dl_t=63.652s (Δ=+22 ms) TN4 FN09 MN60 AACH `CapAlloc` · f1=0 f2=0 raw=0x3000 (dist=0)
 
 **DL-Signaling-Reaktion(en):**
 

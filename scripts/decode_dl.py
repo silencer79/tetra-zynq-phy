@@ -1129,6 +1129,14 @@ def _parse_sysinfo_type2(bits, pos):
     if pos + 20 > len(bits): return s, pos
     s['Optional_Field_Value'] = extract_bits(bits, pos, 20); pos += 20
 
+    # Ab hier beginnt der TM-SDU der SYSINFO-PDU, also die MLE-PDU
+    # D-MLE-SYSINFO (Tabelle 21.65: "TM-SDU (MLE data) 42 M — As defined in
+    # clause 18"). Die Grenze wird festgehalten, damit die MLE-Schicht sie
+    # ohne Rueckrechnung findet. Location_Area wird unten weiterhin gelesen
+    # (unveraendertes Ausgabeverhalten von _print_mac); es ist bereits das
+    # erste Element der MLE-PDU.
+    s['mle_start'] = pos
+
     if pos + 14 > len(bits): return s, pos
     s['Location_Area'] = extract_bits(bits, pos, 14); pos += 14
 
@@ -1325,8 +1333,30 @@ def parse_mm_pdu(bits, pos, mm_type):
 
     return r
 
-def parse_mle(bits, pos):
-    """Parse MLE discriminator + CMCE/MM header."""
+def parse_mle(bits, pos, broadcast=False):
+    """Parse MLE discriminator + CMCE/MM header.
+
+    broadcast=True: die MLE-PDU des Rundspruchs (TMB-SAP). Sie hat KEINEN
+    Protokolldiskriminator, weil unter dem TLB-SAP keine LLC- und keine
+    Multiplex-Schicht liegt (EN 300 392-2 §19.2.3.1, §20.3.2) - die 42 Bit
+    des TM-SDU der MAC-SYSINFO-PDU sind unmittelbar die D-MLE-SYSINFO-PDU
+    (§18.4.2.2, Tabelle 18.19: Location area 14 + Subscriber class 16 +
+    BS service details 12 = 42 Bit, "This PDU shall not contain an 'O' bit").
+    Der Diskriminatorname wird deshalb fest auf 'MLE' gesetzt: es ist eine
+    PDU des MLE-Protokolls selbst, kein Traeger einer MM-/CMCE-/SDS-PDU.
+    """
+    if broadcast:
+        r = {'mle_disc': 5, 'mle_disc_name': MLE_PDU_NAMES.get(5, 'MLE'),
+             'mle_prim_name': 'D-MLE-SYSINFO', 'mle_bcast': True}
+        if pos + 42 > len(bits):
+            r['mle_type'] = 'TOO_SHORT'
+            r['payload_start'] = pos
+            return r
+        r['location_area'] = extract_bits(bits, pos, 14)
+        r['subscriber_class'] = extract_bits(bits, pos + 14, 16)
+        r['bs_service_details'] = extract_bits(bits, pos + 30, 12)
+        r['payload_start'] = pos + 42
+        return r
     if pos + 3 > len(bits):
         return {'mle_type': 'TOO_SHORT'}
     disc = extract_bits(bits, pos, 3); pos += 3
@@ -1884,9 +1914,31 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
             bkn2_s = (sb_off_bkn2 - 1) * 2
             if bkn2_s + SDB_BKN2 * 2 > len(soft_bits):
                 continue
-            bkn2_soft = soft_bits[bkn2_s : bkn2_s + SDB_BKN2 * 2]
-            bkn2_soft = descramble_soft(bkn2_soft, scramb_code, 216)
+            bkn2_soft_raw = soft_bits[bkn2_s : bkn2_s + SDB_BKN2 * 2]
+            bkn2_soft = descramble_soft(bkn2_soft_raw, scramb_code, 216)
             bkn2_crc, bkn2_info, _ = decode_channel_soft(bkn2_soft, 216, 101, 124)
+
+            # Zwischenstufen-Dump der BKN2-Kette des Synchronisations-Bursts
+            # (Bursttyp SB, Halbschlitzblock 2 = BNCH oder SCH/HD).
+            # Rein beobachtend: die Hard-Bit-Darstellung wird aus denselben
+            # Soft-Werten abgeleitet, die der Decoder verwendet; der
+            # Decodier-Pfad oben bleibt unberuehrt. Gleiche Vorgehensweise
+            # wie beim SB1-Forensik-Pfad in _try_sb1_decode().
+            # Hinweis: die Kette zeigt die nominale Zeitlage (erster Versuch).
+            # Schlaegt die erste CRC fehl und greift unten eine Timing-Retry,
+            # stammen die Infobits aus dieser Retry, die drei Stufen hier aber
+            # weiter aus der nominalen Lage - so wie es der NDB2-Pfad ebenfalls
+            # haelt.
+            if _dump_this(idx):
+                b2_onair = (np.asarray(bkn2_soft_raw) < 0).astype(np.int32)[:216]
+                b2_descr = (np.asarray(bkn2_soft) < 0).astype(np.int32)[:216]
+                b2_deint = deinterleave_perm(b2_descr, 216, 101)
+                print(f"  ROUNDTRIP_DUMP_SB bkn2_onair_216b="
+                      f"{''.join(str(int(b)) for b in b2_onair)}", flush=True)
+                print(f"  ROUNDTRIP_DUMP_SB bkn2_descr_216b="
+                      f"{''.join(str(int(b)) for b in b2_descr)}", flush=True)
+                print(f"  ROUNDTRIP_DUMP_SB bkn2_deint_216b="
+                      f"{''.join(str(int(b)) for b in b2_deint)}", flush=True)
 
             if not bkn2_crc:
                 # Timing retry with offsets
@@ -1912,8 +1964,56 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                         print("  BKN2 CRC FAIL")
 
             if bkn2_crc:
+                if _dump_this(idx):
+                    print(f"  ROUNDTRIP_DUMP_SB bkn2_info_124b="
+                          f"{''.join(str(int(b)) for b in bkn2_info)}", flush=True)
                 mac = parse_mac_pdu(bkn2_info, 124)
                 _print_mac("  BKN2", mac, bkn2_info, verbose)
+
+                # ------------------------------------------------------------
+                # Obere Schichten des Halbschlitzblocks 2 des SB.
+                #
+                # Normlage (EN 300 392-2 v3.8.1):
+                #  - Tabelle 9.27 (§9.5.1) fuehrt fuer SCH/HD DL ausdruecklich
+                #    "NDB, SB" als Bursttyp und "BKN1, BKN2" als Block. Block 2
+                #    eines Synchronisations-Bursts kann also gewoehnliche
+                #    SCH/HD-Signalisierung tragen (MAC-RESOURCE -> LLC -> MLE
+                #    -> MM/CMCE). Diese Kette ist hier deshalb anwendbar und
+                #    wird gefahren.
+                #  - Traegt der Block dagegen den BNCH (MAC-BROADCAST/SYSINFO),
+                #    existiert KEINE LLC-Schicht: §19.2.3.1 "Under the TLB-SAP,
+                #    there is no LLC functionality and the MLE SDU is passed
+                #    directly to/from the TMB-SAP. Therefore ... there exists
+                #    no LLC PDU for the broadcast under the TLB-SAP." und
+                #    §20.3.2 "In the protocol model there are no LLC functions
+                #    under the TLB-SAP, and the LLC shall convey information
+                #    directly to the MAC using the TMB-SAP."
+                #    Tabelle 21.65 (§21.4.4.1, SYSINFO-PDU) fuehrt als letztes
+                #    Element "TM-SDU (MLE data) 42 M — As defined in clause 18
+                #    (D-MLE-SYSINFO)": der TM-SDU IST die MLE-PDU, ohne
+                #    LLC-Kopf. Fuer diesen Unterfall wird deshalb parse_llc()
+                #    bewusst NICHT gerufen, sondern direkt die MLE-Schicht.
+                # ------------------------------------------------------------
+                if mac.get('type') == 0 and not mac.get('is_null_pdu'):
+                    # SCH/HD-Signalisierung auf BKN2 des SB (Tabelle 9.27)
+                    pstart = mac.get('payload_start', 0)
+                    if pstart + 4 < len(bkn2_info):
+                        llc = parse_llc(bkn2_info, pstart)
+                        _print_llc("    BKN2 SCH/HD LLC", llc)
+                        if 'payload_start' in llc and llc['payload_start'] + 3 < len(bkn2_info):
+                            if llc.get('llc_type') == 14:
+                                direct_mm = parse_direct_mm(bkn2_info, llc['payload_start'])
+                                _print_direct_mm("    BKN2 SCH/HD DirectMM", direct_mm)
+                            else:
+                                mle = parse_mle(bkn2_info, llc['payload_start'])
+                                _print_mle("    BKN2 SCH/HD MLE", mle)
+                elif mac.get('type') == 2:
+                    # BNCH: MAC-BROADCAST -> MLE direkt (kein LLC, s.o.)
+                    si2 = mac.get('sysinfo') or {}
+                    mle_start = si2.get('mle_start')
+                    if mle_start is not None and mle_start + 42 <= len(bkn2_info):
+                        mle = parse_mle(bkn2_info, mle_start, broadcast=True)
+                        _print_mle("    BKN2 BNCH MLE", mle)
 
             # BB (AACH) decode — SB carries AACH on a single BB block
             bb_start = sb_off_bb - 1
@@ -1989,6 +2089,19 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                     print(f"  ROUNDTRIP_DUMP scramb_code=0x{scramb_code:08x}")
 
                 combined_soft = descramble_soft(combined_soft, scramb_code, 432)
+
+                # Zwischenstufen des SCH/F: entschleiert (type-4) und
+                # deinterleavt (type-3). Rein beobachtend aus denselben
+                # Soft-Werten abgeleitet, die decode_channel_soft() unten
+                # verwendet - der Decodier-Pfad bleibt unberuehrt.
+                if _dump_this(idx):
+                    f_descr = (np.asarray(combined_soft) < 0).astype(np.int32)[:432]
+                    f_deint = deinterleave_perm(f_descr, 432, 103)
+                    print(f"  ROUNDTRIP_DUMP descr_432b="
+                          f"{''.join(str(int(b)) for b in f_descr)}", flush=True)
+                    print(f"  ROUNDTRIP_DUMP deint_432b="
+                          f"{''.join(str(int(b)) for b in f_deint)}", flush=True)
+
                 crc_ok, info_bits, _ = decode_channel_soft(combined_soft, 432, 103, 268)
 
                 if _dump_this(idx) and crc_ok:
@@ -2050,6 +2163,26 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                         info_bits = fac_info1 if fac_ok1 else fac_info2
                         half_tag = "BKN1" if fac_ok1 else "BKN2"
                         print(f"  FACCH-Stealing on {half_tag} (SCH/HD): CRC OK")
+
+                        # Zwischenstufen der gestohlenen Haelfte. Die
+                        # Kanalkodierung ist SCH/HD (K=216, a=101), deshalb
+                        # dieselbe Kette wie bei NDB2. Rein beobachtend aus den
+                        # oben schon berechneten Soft-Werten abgeleitet.
+                        if _dump_this(idx):
+                            fac_raw = blk1_soft if fac_ok1 else blk2_soft
+                            fac_descr_soft = (bkn1_soft_descr if fac_ok1
+                                              else bkn2_soft_descr)
+                            fc_onair = (np.asarray(fac_raw) < 0).astype(np.int32)[:216]
+                            fc_descr = (np.asarray(fac_descr_soft) < 0).astype(np.int32)[:216]
+                            fc_deint = deinterleave_perm(fc_descr, 216, 101)
+                            print(f"  ROUNDTRIP_DUMP_HD facch_onair_216b="
+                                  f"{''.join(str(int(b)) for b in fc_onair)}", flush=True)
+                            print(f"  ROUNDTRIP_DUMP_HD facch_descr_216b="
+                                  f"{''.join(str(int(b)) for b in fc_descr)}", flush=True)
+                            print(f"  ROUNDTRIP_DUMP_HD facch_deint_216b="
+                                  f"{''.join(str(int(b)) for b in fc_deint)}", flush=True)
+                            print(f"  ROUNDTRIP_DUMP_HD facch_info_124b="
+                                  f"{''.join(str(int(b)) for b in info_bits)}", flush=True)
                         mac = parse_mac_pdu(info_bits, 124)
                         # Blockkennung des gestohlenen Halbschlitzes: Block +
                         # Kanal "SCH/HD-FACCH". Der Kanalname bleibt erhalten
@@ -2099,6 +2232,22 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                     print(f"  ROUNDTRIP_DUMP_HD bkn1_onair_216b={''.join(str(b) for b in onair_b1)}")
                     print(f"  ROUNDTRIP_DUMP_HD bkn2_onair_216b={''.join(str(b) for b in onair_b2)}")
                     print(f"  ROUNDTRIP_DUMP_HD scramb_code=0x{scramb_code:08x}")
+                    # Zwischenstufen entschleiert/deinterleavt. _decode_halves()
+                    # rechnet sie intern, gibt sie aber nicht heraus; hier
+                    # deshalb identisch nachgerechnet (gleiche Eingaben, gleiche
+                    # Funktionen) - der Decodier-Pfad bleibt unangetastet.
+                    b1d = descramble_soft(b1, scramb_code, 216)
+                    b2d = descramble_soft(b2, scramb_code, 216)
+                    d1_descr = (np.asarray(b1d) < 0).astype(np.int32)[:216]
+                    d2_descr = (np.asarray(b2d) < 0).astype(np.int32)[:216]
+                    print(f"  ROUNDTRIP_DUMP_HD bkn1_descr_216b="
+                          f"{''.join(str(int(b)) for b in d1_descr)}")
+                    print(f"  ROUNDTRIP_DUMP_HD bkn1_deint_216b="
+                          f"{''.join(str(int(b)) for b in deinterleave_perm(d1_descr, 216, 101))}")
+                    print(f"  ROUNDTRIP_DUMP_HD bkn2_descr_216b="
+                          f"{''.join(str(int(b)) for b in d2_descr)}")
+                    print(f"  ROUNDTRIP_DUMP_HD bkn2_deint_216b="
+                          f"{''.join(str(int(b)) for b in deinterleave_perm(d2_descr, 216, 101))}")
                     if crc1:
                         i1s = ''.join(str(int(b)) for b in info1)
                         print(f"  ROUNDTRIP_DUMP_HD bkn1_info_124b={i1s}")
@@ -2321,6 +2470,12 @@ def _print_mle(prefix, mle):
     elif 'mle_prim_name' in mle:
         print(f" → {mle['mle_prim_name']}", end='')
     print()
+
+    # Rundspruch-MLE-PDU (D-MLE-SYSINFO): Felder aus Tabelle 18.19
+    if mle.get('mle_bcast') and 'location_area' in mle:
+        print(f"{prefix}    LA={mle['location_area']} "
+              f"SubCls=0x{mle['subscriber_class']:04X} "
+              f"BSserv=0x{mle['bs_service_details']:03X}")
 
     # Phase-1 — field-level CMCE PDU dump
     cmce = mle.get('cmce')

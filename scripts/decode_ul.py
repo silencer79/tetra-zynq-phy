@@ -271,11 +271,34 @@ def sample_half_soft_bits(iq, sps, x_start_pos, half_syms, cfo_A=0.0, cfo_B=0.0)
     return blk1_soft, blk2_soft
 
 
+_DEINT_PERM = {}
+
+
+def deinterleave_type4_to_type3(bits_type4, K, a):
+    """Undo the (K,a) block interleaver — ETSI EN 300 392-2 §8.2.4.1 (8.34).
+
+    Encoder: b4(k) = b3(i) with k = 1 + ((a*i) mod K), so the decoder reads
+    type-3 bit i from type-4 position k. Same index arithmetic as the soft-value
+    permutation inside decode_channel_soft(); applied to the hard decisions of
+    the descrambled type-4 bits it yields exactly the signs of the soft values
+    that enter the Viterbi decoder. Read-only: no effect on the decode result.
+
+    SCH/HU: K=168, a=13 (§8.3.1.4.3) — 168 type-3 bits b3(1)..b3(168).
+    """
+    perm = _DEINT_PERM.get((K, a))
+    if perm is None:
+        i = np.arange(1, K + 1, dtype=np.int64)
+        perm = ((a * i) % K)                      # = (1 + ((a*i) mod K)) - 1
+        _DEINT_PERM[(K, a)] = perm
+    return np.asarray(bits_type4, dtype=np.int32)[perm]
+
+
 def try_channel_decode(blk1_soft, blk2_soft, scramb_init, channel):
     """Try decoding the (blk1+blk2) payload under one channel hypothesis.
     channel: 'schhu' (K=168,a=13,info=92), 'schhd' (K=216,a=101,info=124),
              'schf'  (K=432,a=103,info=268).
     Runs order/polarity/scramble hypotheses; returns best result.
+    Returns (crc_ok, info_bits, type4_hard, variant_name, type3_deint).
     """
     if channel == 'schhu':
         K, a, info = 168, 13, 92
@@ -288,7 +311,7 @@ def try_channel_decode(blk1_soft, blk2_soft, scramb_init, channel):
 
     len_half = len(blk1_soft)
     if 2 * len_half < K:
-        return (False, None, None, None)
+        return (False, None, None, None, None)
     # Trim to K bits from the concatenation (pad or cut)
     def cat_trim(a_, b_):
         s = np.concatenate([a_, b_])
@@ -315,10 +338,15 @@ def try_channel_decode(blk1_soft, blk2_soft, scramb_init, channel):
             continue
         hard = (soft_t5 < 0).astype(np.int32)
         if crc_ok:
-            return True, info_bits, hard, name
+            # type-3 block (deinterleaved) of the winning hypothesis — dump-only
+            # stage, same permutation decode_channel_soft() applies internally.
+            return (True, info_bits, hard, name,
+                    deinterleave_type4_to_type3(hard, K, a))
         if best[1] is None:
             best = (crc_ok, info_bits, hard, name)
-    return best
+    if best[2] is None:
+        return best + (None,)
+    return best + (deinterleave_type4_to_type3(best[2], K, a),)
 
 
 def try_schhu_decode(cb1_soft, cb2_soft, scramb_init):
@@ -767,6 +795,8 @@ def _decode_one_burst(args):
 
     crc_ok, info_bits, type5_hard = result[0], result[1], result[2]
     variant = result[3] if len(result) > 3 and result[3] else ''
+    # type-3 block (deinterleaved, pre-Viterbi) of the reported hypothesis
+    t3_deint = result[4] if len(result) > 4 else None
     t5_onair = None
     if blk1_final is not None and blk2_final is not None:
         soft = np.concatenate([blk1_final, blk2_final])
@@ -775,7 +805,7 @@ def _decode_one_burst(args):
         'i': i, 's': s, 'x_corr': x_corr, 'cfo_A': cfo_A,
         'crc_ok': crc_ok, 'info_bits': info_bits,
         'type5_hard': type5_hard, 'variant': variant,
-        't5_onair': t5_onair,
+        't5_onair': t5_onair, 't3_deint': t3_deint,
     }
 
 
@@ -888,6 +918,11 @@ def main():
             if type5_hard is not None:
                 t4_str = ''.join(str(int(b)) for b in type5_hard)
                 print(f'  ROUNDTRIP_DUMP_HU type4_descr={t4_str}', flush=True)
+            # type-3 block: (168,13) block interleaver undone, ETSI EN 300 392-2
+            # §8.2.4.1 / §8.3.1.4.3 — the bits that enter the Viterbi decoder.
+            if args.dump_bits and res.get('t3_deint') is not None:
+                t3_str = ''.join(str(int(b)) for b in res['t3_deint'])
+                print(f'  ROUNDTRIP_DUMP_HU type3_deint={t3_str}', flush=True)
             if info_bits is not None:
                 info_str = ''.join(str(int(b)) for b in info_bits)
                 print(f'  ROUNDTRIP_DUMP_HU info={info_str}', flush=True)

@@ -12,8 +12,9 @@
 
 | Count | Kind | Raw |
 |---|---|---|
-| 737 | DL/UL-Assign | n/a |
-| 191 | Reserved | 0x2049 |
+| 1860 | CapAlloc | 0x3000 |
+| 859 | DL/UL-Assign | n/a |
+| 194 | Reserved | 0x2049 |
 | 48 | CapAlloc | 0x31C7 |
 | 12 | Reserved | 0x21C9 |
 | 11 | Reserved | 0x2249 |
