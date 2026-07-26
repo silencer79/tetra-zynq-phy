@@ -2001,18 +2001,40 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                     mac = parse_mac_pdu(info_bits, 268)
                     _print_mac("  SCH/F", mac, info_bits, verbose)
 
+                    # ------------------------------------------------------
+                    # AUSGABEFORMAT DER SCHICHTZEILEN (einheitlich, alle Zweige)
+                    #
+                    #     "<Blockkennung> <Schichtname>  <Rumpf>"
+                    #
+                    # Die Blockkennung ist "[BKNn ]<Kanal>", also optional der
+                    # Halbschlitzblock plus IMMER der logische Kanal, der den
+                    # Block traegt: SCH/F, SCH/HD, SCH/HD-FACCH, BNCH.
+                    #
+                    # Begruendung: ein Burst traegt bis zu zwei unabhaengige
+                    # PDU-Ketten (NDB2 = BKN1 + BKN2, NDB1 mit Kanalstehlen =
+                    # Sprache + gestohlene SCH/HD-Haelfte). Ohne Blockkennung
+                    # ist eine LLC-/MLE-Zeile nicht mehr ihrer MAC-Zeile
+                    # zuordenbar - der Aggregator sammelte sie bisher in flachen
+                    # Listen. Der Kanalname gehoert dazu, weil "BKN1" allein
+                    # nicht sagt, ob es SCH/HD-Signalisierung oder eine
+                    # gestohlene FACCH-Haelfte war. Die MAC-Zeile fuehrt
+                    # dieselbe Kennung, LLC/MLE wiederholen sie unveraendert.
+                    # scripts/parse_reference_decode.py erkennt sie als
+                    # optionale Gruppe "blk" (Altformat ohne Praefix bleibt
+                    # lesbar).
+                    # ------------------------------------------------------
                     if mac.get('type') == 0 and not mac.get('is_null_pdu'):
                         pstart = mac.get('payload_start', 0)
                         if pstart + 4 < len(info_bits):
                             llc = parse_llc(info_bits, pstart)
-                            _print_llc("    LLC", llc)
+                            _print_llc("    SCH/F LLC", llc)
                             if 'payload_start' in llc and llc['payload_start'] + 3 < len(info_bits):
                                 if llc.get('llc_type') == 14:
                                     direct_mm = parse_direct_mm(info_bits, llc['payload_start'])
-                                    _print_direct_mm("    DirectMM", direct_mm)
+                                    _print_direct_mm("    SCH/F DirectMM", direct_mm)
                                 else:
                                     mle = parse_mle(info_bits, llc['payload_start'])
-                                    _print_mle("    MLE", mle)
+                                    _print_mle("    SCH/F MLE", mle)
                 else:
                     # SCH/F CRC FAIL — try FACCH-stealing fallback:
                     # one of the two half-blocks might be SCH/HD-coded signaling
@@ -2029,19 +2051,28 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                         half_tag = "BKN1" if fac_ok1 else "BKN2"
                         print(f"  FACCH-Stealing on {half_tag} (SCH/HD): CRC OK")
                         mac = parse_mac_pdu(info_bits, 124)
+                        # Blockkennung des gestohlenen Halbschlitzes: Block +
+                        # Kanal "SCH/HD-FACCH". Der Kanalname bleibt erhalten
+                        # (die Information "gestohlene Haelfte" ist der Kern
+                        # dieses Zweigs) und steht als ein Wort direkt hinter
+                        # dem Block, damit ein Muster ihn als Kanalkennung
+                        # erfassen kann. Format siehe Kommentar im SCH/F-Zweig.
+                        # Der Kanalname steht als Literal im f-String (nicht in
+                        # einer Hilfsvariable), damit er auch bei statischer
+                        # Analyse des Quelltextes sichtbar bleibt.
                         _print_mac(f"  {half_tag} SCH/HD-FACCH", mac, info_bits, verbose)
                         if mac.get('type') == 0 and not mac.get('is_null_pdu'):
                             pstart = mac.get('payload_start', 0)
                             if pstart + 4 < len(info_bits):
                                 llc = parse_llc(info_bits, pstart)
-                                _print_llc("    LLC", llc)
+                                _print_llc(f"    {half_tag} SCH/HD-FACCH LLC", llc)
                                 if 'payload_start' in llc and llc['payload_start'] + 3 < len(info_bits):
                                     if llc.get('llc_type') == 14:
                                         direct_mm = parse_direct_mm(info_bits, llc['payload_start'])
-                                        _print_direct_mm("    DirectMM", direct_mm)
+                                        _print_direct_mm(f"    {half_tag} SCH/HD-FACCH DirectMM", direct_mm)
                                     else:
                                         mle = parse_mle(info_bits, llc['payload_start'])
-                                        _print_mle("    MLE", mle)
+                                        _print_mle(f"    {half_tag} SCH/HD-FACCH MLE", mle)
                     else:
                         n_ndb_fail += 1
                         bad_burst_counter += 0.5
@@ -2108,7 +2139,13 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                     n_ndb_fail += 1
 
                 def _parse_full_stack(prefix, mac, info_bits):
-                    """LLC → MLE → CMCE/MM parse, same as NDB1 SCH/F path."""
+                    """LLC → MLE → CMCE/MM parse, same as NDB1 SCH/F path.
+
+                    `prefix` ist die Blockkennung "BKNn <Kanal>" (z.B.
+                    "BKN1 SCH/HD"). Sie ist identisch mit der Kennung der
+                    MAC-Zeile desselben Blocks; Format siehe Kommentar im
+                    SCH/F-Zweig.
+                    """
                     if mac.get('type') == 0 and not mac.get('is_null_pdu'):
                         pstart = mac.get('payload_start', 0)
                         if pstart + 4 < len(info_bits):
@@ -2125,7 +2162,7 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                 if crc1:
                     mac1 = parse_mac_pdu(info1, 124)
                     _print_mac("  BKN1 SCH/HD", mac1, info1, verbose)
-                    _parse_full_stack("BKN1", mac1, info1)
+                    _parse_full_stack("BKN1 SCH/HD", mac1, info1)
                 else:
                     print("  BKN1 SCH/HD CRC FAIL")
                     bad_burst_counter += 0.25
@@ -2140,7 +2177,9 @@ def decode_dl(filename, sample_rate=2048000, freq_offset=0.0,
                     else:
                         mac2 = parse_mac_pdu(info2, 124)
                         _print_mac(f"  {bkn2_tag}", mac2, info2, verbose)
-                        _parse_full_stack("BKN2", mac2, info2)
+                        # bkn2_tag ist hier immer "BKN2 SCH/HD" (der BNCH-Fall
+                        # laeuft oben und hat keine PDU-Kette).
+                        _parse_full_stack("BKN2 SCH/HD", mac2, info2)
                 else:
                     print(f"  {bkn2_tag} CRC FAIL")
                     bad_burst_counter += 0.25

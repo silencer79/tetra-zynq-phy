@@ -1,0 +1,163 @@
+# decoder_prefix_cases.txt — Selbsttest fuer die Blockkennung der Schichtzeilen
+#
+# WOZU
+#   Nachweis, dass die Aggregatormuster in scripts/parse_reference_decode.py
+#   die Ausgabezeilen von scripts/decode_dl.py wirklich treffen - und dass die
+#   Muster VOR dem Fix an genau diesen Zeilen gescheitert waeren.
+#   Hintergrund: zwei Fehler liessen PDUs, die auf der Luft waren, nie in der
+#   Auswertung ankommen (SCH/HD-FACCH-MAC-Zeile, Schichtzeilen aus dem
+#   Halbschlitz-Zweig). Messwerkzeug: scripts/gold_coverage.py.
+#
+# PRUEFAUFRUF
+#   python3 scripts/check_decoder_prefix_cases.py
+#   (ohne Argumente; liest diese Datei und zieht die aktuellen Muster per AST
+#    aus scripts/parse_reference_decode.py. Rueckgabewert 0 = alle Faelle wie
+#    erwartet, 1 = Abweichung. Mit -v werden alle Faelle einzeln gelistet.)
+#
+# DATEIFORMAT
+#   Ein Fall = ein Block aus "key: value"-Zeilen, Bloecke durch Leerzeilen
+#   getrennt. '#' am Zeilenanfang ist Kommentar.
+#     case        Kurzname des Falls
+#     src         Herkunft der Zeile (Beleg, dass sie echt ist)
+#     pattern     Name des Aggregatormusters, das greifen soll
+#     expect_new  match | nomatch  — Verhalten der HEUTIGEN Muster
+#     expect_old  match | nomatch  — Verhalten der Muster VOR dem Fix
+#     expect      optional: "gruppe=wert" je Gruppe, mehrfach erlaubt,
+#                 komma-getrennt. Wert '-' bedeutet: Gruppe ist None.
+#     line        die Decoderzeile. ALLES nach "line:" ist Nutzdaten,
+#                 Zeichen fuer Zeichen, inklusive der fuehrenden Leerzeichen.
+#                 Die Einrueckung ist bedeutungstragend (die Muster verankern
+#                 auf ^\s+), sie darf nicht "aufgeraeumt" werden.
+#
+# HERKUNFT DER ZEILEN
+#   probe_after   Lauf des GEPATCHTEN Decoders:
+#                 python3 scripts/decode_dl.py \
+#                   wavs/reference/DL_baseband_392987000Hz_16-49-07_21-06-2026.wav \
+#                   --sr 250000 --max-bursts 1500 --dump-burst -3
+#   probe_before  derselbe Lauf mit dem Decoder VOR dem Fix (Altformat).
+#   facch_forced  Diese Aufzeichnung enthaelt kein Kanalstehlen (0 Treffer in
+#                 2951 Bursts), der FACCH-Zweig laeuft also nie an. Die drei
+#                 FACCH-Zeilen sind deshalb mit den ECHTEN Druckern des
+#                 Decoders (_print_mac/_print_llc/_print_mle) und mit ECHTEN
+#                 Luft-Infobits erzeugt (bkn1_info_124b von Burst idx=6144 aus
+#                 docs/reference_decode/dl_events.jsonl, 124 bit SCH/HD).
+#                 Erzwungen ist nur der Zweig, nicht der Zeileninhalt.
+
+case: schf_llc
+src: probe_after Zeile 515
+pattern: LLC_LINE
+expect_new: match
+expect_old: nomatch
+expect: blk=SCH/F, body=BL-UDATA
+line:    SCH/F LLC  BL-UDATA
+
+case: schf_llc_adata
+src: probe_after Zeile 10116
+pattern: LLC_LINE
+expect_new: match
+expect_old: nomatch
+expect: blk=SCH/F, body=BL-ADATA NR=1 NS=0
+line:    SCH/F LLC  BL-ADATA NR=1 NS=0
+
+case: schf_mle_mle
+src: probe_after Zeile 516
+pattern: MLE_LINE
+expect_new: match
+expect_old: nomatch
+expect: blk=SCH/F, disc=MLE
+line:    SCH/F MLE  disc=MLE → D-NWRK-BROADCAST
+
+case: schf_mle_cmce
+src: probe_after Zeile 10117
+pattern: MLE_LINE
+expect_new: match
+expect_old: nomatch
+expect: blk=SCH/F, disc=CMCE
+line:    SCH/F MLE  disc=CMCE → D-CALL-PROCEEDING
+
+case: schhd_bkn1_llc_alsetup
+src: probe_after Zeile 31
+pattern: LLC_LINE
+expect_new: match
+expect_old: nomatch
+expect: blk=BKN1 SCH/HD, body=AL-SETUP
+line:    BKN1 SCH/HD LLC  AL-SETUP
+
+case: schhd_bkn1_llc_bldata
+src: probe_after Zeile 10223
+pattern: LLC_LINE
+expect_new: match
+expect_old: nomatch
+expect: blk=BKN1 SCH/HD, body=BL-DATA NS=1
+line:    BKN1 SCH/HD LLC  BL-DATA NS=1
+
+case: schhd_bkn1_mle_cmce
+src: probe_after Zeile 10224
+pattern: MLE_LINE
+expect_new: match
+expect_old: nomatch
+expect: blk=BKN1 SCH/HD, disc=CMCE
+line:    BKN1 SCH/HD MLE  disc=CMCE → D-ALERT
+
+case: facch_mac
+src: facch_forced (Luftbits Burst idx=6144)
+pattern: SCHHD_MAC
+expect_new: match
+expect_old: nomatch
+expect: bkn=1, chan=FACCH, pdu=MAC-RESOURCE
+line:  BKN1 SCH/HD-FACCH  MAC-RESOURCE  addr=SSI ID=3100004 LI=9 (9 octets)
+
+case: facch_llc
+src: facch_forced (Luftbits Burst idx=6144)
+pattern: LLC_LINE
+expect_new: match
+expect_old: nomatch
+expect: blk=BKN1 SCH/HD-FACCH, body=BL-UDATA
+line:    BKN1 SCH/HD-FACCH LLC  BL-UDATA
+
+case: facch_mle
+src: facch_forced (Luftbits Burst idx=6144)
+pattern: MLE_LINE
+expect_new: match
+expect_old: nomatch
+expect: blk=BKN1 SCH/HD-FACCH, disc=CMCE
+line:    BKN1 SCH/HD-FACCH MLE  disc=CMCE → D-TX-CEASED
+
+# --- Regressionswaechter: was vorher schon getroffen wurde, trifft weiter ---
+
+case: schhd_bkn1_mac_plain
+src: probe_after Zeile 10221
+pattern: SCHHD_MAC
+expect_new: match
+expect_old: match
+expect: bkn=1, chan=-, pdu=MAC-RESOURCE
+line:  BKN1 SCH/HD  MAC-RESOURCE  addr=SSI ID=2633716 LI=11 (11 octets)
+
+case: altformat_llc_ohne_praefix
+src: probe_before Zeile 515 (Decoder VOR dem Fix)
+pattern: LLC_LINE
+expect_new: match
+expect_old: match
+expect: blk=-, body=BL-UDATA
+line:    LLC  BL-UDATA
+
+case: altformat_mle_ohne_praefix
+src: probe_before Zeile 516 (Decoder VOR dem Fix)
+pattern: MLE_LINE
+expect_new: match
+expect_old: match
+expect: blk=-, disc=MLE
+line:    MLE  disc=MLE → D-NWRK-BROADCAST
+
+# --- Gegenprobe: Blockkennung OHNE Kanalnamen ist keine Zuordnung ---
+# Das ist genau die Zeile, die der Decoder vor dem Fix im Halbschlitz-Zweig
+# ausgab. Sie bleibt absichtlich unerkannt: "BKN1" allein sagt nicht, ob es
+# SCH/HD-Signalisierung oder eine gestohlene FACCH-Haelfte war. Auf dieser
+# Unterscheidung beruht auch Fall 3 des Selbsttests von gold_coverage.py.
+
+case: bare_bkn_ohne_kanal
+src: probe_before Zeile 31 (Decoder VOR dem Fix)
+pattern: LLC_LINE
+expect_new: nomatch
+expect_old: nomatch
+line:    BKN1 LLC  AL-SETUP

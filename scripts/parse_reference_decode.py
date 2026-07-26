@@ -119,12 +119,32 @@ DL_INLINE_AACH = re.compile(r'AACH\s+\[(?P<kind>[^\]]+)\]\s*(?P<rest>.*)$')
 RAW_LINE = re.compile(r'^\s+ROUNDTRIP_DUMP(?:_SB|_HD|_AACH)?\s+(\S+)=(\S+)')
 SB1CRC = re.compile(r'^SB1 CRC OK \[TMO\] MCC=(\d+) MNC=(\d+) CC=(\d+) FN\(air\)=(\d+) MF\(air\)=(\d+) TN\(air\)=(\d+)')
 SCHF_MAC = re.compile(r'^\s*SCH/F\s+(MAC-\S+)\s+addr=(\S+)(?:\s+ID=(-?\d+))?(?:\s+LI=(\d+))?')
-SCHHD_MAC = re.compile(r'^\s*BKN(\d)\s+SCH/HD\s+(MAC-\S+)(?:\s+(.+))?')
+# BKNn SCH/HD  <MAC-PDU> ...   und, bei Kanalstehlen, BKNn SCH/HD-FACCH  <MAC-PDU>
+# Der Kanalzusatz ("-FACCH") wird als eigene Gruppe erfasst statt das Muster
+# scheitern zu lassen (decode_dl.py: FACCH-Stealing-Zweig im NDB1-Pfad).
+SCHHD_MAC = re.compile(
+    r'^\s*BKN(?P<bkn>\d)\s+SCH/HD(?:-(?P<chan>\S+))?\s+(?P<pdu>MAC-\S+)'
+    r'(?:\s+(?P<rest>.+))?')
 BKN_BCAST = re.compile(r'^\s*BKN(\d)?\s+(MAC-BROADCAST)\s+sub=(\S+)')
-LLC_LINE = re.compile(r'^\s+LLC\s+(.+)$')
-MLE_LINE = re.compile(r'^\s+MLE\s+disc=(\S+)(?:\s+(.+))?$')
-CMCE_LINE = re.compile(r'^\s+CMCE\s+(.+)$')
-MM_LINE = re.compile(r'^\s+MM\s+(.+)$')
+# Blockkennung vor dem Schichtnamen, so wie decode_dl.py sie setzt:
+# optional "BKNn" + IMMER die Kanalkennung (SCH/F, SCH/HD, SCH/HD-FACCH, BNCH).
+# Sie sagt, welcher Block des Bursts die PDU getragen hat, und wird als Feld
+# "blk" in die Ereignisdatei uebernommen. Die Gruppe ist optional, damit
+# aeltere praefixlose Logs weiter gelesen werden koennen (blk = None).
+# Eine reine Blockkennung ohne Kanal ("BKN1 LLC") gilt NICHT als Zuordnung -
+# sie laesst offen, ob SCH/HD-Signalisierung oder gestohlene FACCH-Haelfte.
+LLC_LINE = re.compile(
+    r'^\s+(?:(?P<blk>(?:BKN\d\s+)?(?:SCH/\S+|BNCH))\s+)?'
+    r'LLC\s+(?P<body>.+)$')
+MLE_LINE = re.compile(
+    r'^\s+(?:(?P<blk>(?:BKN\d\s+)?(?:SCH/\S+|BNCH))\s+)?'
+    r'MLE\s+disc=(?P<disc>\S+)(?:\s+(?P<msg>.+))?$')
+CMCE_LINE = re.compile(
+    r'^\s+(?:(?P<blk>(?:BKN\d\s+)?(?:SCH/\S+|BNCH))\s+)?'
+    r'CMCE\s+(?P<body>.+)$')
+MM_LINE = re.compile(
+    r'^\s+(?:(?P<blk>(?:BKN\d\s+)?(?:SCH/\S+|BNCH))\s+)?'
+    r'MM\s+(?P<body>.+)$')
 
 
 def _new_dl_event(m):
@@ -219,8 +239,12 @@ def parse_dl():
                 continue
             mr = SCHHD_MAC.match(line)
             if mr:
-                cur['mac'].append({'fmt': 'SCH/HD', 'bkn': int(mr.group(1)),
-                                   'pdu': mr.group(2), 'rest': mr.group(3)})
+                # Kanalzusatz -> fmt "SCH/HD-FACCH"; ohne Zusatz bleibt "SCH/HD"
+                # (Feldwert unveraendert gegenueber der Vorversion).
+                chan = mr.group('chan')
+                cur['mac'].append({'fmt': 'SCH/HD-' + chan if chan else 'SCH/HD',
+                                   'bkn': int(mr.group('bkn')), 'chan': chan,
+                                   'pdu': mr.group('pdu'), 'rest': mr.group('rest')})
                 continue
             mr = BKN_BCAST.match(line)
             if mr:
@@ -228,19 +252,20 @@ def parse_dl():
                 continue
             mr = LLC_LINE.match(line)
             if mr:
-                cur['llc'].append(mr.group(1))
+                cur['llc'].append({'blk': mr.group('blk'), 'text': mr.group('body')})
                 continue
             mr = MLE_LINE.match(line)
             if mr:
-                cur['mle'].append({'disc': mr.group(1), 'msg': mr.group(2) or ''})
+                cur['mle'].append({'blk': mr.group('blk'), 'disc': mr.group('disc'),
+                                   'msg': mr.group('msg') or ''})
                 continue
             mr = CMCE_LINE.match(line)
             if mr:
-                cur['cmce'].append(mr.group(1))
+                cur['cmce'].append({'blk': mr.group('blk'), 'text': mr.group('body')})
                 continue
             mr = MM_LINE.match(line)
             if mr:
-                cur['mm'].append(mr.group(1))
+                cur['mm'].append({'blk': mr.group('blk'), 'text': mr.group('body')})
                 continue
             if 'Carrier=' in line and 'DL=' in line:
                 cur['sysinfo'] = line.strip()
@@ -418,6 +443,29 @@ def build_dl_time(dl):
 # =============================================================================
 # Pretty-print helpers
 # =============================================================================
+def _blk_label(entry):
+    """Blockkennung eines Schicht-Eintrags als "[BKN1 SCH/HD] " oder "" (leer).
+
+    Akzeptiert das Altformat (reiner String ohne Blockbezug) genauso wie das
+    neue dict {'blk': ..., 'text': ...}.
+    """
+    if isinstance(entry, dict) and entry.get('blk'):
+        return f"[{entry['blk']}] "
+    return ''
+
+
+def _llc_label(entry):
+    """LLC-Eintrag lesbar: "[BKN1 SCH/HD] BL-ADATA NR=0 NS=1"."""
+    if isinstance(entry, dict):
+        return _blk_label(entry) + str(entry.get('text', ''))
+    return str(entry)
+
+
+def _mle_label(m):
+    """MLE-Eintrag lesbar: "[SCH/F] disc=MM → D-LOC-UPD-ACCEPT"."""
+    return f"{_blk_label(m)}disc={m.get('disc', '?')} {m.get('msg', '')}".rstrip()
+
+
 def _addr_label(m):
     parts = [m.get('pdu', '?')]
     if m.get('fmt'):
@@ -503,6 +551,17 @@ WAV → wav_to_dibits → π/4-DQPSK soft → STS/NTS/x-seq sync → cell lock
 | [ul_full.md](./ul_full.md) | Jeder UL-Burst, alle Layer + MAC-ACCESS Decode |
 | [action_reaction.md](./action_reaction.md) | UL-Action ↔ DL-Reaction Zeit-korreliert (Slot-Time) |
 | `dl_events.jsonl` / `ul_events.jsonl` | machine-readable JSONL pro Burst |
+
+### Blockbezug der Schichteintraege (DL)
+
+Ein Burst traegt bis zu zwei unabhaengige PDU-Ketten (NDB2 = BKN1 + BKN2,
+NDB1 mit Kanalstehlen = Sprache + gestohlene SCH/HD-Haelfte). Jeder Eintrag
+in `llc` / `mle` / `cmce` / `mm` fuehrt deshalb das Feld `blk` mit der
+Blockkennung des Blocks, der die PDU getragen hat:
+`SCH/F`, `BKN1 SCH/HD`, `BKN2 SCH/HD`, `BKN1 SCH/HD-FACCH` (`null` = aus
+einem Log im alten praefixlosen Format gelesen). In `mac` steht dieselbe
+Information in `fmt` (`SCH/HD` vs. `SCH/HD-FACCH`) plus `bkn` und `chan`.
+In den Markdown-Dateien erscheint sie als `[BKN1 SCH/HD]` vor dem PDU-Namen.
 
 ## Reproduce
 
@@ -657,13 +716,13 @@ def write_dl_full(dl, dl_time):
                 for m in ev['mac']:
                     f.write(f'- MAC: {_addr_label(m)}\n')
                 for l in ev['llc']:
-                    f.write(f'- LLC: {l}\n')
+                    f.write(f'- LLC: {_llc_label(l)}\n')
                 for m in ev['mle']:
-                    f.write(f'- MLE: disc={m["disc"]} {m["msg"]}\n')
+                    f.write(f'- MLE: {_mle_label(m)}\n')
                 for c in ev['cmce']:
-                    f.write(f'- CMCE: {c}\n')
+                    f.write(f'- CMCE: {_llc_label(c)}\n')
                 for m in ev['mm']:
-                    f.write(f'- MM: {m}\n')
+                    f.write(f'- MM: {_llc_label(m)}\n')
 
             # --- NDB2 SCH/HD: 2 separate BKN K=216 chains ---
             elif ev['type'] == 'NDB2':
@@ -690,13 +749,13 @@ def write_dl_full(dl, dl_time):
                 for m in ev['mac']:
                     f.write(f'- MAC: {_addr_label(m)}\n')
                 for l in ev['llc']:
-                    f.write(f'- LLC: {l}\n')
+                    f.write(f'- LLC: {_llc_label(l)}\n')
                 for m in ev['mle']:
-                    f.write(f'- MLE: disc={m["disc"]} {m["msg"]}\n')
+                    f.write(f'- MLE: {_mle_label(m)}\n')
                 for c in ev['cmce']:
-                    f.write(f'- CMCE: {c}\n')
+                    f.write(f'- CMCE: {_llc_label(c)}\n')
                 for m in ev['mm']:
-                    f.write(f'- MM: {m}\n')
+                    f.write(f'- MM: {_llc_label(m)}\n')
                 if ev['sysinfo']:
                     f.write(f'- SYSINFO: {ev["sysinfo"]}\n')
 
@@ -874,8 +933,9 @@ def build_action_reaction(dl, ul, dl_time):
             for d, t, dt in cands:
                 slot = f"TN{d['tn']} FN{d['fn']:02d} MN{d['mn']:02d}"
                 mac = '; '.join(_addr_label(m) for m in d['mac'][:1])
-                llc = '; '.join(d['llc'][:1]) if d['llc'] else '—'
-                mle = '; '.join(f"{m.get('disc', '?')}→{m.get('msg', '?')}" for m in d['mle'][:1]) if d['mle'] else '—'
+                llc = '; '.join(_llc_label(l) for l in d['llc'][:1]) if d['llc'] else '—'
+                mle = '; '.join(f"{_blk_label(m)}{m.get('disc', '?')}→{m.get('msg', '?')}"
+                                for m in d['mle'][:1]) if d['mle'] else '—'
                 f.write(f'- DL #{d["idx"]} dl_t={t:.3f}s (Δ={dt*1000:+.0f} ms) {slot} · MAC: {mac} · LLC: {llc} · {mle}\n')
             f.write('\n')
 
